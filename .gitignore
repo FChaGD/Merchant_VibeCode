@@ -1,0 +1,66 @@
+# ── Unity 자동 생성 / 캐시 ──
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+[Uu]serSettings/
+
+# ── Unity 빌드 산출물 ──
+*.apk
+*.aab
+*.ipa
+*.app
+*.unitypackage
+
+# ── Addressables (사용 시) ──
+/[Aa]ssets/[Aa]ddressableAssetsData/*/*.bin*
+/[Aa]ssets/[Ss]treamingAssets/aa.meta
+/[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# ── 개인 에디터 / IDE 설정 ──
+.vs/
+.vscode/
+.idea/
+.consulo/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# ── Rider 연동 / Android 빌드 캐시 ──
+[Aa]ssets/Plugins/Editor/JetBrains*
+.gradle/
+ExportedObj/
+
+# ── Unity 크래시 / 진단 파일 ──
+sysinfo.txt
+crashlytics-build.properties
+
+# ── OS 생성 파일 ──
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ── 오피스(Word/Excel 등) 임시 잠금 파일 ──
+~$*
+
+# ── 편집기 백업 / 스왑 파일 ──
+*.orig
+*~
+
+# ── meta 파일은 반드시 포함 (강제 예외) ──
+!/[Aa]ssets/**/*.meta
