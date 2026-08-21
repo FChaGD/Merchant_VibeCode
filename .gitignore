@@ -62,5 +62,8 @@ Desktop.ini
 *.orig
 *~
 
+# ── 기획 문서 (버전관리 제외) ──
+/Docs/
+
 # ── meta 파일은 반드시 포함 (강제 예외) ──
 !/[Aa]ssets/**/*.meta
