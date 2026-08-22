@@ -6,9 +6,9 @@ using UnityEngine;
 namespace Game.Core.Editor
 {
     /// <summary>
-    /// 매니저 8개(DependencyManager, SceneLoader 포함) 하이어라키를 코드로 생성/동기화한다.
-    /// 씬 YAML 수작업 편집 대신 이 도구로 재현 가능하게 만든다. 이미 존재하는 오브젝트는 재사용하며
-    /// DependencyManager의 managedComponents 목록만 항상 최신 상태로 재동기화한다.
+    /// 매니저 하이어라키(DependencyManager, SceneLoader, 배치 UI 팔레트용 임시 로스터 제공자 포함)를
+    /// 코드로 생성/동기화한다. 씬 YAML 수작업 편집 대신 이 도구로 재현 가능하게 만든다. 이미 존재하는
+    /// 오브젝트는 재사용하며 DependencyManager의 managedComponents 목록만 항상 최신 상태로 재동기화한다.
     /// </summary>
     public static class ManagerHierarchyInstaller
     {
@@ -35,6 +35,14 @@ namespace Game.Core.Editor
             EnsureSiblingComponent<HubUIController>(uiManager.gameObject);
             EnsureSiblingComponent<FormationPanel>(uiManager.gameObject);
 
+            // 상행 관리 데이터 시스템이 아직 없어, 배치 UI 팔레트 테스트용 임시 로스터 제공자를 등록한다.
+            // 실제 데이터 시스템이 생기면 이 매니저와 아이콘 생성 로직을 함께 제거한다.
+            var placeholderRosterProvider = GetOrCreateManager<PlaceholderCaravanRosterProvider>(root.transform, "PlaceholderCaravanRosterProvider");
+            WirePlaceholderRosterIcons(placeholderRosterProvider);
+
+            // 배치 UI의 "적용" 버튼이 반영할 대상 - 현재 플레이 세션 동안만 유지되는 인메모리 저장소.
+            var formationRepository = GetOrCreateManager<InMemoryFormationRepository>(root.transform, "InMemoryFormationRepository");
+
             SyncManagedComponents(dependencyManager, new MonoBehaviour[]
             {
                 gameManager,
@@ -44,6 +52,8 @@ namespace Game.Core.Editor
                 aiManager,
                 encounterManager,
                 sceneLoader,
+                placeholderRosterProvider,
+                formationRepository,
             });
 
             EditorSceneManager.MarkSceneDirty(root.scene);
@@ -85,6 +95,15 @@ namespace Game.Core.Editor
         {
             var existing = go.GetComponent<T>();
             return existing != null ? existing : Undo.AddComponent<T>(go);
+        }
+
+        private static void WirePlaceholderRosterIcons(PlaceholderCaravanRosterProvider provider)
+        {
+            var serializedProvider = new SerializedObject(provider);
+            serializedProvider.FindProperty("characterIcon").objectReferenceValue = FormationPlaceholderIcons.GetOrCreateSquare();
+            serializedProvider.FindProperty("wagonIcon").objectReferenceValue = FormationPlaceholderIcons.GetOrCreateTriangle();
+            serializedProvider.FindProperty("facilityIcon").objectReferenceValue = FormationPlaceholderIcons.GetOrCreateCircle();
+            serializedProvider.ApplyModifiedProperties();
         }
 
         private static void SyncManagedComponents(DependencyManager dependencyManager, MonoBehaviour[] managedComponents)

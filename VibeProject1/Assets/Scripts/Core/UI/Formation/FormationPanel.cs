@@ -9,9 +9,9 @@ namespace Game.Core
 {
     /// <summary>
     /// Hub 씬의 배치(Formation) UI를 조율한다. 팔레트/그리드/정보패널 사이의 드래그 앤 드롭 상호작용과
-    /// 세션 중 배치 상태(FormationLayout)를 소유하며, 저장 버튼을 눌렀을 때만 IFormationRepository에 반영한다.
-    /// 저장 없이 닫으면 세션 상태를 그냥 버린다 — 다음에 열 때 항상 repository에서 다시 불러오므로
-    /// 별도의 되돌리기 로직 없이 "마지막 저장 상태로 복귀"가 성립한다.
+    /// 세션 중 배치 상태(FormationLayout)를 소유하며, 적용 버튼을 눌렀을 때만 IFormationRepository에 반영한다.
+    /// 적용 없이 닫으면 세션 상태를 그냥 버린다 — 다음에 열 때 항상 repository에서 다시 불러오므로
+    /// 별도의 되돌리기 로직 없이 "마지막 적용 상태로 복귀"가 성립한다.
     /// </summary>
     public class FormationPanel : MonoBehaviour, IFormationPanel
     {
@@ -23,7 +23,8 @@ namespace Game.Core
         private FormationPaletteView paletteView;
         private FormationGridView gridView;
         private FormationInfoPanelView infoPanelView;
-        private Button saveButton;
+        private FormationGridDebugView debugView;
+        private Button applyButton;
         private Button closeButton;
         private Canvas rootCanvas;
 
@@ -73,8 +74,8 @@ namespace Game.Core
 
             rootCanvas = panelRoot.GetComponentInParent<Canvas>()?.rootCanvas;
 
-            saveButton.onClick.RemoveAllListeners();
-            saveButton.onClick.AddListener(HandleSave);
+            applyButton.onClick.RemoveAllListeners();
+            applyButton.onClick.AddListener(HandleApply);
 
             closeButton.onClick.RemoveAllListeners();
             closeButton.onClick.AddListener(Close);
@@ -109,9 +110,9 @@ namespace Game.Core
                 return false;
             }
 
-            if (!sceneUIRoot.TryGetElement<Button>(FormationUIElementIds.SaveButton, out saveButton))
+            if (!sceneUIRoot.TryGetElement<Button>(FormationUIElementIds.ApplyButton, out applyButton))
             {
-                WarnMissing(FormationUIElementIds.SaveButton);
+                WarnMissing(FormationUIElementIds.ApplyButton);
                 return false;
             }
 
@@ -120,6 +121,9 @@ namespace Game.Core
                 WarnMissing(FormationUIElementIds.CloseButton);
                 return false;
             }
+
+            // 디버그 패널은 보조 기능이라 없어도 나머지 배치 UI는 정상 동작해야 한다 - 없으면 조용히 건너뛴다.
+            sceneUIRoot.TryGetElement<FormationGridDebugView>(FormationUIElementIds.DebugPanelRoot, out debugView);
 
             return true;
         }
@@ -150,6 +154,7 @@ namespace Game.Core
 
             RefreshAllSlots();
             infoPanelView.Clear();
+            debugView?.Initialize(gridView.ColumnCount, gridView.RowCount, gridView.SlotSize, HandleDebugApply);
 
             panelRoot.SetActive(true);
         }
@@ -165,17 +170,18 @@ namespace Game.Core
         }
 
         /// <summary>
-        /// 슬롯 개수를 런타임에 조절한다(디버깅 UI 연동 지점). 기존 배치는 가능한 범위까지 유지한다.
+        /// 열(X)/행(Y) 수를 런타임에 조절한다(디버깅 UI 연동 지점). 기존 배치는 가능한 범위까지 유지한다.
         /// </summary>
-        public void ResizeSlots(int slotCount)
+        public void ResizeGrid(int columns, int rows)
         {
             if (gridView == null || currentLayout == null)
             {
                 return;
             }
 
-            gridView.SetSlotCount(slotCount);
+            gridView.SetGridDimensions(columns, rows);
 
+            var slotCount = Mathf.Max(0, columns) * Mathf.Max(0, rows);
             var resized = new FormationLayout(slotCount);
             var copyCount = Mathf.Min(slotCount, currentLayout.SlotCount);
             for (var i = 0; i < copyCount; i++)
@@ -185,6 +191,21 @@ namespace Game.Core
 
             currentLayout = resized;
             RefreshAllSlots();
+        }
+
+        /// <summary>
+        /// 타일 1칸의 가로/세로 크기를 런타임에 조절한다(디버깅 UI 연동 지점).
+        /// </summary>
+        public void ResizeSlotSize(Vector2 size)
+        {
+            gridView?.SetSlotSize(size);
+        }
+
+        private void HandleDebugApply(int columns, int rows, Vector2 size)
+        {
+            // 크기를 먼저 반영해야 열/행 변경으로 새로 생성되는 타일도 같은 크기로 만들어진다.
+            ResizeSlotSize(size);
+            ResizeGrid(columns, rows);
         }
 
         private FormationLayout BuildInitialLayout()
@@ -205,15 +226,15 @@ namespace Game.Core
             return new FormationLayout(slotCount);
         }
 
-        private void HandleSave()
+        private void HandleApply()
         {
             if (repository == null)
             {
-                Debug.LogWarning($"{nameof(IFormationRepository)}가 연결되어 있지 않아 배치를 저장하지 못했다.");
+                Debug.LogWarning($"{nameof(IFormationRepository)}가 연결되어 있지 않아 배치를 상행에 적용하지 못했다.");
                 return;
             }
 
-            repository.Save(currentLayout.Clone());
+            repository.Apply(currentLayout.Clone());
         }
 
         private void HandlePaletteIconClicked(IFormationUnit unit) => infoPanelView.Show(unit);
@@ -279,10 +300,18 @@ namespace Game.Core
                 dragGhost.gameObject.SetActive(false);
             }
 
-            if (!dropHandled && draggedFromSlot.HasValue)
+            if (draggedFromSlot.HasValue)
             {
-                // 타일/팔레트가 아닌 곳에 드롭 = 배치 취소(슬롯 비움).
-                currentLayout.Clear(draggedFromSlot.Value);
+                if (!dropHandled)
+                {
+                    // 타일/팔레트가 아닌 곳에 드롭 = 배치 취소(슬롯 비움).
+                    currentLayout.Clear(draggedFromSlot.Value);
+                }
+
+                // 원본 슬롯의 아이콘 파괴/갱신은 반드시 여기(드래그가 실제로 끝나는 시점)에서 한다.
+                // OnDrop 시점(HandleSlotDropped)에는 이 아이콘이 아직 드래그 중인 오브젝트라, 거기서
+                // 파괴하면 뒤이은 OnEndDrag 호출이 씹혀 드래그 상태가 초기화되지 않는 문제가 있었다
+                // (고스트가 안 사라지고, 다음 드래그에 이전 유닛/슬롯 정보가 남아 엉뚱하게 재배치됨).
                 RefreshSlot(draggedFromSlot.Value);
             }
 
@@ -318,7 +347,8 @@ namespace Game.Core
                     currentLayout.Swap(sourceIndex, targetSlotIndex);
                 }
 
-                RefreshSlot(sourceIndex);
+                // sourceIndex는 아직 드래그 중인 아이콘이 점유하고 있으므로 여기서 파괴하지 않는다.
+                // 실제 갱신은 드래그가 끝나는 HandleIconEndDrag에서 처리한다.
                 RefreshSlot(targetSlotIndex);
             }
             else

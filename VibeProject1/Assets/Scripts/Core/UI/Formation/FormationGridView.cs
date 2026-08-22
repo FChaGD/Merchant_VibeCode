@@ -7,20 +7,21 @@ using UnityEngine.UI;
 namespace Game.Core
 {
     /// <summary>
-    /// 배치 UI의 그리드 타일 영역. 슬롯 개수는 인스펙터 또는 SetSlotCount로 조절 가능하며,
-    /// 화면 밖 슬롯은 ScrollRect와 좌우 버튼으로 탐색한다. 실제 배치 데이터(FormationLayout)는
-    /// FormationPanel이 소유하며, 이 클래스는 렌더링과 드래그/드롭 이벤트 중계만 담당한다.
+    /// 배치 UI의 그리드 타일 영역. 정사각형 타일이 X열 x Y행으로 틈 없이 붙어 배치되며, 열/행 수와
+    /// 타일 크기는 인스펙터 또는 SetGridDimensions/SetSlotSize로 조절 가능하다. 화면 밖 타일은
+    /// (Grid 루트에 붙은) ScrollRect의 드래그로 가로/세로 모두 이동해 볼 수 있다. 실제 배치 데이터
+    /// (FormationLayout)는 FormationPanel이 소유하며, 이 클래스는 렌더링과 드래그/드롭 이벤트 중계만 담당한다.
     /// </summary>
     public class FormationGridView : MonoBehaviour
     {
         [SerializeField] private Transform slotContent;
+        [SerializeField] private GridLayoutGroup slotLayoutGroup;
         [SerializeField] private FormationSlotView slotPrefab;
         [SerializeField] private FormationUnitIconView occupantIconPrefab;
-        [SerializeField, Min(0)] private int slotCount = 8;
-        [SerializeField] private ScrollRect scrollRect;
-        [SerializeField] private Button scrollLeftButton;
-        [SerializeField] private Button scrollRightButton;
-        [SerializeField] private float scrollStep = 0.2f;
+        [SerializeField, Min(0)] private int columnCount = 8;
+        [SerializeField, Min(0)] private int rowCount = 2;
+        [SerializeField] private Vector2 slotSize = new(120f, 120f);
+        [SerializeField, Min(0)] private int overscrollTileMargin = 5;
 
         private readonly List<FormationSlotView> slots = new();
 
@@ -30,7 +31,10 @@ namespace Game.Core
         private Action<PointerEventData> onIconDrag;
         private Action<PointerEventData> onIconEndDrag;
 
-        public int SlotCount => slotCount;
+        public int ColumnCount => columnCount;
+        public int RowCount => rowCount;
+        public int SlotCount => columnCount * rowCount;
+        public Vector2 SlotSize => slotSize;
 
         public void Initialize(
             Action<int> slotDropped,
@@ -46,27 +50,26 @@ namespace Game.Core
             onIconEndDrag = iconEndDrag;
 
             RebuildSlots();
-
-            if (scrollLeftButton != null)
-            {
-                scrollLeftButton.onClick.RemoveAllListeners();
-                scrollLeftButton.onClick.AddListener(() => Scroll(-scrollStep));
-            }
-
-            if (scrollRightButton != null)
-            {
-                scrollRightButton.onClick.RemoveAllListeners();
-                scrollRightButton.onClick.AddListener(() => Scroll(scrollStep));
-            }
         }
 
         /// <summary>
-        /// 슬롯 개수를 런타임에 조절한다(디버깅 UI 연동 지점). 배치 데이터 재정렬은 호출자(FormationPanel)의 책임이다.
+        /// 열(X)/행(Y) 수를 런타임에 조절한다(디버깅 UI 연동 지점). 배치 데이터 재정렬은 호출자(FormationPanel)의 책임이다.
         /// </summary>
-        public void SetSlotCount(int count)
+        public void SetGridDimensions(int columns, int rows)
         {
-            slotCount = Mathf.Max(0, count);
+            columnCount = Mathf.Max(0, columns);
+            rowCount = Mathf.Max(0, rows);
             RebuildSlots();
+        }
+
+        /// <summary>
+        /// 타일 1칸의 가로/세로 크기를 런타임에 조절한다(디버깅 UI 연동 지점). 정사각형을 기본으로 하되,
+        /// 값 자체는 자유롭게 지정할 수 있다.
+        /// </summary>
+        public void SetSlotSize(Vector2 size)
+        {
+            slotSize = size;
+            ApplyLayoutSettings();
         }
 
         public void RenderSlot(int index, IFormationUnit unit)
@@ -125,22 +128,37 @@ namespace Game.Core
                 return;
             }
 
-            for (var i = 0; i < slotCount; i++)
+            // GridLayoutGroup은 자식을 채우는 순서대로 좌→우, 위→아래로 배치한다(row-major).
+            for (var row = 0; row < rowCount; row++)
             {
-                var slot = Instantiate(slotPrefab, slotContent);
-                slot.Initialize(i, onSlotDropped);
-                slots.Add(slot);
+                for (var col = 0; col < columnCount; col++)
+                {
+                    var index = row * columnCount + col;
+                    var slot = Instantiate(slotPrefab, slotContent);
+                    slot.Initialize(index, onSlotDropped);
+                    slots.Add(slot);
+                }
             }
+
+            ApplyLayoutSettings();
         }
 
-        private void Scroll(float delta)
+        private void ApplyLayoutSettings()
         {
-            if (scrollRect == null)
+            if (slotLayoutGroup == null)
             {
                 return;
             }
 
-            scrollRect.horizontalNormalizedPosition = Mathf.Clamp01(scrollRect.horizontalNormalizedPosition + delta);
+            slotLayoutGroup.cellSize = slotSize;
+            slotLayoutGroup.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            slotLayoutGroup.constraintCount = Mathf.Max(1, columnCount);
+
+            // 콘텐츠 여백을 타일 크기 x overscrollTileMargin칸만큼 키워, 타일 영역 밖으로도
+            // 그만큼 드래그해서 볼 수 있게 한다(ScrollRect가 Clamped라 콘텐츠 경계까지만 드래그되므로).
+            var marginX = Mathf.RoundToInt(slotSize.x * overscrollTileMargin);
+            var marginY = Mathf.RoundToInt(slotSize.y * overscrollTileMargin);
+            slotLayoutGroup.padding = new RectOffset(marginX, marginX, marginY, marginY);
         }
     }
 }

@@ -9,7 +9,8 @@ namespace Game.Core
         public const string PaletteRoot = "Formation.PaletteRoot";
         public const string GridRoot = "Formation.GridRoot";
         public const string InfoPanelRoot = "Formation.InfoPanelRoot";
-        public const string SaveButton = "Formation.SaveButton";
+        public const string ApplyButton = "Formation.ApplyButton";
         public const string CloseButton = "Formation.CloseButton";
+        public const string DebugPanelRoot = "Formation.DebugPanelRoot";
     }
 }

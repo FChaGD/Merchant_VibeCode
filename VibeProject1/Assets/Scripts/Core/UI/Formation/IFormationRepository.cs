@@ -1,12 +1,12 @@
 namespace Game.Core
 {
     /// <summary>
-    /// 확정된 배치(FormationLayout)를 불러오고 저장한다.
-    /// 실제 구현은 상행 관리 데이터 시스템 설계 후 연결한다.
+    /// 배치(FormationLayout)를 불러오고 현재 상행에 적용한다. "저장(게임 세이브)"이 아니라
+    /// "현재 상행에 적용"하는 개념이다.
     /// </summary>
     public interface IFormationRepository
     {
         bool TryLoadCurrent(out FormationLayout layout);
-        void Save(FormationLayout layout);
+        void Apply(FormationLayout layout);
     }
 }

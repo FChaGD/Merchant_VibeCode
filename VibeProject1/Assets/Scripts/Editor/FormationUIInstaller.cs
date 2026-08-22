@@ -11,7 +11,7 @@ namespace Game.Core.Editor
     /// Hub 씬에 배치(Formation) UI 하이어라키와 필요한 플레이스홀더 프리팹을 코드로 생성/동기화한다.
     /// 씬 YAML 수작업 편집 대신 이 도구로 재현 가능하게 만든다 - ManagerHierarchyInstaller와 동일한 방식.
     /// 각 영역의 위치/크기는 참고 목업("배치 ui.png")의 영역 비율을 그대로 따른다:
-    /// 팔레트(좌상단, 넓게) / 저장·닫기 버튼(우상단) / 그리드(좌하단, 넓게) / 정보패널(우하단, 그리드와 동일 높이).
+    /// 팔레트(좌상단, 넓게) / 적용·닫기 버튼(우상단) / 그리드(좌하단, 넓게) / 정보패널(우하단, 그리드와 동일 높이).
     /// 색상·스프라이트는 자리표시자이며, 실제 비주얼은 에디터에서 자유롭게 교체하면 된다.
     /// </summary>
     public static class FormationUIInstaller
@@ -49,6 +49,7 @@ namespace Game.Core.Editor
             BuildTopRightButtons(panelRoot.transform);
             BuildGrid(panelRoot.transform, slotPrefab, iconPrefab);
             BuildInfoPanel(panelRoot.transform);
+            BuildDebugPanel(panelRoot.transform);
 
             panelRoot.SetActive(false);
 
@@ -64,7 +65,7 @@ namespace Game.Core.Editor
             EnsureImage(root, new Color(1f, 0.85f, 0.85f, 1f));
             EnsureMarker(root, FormationUIElementIds.PaletteRoot);
 
-            var (_, content) = BuildScrollArea(root.transform);
+            var (_, content) = BuildHorizontalScrollArea(root.transform);
 
             var paletteView = GetOrAddComponent<FormationPaletteView>(root);
             var so = new SerializedObject(paletteView);
@@ -75,12 +76,15 @@ namespace Game.Core.Editor
 
         private static void BuildTopRightButtons(Transform parent)
         {
-            var saveGo = GetOrCreateUIObject(parent, "SaveButton");
-            SetAnchors(saveGo.GetComponent<RectTransform>(), new Vector2(0.64f, 0.75f), new Vector2(0.76f, 0.85f));
-            EnsureImage(saveGo, new Color(0.75f, 0.87f, 1f, 1f));
-            EnsureButton(saveGo);
-            EnsureLabel(saveGo.transform, "저장");
-            EnsureMarker(saveGo, FormationUIElementIds.SaveButton);
+            // 이전 버전("저장" 표기)에 남아있을 수 있는 오브젝트는 제거하고 "적용"으로 새로 만든다.
+            DestroyChildIfExists(parent, "SaveButton");
+
+            var applyGo = GetOrCreateUIObject(parent, "ApplyButton");
+            SetAnchors(applyGo.GetComponent<RectTransform>(), new Vector2(0.64f, 0.75f), new Vector2(0.76f, 0.85f));
+            EnsureImage(applyGo, new Color(0.75f, 0.87f, 1f, 1f));
+            EnsureButton(applyGo);
+            EnsureLabel(applyGo.transform, "적용");
+            EnsureMarker(applyGo, FormationUIElementIds.ApplyButton);
 
             var closeGo = GetOrCreateUIObject(parent, "CloseButton");
             SetAnchors(closeGo.GetComponent<RectTransform>(), new Vector2(0.78f, 0.75f), new Vector2(0.86f, 0.85f));
@@ -97,19 +101,19 @@ namespace Game.Core.Editor
             EnsureImage(root, new Color(0.82f, 0.95f, 0.85f, 1f));
             EnsureMarker(root, FormationUIElementIds.GridRoot);
 
-            var (_, content) = BuildScrollArea(root.transform);
+            var (_, content, layoutGroup) = BuildGridScrollArea(root.transform, new Vector2(120f, 120f), 8);
 
-            var scrollLeft = BuildScrollButton(root.transform, "ScrollLeftButton", "<", new Vector2(0f, 0f), new Vector2(0.06f, 1f));
-            var scrollRight = BuildScrollButton(root.transform, "ScrollRightButton", ">", new Vector2(0.94f, 0f), new Vector2(1f, 1f));
+            // 이전 버전(좌우 버튼 스크롤) 설치분에 남아있을 수 있는 버튼은 더 이상 쓰지 않으므로 제거한다
+            // - 드래그만으로 가로/세로 이동한다.
+            DestroyChildIfExists(root.transform, "ScrollLeftButton");
+            DestroyChildIfExists(root.transform, "ScrollRightButton");
 
             var gridView = GetOrAddComponent<FormationGridView>(root);
             var so = new SerializedObject(gridView);
             so.FindProperty("slotContent").objectReferenceValue = content;
+            so.FindProperty("slotLayoutGroup").objectReferenceValue = layoutGroup;
             so.FindProperty("slotPrefab").objectReferenceValue = slotPrefab;
             so.FindProperty("occupantIconPrefab").objectReferenceValue = occupantIconPrefab;
-            so.FindProperty("scrollRect").objectReferenceValue = root.GetComponent<ScrollRect>();
-            so.FindProperty("scrollLeftButton").objectReferenceValue = scrollLeft;
-            so.FindProperty("scrollRightButton").objectReferenceValue = scrollRight;
             so.ApplyModifiedProperties();
         }
 
@@ -136,10 +140,141 @@ namespace Game.Core.Editor
         }
 
         /// <summary>
-        /// 가로 스크롤용 Viewport/Content 구조를 만들고, root에 ScrollRect를 붙여 연결한다.
-        /// 팔레트와 그리드가 동일한 구조를 공유한다.
+        /// Play 모드에서 그리드 슬롯 개수/크기를 즉시 조절할 수 있는 온스크린 디버그 패널.
+        /// 상단 여백(팔레트/버튼 행 위쪽, 목업에는 없는 영역)에 배치한다.
         /// </summary>
-        private static (RectTransform viewport, RectTransform content) BuildScrollArea(Transform root)
+        private static void BuildDebugPanel(Transform parent)
+        {
+            var root = GetOrCreateUIObject(parent, "DebugPanel");
+            SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.08f, 0.87f), new Vector2(0.86f, 0.98f));
+            EnsureImage(root, new Color(0f, 0f, 0f, 0.15f));
+            EnsureMarker(root, FormationUIElementIds.DebugPanelRoot);
+
+            BuildDebugLabel(root.transform, "ColumnsLabel", "X", new Vector2(0.00f, 0f), new Vector2(0.05f, 1f));
+            var columnsInput = CreateInputField(root.transform, "ColumnsInput", new Vector2(0.05f, 0.1f), new Vector2(0.16f, 0.9f), TMP_InputField.ContentType.IntegerNumber);
+
+            BuildDebugLabel(root.transform, "RowsLabel", "Y", new Vector2(0.19f, 0f), new Vector2(0.24f, 1f));
+            var rowsInput = CreateInputField(root.transform, "RowsInput", new Vector2(0.24f, 0.1f), new Vector2(0.35f, 0.9f), TMP_InputField.ContentType.IntegerNumber);
+
+            BuildDebugLabel(root.transform, "WidthLabel", "W", new Vector2(0.38f, 0f), new Vector2(0.43f, 1f));
+            var widthInput = CreateInputField(root.transform, "WidthInput", new Vector2(0.43f, 0.1f), new Vector2(0.55f, 0.9f), TMP_InputField.ContentType.DecimalNumber);
+
+            BuildDebugLabel(root.transform, "HeightLabel", "H", new Vector2(0.58f, 0f), new Vector2(0.63f, 1f));
+            var heightInput = CreateInputField(root.transform, "HeightInput", new Vector2(0.63f, 0.1f), new Vector2(0.75f, 0.9f), TMP_InputField.ContentType.DecimalNumber);
+
+            var applyGo = GetOrCreateUIObject(root.transform, "ApplyButton");
+            SetAnchors(applyGo.GetComponent<RectTransform>(), new Vector2(0.78f, 0.1f), new Vector2(0.98f, 0.9f));
+            EnsureImage(applyGo, new Color(0.7f, 1f, 0.7f, 1f));
+            EnsureButton(applyGo);
+            var applyLabel = EnsureLabel(applyGo.transform, "적용");
+            applyLabel.fontSize = 18;
+
+            var debugView = GetOrAddComponent<FormationGridDebugView>(root);
+            var so = new SerializedObject(debugView);
+            so.FindProperty("columnsInput").objectReferenceValue = columnsInput;
+            so.FindProperty("rowsInput").objectReferenceValue = rowsInput;
+            so.FindProperty("slotWidthInput").objectReferenceValue = widthInput;
+            so.FindProperty("slotHeightInput").objectReferenceValue = heightInput;
+            so.FindProperty("applyButton").objectReferenceValue = applyGo.GetComponent<Button>();
+            so.ApplyModifiedProperties();
+        }
+
+        private static void BuildDebugLabel(Transform parent, string name, string text, Vector2 anchorMin, Vector2 anchorMax)
+        {
+            var go = GetOrCreateUIObject(parent, name);
+            SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
+            var label = GetOrAddComponent<TextMeshProUGUI>(go);
+            label.text = text;
+            label.alignment = TextAlignmentOptions.MidlineRight;
+            label.fontSize = 18;
+            label.color = Color.black;
+            label.raycastTarget = false;
+        }
+
+        private static TMP_InputField CreateInputField(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, TMP_InputField.ContentType contentType)
+        {
+            var go = GetOrCreateUIObject(parent, name);
+            SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
+            EnsureImage(go, new Color(1f, 1f, 1f, 0.95f));
+
+            var textAreaGo = GetOrCreateUIObject(go.transform, "TextArea");
+            var textAreaRect = textAreaGo.GetComponent<RectTransform>();
+            SetStretch(textAreaRect);
+            textAreaRect.offsetMin = new Vector2(6, 2);
+            textAreaRect.offsetMax = new Vector2(-6, -2);
+            GetOrAddComponent<RectMask2D>(textAreaGo);
+
+            var textGo = GetOrCreateUIObject(textAreaRect, "Text");
+            SetStretch(textGo.GetComponent<RectTransform>());
+            var textComponent = GetOrAddComponent<TextMeshProUGUI>(textGo);
+            textComponent.fontSize = 18;
+            textComponent.color = Color.black;
+            textComponent.alignment = TextAlignmentOptions.MidlineLeft;
+            textComponent.raycastTarget = false;
+
+            var inputField = GetOrAddComponent<TMP_InputField>(go);
+            inputField.textViewport = textAreaRect;
+            inputField.textComponent = textComponent;
+            inputField.contentType = contentType;
+
+            return inputField;
+        }
+
+        /// <summary>
+        /// 그리드용 Viewport/Content 구조를 만든다. GridLayoutGroup으로 정사각형 타일을 X열 x Y행으로
+        /// 배치하고, root에 가로/세로 모두 가능한 ScrollRect를 붙여 연결한다.
+        /// </summary>
+        private static (RectTransform viewport, RectTransform content, GridLayoutGroup layoutGroup) BuildGridScrollArea(Transform root, Vector2 cellSize, int columns)
+        {
+            var viewportGo = GetOrCreateUIObject(root, "Viewport");
+            var viewportRect = viewportGo.GetComponent<RectTransform>();
+            SetStretch(viewportRect);
+            EnsureImage(viewportGo, new Color(1f, 1f, 1f, 0.001f));
+            GetOrAddComponent<RectMask2D>(viewportGo);
+
+            var contentGo = GetOrCreateUIObject(viewportRect, "Content");
+            var contentRect = contentGo.GetComponent<RectTransform>();
+            contentRect.anchorMin = new Vector2(0f, 1f);
+            contentRect.anchorMax = new Vector2(0f, 1f);
+            contentRect.pivot = new Vector2(0f, 1f);
+            contentRect.anchoredPosition = Vector2.zero;
+
+            // 이전 버전(가로 1줄 스크롤) 설치분에 남아있을 수 있는 HorizontalLayoutGroup은
+            // GridLayoutGroup과 같은 오브젝트에 공존할 수 없으므로 제거하고 새로 구성한다.
+            var staleHorizontalLayout = contentGo.GetComponent<HorizontalLayoutGroup>();
+            if (staleHorizontalLayout != null)
+            {
+                Undo.DestroyObjectImmediate(staleHorizontalLayout);
+            }
+
+            var layoutGroup = GetOrAddComponent<GridLayoutGroup>(contentGo);
+            layoutGroup.cellSize = cellSize;
+            layoutGroup.spacing = Vector2.zero;
+            layoutGroup.padding = new RectOffset(8, 8, 8, 8);
+            layoutGroup.startCorner = GridLayoutGroup.Corner.UpperLeft;
+            layoutGroup.startAxis = GridLayoutGroup.Axis.Horizontal;
+            layoutGroup.childAlignment = TextAnchor.UpperLeft;
+            layoutGroup.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            layoutGroup.constraintCount = Mathf.Max(1, columns);
+
+            var fitter = GetOrAddComponent<ContentSizeFitter>(contentGo);
+            fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var scrollRect = GetOrAddComponent<ScrollRect>(root.gameObject);
+            scrollRect.horizontal = true;
+            scrollRect.vertical = true;
+            scrollRect.viewport = viewportRect;
+            scrollRect.content = contentRect;
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+
+            return (viewportRect, contentRect, layoutGroup);
+        }
+
+        /// <summary>
+        /// 가로 스크롤용 Viewport/Content 구조를 만들고, root에 ScrollRect를 붙여 연결한다. 팔레트가 사용한다.
+        /// </summary>
+        private static (RectTransform viewport, RectTransform content) BuildHorizontalScrollArea(Transform root)
         {
             var viewportGo = GetOrCreateUIObject(root, "Viewport");
             var viewportRect = viewportGo.GetComponent<RectTransform>();
@@ -177,16 +312,6 @@ namespace Game.Core.Editor
             return (viewportRect, contentRect);
         }
 
-        private static Button BuildScrollButton(Transform parent, string name, string label, Vector2 anchorMin, Vector2 anchorMax)
-        {
-            var go = GetOrCreateUIObject(parent, name);
-            SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
-            EnsureImage(go, new Color(1f, 1f, 1f, 0.6f));
-            var button = EnsureButton(go);
-            EnsureLabel(go.transform, label);
-            return button;
-        }
-
         private static Button EnsureButton(GameObject go)
         {
             var button = GetOrAddComponent<Button>(go);
@@ -220,6 +345,15 @@ namespace Game.Core.Editor
             var so = new SerializedObject(marker);
             so.FindProperty("id").stringValue = id;
             so.ApplyModifiedProperties();
+        }
+
+        private static void DestroyChildIfExists(Transform parent, string name)
+        {
+            var existing = parent.Find(name);
+            if (existing != null)
+            {
+                Undo.DestroyObjectImmediate(existing.gameObject);
+            }
         }
 
         private static GameObject GetOrCreateUIObject(Transform parent, string name)
@@ -307,7 +441,7 @@ namespace Game.Core.Editor
             }
 
             var go = new GameObject("FormationSlot", typeof(RectTransform));
-            go.GetComponent<RectTransform>().sizeDelta = new Vector2(120, 160);
+            go.GetComponent<RectTransform>().sizeDelta = new Vector2(120, 120);
 
             var bgImage = go.AddComponent<Image>();
             bgImage.color = new Color(1f, 1f, 1f, 0.35f);
