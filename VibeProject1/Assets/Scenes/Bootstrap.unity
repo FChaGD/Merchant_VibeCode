@@ -221,6 +221,7 @@ MonoBehaviour:
   - {fileID: 900005002}
   - {fileID: 900006002}
   - {fileID: 900007002}
+  - {fileID: 900002003}
 --- !u!1 &900002000
 GameObject:
   m_ObjectHideFlags: 0
@@ -278,6 +279,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dc4b4da40d1041b4ad3d486914b6ab8a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.SceneLoader
+  initialScene: 0
 --- !u!1 &900003000
 GameObject:
   m_ObjectHideFlags: 0
@@ -332,6 +334,8 @@ GameObject:
   m_Component:
   - component: {fileID: 900004001}
   - component: {fileID: 900004002}
+  - component: {fileID: 900004003}
+  - component: {fileID: 900004004}
   m_Layer: 0
   m_Name: UIManager
   m_TagString: Untagged
@@ -366,6 +370,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8ef5d0436a84595941a91307b92425e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &900004003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900004000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5bd47f3fcc31ba4ab1b689e7b1cf8ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.HubUIController
+  backgroundSprite: {fileID: -6213211099624952456, guid: ddb61b4931c80334d853a698390a758d, type: 3}
+--- !u!114 &900004004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900004000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7258b90e1d82c14ea45922447bbfe30, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.FormationPanel
+  dragGhostPrefab: {fileID: 4722751072990681403, guid: d8073edbd1293ab47b24970ec43254f2, type: 3}
 --- !u!1 &900005000
 GameObject:
   m_ObjectHideFlags: 0
