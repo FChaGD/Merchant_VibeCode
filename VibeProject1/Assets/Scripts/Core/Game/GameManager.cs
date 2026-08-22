@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 namespace Game.Core
@@ -20,12 +19,8 @@ namespace Game.Core
             battleResultSource = registrar.Resolve<IBattleResultSource>();
             battleResultSource.OnBattleEnded += HandleBattleEnded;
 
-            // SceneLoader는 전역 DI 대상이 아니라 GameManager 산하 컴포넌트 — 같은 GameObject에서 직접 조회한다.
-            sceneLoader = GetComponent<ISceneLoader>();
-            if (sceneLoader == null)
-            {
-                throw new InvalidOperationException($"{nameof(GameManager)}와 같은 GameObject에 {nameof(ISceneLoader)} 구현체가 없다.");
-            }
+            // 씬 전환 실행은 SceneLoader의 책임 — GameManager는 요청을 그대로 전달만 한다.
+            sceneLoader = registrar.Resolve<ISceneLoader>();
         }
 
         public void RequestSceneTransition(string sceneName)

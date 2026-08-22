@@ -2,7 +2,8 @@
     "name": "Game.Core.Editor",
     "rootNamespace": "Game.Core.Editor",
     "references": [
-        "Game.Core"
+        "Game.Core",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"
