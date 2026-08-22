@@ -149,8 +149,8 @@ namespace Game.Core
 
             currentLayout = BuildInitialLayout();
 
-            paletteView.SetRoster(roster, HandlePaletteIconClicked, HandlePaletteIconBeginDrag, HandleIconDrag, HandleIconEndDrag);
-            gridView.Initialize(HandleSlotDropped, HandleGridIconClicked, HandleGridIconBeginDrag, HandleIconDrag, HandleIconEndDrag);
+            paletteView.SetRoster(roster, HandleUnitIconClicked, HandlePaletteIconBeginDrag, HandleIconDrag, HandleIconEndDrag);
+            gridView.Initialize(HandleSlotDropped, HandleUnitIconClicked, HandleGridIconBeginDrag, HandleIconDrag, HandleIconEndDrag);
 
             RefreshAllSlots();
             infoPanelView.Clear();
@@ -237,9 +237,7 @@ namespace Game.Core
             repository.Apply(currentLayout.Clone());
         }
 
-        private void HandlePaletteIconClicked(IFormationUnit unit) => infoPanelView.Show(unit);
-
-        private void HandleGridIconClicked(IFormationUnit unit) => infoPanelView.Show(unit);
+        private void HandleUnitIconClicked(IFormationUnit unit) => infoPanelView.Show(unit);
 
         private void HandlePaletteIconBeginDrag(IFormationUnit unit, FormationUnitIconView icon, PointerEventData eventData)
         {

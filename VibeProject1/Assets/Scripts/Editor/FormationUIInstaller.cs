@@ -226,13 +226,7 @@ namespace Game.Core.Editor
         /// </summary>
         private static (RectTransform viewport, RectTransform content, GridLayoutGroup layoutGroup) BuildGridScrollArea(Transform root, Vector2 cellSize, int columns)
         {
-            var viewportGo = GetOrCreateUIObject(root, "Viewport");
-            var viewportRect = viewportGo.GetComponent<RectTransform>();
-            SetStretch(viewportRect);
-            EnsureImage(viewportGo, new Color(1f, 1f, 1f, 0.001f));
-            GetOrAddComponent<RectMask2D>(viewportGo);
-
-            var contentGo = GetOrCreateUIObject(viewportRect, "Content");
+            var (viewportRect, contentGo) = CreateViewportAndContent(root);
             var contentRect = contentGo.GetComponent<RectTransform>();
             contentRect.anchorMin = new Vector2(0f, 1f);
             contentRect.anchorMax = new Vector2(0f, 1f);
@@ -261,12 +255,7 @@ namespace Game.Core.Editor
             fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            var scrollRect = GetOrAddComponent<ScrollRect>(root.gameObject);
-            scrollRect.horizontal = true;
-            scrollRect.vertical = true;
-            scrollRect.viewport = viewportRect;
-            scrollRect.content = contentRect;
-            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            ConfigureScrollRect(root.gameObject, viewportRect, contentRect, horizontal: true, vertical: true);
 
             return (viewportRect, contentRect, layoutGroup);
         }
@@ -276,13 +265,7 @@ namespace Game.Core.Editor
         /// </summary>
         private static (RectTransform viewport, RectTransform content) BuildHorizontalScrollArea(Transform root)
         {
-            var viewportGo = GetOrCreateUIObject(root, "Viewport");
-            var viewportRect = viewportGo.GetComponent<RectTransform>();
-            SetStretch(viewportRect);
-            EnsureImage(viewportGo, new Color(1f, 1f, 1f, 0.001f));
-            GetOrAddComponent<RectMask2D>(viewportGo);
-
-            var contentGo = GetOrCreateUIObject(viewportRect, "Content");
+            var (viewportRect, contentGo) = CreateViewportAndContent(root);
             var contentRect = contentGo.GetComponent<RectTransform>();
             contentRect.anchorMin = new Vector2(0f, 0f);
             contentRect.anchorMax = new Vector2(0f, 1f);
@@ -302,14 +285,35 @@ namespace Game.Core.Editor
             fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
             fitter.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
 
-            var scrollRect = GetOrAddComponent<ScrollRect>(root.gameObject);
-            scrollRect.horizontal = true;
-            scrollRect.vertical = false;
-            scrollRect.viewport = viewportRect;
-            scrollRect.content = contentRect;
-            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            ConfigureScrollRect(root.gameObject, viewportRect, contentRect, horizontal: true, vertical: false);
 
             return (viewportRect, contentRect);
+        }
+
+        /// <summary>
+        /// 그리드/팔레트 스크롤 영역이 공유하는 Viewport(+RectMask2D)/Content 뼈대를 만든다.
+        /// 앵커·레이아웃 그룹·ContentSizeFitter는 호출자가 용도에 맞게 이어서 구성한다.
+        /// </summary>
+        private static (RectTransform viewport, GameObject content) CreateViewportAndContent(Transform root)
+        {
+            var viewportGo = GetOrCreateUIObject(root, "Viewport");
+            var viewportRect = viewportGo.GetComponent<RectTransform>();
+            SetStretch(viewportRect);
+            EnsureImage(viewportGo, new Color(1f, 1f, 1f, 0.001f));
+            GetOrAddComponent<RectMask2D>(viewportGo);
+
+            var contentGo = GetOrCreateUIObject(viewportRect, "Content");
+            return (viewportRect, contentGo);
+        }
+
+        private static void ConfigureScrollRect(GameObject go, RectTransform viewport, RectTransform content, bool horizontal, bool vertical)
+        {
+            var scrollRect = GetOrAddComponent<ScrollRect>(go);
+            scrollRect.horizontal = horizontal;
+            scrollRect.vertical = vertical;
+            scrollRect.viewport = viewport;
+            scrollRect.content = content;
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
         }
 
         private static Button EnsureButton(GameObject go)

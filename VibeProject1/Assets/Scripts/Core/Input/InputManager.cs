@@ -4,8 +4,6 @@ namespace Game.Core
 {
     public class InputManager : MonoBehaviour, IInputManager, IManagedComponent
     {
-        private IUIManager uiManager;
-
         public void RegisterSelf(IDependencyRegistrar registrar)
         {
             registrar.Register<IInputManager>(this);
@@ -13,7 +11,7 @@ namespace Game.Core
 
         public void ResolveDependencies(IDependencyRegistrar registrar)
         {
-            uiManager = registrar.Resolve<IUIManager>();
+            // TODO: IInputContextHandler 라우팅 구현 시 필요한 의존성(IUIManager 등)을 여기서 조회한다.
         }
 
         public void SetContext(string contextId)

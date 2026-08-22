@@ -43,11 +43,11 @@ namespace Game.Core
             onEndDrag = endDragHandler;
         }
 
-        public void SetRaycastTarget(bool enabled)
+        public void SetRaycastTarget(bool raycastTarget)
         {
             if (iconImage != null)
             {
-                iconImage.raycastTarget = enabled;
+                iconImage.raycastTarget = raycastTarget;
             }
         }
 
