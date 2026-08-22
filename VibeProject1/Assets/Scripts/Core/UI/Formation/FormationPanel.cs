@@ -30,6 +30,7 @@ namespace Game.Core
 
         private ICaravanRosterProvider rosterProvider;
         private IFormationRepository repository;
+        private IUIManager uiManager;
 
         private FormationLayout currentLayout;
         private readonly Dictionary<string, IFormationUnit> unitsById = new();
@@ -39,10 +40,11 @@ namespace Game.Core
         private int? draggedFromSlot;
         private bool dropHandled;
 
-        public void RegisterFormationUI(ICaravanRosterProvider rosterProvider, IFormationRepository repository)
+        public void RegisterFormationUI(ICaravanRosterProvider rosterProvider, IFormationRepository repository, IUIManager uiManager)
         {
             this.rosterProvider = rosterProvider;
             this.repository = repository;
+            this.uiManager = uiManager;
 
             var hubScene = SceneManager.GetSceneByName(SceneNames.Hub);
             if (!hubScene.IsValid())
@@ -78,7 +80,7 @@ namespace Game.Core
             applyButton.onClick.AddListener(HandleApply);
 
             closeButton.onClick.RemoveAllListeners();
-            closeButton.onClick.AddListener(Close);
+            closeButton.onClick.AddListener(() => uiManager.Close(PanelId));
 
             panelRoot.SetActive(false);
         }
@@ -159,6 +161,8 @@ namespace Game.Core
             panelRoot.SetActive(true);
         }
 
+        // 순수 "숨기기"만 한다. 상행 준비 UI 등으로 되돌아가는 네비게이션은 UIManager.Close(PanelId)의 책임이므로
+        // 버튼 등 외부에서 패널을 닫을 때는 이 메서드를 직접 호출하지 말고 반드시 uiManager.Close(PanelId)를 거칠 것.
         public void Close()
         {
             if (panelRoot == null)

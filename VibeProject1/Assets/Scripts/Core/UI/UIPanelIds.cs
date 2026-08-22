@@ -6,5 +6,6 @@ namespace Game.Core
     public static class UIPanelIds
     {
         public const string Formation = "Formation";
+        public const string Trip = "Trip";
     }
 }

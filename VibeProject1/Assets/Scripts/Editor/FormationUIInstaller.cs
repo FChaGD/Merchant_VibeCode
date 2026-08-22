@@ -13,6 +13,8 @@ namespace Game.Core.Editor
     /// 각 영역의 위치/크기는 참고 목업("배치 ui.png")의 영역 비율을 그대로 따른다:
     /// 팔레트(좌상단, 넓게) / 적용·닫기 버튼(우상단) / 그리드(좌하단, 넓게) / 정보패널(우하단, 그리드와 동일 높이).
     /// 색상·스프라이트는 자리표시자이며, 실제 비주얼은 에디터에서 자유롭게 교체하면 된다.
+    /// 씬 조립에 필요한 저수준 헬퍼(오브젝트 생성, 앵커 설정 등)는 EditorUIBuilder를 공유해서 쓴다 -
+    /// 다른 UI 인스톨러(TripUIInstaller 등)와 서로의 구현 세부사항이 아니라 이 공용 도구에 의존한다.
     /// </summary>
     public static class FormationUIInstaller
     {
@@ -41,9 +43,9 @@ namespace Game.Core.Editor
             var slotPrefab = GetOrCreateSlotPrefab();
             var iconPrefab = GetOrCreateIconPrefab();
 
-            var panelRoot = GetOrCreateUIObject(sceneUIRoot.transform, "FormationPanel");
-            SetStretch(panelRoot.GetComponent<RectTransform>());
-            EnsureMarker(panelRoot, FormationUIElementIds.PanelRoot);
+            var panelRoot = EditorUIBuilder.GetOrCreateUIObject(sceneUIRoot.transform, "FormationPanel");
+            EditorUIBuilder.SetStretch(panelRoot.GetComponent<RectTransform>());
+            EditorUIBuilder.EnsureMarker(panelRoot, FormationUIElementIds.PanelRoot);
 
             BuildPalette(panelRoot.transform, iconPrefab);
             BuildTopRightButtons(panelRoot.transform);
@@ -60,14 +62,14 @@ namespace Game.Core.Editor
 
         private static void BuildPalette(Transform parent, FormationUnitIconView iconPrefab)
         {
-            var root = GetOrCreateUIObject(parent, "Palette");
-            SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.08f, 0.75f), new Vector2(0.62f, 0.85f));
-            EnsureImage(root, new Color(1f, 0.85f, 0.85f, 1f));
-            EnsureMarker(root, FormationUIElementIds.PaletteRoot);
+            var root = EditorUIBuilder.GetOrCreateUIObject(parent, "Palette");
+            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.08f, 0.75f), new Vector2(0.62f, 0.85f));
+            EditorUIBuilder.EnsureImage(root, new Color(1f, 0.85f, 0.85f, 1f));
+            EditorUIBuilder.EnsureMarker(root, FormationUIElementIds.PaletteRoot);
 
             var (_, content) = BuildHorizontalScrollArea(root.transform);
 
-            var paletteView = GetOrAddComponent<FormationPaletteView>(root);
+            var paletteView = EditorUIBuilder.GetOrAddComponent<FormationPaletteView>(root);
             var so = new SerializedObject(paletteView);
             so.FindProperty("iconContent").objectReferenceValue = content;
             so.FindProperty("iconPrefab").objectReferenceValue = iconPrefab;
@@ -79,27 +81,27 @@ namespace Game.Core.Editor
             // 이전 버전("저장" 표기)에 남아있을 수 있는 오브젝트는 제거하고 "적용"으로 새로 만든다.
             DestroyChildIfExists(parent, "SaveButton");
 
-            var applyGo = GetOrCreateUIObject(parent, "ApplyButton");
-            SetAnchors(applyGo.GetComponent<RectTransform>(), new Vector2(0.64f, 0.75f), new Vector2(0.76f, 0.85f));
-            EnsureImage(applyGo, new Color(0.75f, 0.87f, 1f, 1f));
-            EnsureButton(applyGo);
-            EnsureLabel(applyGo.transform, "적용");
-            EnsureMarker(applyGo, FormationUIElementIds.ApplyButton);
+            var applyGo = EditorUIBuilder.GetOrCreateUIObject(parent, "ApplyButton");
+            EditorUIBuilder.SetAnchors(applyGo.GetComponent<RectTransform>(), new Vector2(0.64f, 0.75f), new Vector2(0.76f, 0.85f));
+            EditorUIBuilder.EnsureImage(applyGo, new Color(0.75f, 0.87f, 1f, 1f));
+            EditorUIBuilder.EnsureButton(applyGo);
+            EditorUIBuilder.EnsureLabel(applyGo.transform, "적용");
+            EditorUIBuilder.EnsureMarker(applyGo, FormationUIElementIds.ApplyButton);
 
-            var closeGo = GetOrCreateUIObject(parent, "CloseButton");
-            SetAnchors(closeGo.GetComponent<RectTransform>(), new Vector2(0.78f, 0.75f), new Vector2(0.86f, 0.85f));
-            EnsureImage(closeGo, new Color(0.85f, 0.85f, 0.85f, 1f));
-            EnsureButton(closeGo);
-            EnsureLabel(closeGo.transform, "닫기");
-            EnsureMarker(closeGo, FormationUIElementIds.CloseButton);
+            var closeGo = EditorUIBuilder.GetOrCreateUIObject(parent, "CloseButton");
+            EditorUIBuilder.SetAnchors(closeGo.GetComponent<RectTransform>(), new Vector2(0.78f, 0.75f), new Vector2(0.86f, 0.85f));
+            EditorUIBuilder.EnsureImage(closeGo, new Color(0.85f, 0.85f, 0.85f, 1f));
+            EditorUIBuilder.EnsureButton(closeGo);
+            EditorUIBuilder.EnsureLabel(closeGo.transform, "닫기");
+            EditorUIBuilder.EnsureMarker(closeGo, FormationUIElementIds.CloseButton);
         }
 
         private static void BuildGrid(Transform parent, FormationSlotView slotPrefab, FormationUnitIconView occupantIconPrefab)
         {
-            var root = GetOrCreateUIObject(parent, "Grid");
-            SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.08f, 0.30f), new Vector2(0.64f, 0.74f));
-            EnsureImage(root, new Color(0.82f, 0.95f, 0.85f, 1f));
-            EnsureMarker(root, FormationUIElementIds.GridRoot);
+            var root = EditorUIBuilder.GetOrCreateUIObject(parent, "Grid");
+            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.08f, 0.30f), new Vector2(0.64f, 0.74f));
+            EditorUIBuilder.EnsureImage(root, new Color(0.82f, 0.95f, 0.85f, 1f));
+            EditorUIBuilder.EnsureMarker(root, FormationUIElementIds.GridRoot);
 
             var (_, content, layoutGroup) = BuildGridScrollArea(root.transform, new Vector2(120f, 120f), 8);
 
@@ -108,7 +110,7 @@ namespace Game.Core.Editor
             DestroyChildIfExists(root.transform, "ScrollLeftButton");
             DestroyChildIfExists(root.transform, "ScrollRightButton");
 
-            var gridView = GetOrAddComponent<FormationGridView>(root);
+            var gridView = EditorUIBuilder.GetOrAddComponent<FormationGridView>(root);
             var so = new SerializedObject(gridView);
             so.FindProperty("slotContent").objectReferenceValue = content;
             so.FindProperty("slotLayoutGroup").objectReferenceValue = layoutGroup;
@@ -119,20 +121,20 @@ namespace Game.Core.Editor
 
         private static void BuildInfoPanel(Transform parent)
         {
-            var root = GetOrCreateUIObject(parent, "InfoPanel");
-            SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.66f, 0.30f), new Vector2(0.86f, 0.74f));
-            EnsureImage(root, new Color(1f, 0.9f, 0.78f, 1f));
-            EnsureMarker(root, FormationUIElementIds.InfoPanelRoot);
+            var root = EditorUIBuilder.GetOrCreateUIObject(parent, "InfoPanel");
+            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.66f, 0.30f), new Vector2(0.86f, 0.74f));
+            EditorUIBuilder.EnsureImage(root, new Color(1f, 0.9f, 0.78f, 1f));
+            EditorUIBuilder.EnsureMarker(root, FormationUIElementIds.InfoPanelRoot);
 
-            var iconGo = GetOrCreateUIObject(root.transform, "Icon");
-            SetAnchors(iconGo.GetComponent<RectTransform>(), new Vector2(0.25f, 0.55f), new Vector2(0.75f, 0.92f));
-            var iconImage = EnsureImage(iconGo, Color.white);
+            var iconGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "Icon");
+            EditorUIBuilder.SetAnchors(iconGo.GetComponent<RectTransform>(), new Vector2(0.25f, 0.55f), new Vector2(0.75f, 0.92f));
+            var iconImage = EditorUIBuilder.EnsureImage(iconGo, Color.white);
             iconImage.preserveAspect = true;
 
-            var nameLabel = EnsureLabel(root.transform, string.Empty);
-            SetAnchors(nameLabel.rectTransform, new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.45f));
+            var nameLabel = EditorUIBuilder.EnsureLabel(root.transform, string.Empty);
+            EditorUIBuilder.SetAnchors(nameLabel.rectTransform, new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.45f));
 
-            var infoView = GetOrAddComponent<FormationInfoPanelView>(root);
+            var infoView = EditorUIBuilder.GetOrAddComponent<FormationInfoPanelView>(root);
             var so = new SerializedObject(infoView);
             so.FindProperty("iconImage").objectReferenceValue = iconImage;
             so.FindProperty("nameText").objectReferenceValue = nameLabel;
@@ -145,10 +147,10 @@ namespace Game.Core.Editor
         /// </summary>
         private static void BuildDebugPanel(Transform parent)
         {
-            var root = GetOrCreateUIObject(parent, "DebugPanel");
-            SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.08f, 0.87f), new Vector2(0.86f, 0.98f));
-            EnsureImage(root, new Color(0f, 0f, 0f, 0.15f));
-            EnsureMarker(root, FormationUIElementIds.DebugPanelRoot);
+            var root = EditorUIBuilder.GetOrCreateUIObject(parent, "DebugPanel");
+            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.08f, 0.87f), new Vector2(0.86f, 0.98f));
+            EditorUIBuilder.EnsureImage(root, new Color(0f, 0f, 0f, 0.15f));
+            EditorUIBuilder.EnsureMarker(root, FormationUIElementIds.DebugPanelRoot);
 
             BuildDebugLabel(root.transform, "ColumnsLabel", "X", new Vector2(0.00f, 0f), new Vector2(0.05f, 1f));
             var columnsInput = CreateInputField(root.transform, "ColumnsInput", new Vector2(0.05f, 0.1f), new Vector2(0.16f, 0.9f), TMP_InputField.ContentType.IntegerNumber);
@@ -162,14 +164,14 @@ namespace Game.Core.Editor
             BuildDebugLabel(root.transform, "HeightLabel", "H", new Vector2(0.58f, 0f), new Vector2(0.63f, 1f));
             var heightInput = CreateInputField(root.transform, "HeightInput", new Vector2(0.63f, 0.1f), new Vector2(0.75f, 0.9f), TMP_InputField.ContentType.DecimalNumber);
 
-            var applyGo = GetOrCreateUIObject(root.transform, "ApplyButton");
-            SetAnchors(applyGo.GetComponent<RectTransform>(), new Vector2(0.78f, 0.1f), new Vector2(0.98f, 0.9f));
-            EnsureImage(applyGo, new Color(0.7f, 1f, 0.7f, 1f));
-            EnsureButton(applyGo);
-            var applyLabel = EnsureLabel(applyGo.transform, "적용");
+            var applyGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "ApplyButton");
+            EditorUIBuilder.SetAnchors(applyGo.GetComponent<RectTransform>(), new Vector2(0.78f, 0.1f), new Vector2(0.98f, 0.9f));
+            EditorUIBuilder.EnsureImage(applyGo, new Color(0.7f, 1f, 0.7f, 1f));
+            EditorUIBuilder.EnsureButton(applyGo);
+            var applyLabel = EditorUIBuilder.EnsureLabel(applyGo.transform, "적용");
             applyLabel.fontSize = 18;
 
-            var debugView = GetOrAddComponent<FormationGridDebugView>(root);
+            var debugView = EditorUIBuilder.GetOrAddComponent<FormationGridDebugView>(root);
             var so = new SerializedObject(debugView);
             so.FindProperty("columnsInput").objectReferenceValue = columnsInput;
             so.FindProperty("rowsInput").objectReferenceValue = rowsInput;
@@ -181,9 +183,9 @@ namespace Game.Core.Editor
 
         private static void BuildDebugLabel(Transform parent, string name, string text, Vector2 anchorMin, Vector2 anchorMax)
         {
-            var go = GetOrCreateUIObject(parent, name);
-            SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
-            var label = GetOrAddComponent<TextMeshProUGUI>(go);
+            var go = EditorUIBuilder.GetOrCreateUIObject(parent, name);
+            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
+            var label = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(go);
             label.text = text;
             label.alignment = TextAlignmentOptions.MidlineRight;
             label.fontSize = 18;
@@ -193,26 +195,26 @@ namespace Game.Core.Editor
 
         private static TMP_InputField CreateInputField(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, TMP_InputField.ContentType contentType)
         {
-            var go = GetOrCreateUIObject(parent, name);
-            SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
-            EnsureImage(go, new Color(1f, 1f, 1f, 0.95f));
+            var go = EditorUIBuilder.GetOrCreateUIObject(parent, name);
+            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
+            EditorUIBuilder.EnsureImage(go, new Color(1f, 1f, 1f, 0.95f));
 
-            var textAreaGo = GetOrCreateUIObject(go.transform, "TextArea");
+            var textAreaGo = EditorUIBuilder.GetOrCreateUIObject(go.transform, "TextArea");
             var textAreaRect = textAreaGo.GetComponent<RectTransform>();
-            SetStretch(textAreaRect);
+            EditorUIBuilder.SetStretch(textAreaRect);
             textAreaRect.offsetMin = new Vector2(6, 2);
             textAreaRect.offsetMax = new Vector2(-6, -2);
-            GetOrAddComponent<RectMask2D>(textAreaGo);
+            EditorUIBuilder.GetOrAddComponent<RectMask2D>(textAreaGo);
 
-            var textGo = GetOrCreateUIObject(textAreaRect, "Text");
-            SetStretch(textGo.GetComponent<RectTransform>());
-            var textComponent = GetOrAddComponent<TextMeshProUGUI>(textGo);
+            var textGo = EditorUIBuilder.GetOrCreateUIObject(textAreaRect, "Text");
+            EditorUIBuilder.SetStretch(textGo.GetComponent<RectTransform>());
+            var textComponent = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(textGo);
             textComponent.fontSize = 18;
             textComponent.color = Color.black;
             textComponent.alignment = TextAlignmentOptions.MidlineLeft;
             textComponent.raycastTarget = false;
 
-            var inputField = GetOrAddComponent<TMP_InputField>(go);
+            var inputField = EditorUIBuilder.GetOrAddComponent<TMP_InputField>(go);
             inputField.textViewport = textAreaRect;
             inputField.textComponent = textComponent;
             inputField.contentType = contentType;
@@ -226,7 +228,7 @@ namespace Game.Core.Editor
         /// </summary>
         private static (RectTransform viewport, RectTransform content, GridLayoutGroup layoutGroup) BuildGridScrollArea(Transform root, Vector2 cellSize, int columns)
         {
-            var (viewportRect, contentGo) = CreateViewportAndContent(root);
+            var (viewportRect, contentGo) = EditorUIBuilder.CreateViewportAndContent(root);
             var contentRect = contentGo.GetComponent<RectTransform>();
             contentRect.anchorMin = new Vector2(0f, 1f);
             contentRect.anchorMax = new Vector2(0f, 1f);
@@ -241,7 +243,7 @@ namespace Game.Core.Editor
                 Undo.DestroyObjectImmediate(staleHorizontalLayout);
             }
 
-            var layoutGroup = GetOrAddComponent<GridLayoutGroup>(contentGo);
+            var layoutGroup = EditorUIBuilder.GetOrAddComponent<GridLayoutGroup>(contentGo);
             layoutGroup.cellSize = cellSize;
             layoutGroup.spacing = Vector2.zero;
             layoutGroup.padding = new RectOffset(8, 8, 8, 8);
@@ -251,11 +253,11 @@ namespace Game.Core.Editor
             layoutGroup.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             layoutGroup.constraintCount = Mathf.Max(1, columns);
 
-            var fitter = GetOrAddComponent<ContentSizeFitter>(contentGo);
+            var fitter = EditorUIBuilder.GetOrAddComponent<ContentSizeFitter>(contentGo);
             fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            ConfigureScrollRect(root.gameObject, viewportRect, contentRect, horizontal: true, vertical: true);
+            EditorUIBuilder.ConfigureScrollRect(root.gameObject, viewportRect, contentRect, horizontal: true, vertical: true);
 
             return (viewportRect, contentRect, layoutGroup);
         }
@@ -265,14 +267,14 @@ namespace Game.Core.Editor
         /// </summary>
         private static (RectTransform viewport, RectTransform content) BuildHorizontalScrollArea(Transform root)
         {
-            var (viewportRect, contentGo) = CreateViewportAndContent(root);
+            var (viewportRect, contentGo) = EditorUIBuilder.CreateViewportAndContent(root);
             var contentRect = contentGo.GetComponent<RectTransform>();
             contentRect.anchorMin = new Vector2(0f, 0f);
             contentRect.anchorMax = new Vector2(0f, 1f);
             contentRect.pivot = new Vector2(0f, 0.5f);
             contentRect.anchoredPosition = Vector2.zero;
 
-            var layoutGroup = GetOrAddComponent<HorizontalLayoutGroup>(contentGo);
+            var layoutGroup = EditorUIBuilder.GetOrAddComponent<HorizontalLayoutGroup>(contentGo);
             layoutGroup.childForceExpandWidth = false;
             layoutGroup.childForceExpandHeight = true;
             layoutGroup.childControlWidth = false;
@@ -281,74 +283,13 @@ namespace Game.Core.Editor
             layoutGroup.padding = new RectOffset(8, 8, 8, 8);
             layoutGroup.childAlignment = TextAnchor.MiddleLeft;
 
-            var fitter = GetOrAddComponent<ContentSizeFitter>(contentGo);
+            var fitter = EditorUIBuilder.GetOrAddComponent<ContentSizeFitter>(contentGo);
             fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
             fitter.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
 
-            ConfigureScrollRect(root.gameObject, viewportRect, contentRect, horizontal: true, vertical: false);
+            EditorUIBuilder.ConfigureScrollRect(root.gameObject, viewportRect, contentRect, horizontal: true, vertical: false);
 
             return (viewportRect, contentRect);
-        }
-
-        /// <summary>
-        /// 그리드/팔레트 스크롤 영역이 공유하는 Viewport(+RectMask2D)/Content 뼈대를 만든다.
-        /// 앵커·레이아웃 그룹·ContentSizeFitter는 호출자가 용도에 맞게 이어서 구성한다.
-        /// </summary>
-        private static (RectTransform viewport, GameObject content) CreateViewportAndContent(Transform root)
-        {
-            var viewportGo = GetOrCreateUIObject(root, "Viewport");
-            var viewportRect = viewportGo.GetComponent<RectTransform>();
-            SetStretch(viewportRect);
-            EnsureImage(viewportGo, new Color(1f, 1f, 1f, 0.001f));
-            GetOrAddComponent<RectMask2D>(viewportGo);
-
-            var contentGo = GetOrCreateUIObject(viewportRect, "Content");
-            return (viewportRect, contentGo);
-        }
-
-        private static void ConfigureScrollRect(GameObject go, RectTransform viewport, RectTransform content, bool horizontal, bool vertical)
-        {
-            var scrollRect = GetOrAddComponent<ScrollRect>(go);
-            scrollRect.horizontal = horizontal;
-            scrollRect.vertical = vertical;
-            scrollRect.viewport = viewport;
-            scrollRect.content = content;
-            scrollRect.movementType = ScrollRect.MovementType.Clamped;
-        }
-
-        private static Button EnsureButton(GameObject go)
-        {
-            var button = GetOrAddComponent<Button>(go);
-            button.targetGraphic = go.GetComponent<Image>();
-            return button;
-        }
-
-        private static TMP_Text EnsureLabel(Transform parent, string text)
-        {
-            var labelGo = GetOrCreateUIObject(parent, "Label");
-            SetStretch(labelGo.GetComponent<RectTransform>());
-            var label = GetOrAddComponent<TextMeshProUGUI>(labelGo);
-            label.text = text;
-            label.alignment = TextAlignmentOptions.Center;
-            label.fontSize = 24;
-            label.color = Color.black;
-            label.raycastTarget = false;
-            return label;
-        }
-
-        private static Image EnsureImage(GameObject go, Color color)
-        {
-            var image = GetOrAddComponent<Image>(go);
-            image.color = color;
-            return image;
-        }
-
-        private static void EnsureMarker(GameObject go, string id)
-        {
-            var marker = GetOrAddComponent<UIElementMarker>(go);
-            var so = new SerializedObject(marker);
-            so.FindProperty("id").stringValue = id;
-            so.ApplyModifiedProperties();
         }
 
         private static void DestroyChildIfExists(Transform parent, string name)
@@ -358,41 +299,6 @@ namespace Game.Core.Editor
             {
                 Undo.DestroyObjectImmediate(existing.gameObject);
             }
-        }
-
-        private static GameObject GetOrCreateUIObject(Transform parent, string name)
-        {
-            var existing = parent.Find(name);
-            if (existing != null)
-            {
-                return existing.gameObject;
-            }
-
-            var go = new GameObject(name, typeof(RectTransform));
-            go.layer = LayerMask.NameToLayer("UI");
-            Undo.RegisterCreatedObjectUndo(go, $"Create {name}");
-            Undo.SetTransformParent(go.transform, parent, $"Parent {name}");
-            return go;
-        }
-
-        private static T GetOrAddComponent<T>(GameObject go) where T : Component
-        {
-            var component = go.GetComponent<T>();
-            return component != null ? component : Undo.AddComponent<T>(go);
-        }
-
-        private static void SetAnchors(RectTransform rect, Vector2 min, Vector2 max)
-        {
-            rect.anchorMin = min;
-            rect.anchorMax = max;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-            rect.anchoredPosition = Vector2.zero;
-        }
-
-        private static void SetStretch(RectTransform rect)
-        {
-            SetAnchors(rect, Vector2.zero, Vector2.one);
         }
 
         private static void EnsurePrefabFolder()
@@ -452,7 +358,7 @@ namespace Game.Core.Editor
 
             var containerGo = new GameObject("IconContainer", typeof(RectTransform));
             containerGo.transform.SetParent(go.transform, false);
-            SetStretch(containerGo.GetComponent<RectTransform>());
+            EditorUIBuilder.SetStretch(containerGo.GetComponent<RectTransform>());
 
             var slotView = go.AddComponent<FormationSlotView>();
             var so = new SerializedObject(slotView);

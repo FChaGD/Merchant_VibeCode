@@ -13,7 +13,7 @@ namespace Game.Core
     {
         [SerializeField] private Sprite backgroundSprite;
 
-        public void RegisterHubUI(IGameManager gameManager, IUIManager uiManager)
+        public void RegisterHubUI(IUIManager uiManager)
         {
             var hubScene = SceneManager.GetSceneByName(SceneNames.Hub);
             if (!hubScene.IsValid())
@@ -38,7 +38,7 @@ namespace Game.Core
                 return;
             }
 
-            BindButton(sceneUIRoot, HubUIElementIds.DepartureButton, () => gameManager.RequestSceneTransition(SceneNames.Field));
+            BindButton(sceneUIRoot, HubUIElementIds.DepartureButton, () => uiManager.Open(UIPanelIds.Trip));
             BindButton(sceneUIRoot, HubUIElementIds.FormationButton, () => uiManager.Open(UIPanelIds.Formation));
 
             ApplyBackground(sceneUIRoot);
