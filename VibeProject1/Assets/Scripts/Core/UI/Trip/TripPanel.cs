@@ -11,6 +11,9 @@ namespace Game.Core
     /// </summary>
     public class TripPanel : MonoBehaviour, ITripPanel
     {
+        [SerializeField] private TripDebugCityMarkerView debugCityMarkerPrefab;
+        [SerializeField] private TripDebugRoadLineView debugRoadLinePrefab;
+
         public string PanelId => UIPanelIds.Trip;
 
         private GameObject panelRoot;
@@ -21,6 +24,13 @@ namespace Game.Core
         private Button closeButton;
         private Button openFormationButton;
         private Button startButton;
+        private Canvas rootCanvas;
+
+        private TripDebugCityPaletteView debugCityPaletteView;
+        private TripDebugRoadToggleView debugRoadToggleView;
+        private Button debugCityBulkDeleteButton;
+        private Button debugRoadBulkDeleteButton;
+        private TripMapInteractionCoordinator mapInteractionCoordinator;
 
         private IUIManager uiManager;
         private IGameManager gameManager;
@@ -62,7 +72,9 @@ namespace Game.Core
                 return;
             }
 
-            mapView.Initialize(HandleOriginPinClicked, HandleDestinationPinClicked);
+            rootCanvas = panelRoot.GetComponentInParent<Canvas>()?.rootCanvas;
+
+            SetupDebugMapInteraction();
 
             closeButton.onClick.RemoveAllListeners();
             closeButton.onClick.AddListener(() => uiManager.Close(PanelId));
@@ -74,6 +86,44 @@ namespace Game.Core
             startButton.onClick.AddListener(() => gameManager.RequestSceneTransition(SceneNames.Field));
 
             panelRoot.SetActive(false);
+        }
+
+        // 지도 위 도시 배치/경로 연결(디버그, 03/04번 기획)과 출발/도착 지정(정식, 02번 기획) 배선을
+        // 모두 TripMapInteractionCoordinator에 위임한다(SRP) - 둘 다 같은 지도/도시 데이터를 다루고,
+        // TripPanel이 직접 들고 있으면 책임이 비대해진다. 필요한 요소 중 하나라도 씬에 없으면(예: 아직
+        // 인스톨러를 재실행하지 않음) 이 기능 전체를 건너뛰고 나머지 상행 준비 UI(요약/버튼)는 정상
+        // 동작해야 한다.
+        private void SetupDebugMapInteraction()
+        {
+            if (debugCityPaletteView == null || debugRoadToggleView == null
+                || debugCityBulkDeleteButton == null || debugRoadBulkDeleteButton == null
+                || debugCityMarkerPrefab == null || debugRoadLinePrefab == null)
+            {
+                Debug.LogWarning($"{nameof(TripPanel)}: 지도 디버그 배치/경로 연결 요소 중 일부가 연결되지 않아 해당 기능을 건너뛴다.");
+                return;
+            }
+
+            mapInteractionCoordinator = new TripMapInteractionCoordinator();
+            mapInteractionCoordinator.Bind(
+                mapView,
+                debugCityMarkerPrefab,
+                debugCityPaletteView,
+                debugRoadLinePrefab,
+                debugRoadToggleView,
+                debugCityBulkDeleteButton,
+                debugRoadBulkDeleteButton,
+                rootCanvas != null ? rootCanvas.transform : null,
+                originInfoView,
+                destinationInfoView);
+
+            // "상행 시작"은 출발/도착이 모두 배정돼야 활성화된다(02번 5절) - 배정이 바뀔 때마다 갱신.
+            mapInteractionCoordinator.OriginDestinationReader.Changed += RefreshStartButtonInteractable;
+            RefreshStartButtonInteractable();
+        }
+
+        private void RefreshStartButtonInteractable()
+        {
+            startButton.interactable = mapInteractionCoordinator?.OriginDestinationReader.IsBothAssigned ?? true;
         }
 
         private bool TryBind(SceneUIRoot sceneUIRoot)
@@ -127,6 +177,13 @@ namespace Game.Core
                 return false;
             }
 
+            // 지도 디버그 배치/경로 연결 요소는 보조 기능이라 없어도 나머지 상행 준비 UI는 정상 동작해야
+            // 한다 - 없으면 SetupDebugMapInteraction에서 조용히 건너뛴다.
+            sceneUIRoot.TryGetElement<TripDebugCityPaletteView>(TripUIElementIds.DebugCityPaletteRoot, out debugCityPaletteView);
+            sceneUIRoot.TryGetElement<TripDebugRoadToggleView>(TripUIElementIds.DebugRoadToggleButton, out debugRoadToggleView);
+            sceneUIRoot.TryGetElement<Button>(TripUIElementIds.DebugCityBulkDeleteButton, out debugCityBulkDeleteButton);
+            sceneUIRoot.TryGetElement<Button>(TripUIElementIds.DebugRoadBulkDeleteButton, out debugRoadBulkDeleteButton);
+
             return true;
         }
 
@@ -160,10 +217,6 @@ namespace Game.Core
 
             panelRoot.SetActive(false);
         }
-
-        private void HandleOriginPinClicked() => originInfoView.Show(tripInfoProvider?.GetOrigin());
-
-        private void HandleDestinationPinClicked() => destinationInfoView.Show(tripInfoProvider?.GetDestination());
 
         private void RefreshSummary()
         {

@@ -79,7 +79,7 @@ namespace Game.Core.Editor
         private static void BuildTopRightButtons(Transform parent)
         {
             // 이전 버전("저장" 표기)에 남아있을 수 있는 오브젝트는 제거하고 "적용"으로 새로 만든다.
-            DestroyChildIfExists(parent, "SaveButton");
+            EditorUIBuilder.DestroyChildIfExists(parent, "SaveButton");
 
             var applyGo = EditorUIBuilder.GetOrCreateUIObject(parent, "ApplyButton");
             EditorUIBuilder.SetAnchors(applyGo.GetComponent<RectTransform>(), new Vector2(0.64f, 0.75f), new Vector2(0.76f, 0.85f));
@@ -107,8 +107,8 @@ namespace Game.Core.Editor
 
             // 이전 버전(좌우 버튼 스크롤) 설치분에 남아있을 수 있는 버튼은 더 이상 쓰지 않으므로 제거한다
             // - 드래그만으로 가로/세로 이동한다.
-            DestroyChildIfExists(root.transform, "ScrollLeftButton");
-            DestroyChildIfExists(root.transform, "ScrollRightButton");
+            EditorUIBuilder.DestroyChildIfExists(root.transform, "ScrollLeftButton");
+            EditorUIBuilder.DestroyChildIfExists(root.transform, "ScrollRightButton");
 
             var gridView = EditorUIBuilder.GetOrAddComponent<FormationGridView>(root);
             var so = new SerializedObject(gridView);
@@ -290,15 +290,6 @@ namespace Game.Core.Editor
             EditorUIBuilder.ConfigureScrollRect(root.gameObject, viewportRect, contentRect, horizontal: true, vertical: false);
 
             return (viewportRect, contentRect);
-        }
-
-        private static void DestroyChildIfExists(Transform parent, string name)
-        {
-            var existing = parent.Find(name);
-            if (existing != null)
-            {
-                Undo.DestroyObjectImmediate(existing.gameObject);
-            }
         }
 
         private static void EnsurePrefabFolder()

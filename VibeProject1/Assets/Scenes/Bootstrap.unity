@@ -462,6 +462,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d3ca058f7c94d47b84c74b49e9786a6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.TripPanel
+  debugCityMarkerPrefab: {fileID: 7233336327583180505, guid: d04f47bd859fdd84b90e5656937dfc0a, type: 3}
+  debugRoadLinePrefab: {fileID: 3467082046620142997, guid: 5a1a6186e004b88459eea902182c6c3e, type: 3}
 --- !u!1 &900005000
 GameObject:
   m_ObjectHideFlags: 0

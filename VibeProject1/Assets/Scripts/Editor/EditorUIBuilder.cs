@@ -34,6 +34,19 @@ namespace Game.Core.Editor
             return component != null ? component : Undo.AddComponent<T>(go);
         }
 
+        /// <summary>
+        /// 이름/구조가 바뀌어 더 이상 쓰이지 않는 옛 자식 오브젝트를 정리한다. 인스톨러를 재실행해도
+        /// 안전하려면(get-or-create만으로는 이전 버전의 잔재가 남을 수 있어) 이 헬퍼로 명시적으로 치운다.
+        /// </summary>
+        public static void DestroyChildIfExists(Transform parent, string name)
+        {
+            var existing = parent.Find(name);
+            if (existing != null)
+            {
+                Undo.DestroyObjectImmediate(existing.gameObject);
+            }
+        }
+
         public static void SetAnchors(RectTransform rect, Vector2 min, Vector2 max)
         {
             rect.anchorMin = min;
