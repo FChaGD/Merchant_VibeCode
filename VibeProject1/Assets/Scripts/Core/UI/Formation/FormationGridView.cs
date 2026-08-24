@@ -24,6 +24,7 @@ namespace Game.Core
         [SerializeField, Min(0)] private int overscrollTileMargin = 5;
 
         private readonly List<FormationSlotView> slots = new();
+        private ScrollRect scrollRect;
 
         private Action<int> onSlotDropped;
         private Action<IFormationUnit> onIconClicked;
@@ -70,6 +71,7 @@ namespace Game.Core
         {
             slotSize = size;
             ApplyLayoutSettings();
+            CenterContentOnTiles();
         }
 
         public void RenderSlot(int index, IFormationUnit unit)
@@ -141,6 +143,43 @@ namespace Game.Core
             }
 
             ApplyLayoutSettings();
+            CenterContentOnTiles();
+        }
+
+        /// <summary>
+        /// 콘텐츠는 overscrollTileMargin만큼 타일 영역보다 훨씬 크게 만들어져 있어(ApplyLayoutSettings
+        /// 참고), 기본 스크롤 위치(좌상단)로 열면 빈 여백부터 보여 타일까지 매번 드래그해야 했다.
+        /// 열릴 때마다 실제 타일 영역이 뷰포트 중앙에 오도록 초기 스크롤 위치를 계산해 맞춘다.
+        /// </summary>
+        private void CenterContentOnTiles()
+        {
+            if (scrollRect == null)
+            {
+                scrollRect = GetComponent<ScrollRect>();
+            }
+
+            if (scrollRect == null || scrollRect.viewport == null || slotContent is not RectTransform contentRect)
+            {
+                return;
+            }
+
+            var viewportSize = scrollRect.viewport.rect.size;
+            var marginX = slotLayoutGroup != null ? slotLayoutGroup.padding.left : 0;
+            var marginY = slotLayoutGroup != null ? slotLayoutGroup.padding.top : 0;
+            var tileAreaSize = new Vector2(columnCount * slotSize.x, rowCount * slotSize.y);
+            var contentSize = tileAreaSize + new Vector2(marginX, marginY) * 2f;
+
+            // content의 anchor/pivot이 좌상단(0,1) 고정이라 anchoredPosition은 "뷰포트 좌상단 대비
+            // content 좌상단이 얼마나 밀렸는지"를 뜻한다 - 오른쪽/아래로 스크롤할수록 X는 음수,
+            // Y는 양수가 된다(Unity UI는 Y+가 위쪽이라 아래로 스크롤 = content가 위로 밀림).
+            var maxOffsetX = Mathf.Max(contentSize.x - viewportSize.x, 0f);
+            var maxOffsetY = Mathf.Max(contentSize.y - viewportSize.y, 0f);
+            var targetX = viewportSize.x * 0.5f - marginX - tileAreaSize.x * 0.5f;
+            var targetY = marginY + tileAreaSize.y * 0.5f - viewportSize.y * 0.5f;
+
+            contentRect.anchoredPosition = new Vector2(
+                Mathf.Clamp(targetX, -maxOffsetX, 0f),
+                Mathf.Clamp(targetY, 0f, maxOffsetY));
         }
 
         private void ApplyLayoutSettings()

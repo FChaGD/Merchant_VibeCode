@@ -286,6 +286,7 @@ GameObject:
   - component: {fileID: 900002001}
   - component: {fileID: 900002002}
   - component: {fileID: 900002003}
+  - component: {fileID: 900002004}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -333,6 +334,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.SceneLoader
   initialScene: 0
+--- !u!114 &900002004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900002000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5e6e520f6b2154439ab7cf91f3e08ef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.SessionStateTracker
+  testDurationSeconds: 30
 --- !u!1 &900003000
 GameObject:
   m_ObjectHideFlags: 0
@@ -390,6 +404,7 @@ GameObject:
   - component: {fileID: 900004003}
   - component: {fileID: 900004004}
   - component: {fileID: 900004005}
+  - component: {fileID: 900004006}
   m_Layer: 0
   m_Name: UIManager
   m_TagString: Untagged
@@ -464,6 +479,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.Core::Game.Core.TripPanel
   debugCityMarkerPrefab: {fileID: 7233336327583180505, guid: d04f47bd859fdd84b90e5656937dfc0a, type: 3}
   debugRoadLinePrefab: {fileID: 3467082046620142997, guid: 5a1a6186e004b88459eea902182c6c3e, type: 3}
+--- !u!114 &900004006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900004000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e4256a669f255dd4fa7c2b8e601f2cfb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.FieldUIController
+  backgroundSprite: {fileID: -7553997726247621767, guid: 474b0e768316e1846b3a440b32c0fa9f, type: 3}
 --- !u!1 &900005000
 GameObject:
   m_ObjectHideFlags: 0

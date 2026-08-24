@@ -1,6 +1,10 @@
+using System.IO;
 using TMPro;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace Game.Core.Editor
@@ -120,6 +124,79 @@ namespace Game.Core.Editor
             scrollRect.viewport = viewport;
             scrollRect.content = content;
             scrollRect.movementType = ScrollRect.MovementType.Clamped;
+        }
+
+        /// <summary>
+        /// 콘텐츠 씬(Hub/Field)마다 자체 EventSystem을 가져야 한다 - 그리드 ScrollRect 드래그 등 UI
+        /// 입력이 정상 동작하려면 씬이 로드될 때마다 새 EventSystem이 함께 있어야 한다는 게 확인됐다
+        /// (영속 EventSystem 하나로 통합했더니 드래그가 깨졌다). 대신 SceneLoader가 씬 전환 시 이전
+        /// EventSystem을 즉시 파괴해 "동시에 2개 존재하는 프레임"만 없앤다(SceneLoader.cs 참고). 각
+        /// 콘텐츠 씬 인스톨러는 이 헬퍼로 자기 씬에 EventSystem이 있는지 확인하고 없으면 만든다.
+        /// </summary>
+        public static void EnsureSceneEventSystem(Scene scene)
+        {
+            foreach (var rootObject in scene.GetRootGameObjects())
+            {
+                if (rootObject.GetComponent<EventSystem>() != null)
+                {
+                    return;
+                }
+            }
+
+            var go = new GameObject("EventSystem");
+            SceneManager.MoveGameObjectToScene(go, scene);
+            Undo.RegisterCreatedObjectUndo(go, "Create EventSystem");
+            go.AddComponent<EventSystem>();
+            go.AddComponent<InputSystemUIInputModule>();
+        }
+
+        private const string SolidSpritePath = "Assets/Sprites/UI/SolidWhite.png";
+
+        /// <summary>
+        /// Image.Type.Filled(게이지/진행바 등)는 sprite가 비어 있으면 fillAmount를 무시하고 항상 꽉 찬
+        /// 채로 그려지는 경우가 있다 - 이 흰색 단색 스프라이트를 붙이면 정상적으로 채워진다.
+        /// Image.color로 원하는 색을 입히면 되므로 색상별로 별도 스프라이트를 만들 필요는 없다.
+        /// </summary>
+        public static Sprite GetOrCreateSolidSprite()
+        {
+            var existing = AssetDatabase.LoadAssetAtPath<Sprite>(SolidSpritePath);
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            if (!AssetDatabase.IsValidFolder("Assets/Sprites"))
+            {
+                AssetDatabase.CreateFolder("Assets", "Sprites");
+            }
+            if (!AssetDatabase.IsValidFolder("Assets/Sprites/UI"))
+            {
+                AssetDatabase.CreateFolder("Assets/Sprites", "UI");
+            }
+
+            const int size = 4;
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            var pixels = new Color32[size * size];
+            for (var i = 0; i < pixels.Length; i++)
+            {
+                pixels[i] = new Color32(255, 255, 255, 255);
+            }
+            texture.SetPixels32(pixels);
+            texture.Apply();
+
+            File.WriteAllBytes(SolidSpritePath, texture.EncodeToPNG());
+            Object.DestroyImmediate(texture);
+
+            AssetDatabase.ImportAsset(SolidSpritePath, ImportAssetOptions.ForceSynchronousImport);
+
+            var importer = (TextureImporter)AssetImporter.GetAtPath(SolidSpritePath);
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.mipmapEnabled = false;
+            importer.filterMode = FilterMode.Point;
+            importer.SaveAndReimport();
+
+            return AssetDatabase.LoadAssetAtPath<Sprite>(SolidSpritePath);
         }
     }
 }

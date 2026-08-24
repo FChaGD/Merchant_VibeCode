@@ -11,6 +11,8 @@ namespace Game.Core
         private IHubUIController hubUIController;
         private IFormationPanel formationPanel;
         private ITripPanel tripPanel;
+        private IFieldUIController fieldUIController;
+        private ISessionState sessionState;
 
         // 상행 관리 데이터 시스템이 아직 없어 선택적으로 조회한다 - 등록되면 자동으로 연결된다.
         private ICaravanRosterProvider caravanRosterProvider;
@@ -50,6 +52,14 @@ namespace Game.Core
             {
                 throw new InvalidOperationException($"{nameof(UIManager)}와 같은 GameObject에 {nameof(ITripPanel)} 구현체가 없다.");
             }
+
+            fieldUIController = GetComponent<IFieldUIController>();
+            if (fieldUIController == null)
+            {
+                throw new InvalidOperationException($"{nameof(UIManager)}와 같은 GameObject에 {nameof(IFieldUIController)} 구현체가 없다.");
+            }
+
+            sessionState = registrar.Resolve<ISessionState>();
 
             registrar.TryResolve(out caravanRosterProvider);
             registrar.TryResolve(out formationRepository);
@@ -98,11 +108,20 @@ namespace Game.Core
             {
                 hubUIController.RegisterHubUI(this);
 
-                formationPanel.RegisterFormationUI(caravanRosterProvider, formationRepository, this);
+                formationPanel.RegisterFormationUI(caravanRosterProvider, formationRepository, this, SceneNames.Hub);
                 panelsById[formationPanel.PanelId] = formationPanel;
 
                 tripPanel.RegisterTripUI(this, gameManager, formationRepository, tripInfoProvider);
                 panelsById[tripPanel.PanelId] = tripPanel;
+            }
+            else if (sceneName == SceneNames.Field)
+            {
+                // Formation UI(정비창)는 Hub 전용이 아니다 - Field도 자신만의 화면 요소를 갖고 있어
+                // (FieldUIInstaller 참고) 여기서도 다시 등록해야 "정비창 재호출"이 동작한다.
+                formationPanel.RegisterFormationUI(caravanRosterProvider, formationRepository, this, SceneNames.Field);
+                panelsById[formationPanel.PanelId] = formationPanel;
+
+                fieldUIController.RegisterFieldUI(this, sessionState);
             }
         }
 

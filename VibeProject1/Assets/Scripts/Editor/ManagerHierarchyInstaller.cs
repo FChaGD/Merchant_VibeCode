@@ -19,6 +19,12 @@ namespace Game.Core.Editor
         {
             var root = GetOrCreateRoot();
 
+            // 한때 Bootstrap에 EventSystem을 영속시켜봤으나 콘텐츠 씬(Hub/Field)의 그리드 드래그가
+            // 깨지는 회귀가 있어 되돌렸다 - 콘텐츠 씬마다 자기 EventSystem을 갖는 원래 구조로 복귀
+            // (EditorUIBuilder.EnsureSceneEventSystem/SceneLoader 참고). 이전에 여기 만들어졌을 수 있는
+            // 잔재를 정리한다(재실행 안전성).
+            EditorUIBuilder.DestroyChildIfExists(root.transform, "EventSystem");
+
             var dependencyManager = GetOrCreateManager<DependencyManager>(root.transform, "DependencyManager");
             var gameManager = GetOrCreateManager<GameManager>(root.transform, "GameManager");
             var inputManager = GetOrCreateManager<InputManager>(root.transform, "InputManager");
@@ -31,10 +37,16 @@ namespace Game.Core.Editor
             // 독립된 관리 대상이므로 managedComponents 동기화 목록에도 포함한다.
             var sceneLoader = EnsureSiblingComponent<SceneLoader>(gameManager.gameObject);
 
-            // HubUIController/FormationPanel/TripPanel은 전역 매니저가 아니라 UIManager 산하 컴포넌트이므로 같은 GameObject에 부착한다.
+            // SessionStateTracker는 GameManager 산하 컴포넌트라 전역 DI 대상이 아니다(GameManager가
+            // RegisterSelf에서 직접 조회해 ISessionState/ISessionPauseControl로 등록) - 그래서
+            // managedComponents 동기화 목록에는 포함하지 않는다.
+            EnsureSiblingComponent<SessionStateTracker>(gameManager.gameObject);
+
+            // HubUIController/FormationPanel/TripPanel/FieldUIController는 전역 매니저가 아니라 UIManager 산하 컴포넌트이므로 같은 GameObject에 부착한다.
             EnsureSiblingComponent<HubUIController>(uiManager.gameObject);
             EnsureSiblingComponent<FormationPanel>(uiManager.gameObject);
             EnsureSiblingComponent<TripPanel>(uiManager.gameObject);
+            EnsureSiblingComponent<FieldUIController>(uiManager.gameObject);
 
             // 상행 관리 데이터 시스템이 아직 없어, 배치 UI 팔레트 테스트용 임시 로스터 제공자를 등록한다.
             // 실제 데이터 시스템이 생기면 이 매니저와 아이콘 생성 로직을 함께 제거한다.

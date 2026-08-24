@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 
 namespace Game.Core
@@ -36,15 +37,39 @@ namespace Game.Core
 
         private IEnumerator TransitionRoutine(string sceneName)
         {
+            var previousSceneName = currentContentScene;
+
             yield return SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
 
-            if (!string.IsNullOrEmpty(currentContentScene))
+            if (!string.IsNullOrEmpty(previousSceneName))
             {
-                yield return SceneManager.UnloadSceneAsync(currentContentScene);
+                // 콘텐츠 씬마다 자체 EventSystem을 갖고 있다(각 씬 인스톨러가 생성). UnloadSceneAsync가
+                // 끝나길 기다리는 동안 새 씬의 EventSystem과 이전 씬의 EventSystem이 한 프레임이라도
+                // 동시에 존재하면 Unity가 "There can be only one active Event System" 경고와 함께
+                // 입력을 먹통으로 만든다 - 그래서 언로드를 기다리지 않고 이전 EventSystem만 여기서
+                // 즉시 파괴해 동시 존재 자체를 없앤다.
+                RemoveEventSystem(SceneManager.GetSceneByName(previousSceneName));
+                yield return SceneManager.UnloadSceneAsync(previousSceneName);
             }
 
             currentContentScene = sceneName;
             OnSceneLoaded?.Invoke(sceneName);
+        }
+
+        private static void RemoveEventSystem(Scene scene)
+        {
+            if (!scene.IsValid())
+            {
+                return;
+            }
+
+            foreach (var rootObject in scene.GetRootGameObjects())
+            {
+                if (rootObject.GetComponent<EventSystem>() != null)
+                {
+                    Destroy(rootObject);
+                }
+            }
         }
 
         private static string ToSceneName(ContentSceneId id)

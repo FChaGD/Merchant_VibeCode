@@ -1,3 +1,6 @@
+#if UNITY_EDITOR
+using Game.Core.DebugTools;
+#endif
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -11,8 +14,10 @@ namespace Game.Core
     /// </summary>
     public class TripPanel : MonoBehaviour, ITripPanel
     {
+#if UNITY_EDITOR
         [SerializeField] private TripDebugCityMarkerView debugCityMarkerPrefab;
         [SerializeField] private TripDebugRoadLineView debugRoadLinePrefab;
+#endif
 
         public string PanelId => UIPanelIds.Trip;
 
@@ -26,11 +31,16 @@ namespace Game.Core
         private Button startButton;
         private Canvas rootCanvas;
 
+#if UNITY_EDITOR
+        // 지도 위 디버그 도시 배치/경로 연결 + 출발·도착 지정 배선 전체의 연동 지점 - Core/Debug/Trip
+        // 폴더를 지울 때는 이 필드들과 SetupDebugMapInteraction, TryBind/RefreshStartButtonInteractable
+        // 안의 #if UNITY_EDITOR 블록도 함께 지운다(DEBUG_FEATURES.md 참고).
         private TripDebugCityPaletteView debugCityPaletteView;
         private TripDebugRoadToggleView debugRoadToggleView;
         private Button debugCityBulkDeleteButton;
         private Button debugRoadBulkDeleteButton;
         private TripMapInteractionCoordinator mapInteractionCoordinator;
+#endif
 
         private IUIManager uiManager;
         private IGameManager gameManager;
@@ -74,7 +84,9 @@ namespace Game.Core
 
             rootCanvas = panelRoot.GetComponentInParent<Canvas>()?.rootCanvas;
 
+#if UNITY_EDITOR
             SetupDebugMapInteraction();
+#endif
 
             closeButton.onClick.RemoveAllListeners();
             closeButton.onClick.AddListener(() => uiManager.Close(PanelId));
@@ -88,6 +100,7 @@ namespace Game.Core
             panelRoot.SetActive(false);
         }
 
+#if UNITY_EDITOR
         // 지도 위 도시 배치/경로 연결(디버그, 03/04번 기획)과 출발/도착 지정(정식, 02번 기획) 배선을
         // 모두 TripMapInteractionCoordinator에 위임한다(SRP) - 둘 다 같은 지도/도시 데이터를 다루고,
         // TripPanel이 직접 들고 있으면 책임이 비대해진다. 필요한 요소 중 하나라도 씬에 없으면(예: 아직
@@ -120,10 +133,15 @@ namespace Game.Core
             mapInteractionCoordinator.OriginDestinationReader.Changed += RefreshStartButtonInteractable;
             RefreshStartButtonInteractable();
         }
+#endif
 
         private void RefreshStartButtonInteractable()
         {
+#if UNITY_EDITOR
             startButton.interactable = mapInteractionCoordinator?.OriginDestinationReader.IsBothAssigned ?? true;
+#else
+            startButton.interactable = true;
+#endif
         }
 
         private bool TryBind(SceneUIRoot sceneUIRoot)
@@ -177,12 +195,14 @@ namespace Game.Core
                 return false;
             }
 
+#if UNITY_EDITOR
             // 지도 디버그 배치/경로 연결 요소는 보조 기능이라 없어도 나머지 상행 준비 UI는 정상 동작해야
             // 한다 - 없으면 SetupDebugMapInteraction에서 조용히 건너뛴다.
             sceneUIRoot.TryGetElement<TripDebugCityPaletteView>(TripUIElementIds.DebugCityPaletteRoot, out debugCityPaletteView);
             sceneUIRoot.TryGetElement<TripDebugRoadToggleView>(TripUIElementIds.DebugRoadToggleButton, out debugRoadToggleView);
             sceneUIRoot.TryGetElement<Button>(TripUIElementIds.DebugCityBulkDeleteButton, out debugCityBulkDeleteButton);
             sceneUIRoot.TryGetElement<Button>(TripUIElementIds.DebugRoadBulkDeleteButton, out debugRoadBulkDeleteButton);
+#endif
 
             return true;
         }

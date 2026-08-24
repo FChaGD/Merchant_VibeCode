@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+#if UNITY_EDITOR
+using Game.Core.DebugTools;
+#endif
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
@@ -8,10 +11,12 @@ using UnityEngine.UI;
 namespace Game.Core
 {
     /// <summary>
-    /// Hub 씬의 배치(Formation) UI를 조율한다. 팔레트/그리드/정보패널 사이의 드래그 앤 드롭 상호작용과
-    /// 세션 중 배치 상태(FormationLayout)를 소유하며, 적용 버튼을 눌렀을 때만 IFormationRepository에 반영한다.
-    /// 적용 없이 닫으면 세션 상태를 그냥 버린다 — 다음에 열 때 항상 repository에서 다시 불러오므로
-    /// 별도의 되돌리기 로직 없이 "마지막 적용 상태로 복귀"가 성립한다.
+    /// 배치(Formation) UI를 조율한다. Hub뿐 아니라 배치 UI 화면 요소를 갖춘 콘텐츠 씬(Field 포함)이
+    /// 로드될 때마다 RegisterFormationUI가 다시 호출되어 그 씬의 요소로 재바인딩된다 - 화면 요소 자체는
+    /// 콘텐츠 씬에 속해 있어 씬이 바뀌면 파괴되기 때문이다. 팔레트/그리드/정보패널 사이의 드래그 앤 드롭
+    /// 상호작용과 세션 중 배치 상태(FormationLayout)를 소유하며, 적용 버튼을 눌렀을 때만
+    /// IFormationRepository에 반영한다. 적용 없이 닫으면 세션 상태를 그냥 버린다 — 다음에 열 때 항상
+    /// repository에서 다시 불러오므로 별도의 되돌리기 로직 없이 "마지막 적용 상태로 복귀"가 성립한다.
     /// </summary>
     public class FormationPanel : MonoBehaviour, IFormationPanel
     {
@@ -23,7 +28,12 @@ namespace Game.Core
         private FormationPaletteView paletteView;
         private FormationGridView gridView;
         private FormationInfoPanelView infoPanelView;
+#if UNITY_EDITOR
+        // Core/Debug/Formation의 그리드 크기 디버그 패널 연동 지점 - 이 필드와 TryBind/Open의 짝, 그리고
+        // HandleDebugApply/ResizeGrid/ResizeSlotSize 메서드까지가 디버그 전용 구간이다. Core/Debug/Formation
+        // 폴더를 지울 때는 이 #if UNITY_EDITOR 블록들도 함께 지운다(DEBUG_FEATURES.md 참고).
         private FormationGridDebugView debugView;
+#endif
         private Button applyButton;
         private Button closeButton;
         private Canvas rootCanvas;
@@ -40,21 +50,24 @@ namespace Game.Core
         private int? draggedFromSlot;
         private bool dropHandled;
 
-        public void RegisterFormationUI(ICaravanRosterProvider rosterProvider, IFormationRepository repository, IUIManager uiManager)
+        public void RegisterFormationUI(ICaravanRosterProvider rosterProvider, IFormationRepository repository, IUIManager uiManager, string sceneName)
         {
             this.rosterProvider = rosterProvider;
             this.repository = repository;
             this.uiManager = uiManager;
 
-            var hubScene = SceneManager.GetSceneByName(SceneNames.Hub);
-            if (!hubScene.IsValid())
+            // 배치 UI 화면 요소는 콘텐츠 씬(Hub/Field 등) 안에 있어 그 씬이 언로드되면 함께 파괴된다.
+            // 다른 콘텐츠 씬이 로드될 때마다 이 메서드가 다시 호출되어 그 씬의 사본으로 재바인딩한다
+            // (panelRoot 등 이전 바인딩은 이미 파괴된 참조이므로 그냥 덮어써도 안전하다).
+            var contentScene = SceneManager.GetSceneByName(sceneName);
+            if (!contentScene.IsValid())
             {
-                Debug.LogWarning($"'{SceneNames.Hub}' 씬을 찾을 수 없어 Formation UI를 등록하지 못했다.");
+                Debug.LogWarning($"'{sceneName}' 씬을 찾을 수 없어 Formation UI를 등록하지 못했다.");
                 return;
             }
 
             SceneUIRoot sceneUIRoot = null;
-            foreach (var rootObject in hubScene.GetRootGameObjects())
+            foreach (var rootObject in contentScene.GetRootGameObjects())
             {
                 sceneUIRoot = rootObject.GetComponentInChildren<SceneUIRoot>(true);
                 if (sceneUIRoot != null)
@@ -65,7 +78,7 @@ namespace Game.Core
 
             if (sceneUIRoot == null)
             {
-                Debug.LogWarning($"'{SceneNames.Hub}' 씬에서 {nameof(SceneUIRoot)}를 찾을 수 없다.");
+                Debug.LogWarning($"'{sceneName}' 씬에서 {nameof(SceneUIRoot)}를 찾을 수 없다.");
                 return;
             }
 
@@ -124,8 +137,10 @@ namespace Game.Core
                 return false;
             }
 
+#if UNITY_EDITOR
             // 디버그 패널은 보조 기능이라 없어도 나머지 배치 UI는 정상 동작해야 한다 - 없으면 조용히 건너뛴다.
             sceneUIRoot.TryGetElement<FormationGridDebugView>(FormationUIElementIds.DebugPanelRoot, out debugView);
+#endif
 
             return true;
         }
@@ -156,7 +171,9 @@ namespace Game.Core
 
             RefreshAllSlots();
             infoPanelView.Clear();
+#if UNITY_EDITOR
             debugView?.Initialize(gridView.ColumnCount, gridView.RowCount, gridView.SlotSize, HandleDebugApply);
+#endif
 
             panelRoot.SetActive(true);
         }
@@ -173,10 +190,12 @@ namespace Game.Core
             panelRoot.SetActive(false);
         }
 
+#if UNITY_EDITOR
         /// <summary>
-        /// 열(X)/행(Y) 수를 런타임에 조절한다(디버깅 UI 연동 지점). 기존 배치는 가능한 범위까지 유지한다.
+        /// 열(X)/행(Y) 수를 런타임에 조절한다(디버깅 UI 연동 지점, HandleDebugApply의 유일한 호출부).
+        /// 기존 배치는 가능한 범위까지 유지한다.
         /// </summary>
-        public void ResizeGrid(int columns, int rows)
+        private void ResizeGrid(int columns, int rows)
         {
             if (gridView == null || currentLayout == null)
             {
@@ -185,9 +204,8 @@ namespace Game.Core
 
             gridView.SetGridDimensions(columns, rows);
 
-            var slotCount = Mathf.Max(0, columns) * Mathf.Max(0, rows);
-            var resized = new FormationLayout(slotCount);
-            var copyCount = Mathf.Min(slotCount, currentLayout.SlotCount);
+            var resized = new FormationLayout(Mathf.Max(0, columns), Mathf.Max(0, rows));
+            var copyCount = Mathf.Min(resized.SlotCount, currentLayout.SlotCount);
             for (var i = 0; i < copyCount; i++)
             {
                 resized.SetUnitId(i, currentLayout.GetUnitId(i));
@@ -198,9 +216,9 @@ namespace Game.Core
         }
 
         /// <summary>
-        /// 타일 1칸의 가로/세로 크기를 런타임에 조절한다(디버깅 UI 연동 지점).
+        /// 타일 1칸의 가로/세로 크기를 런타임에 조절한다(디버깅 UI 연동 지점, HandleDebugApply의 유일한 호출부).
         /// </summary>
-        public void ResizeSlotSize(Vector2 size)
+        private void ResizeSlotSize(Vector2 size)
         {
             gridView?.SetSlotSize(size);
         }
@@ -211,23 +229,20 @@ namespace Game.Core
             ResizeSlotSize(size);
             ResizeGrid(columns, rows);
         }
+#endif
 
         private FormationLayout BuildInitialLayout()
         {
-            var slotCount = gridView.SlotCount;
-
             if (repository != null && repository.TryLoadCurrent(out var saved))
             {
-                var adjusted = new FormationLayout(slotCount);
-                var copyCount = Mathf.Min(slotCount, saved.SlotCount);
-                for (var i = 0; i < copyCount; i++)
-                {
-                    adjusted.SetUnitId(i, saved.GetUnitId(i));
-                }
-                return adjusted;
+                // 저장된 배치의 그리드 모양(열/행 수)을 이 씬의 그리드 모양 기준으로 삼는다 - 콘텐츠
+                // 씬마다 별도 화면 요소를 갖고 있어(클래스 요약 주석 참고) 그리드 모양이 씬마다 따로
+                // 어긋날 수 있었다. 저장된 데이터가 기준이 되면 어느 씬에서 열어도 같은 모양으로 보인다.
+                gridView.SetGridDimensions(saved.ColumnCount, saved.RowCount);
+                return saved.Clone();
             }
 
-            return new FormationLayout(slotCount);
+            return new FormationLayout(gridView.ColumnCount, gridView.RowCount);
         }
 
         private void HandleApply()
