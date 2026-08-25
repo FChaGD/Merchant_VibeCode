@@ -19,11 +19,14 @@ namespace Game.Core
         private IUIManager uiManager;
         private ISessionState sessionState;
         private IBattleController battleController;
+        private IDefeatConsequenceSource defeatConsequenceSource;
+        private IGameManager gameManager;
 
         private MonoBehaviour coroutineRunner;
         private FieldCameraController cameraController;
         private FieldEncounterWarningView warningView;
         private FieldResultPopupView resultPopupView;
+        private FieldTransitionCurtainView transitionCurtain;
 
         // 인카운터 발생 시점부터 전투 뷰 전환이 끝날 때까지 true로 유지한다. 전투 시작(StartBattle)
         // 자체를 전환 완료 시점으로 옮겼지만(HandleEncounterTriggered/TransitionAfterWarning 참고),
@@ -32,11 +35,13 @@ namespace Game.Core
         private bool isTransitioning;
         private BattleResult? pendingResult;
 
-        public void Bind(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource)
+        public void Bind(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IGameManager gameManager)
         {
             this.uiManager = uiManager;
             this.sessionState = sessionState;
             this.battleController = battleController;
+            this.defeatConsequenceSource = defeatConsequenceSource;
+            this.gameManager = gameManager;
 
             if (eventsBound)
             {
@@ -48,12 +53,13 @@ namespace Game.Core
             eventsBound = true;
         }
 
-        public void RebindViews(MonoBehaviour coroutineRunner, FieldCameraController cameraController, FieldEncounterWarningView warningView, FieldResultPopupView resultPopupView)
+        public void RebindViews(MonoBehaviour coroutineRunner, FieldCameraController cameraController, FieldEncounterWarningView warningView, FieldResultPopupView resultPopupView, FieldTransitionCurtainView transitionCurtain)
         {
             this.coroutineRunner = coroutineRunner;
             this.cameraController = cameraController;
             this.warningView = warningView;
             this.resultPopupView = resultPopupView;
+            this.transitionCurtain = transitionCurtain;
         }
 
         private void HandleEncounterTriggered()
@@ -69,13 +75,20 @@ namespace Game.Core
         {
             yield return new WaitForSeconds(WarningDisplaySeconds);
             warningView.Hide();
+
+            // 커튼 등장(슬라이드 중 전투 뷰와 동행)은 FieldCameraController가 처리한다 - 여기서는
+            // 슬라이드가 끝나 화면이 완전히 덮인 뒤, 전투 상태가 실제로 재구성된 시점에 걷기만 한다.
             cameraController.TransitionToBattle(() =>
             {
                 // 전투 시작을 여기서 호출한다 - EncounterManager가 인카운터 발생과 동시에 호출하면
                 // PlaceholderBattleResultRule의 1초 판정이 2초 경고창 표시 중에 끝나버려, 전투 뷰에
                 // 들어가자마자 결과가 즉시 뜨는 문제가 있었다. 전투 뷰 전환이 끝난 시점에 시작해야
                 // "전투 뷰 진입 후 1초 뒤 결과"라는 체감 흐름이 만들어진다.
+                // StartBattle()은 동기적으로 LiveBattleSimulationRule.Evaluate()→BattleViewPresenter
+                // .Present()까지 실행해 유닛 뷰를 새로 갱신한다 - 그 직후에 커튼을 걷어야 갱신된
+                // 상태만 보인다.
                 battleController.StartBattle();
+                transitionCurtain.Hide();
                 isTransitioning = false;
                 FlushPendingResultIfAny();
             });
@@ -116,10 +129,36 @@ namespace Game.Core
                         cameraController.TransitionToMovement(onComplete: sessionState.Resume));
                     break;
                 case BattleOutcome.Defeat:
-                    resultPopupView.Show("패배", "플레이 종료", onConfirm: Application.Quit);
+                    ShowDefeatConsequence(defeatConsequenceSource.ResolveDefeatConsequence());
                     break;
-                // 궤주/포로/사망/도주 등 판정 종류가 늘어나면([[01_게임개요_핵심루프]] 6절) 이 switch에
-                // case를 추가해야 한다 - 지금은 승리/패배 2종뿐이라 전략 패턴으로 미리 분리하지 않았다.
+            }
+        }
+
+        // 기획 §14.4 "궤주/포로/도주 각각의 상행 반영 규칙"을 확정해 반영한다 - 사망=플레이 종료,
+        // 도주=상행 속행(Victory와 동일한 흐름), 궤주=Hub로 귀환. 포로는 아직 "포로 콘텐츠" 자체가
+        // 없어(테스트 단계) 사망과 동일하게 임시로 플레이 종료 처리한다 - 콘텐츠가 생기면 이 case만
+        // 교체하면 된다.
+        private void ShowDefeatConsequence(DefeatConsequence consequence)
+        {
+            switch (consequence)
+            {
+                case DefeatConsequence.Death:
+                    resultPopupView.Show("패배 - 전멸", "플레이 종료", onConfirm: Application.Quit);
+                    break;
+                case DefeatConsequence.Flee:
+                    // Victory와 동일한 흐름(이동 뷰 복귀 + 상행 재개) - §14.4에서 도주는 "상행 속행"으로 정했다.
+                    resultPopupView.Show("패배 - 도주", "상행 속행", onConfirm: () =>
+                        cameraController.TransitionToMovement(onComplete: sessionState.Resume));
+                    break;
+                case DefeatConsequence.Rout:
+                    resultPopupView.Show("패배 - 궤주", "귀환", onConfirm: () =>
+                        gameManager.RequestSceneTransition(SceneNames.Hub));
+                    break;
+                case DefeatConsequence.Captured:
+                default:
+                    // 포로 콘텐츠 미구현(테스트 단계) - 확정되기 전까지 사망과 동일하게 처리한다.
+                    resultPopupView.Show("패배 - 포로", "플레이 종료", onConfirm: Application.Quit);
+                    break;
             }
         }
     }

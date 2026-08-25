@@ -5,7 +5,6 @@ namespace Game.Core
 {
     public class GameManager : MonoBehaviour, IGameManager, IManagedComponent
     {
-        private IBattleResultSource battleResultSource;
         private ISceneLoader sceneLoader;
 
         public void RegisterSelf(IDependencyRegistrar registrar)
@@ -26,11 +25,6 @@ namespace Game.Core
 
         public void ResolveDependencies(IDependencyRegistrar registrar)
         {
-            // 전투 결과는 상행 종료 판정에 필수인 의존성이므로 Resolve(필수)로 조회한다.
-            // BattleManager가 관리 목록에서 빠지면 여기서 즉시 예외가 발생해 결선 누락을 조기에 드러낸다.
-            battleResultSource = registrar.Resolve<IBattleResultSource>();
-            battleResultSource.OnBattleEnded += HandleBattleEnded;
-
             // 씬 전환 실행은 SceneLoader의 책임 — GameManager는 요청을 그대로 전달만 한다.
             sceneLoader = registrar.Resolve<ISceneLoader>();
         }
@@ -38,19 +32,6 @@ namespace Game.Core
         public void RequestSceneTransition(string sceneName)
         {
             sceneLoader.Transition(sceneName);
-        }
-
-        private void HandleBattleEnded(BattleResult result)
-        {
-            // TODO: 전투 결과에 따른 상행 종료 판정(궤주/포로/사망/도주) - 후속 기획 확정 후 구현
-        }
-
-        private void OnDestroy()
-        {
-            if (battleResultSource != null)
-            {
-                battleResultSource.OnBattleEnded -= HandleBattleEnded;
-            }
         }
     }
 }

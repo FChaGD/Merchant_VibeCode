@@ -12,16 +12,22 @@ namespace Game.Core
     public class FieldUIController : MonoBehaviour, IFieldUIController
     {
         [SerializeField] private Sprite backgroundSprite;
+        [SerializeField] private BattleCharacterUnitView battleCharacterViewPrefab;
+        [SerializeField] private BattleProtectedUnitView battleProtectedViewPrefab;
 
         private FieldProgressGaugeView gaugeView;
         private Button formationButton;
         private FieldEncounterWarningView warningView;
         private RectTransform movementViewRoot;
         private RectTransform battleViewRoot;
+        private RectTransform battleAllyLayer;
+        private RectTransform battleEnemyLayer;
         private FieldResultPopupView resultPopupView;
+        private FieldTransitionCurtainView transitionCurtain;
         private FieldEncounterFlowCoordinator flowCoordinator;
+        private BattleViewPresenter viewPresenter;
 
-        public void RegisterFieldUI(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource)
+        public void RegisterFieldUI(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager)
         {
             var fieldScene = SceneManager.GetSceneByName(SceneNames.Field);
             if (!fieldScene.IsValid())
@@ -65,9 +71,16 @@ namespace Game.Core
             // (Docs/설계/04_Field씬_아키텍처.md §5.2). cameraController는 이번 Field 씬의 뷰 참조를
             // 담고 있어 매번 새로 만든다.
             flowCoordinator ??= new FieldEncounterFlowCoordinator();
-            flowCoordinator.Bind(uiManager, sessionState, encounterManager, battleController, battleResultSource);
-            var cameraController = new FieldCameraController(this, movementViewRoot, battleViewRoot);
-            flowCoordinator.RebindViews(this, cameraController, warningView, resultPopupView);
+            flowCoordinator.Bind(uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, gameManager);
+            var cameraController = new FieldCameraController(this, movementViewRoot, battleViewRoot, transitionCurtain);
+            flowCoordinator.RebindViews(this, cameraController, warningView, resultPopupView, transitionCurtain);
+
+            // battleSimulationEvents도 Bootstrap 상주 영속 객체(BattleManager)라 같은 이유로
+            // viewPresenter를 재생성하지 않는다 - Bind(이벤트 구독)는 최초 1회, RebindViews(이번 씬의
+            // 유닛 레이어/프리팹 참조)는 Field 씬을 로드할 때마다 실행한다.
+            viewPresenter ??= new BattleViewPresenter();
+            viewPresenter.Bind(battleSimulationEvents);
+            viewPresenter.RebindViews(battleAllyLayer, battleEnemyLayer, battleCharacterViewPrefab, battleProtectedViewPrefab);
 
             sessionState.Begin();
         }
@@ -120,9 +133,27 @@ namespace Game.Core
                 return false;
             }
 
+            if (!sceneUIRoot.TryGetElement<RectTransform>(FieldUIElementIds.BattleAllyLayer, out battleAllyLayer))
+            {
+                WarnMissing(FieldUIElementIds.BattleAllyLayer);
+                return false;
+            }
+
+            if (!sceneUIRoot.TryGetElement<RectTransform>(FieldUIElementIds.BattleEnemyLayer, out battleEnemyLayer))
+            {
+                WarnMissing(FieldUIElementIds.BattleEnemyLayer);
+                return false;
+            }
+
             if (!sceneUIRoot.TryGetElement<FieldResultPopupView>(FieldUIElementIds.ResultPopup, out resultPopupView))
             {
                 WarnMissing(FieldUIElementIds.ResultPopup);
+                return false;
+            }
+
+            if (!sceneUIRoot.TryGetElement<FieldTransitionCurtainView>(FieldUIElementIds.TransitionCurtain, out transitionCurtain))
+            {
+                WarnMissing(FieldUIElementIds.TransitionCurtain);
                 return false;
             }
 

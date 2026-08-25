@@ -18,6 +18,10 @@ namespace Game.Core.Editor
     /// </summary>
     public static class FieldUIInstaller
     {
+        private const string BattlePrefabFolder = "Assets/Prefabs/UI/Battle";
+        private const string CharacterViewPrefabPath = BattlePrefabFolder + "/BattleCharacterUnitView.prefab";
+        private const string ProtectedViewPrefabPath = BattlePrefabFolder + "/BattleProtectedUnitView.prefab";
+
         [MenuItem("Tools/Game/Build Field UI")]
         public static void BuildFieldUI()
         {
@@ -54,11 +58,17 @@ namespace Game.Core.Editor
             // 이동 뷰(도착)/전투 뷰(승패) 양쪽에서 모두 떠야 해서 어느 한쪽 하위에 종속시키지 않는다.
             BuildBattleView(sceneUIRoot.transform);
             BuildResultPopup(sceneUIRoot.transform);
+            BuildTransitionCurtain(sceneUIRoot.transform);
 
             FormationUIBuilder.EnsurePrefabFolder();
             var slotPrefab = FormationUIBuilder.GetOrCreateSlotPrefab();
             var iconPrefab = FormationUIBuilder.GetOrCreateIconPrefab();
             FormationUIBuilder.Build(sceneUIRoot, slotPrefab, iconPrefab);
+
+            // 전투 뷰 유닛 프리팹도 여기서 함께 최신화한다 - ManagerHierarchyInstaller(Bootstrap)가
+            // FieldUIController에 이 프리팹들을 연결할 때 재사용한다.
+            GetOrCreateCharacterViewPrefab();
+            GetOrCreateProtectedViewPrefab();
 
             EditorSceneManager.MarkSceneDirty(activeScene);
             Debug.Log("Field UI(이동 뷰/전투 뷰/결과 팝업) 하이어라키 생성/동기화 완료. 씬을 저장(Ctrl+S)해야 변경사항이 파일에 반영된다.");
@@ -136,7 +146,109 @@ namespace Game.Core.Editor
             background.raycastTarget = false;
             EditorUIBuilder.EnsureLabel(go.transform, "전투 중...");
 
+            BuildBattleUnitLayer(go.transform, "AllyLayer", FieldUIElementIds.BattleAllyLayer);
+            BuildBattleUnitLayer(go.transform, "EnemyLayer", FieldUIElementIds.BattleEnemyLayer);
+
             go.SetActive(false); // 평소에는 숨김 - FieldCameraController가 전환 시 활성화
+        }
+
+        /// <summary>
+        /// BattleViewPresenter가 유닛 뷰(BattleCharacterUnitView 등)를 스폰하는 자리. 스트레치된
+        /// BattleView와 달리 중앙 한 점에 고정된 앵커라, 자식의 anchoredPosition이 곧 전장 좌표
+        /// (BattleFieldLayout) 원점 기준 픽셀 오프셋이 된다.
+        /// </summary>
+        private static void BuildBattleUnitLayer(Transform parent, string name, string markerId)
+        {
+            var go = EditorUIBuilder.GetOrCreateUIObject(parent, name);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = Vector2.zero;
+            rect.anchoredPosition = Vector2.zero;
+            EditorUIBuilder.EnsureMarker(go, markerId);
+        }
+
+        private static void EnsureBattlePrefabFolder()
+        {
+            if (!AssetDatabase.IsValidFolder("Assets/Prefabs"))
+            {
+                AssetDatabase.CreateFolder("Assets", "Prefabs");
+            }
+            if (!AssetDatabase.IsValidFolder("Assets/Prefabs/UI"))
+            {
+                AssetDatabase.CreateFolder("Assets/Prefabs", "UI");
+            }
+            if (!AssetDatabase.IsValidFolder(BattlePrefabFolder))
+            {
+                AssetDatabase.CreateFolder("Assets/Prefabs/UI", "Battle");
+            }
+        }
+
+        /// <summary>
+        /// ManagerHierarchyInstaller(Bootstrap)가 FieldUIController에 연결할 때도 재사용한다 -
+        /// FormationUIBuilder.GetOrCreateSlotPrefab()을 FieldUIInstaller가 가져다 쓰는 것과 같은 패턴.
+        /// </summary>
+        internal static BattleCharacterUnitView GetOrCreateCharacterViewPrefab()
+        {
+            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(CharacterViewPrefabPath);
+            if (existing != null)
+            {
+                return existing.GetComponent<BattleCharacterUnitView>();
+            }
+
+            EnsureBattlePrefabFolder();
+
+            var go = new GameObject("BattleCharacterUnitView", typeof(RectTransform));
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(24f, 24f);
+
+            var image = go.AddComponent<Image>();
+            image.color = Color.white;
+
+            var view = go.AddComponent<BattleCharacterUnitView>();
+            var so = new SerializedObject(view);
+            so.FindProperty("bodyImage").objectReferenceValue = image;
+            so.ApplyModifiedProperties();
+
+            var savedPrefab = PrefabUtility.SaveAsPrefabAsset(go, CharacterViewPrefabPath);
+            Object.DestroyImmediate(go);
+
+            return savedPrefab.GetComponent<BattleCharacterUnitView>();
+        }
+
+        internal static BattleProtectedUnitView GetOrCreateProtectedViewPrefab()
+        {
+            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(ProtectedViewPrefabPath);
+            if (existing != null)
+            {
+                return existing.GetComponent<BattleProtectedUnitView>();
+            }
+
+            EnsureBattlePrefabFolder();
+
+            var go = new GameObject("BattleProtectedUnitView", typeof(RectTransform));
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(28f, 28f);
+
+            var image = go.AddComponent<Image>();
+            image.color = Color.white;
+
+            var view = go.AddComponent<BattleProtectedUnitView>();
+            var so = new SerializedObject(view);
+            so.FindProperty("bodyImage").objectReferenceValue = image;
+            so.ApplyModifiedProperties();
+
+            var savedPrefab = PrefabUtility.SaveAsPrefabAsset(go, ProtectedViewPrefabPath);
+            Object.DestroyImmediate(go);
+
+            return savedPrefab.GetComponent<BattleProtectedUnitView>();
         }
 
         private static void BuildResultPopup(Transform parent)
@@ -174,6 +286,23 @@ namespace Game.Core.Editor
             so.ApplyModifiedProperties();
 
             go.SetActive(false); // 평소에는 숨김 - FieldResultPopupView.Show() 호출 시에만 표시
+        }
+
+        // sceneUIRoot의 마지막 자식으로 붙여 항상 최상단에 그려지게 한다 - MovementView/BattleView가
+        // 슬라이드 중인 어느 위치에서도 뷰포트 전체를 가려야 한다(FieldTransitionCurtainView 참고).
+        private static void BuildTransitionCurtain(Transform parent)
+        {
+            var go = EditorUIBuilder.GetOrCreateUIObject(parent, "TransitionCurtain");
+            EditorUIBuilder.SetStretch(go.GetComponent<RectTransform>());
+            EditorUIBuilder.EnsureMarker(go, FieldUIElementIds.TransitionCurtain);
+
+            var image = EditorUIBuilder.EnsureImage(go, Color.black);
+            image.raycastTarget = true; // 전환 중 뒤쪽 UI 입력을 차단한다.
+
+            EditorUIBuilder.GetOrAddComponent<FieldTransitionCurtainView>(go);
+
+            go.transform.SetAsLastSibling();
+            go.SetActive(false); // 평소에는 숨김 - FieldTransitionCurtainView.Show() 호출 시에만 표시
         }
     }
 }

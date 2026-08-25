@@ -16,6 +16,8 @@ namespace Game.Core
         private IEncounterManager encounterManager;
         private IBattleController battleController;
         private IBattleResultSource battleResultSource;
+        private IDefeatConsequenceSource defeatConsequenceSource;
+        private IBattleSimulationEvents battleSimulationEvents;
 
         // 상행 관리 데이터 시스템이 아직 없어 선택적으로 조회한다 - 등록되면 자동으로 연결된다.
         private ICaravanRosterProvider caravanRosterProvider;
@@ -66,6 +68,8 @@ namespace Game.Core
             encounterManager = registrar.Resolve<IEncounterManager>();
             battleController = registrar.Resolve<IBattleController>();
             battleResultSource = registrar.Resolve<IBattleResultSource>();
+            defeatConsequenceSource = registrar.Resolve<IDefeatConsequenceSource>();
+            battleSimulationEvents = registrar.Resolve<IBattleSimulationEvents>();
 
             registrar.TryResolve(out caravanRosterProvider);
             registrar.TryResolve(out formationRepository);
@@ -127,7 +131,7 @@ namespace Game.Core
                 formationPanel.RegisterFormationUI(caravanRosterProvider, formationRepository, this, SceneNames.Field);
                 panelsById[formationPanel.PanelId] = formationPanel;
 
-                fieldUIController.RegisterFieldUI(this, sessionState, encounterManager, battleController, battleResultSource);
+                fieldUIController.RegisterFieldUI(this, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager);
             }
         }
 

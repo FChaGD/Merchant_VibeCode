@@ -11,6 +11,9 @@ namespace Game.Core
         public const string FormationButton = "Field.FormationButton";
         public const string EncounterWarning = "Field.EncounterWarning";
         public const string BattleViewRoot = "Field.BattleViewRoot";
+        public const string BattleAllyLayer = "Field.BattleAllyLayer";
+        public const string BattleEnemyLayer = "Field.BattleEnemyLayer";
         public const string ResultPopup = "Field.ResultPopup";
+        public const string TransitionCurtain = "Field.TransitionCurtain";
     }
 }

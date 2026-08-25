@@ -129,9 +129,10 @@ namespace Game.Core.Editor
         /// <summary>
         /// 콘텐츠 씬(Hub/Field)마다 자체 EventSystem을 가져야 한다 - 그리드 ScrollRect 드래그 등 UI
         /// 입력이 정상 동작하려면 씬이 로드될 때마다 새 EventSystem이 함께 있어야 한다는 게 확인됐다
-        /// (영속 EventSystem 하나로 통합했더니 드래그가 깨졌다). 대신 SceneLoader가 씬 전환 시 이전
-        /// EventSystem을 즉시 파괴해 "동시에 2개 존재하는 프레임"만 없앤다(SceneLoader.cs 참고). 각
-        /// 콘텐츠 씬 인스톨러는 이 헬퍼로 자기 씬에 EventSystem이 있는지 확인하고 없으면 만든다.
+        /// (영속 EventSystem 하나로 통합했더니 드래그가 깨졌다). 대신 SceneLoader가 씬 전환 시 새 씬을
+        /// 로드하기 전에 이전 EventSystem부터 파괴해 두 EventSystem이 동시에 존재하는 프레임 자체를
+        /// 없앤다(SceneLoader.cs 참고). 각 콘텐츠 씬 인스톨러는 이 헬퍼로 자기 씬에 EventSystem이
+        /// 있는지 확인하고 없으면 만든다.
         /// </summary>
         public static void EnsureSceneEventSystem(Scene scene)
         {

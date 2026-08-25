@@ -39,16 +39,27 @@ namespace Game.Core
         {
             var previousSceneName = currentContentScene;
 
+            // 콘텐츠 씬마다 자체 EventSystem과 Camera(AudioListener 포함)를 갖고 있다(각 씬에 이미
+            // 구성돼 있음). 예전에는 새 씬을 먼저 로드한 뒤 이전 것들을 파괴했는데, LoadSceneAsync가
+            // 끝나는 순간 새 씬의 EventSystem/AudioListener가 곧바로 활성화돼 그 시점엔 이전 것들이
+            // 아직 살아있어 "There can be only one active Event System"/"2 audio listeners" 경고가
+            // 매번 떴다 - 새 씬을 로드하기 전에 이전 것들부터 파괴해 동시에 존재하는 프레임 자체를 없앤다.
+            if (!string.IsNullOrEmpty(previousSceneName))
+            {
+                var previousScene = SceneManager.GetSceneByName(previousSceneName);
+                RemoveEventSystem(previousScene);
+                RemoveAudioListener(previousScene);
+
+                // Destroy()는 즉시 사라지지 않고 이번 프레임 끝에 처리된다 - 한 프레임을 명시적으로
+                // 기다려, 새 씬이 로드되며 자신의 EventSystem/AudioListener를 활성화하는 시점에는
+                // 이전 것들이 확실히 없는 상태이도록 보장한다.
+                yield return null;
+            }
+
             yield return SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
 
             if (!string.IsNullOrEmpty(previousSceneName))
             {
-                // 콘텐츠 씬마다 자체 EventSystem을 갖고 있다(각 씬 인스톨러가 생성). UnloadSceneAsync가
-                // 끝나길 기다리는 동안 새 씬의 EventSystem과 이전 씬의 EventSystem이 한 프레임이라도
-                // 동시에 존재하면 Unity가 "There can be only one active Event System" 경고와 함께
-                // 입력을 먹통으로 만든다 - 그래서 언로드를 기다리지 않고 이전 EventSystem만 여기서
-                // 즉시 파괴해 동시 존재 자체를 없앤다.
-                RemoveEventSystem(SceneManager.GetSceneByName(previousSceneName));
                 yield return SceneManager.UnloadSceneAsync(previousSceneName);
             }
 
@@ -68,6 +79,25 @@ namespace Game.Core
                 if (rootObject.GetComponent<EventSystem>() != null)
                 {
                     Destroy(rootObject);
+                }
+            }
+        }
+
+        // Camera 자체(렌더링)는 남기고 AudioListener 컴포넌트만 제거한다 - EventSystem과 달리
+        // Camera까지 통째로 사라지면 언로드 전까지 그 씬의 Canvas가 잠깐 그려지지 않을 수 있다.
+        private static void RemoveAudioListener(Scene scene)
+        {
+            if (!scene.IsValid())
+            {
+                return;
+            }
+
+            foreach (var rootObject in scene.GetRootGameObjects())
+            {
+                var listener = rootObject.GetComponentInChildren<AudioListener>(true);
+                if (listener != null)
+                {
+                    Destroy(listener);
                 }
             }
         }
