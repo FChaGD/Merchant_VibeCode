@@ -13,6 +13,9 @@ namespace Game.Core
         private ITripPanel tripPanel;
         private IFieldUIController fieldUIController;
         private ISessionState sessionState;
+        private IEncounterManager encounterManager;
+        private IBattleController battleController;
+        private IBattleResultSource battleResultSource;
 
         // 상행 관리 데이터 시스템이 아직 없어 선택적으로 조회한다 - 등록되면 자동으로 연결된다.
         private ICaravanRosterProvider caravanRosterProvider;
@@ -60,6 +63,9 @@ namespace Game.Core
             }
 
             sessionState = registrar.Resolve<ISessionState>();
+            encounterManager = registrar.Resolve<IEncounterManager>();
+            battleController = registrar.Resolve<IBattleController>();
+            battleResultSource = registrar.Resolve<IBattleResultSource>();
 
             registrar.TryResolve(out caravanRosterProvider);
             registrar.TryResolve(out formationRepository);
@@ -121,7 +127,7 @@ namespace Game.Core
                 formationPanel.RegisterFormationUI(caravanRosterProvider, formationRepository, this, SceneNames.Field);
                 panelsById[formationPanel.PanelId] = formationPanel;
 
-                fieldUIController.RegisterFieldUI(this, sessionState);
+                fieldUIController.RegisterFieldUI(this, sessionState, encounterManager, battleController, battleResultSource);
             }
         }
 

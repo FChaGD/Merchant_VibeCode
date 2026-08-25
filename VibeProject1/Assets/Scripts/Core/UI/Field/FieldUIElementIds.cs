@@ -9,5 +9,8 @@ namespace Game.Core
         public const string Background = "Field.Background";
         public const string ProgressGauge = "Field.ProgressGauge";
         public const string FormationButton = "Field.FormationButton";
+        public const string EncounterWarning = "Field.EncounterWarning";
+        public const string BattleViewRoot = "Field.BattleViewRoot";
+        public const string ResultPopup = "Field.ResultPopup";
     }
 }

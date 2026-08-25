@@ -1,4 +1,5 @@
 using Game.Core;
+using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -7,11 +8,10 @@ using UnityEngine.UI;
 namespace Game.Core.Editor
 {
     /// <summary>
-    /// Field 씬에 이동 뷰(배경/진행 게이지/정비창 재호출 버튼) 하이어라키를 코드로 생성/동기화한다.
-    /// 씬 YAML 수작업 편집 대신 이 도구로 재현 가능하게 만든다 - FormationUIInstaller/TripUIInstaller와
-    /// 동일한 방식. Hub 씬과 달리 Field 씬에는 SceneUIRoot가 아직 없어, 기존 Canvas에 이 도구가 직접
-    /// 부착한다. 전투 뷰/카메라 전환/팝업은 이번 범위에 포함하지 않는다(Docs/설계/04_Field씬_아키텍처.md
-    /// 참고, 후속 세션에서 추가 예정).
+    /// Field 씬에 이동 뷰/전투 뷰/결과 팝업 하이어라키를 코드로 생성/동기화한다. 씬 YAML 수작업 편집
+    /// 대신 이 도구로 재현 가능하게 만든다 - FormationUIInstaller/TripUIInstaller와 동일한 방식.
+    /// Hub 씬과 달리 Field 씬에는 SceneUIRoot가 아직 없어, 기존 Canvas에 이 도구가 직접 부착한다.
+    /// 도착 처리(도착 팝업)는 이번 범위에 포함하지 않는다(Docs/설계/04_Field씬_아키텍처.md §5.3 참고).
     /// Formation UI(정비창)의 실제 화면 요소도 이 씬에 만든다 - Hub 씬이 언로드되면 그쪽 Formation UI는
     /// 파괴되므로, Field에서 "정비창 재호출"이 동작하려면 Field 자신의 Formation UI 사본이 필요하다
     /// (FormationUIBuilder 공용, FormationPanel이 현재 로드된 콘텐츠 씬에 맞춰 다시 바인딩한다).
@@ -48,6 +48,12 @@ namespace Game.Core.Editor
             BuildBackground(movementViewRoot.transform);
             BuildProgressGauge(movementViewRoot.transform);
             BuildFormationButton(movementViewRoot.transform);
+            BuildEncounterWarning(movementViewRoot.transform);
+
+            // BattleView/ResultPopup은 MovementView와 형제로 SceneUIRoot 바로 아래 둔다 - 결과 팝업은
+            // 이동 뷰(도착)/전투 뷰(승패) 양쪽에서 모두 떠야 해서 어느 한쪽 하위에 종속시키지 않는다.
+            BuildBattleView(sceneUIRoot.transform);
+            BuildResultPopup(sceneUIRoot.transform);
 
             FormationUIBuilder.EnsurePrefabFolder();
             var slotPrefab = FormationUIBuilder.GetOrCreateSlotPrefab();
@@ -55,7 +61,7 @@ namespace Game.Core.Editor
             FormationUIBuilder.Build(sceneUIRoot, slotPrefab, iconPrefab);
 
             EditorSceneManager.MarkSceneDirty(activeScene);
-            Debug.Log("Field UI(이동 뷰) 하이어라키 생성/동기화 완료. 씬을 저장(Ctrl+S)해야 변경사항이 파일에 반영된다.");
+            Debug.Log("Field UI(이동 뷰/전투 뷰/결과 팝업) 하이어라키 생성/동기화 완료. 씬을 저장(Ctrl+S)해야 변경사항이 파일에 반영된다.");
         }
 
         private static void BuildBackground(Transform parent)
@@ -99,6 +105,75 @@ namespace Game.Core.Editor
             EditorUIBuilder.EnsureButton(go);
             EditorUIBuilder.EnsureLabel(go.transform, "정비창");
             EditorUIBuilder.EnsureMarker(go, FieldUIElementIds.FormationButton);
+        }
+
+        private static void BuildEncounterWarning(Transform parent)
+        {
+            var go = EditorUIBuilder.GetOrCreateUIObject(parent, "EncounterWarning");
+            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(0.3f, 0.42f), new Vector2(0.7f, 0.58f));
+            var image = EditorUIBuilder.EnsureImage(go, new Color(0.85f, 0.15f, 0.15f, 0.85f));
+            image.raycastTarget = false;
+            EditorUIBuilder.EnsureLabel(go.transform, "인카운터 발생!");
+
+            var canvasGroup = EditorUIBuilder.GetOrAddComponent<CanvasGroup>(go);
+
+            var warningView = EditorUIBuilder.GetOrAddComponent<FieldEncounterWarningView>(go);
+            var so = new SerializedObject(warningView);
+            so.FindProperty("canvasGroup").objectReferenceValue = canvasGroup;
+            so.ApplyModifiedProperties();
+
+            EditorUIBuilder.EnsureMarker(go, FieldUIElementIds.EncounterWarning);
+            go.SetActive(false); // 평소에는 숨김 - FieldEncounterWarningView.Show() 호출 시에만 표시
+        }
+
+        private static void BuildBattleView(Transform parent)
+        {
+            var go = EditorUIBuilder.GetOrCreateUIObject(parent, "BattleView");
+            EditorUIBuilder.SetStretch(go.GetComponent<RectTransform>());
+            EditorUIBuilder.EnsureMarker(go, FieldUIElementIds.BattleViewRoot);
+
+            var background = EditorUIBuilder.EnsureImage(go, new Color(0.1f, 0.1f, 0.12f, 1f));
+            background.raycastTarget = false;
+            EditorUIBuilder.EnsureLabel(go.transform, "전투 중...");
+
+            go.SetActive(false); // 평소에는 숨김 - FieldCameraController가 전환 시 활성화
+        }
+
+        private static void BuildResultPopup(Transform parent)
+        {
+            var go = EditorUIBuilder.GetOrCreateUIObject(parent, "ResultPopup");
+            EditorUIBuilder.SetStretch(go.GetComponent<RectTransform>());
+            EditorUIBuilder.EnsureMarker(go, FieldUIElementIds.ResultPopup);
+
+            var dim = EditorUIBuilder.EnsureImage(go, new Color(0f, 0f, 0f, 0.6f));
+            dim.raycastTarget = true; // 뒤 UI 클릭을 차단한다.
+
+            var panelGo = EditorUIBuilder.GetOrCreateUIObject(go.transform, "Panel");
+            EditorUIBuilder.SetAnchors(panelGo.GetComponent<RectTransform>(), new Vector2(0.3f, 0.4f), new Vector2(0.7f, 0.6f));
+            EditorUIBuilder.EnsureImage(panelGo, new Color(0.95f, 0.95f, 0.95f, 1f));
+
+            var messageGo = EditorUIBuilder.GetOrCreateUIObject(panelGo.transform, "Message");
+            EditorUIBuilder.SetAnchors(messageGo.GetComponent<RectTransform>(), new Vector2(0f, 0.4f), new Vector2(1f, 1f));
+            var messageLabel = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(messageGo);
+            messageLabel.alignment = TextAlignmentOptions.Center;
+            messageLabel.fontSize = 28;
+            messageLabel.color = Color.black;
+            messageLabel.raycastTarget = false;
+
+            var buttonGo = EditorUIBuilder.GetOrCreateUIObject(panelGo.transform, "ConfirmButton");
+            EditorUIBuilder.SetAnchors(buttonGo.GetComponent<RectTransform>(), new Vector2(0.3f, 0.08f), new Vector2(0.7f, 0.32f));
+            EditorUIBuilder.EnsureImage(buttonGo, new Color(0.75f, 0.87f, 1f, 1f));
+            var confirmButton = EditorUIBuilder.EnsureButton(buttonGo);
+            var buttonLabel = EditorUIBuilder.EnsureLabel(buttonGo.transform, "확인");
+
+            var popupView = EditorUIBuilder.GetOrAddComponent<FieldResultPopupView>(go);
+            var so = new SerializedObject(popupView);
+            so.FindProperty("messageLabel").objectReferenceValue = messageLabel;
+            so.FindProperty("buttonLabel").objectReferenceValue = buttonLabel;
+            so.FindProperty("confirmButton").objectReferenceValue = confirmButton;
+            so.ApplyModifiedProperties();
+
+            go.SetActive(false); // 평소에는 숨김 - FieldResultPopupView.Show() 호출 시에만 표시
         }
     }
 }

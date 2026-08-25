@@ -42,6 +42,12 @@ namespace Game.Core.Editor
             // managedComponents 동기화 목록에는 포함하지 않는다.
             EnsureSiblingComponent<SessionStateTracker>(gameManager.gameObject);
 
+            // PlaceholderBattleResultRule/BattleResultEvaluator도 BattleManager 산하 컴포넌트라
+            // 전역 DI 대상이 아니다(BattleManager가 GetComponent<IBattleResultEvaluator>()로 직접
+            // 조회, BattleResultEvaluator는 다시 GetComponent<IBattleResultRule>()로 조회).
+            EnsureSiblingComponent<PlaceholderBattleResultRule>(battleManager.gameObject);
+            EnsureSiblingComponent<BattleResultEvaluator>(battleManager.gameObject);
+
             // HubUIController/FormationPanel/TripPanel/FieldUIController는 전역 매니저가 아니라 UIManager 산하 컴포넌트이므로 같은 GameObject에 부착한다.
             EnsureSiblingComponent<HubUIController>(uiManager.gameObject);
             EnsureSiblingComponent<FormationPanel>(uiManager.gameObject);

@@ -5,9 +5,9 @@ using UnityEngine.UI;
 namespace Game.Core
 {
     /// <summary>
-    /// Field 씬의 이동 뷰(진행 게이지, 배경, 정비창 재호출)를 조율한다. 인카운터→전투 전환/결과 처리는
-    /// 아직 구현하지 않았다 - 후속 세션에서 FieldEncounterFlowCoordinator를 추가할 예정
-    /// (Docs/설계/04_Field씬_아키텍처.md 참고).
+    /// Field 씬의 이동 뷰(진행 게이지, 배경, 정비창 재호출)를 조율한다. 인카운터 발생 시 경고창 점멸,
+    /// 전투 뷰 전환, 결과 팝업 처리는 FieldEncounterFlowCoordinator에 위임한다(SRP) - 도착 처리는
+    /// 아직 구현하지 않았다(Docs/설계/04_Field씬_아키텍처.md §5.3 참고).
     /// </summary>
     public class FieldUIController : MonoBehaviour, IFieldUIController
     {
@@ -15,8 +15,13 @@ namespace Game.Core
 
         private FieldProgressGaugeView gaugeView;
         private Button formationButton;
+        private FieldEncounterWarningView warningView;
+        private RectTransform movementViewRoot;
+        private RectTransform battleViewRoot;
+        private FieldResultPopupView resultPopupView;
+        private FieldEncounterFlowCoordinator flowCoordinator;
 
-        public void RegisterFieldUI(IUIManager uiManager, ISessionState sessionState)
+        public void RegisterFieldUI(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource)
         {
             var fieldScene = SceneManager.GetSceneByName(SceneNames.Field);
             if (!fieldScene.IsValid())
@@ -55,6 +60,15 @@ namespace Game.Core
             sessionState.OnProgressChanged -= HandleProgressChanged;
             sessionState.OnProgressChanged += HandleProgressChanged;
 
+            // encounterManager/battleResultSource는 Bootstrap 상주 영속 객체다 - flowCoordinator를
+            // Field 재방문 시 재생성하지 않아야 이전 상행의 구독이 쌓이지 않는다
+            // (Docs/설계/04_Field씬_아키텍처.md §5.2). cameraController는 이번 Field 씬의 뷰 참조를
+            // 담고 있어 매번 새로 만든다.
+            flowCoordinator ??= new FieldEncounterFlowCoordinator();
+            flowCoordinator.Bind(uiManager, sessionState, encounterManager, battleController, battleResultSource);
+            var cameraController = new FieldCameraController(this, movementViewRoot, battleViewRoot);
+            flowCoordinator.RebindViews(this, cameraController, warningView, resultPopupView);
+
             sessionState.Begin();
         }
 
@@ -85,6 +99,30 @@ namespace Game.Core
             if (!sceneUIRoot.TryGetElement<Button>(FieldUIElementIds.FormationButton, out formationButton))
             {
                 WarnMissing(FieldUIElementIds.FormationButton);
+                return false;
+            }
+
+            if (!sceneUIRoot.TryGetElement<FieldEncounterWarningView>(FieldUIElementIds.EncounterWarning, out warningView))
+            {
+                WarnMissing(FieldUIElementIds.EncounterWarning);
+                return false;
+            }
+
+            if (!sceneUIRoot.TryGetElement<RectTransform>(FieldUIElementIds.MovementViewRoot, out movementViewRoot))
+            {
+                WarnMissing(FieldUIElementIds.MovementViewRoot);
+                return false;
+            }
+
+            if (!sceneUIRoot.TryGetElement<RectTransform>(FieldUIElementIds.BattleViewRoot, out battleViewRoot))
+            {
+                WarnMissing(FieldUIElementIds.BattleViewRoot);
+                return false;
+            }
+
+            if (!sceneUIRoot.TryGetElement<FieldResultPopupView>(FieldUIElementIds.ResultPopup, out resultPopupView))
+            {
+                WarnMissing(FieldUIElementIds.ResultPopup);
                 return false;
             }
 

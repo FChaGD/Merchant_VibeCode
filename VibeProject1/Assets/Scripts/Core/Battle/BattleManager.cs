@@ -7,6 +7,8 @@ namespace Game.Core
     {
         public event Action<BattleResult> OnBattleEnded;
 
+        private IBattleResultEvaluator resultEvaluator;
+
         public void RegisterSelf(IDependencyRegistrar registrar)
         {
             registrar.Register<IBattleController>(this);
@@ -15,12 +17,17 @@ namespace Game.Core
 
         public void ResolveDependencies(IDependencyRegistrar registrar)
         {
-            // TODO: FormationComponent, TacticsComponent, MoraleComponent, BattleResultEvaluator 연결 - 하위 컴포넌트 설계 후 구현
+            // TODO: FormationComponent, TacticsComponent, MoraleComponent 연결 - 하위 컴포넌트 설계 후 구현
+            resultEvaluator = GetComponent<IBattleResultEvaluator>();
+            if (resultEvaluator == null)
+            {
+                throw new InvalidOperationException($"{nameof(BattleManager)}와 같은 GameObject에 {nameof(IBattleResultEvaluator)} 구현체가 없다.");
+            }
         }
 
         public void StartBattle()
         {
-            // TODO: 전투 세션 시작 로직 - 하위 컴포넌트 설계 후 구현
+            resultEvaluator.Evaluate(EndBattle);
         }
 
         private void EndBattle(BattleResult result)

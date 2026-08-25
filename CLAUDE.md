@@ -3,6 +3,10 @@
 - 유니티 게임 제작 프로젝트
 - 프로젝트 경로: C:\Users\addmin\Desktop\Cursortest\VibeProject1
 
+# 버전 관리
+
+- `Docs/`(기획/설계/제작 문서) 전체는 `.gitignore`에 등록되어 있으며, 이는 사용자가 이전 세션에서 의도적으로 요청한 설정이다. 커밋되지 않는 게 정상이니 "빠졌다"고 다시 보고하거나 임의로 `git add -f` 등으로 포함시키지 말 것. 문서 자체는 로컬 작업 폴더에는 그대로 남아 다음 세션에서도 정상적으로 읽힌다.
+
 # 코드/작업 컨벤션
 
 UIManager/배치(Formation) UI/상행 준비(Trip) UI 작업(`Assets/Scripts/Core/UI/`)에서 확립된 패턴. 새 시스템을 만들 때도 이 패턴을 기본값으로 따른다.
