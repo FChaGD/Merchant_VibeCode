@@ -216,20 +216,20 @@ namespace Game.Core.DebugTools
             return marker != null ? marker.CityId : null;
         }
 
+        // 연결된 도시만 routeRepository의 인접 정보(RemoveAllRoutesFor와 같은 자료구조)로 바로 조회한다 -
+        // 드래그 중 매 프레임 호출되므로 전체 노선을 훑거나 키 문자열을 매번 분해하지 않는다.
         private void RefreshLinesForCity(string cityId, Vector2 newPosition)
         {
-            foreach (var pair in linesByRouteKey)
+            foreach (var otherId in routeRepository.GetConnectedCityIds(cityId))
             {
-                var ids = pair.Key.Split('|');
-                if (ids[0] != cityId && ids[1] != cityId)
+                if (!linesByRouteKey.TryGetValue(RouteKey(cityId, otherId), out var line))
                 {
                     continue;
                 }
 
-                var otherId = ids[0] == cityId ? ids[1] : ids[0];
                 if (markersByCityId.TryGetValue(otherId, out var otherMarker))
                 {
-                    pair.Value.SetEndpoints(newPosition, otherMarker.RectTransform.anchoredPosition);
+                    line.SetEndpoints(newPosition, otherMarker.RectTransform.anchoredPosition);
                 }
             }
         }

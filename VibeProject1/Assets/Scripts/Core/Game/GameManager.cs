@@ -29,9 +29,9 @@ namespace Game.Core
             sceneLoader = registrar.Resolve<ISceneLoader>();
         }
 
-        public void RequestSceneTransition(string sceneName)
+        public void RequestSceneTransition(ContentSceneId sceneId)
         {
-            sceneLoader.Transition(sceneName);
+            sceneLoader.Transition(sceneId.ToString());
         }
     }
 }

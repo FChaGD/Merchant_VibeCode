@@ -27,7 +27,7 @@ namespace Game.Core
         public void ResolveDependencies(IDependencyRegistrar registrar)
         {
             // 매니징 컴포넌트 초기설정이 끝난 직후 지정된 콘텐츠 씬으로 최초 전환한다.
-            Transition(ToSceneName(initialScene));
+            Transition(initialScene.ToString());
         }
 
         public void Transition(string sceneName)
@@ -99,19 +99,6 @@ namespace Game.Core
                 {
                     Destroy(listener);
                 }
-            }
-        }
-
-        private static string ToSceneName(ContentSceneId id)
-        {
-            switch (id)
-            {
-                case ContentSceneId.Hub:
-                    return SceneNames.Hub;
-                case ContentSceneId.Field:
-                    return SceneNames.Field;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(id), id, null);
             }
         }
     }

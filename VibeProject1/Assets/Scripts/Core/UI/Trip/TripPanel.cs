@@ -95,7 +95,7 @@ namespace Game.Core
             openFormationButton.onClick.AddListener(() => uiManager.Open(UIPanelIds.Formation));
 
             startButton.onClick.RemoveAllListeners();
-            startButton.onClick.AddListener(() => gameManager.RequestSceneTransition(SceneNames.Field));
+            startButton.onClick.AddListener(() => gameManager.RequestSceneTransition(ContentSceneId.Field));
 
             panelRoot.SetActive(false);
         }

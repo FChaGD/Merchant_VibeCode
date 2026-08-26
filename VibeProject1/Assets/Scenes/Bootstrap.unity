@@ -407,6 +407,8 @@ GameObject:
   - component: {fileID: 900004004}
   - component: {fileID: 900004005}
   - component: {fileID: 900004006}
+  - component: {fileID: 900004008}
+  - component: {fileID: 900004007}
   m_Layer: 0
   m_Name: UIManager
   m_TagString: Untagged
@@ -496,6 +498,30 @@ MonoBehaviour:
   backgroundSprite: {fileID: -7553997726247621767, guid: 474b0e768316e1846b3a440b32c0fa9f, type: 3}
   battleCharacterViewPrefab: {fileID: 4068516382489368410, guid: 307dcddb05e38e543aada8efee1ad8b0, type: 3}
   battleProtectedViewPrefab: {fileID: 8809418505044652343, guid: c057fc2e135ce1843a95bc698e1b2a37, type: 3}
+--- !u!114 &900004007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900004000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 344b38a29795b0947b9a0eafc4cff699, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.FieldUIWiring
+--- !u!114 &900004008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900004000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 48f9d1e65c584bb4d8679a00ec52f837, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.HubUIWiring
 --- !u!1 &900005000
 GameObject:
   m_ObjectHideFlags: 0
@@ -506,7 +532,6 @@ GameObject:
   m_Component:
   - component: {fileID: 900005001}
   - component: {fileID: 900005002}
-  - component: {fileID: 900005003}
   - component: {fileID: 900005004}
   - component: {fileID: 900005005}
   m_Layer: 0
@@ -543,18 +568,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9085c268ba12463ba05bf78949bc3124, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &900005003
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 900005000}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ae36fae5fc3e7ab489ba12f4ad72660f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.Core::Game.Core.BattleResultEvaluator
 --- !u!114 &900005004
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -756,8 +769,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5b7dbadfe9eb492fba342f06925bc9a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.PlaceholderTripInfoProvider
-  originIcon: {fileID: 0}
-  destinationIcon: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

@@ -4,27 +4,13 @@ using UnityEngine;
 
 namespace Game.Core
 {
-    public class UIManager : MonoBehaviour, IUIManager, IManagedComponent
+    public class UIManager : MonoBehaviour, IUIManager, IPanelRegistrar, IManagedComponent
     {
-        private IGameManager gameManager;
+        private IDependencyRegistrar registrar;
         private ISceneLoader sceneLoader;
-        private IHubUIController hubUIController;
-        private IFormationPanel formationPanel;
-        private ITripPanel tripPanel;
-        private IFieldUIController fieldUIController;
-        private ISessionState sessionState;
-        private IEncounterManager encounterManager;
-        private IBattleController battleController;
-        private IBattleResultSource battleResultSource;
-        private IDefeatConsequenceSource defeatConsequenceSource;
-        private IBattleSimulationEvents battleSimulationEvents;
-
-        // 상행 관리 데이터 시스템이 아직 없어 선택적으로 조회한다 - 등록되면 자동으로 연결된다.
-        private ICaravanRosterProvider caravanRosterProvider;
-        private IFormationRepository formationRepository;
-        private ITripInfoProvider tripInfoProvider;
 
         private readonly Dictionary<string, IUIPanel> panelsById = new();
+        private readonly Dictionary<ContentSceneId, IContentSceneUIWiring> wiringBySceneId = new();
         private readonly PanelNavigationStack navigation = new();
 
         public void RegisterSelf(IDependencyRegistrar registrar)
@@ -34,48 +20,28 @@ namespace Game.Core
 
         public void ResolveDependencies(IDependencyRegistrar registrar)
         {
-            gameManager = registrar.Resolve<IGameManager>();
+            this.registrar = registrar;
 
             sceneLoader = registrar.Resolve<ISceneLoader>();
             sceneLoader.OnSceneLoaded += HandleSceneLoaded;
 
-            // HubUIController/FormationPanel/TripPanel은 전역 DI 대상이 아니라 UIManager 산하 컴포넌트 — 같은 GameObject에서 직접 조회한다.
-            hubUIController = GetComponent<IHubUIController>();
-            if (hubUIController == null)
+            // 씬별 UI 배선(IContentSceneUIWiring)은 전역 DI 대상이 아니라 UIManager 산하 컴포넌트다 -
+            // 같은 GameObject에서 전부 수집해 씬 id로 찾아 위임한다. 새 콘텐츠 씬이 늘어나도 이 목록
+            // 수집 로직은 그대로이고, 새 구현체를 형제 컴포넌트로 추가/등록하기만 하면 된다.
+            foreach (var wiring in GetComponents<IContentSceneUIWiring>())
             {
-                throw new InvalidOperationException($"{nameof(UIManager)}와 같은 GameObject에 {nameof(IHubUIController)} 구현체가 없다.");
+                if (!wiringBySceneId.TryAdd(wiring.SceneId, wiring))
+                {
+                    Debug.LogWarning($"'{wiring.SceneId}'에 대한 {nameof(IContentSceneUIWiring)}이 중복 등록되어 있다: {wiring.GetType().Name}", this);
+                }
             }
-
-            formationPanel = GetComponent<IFormationPanel>();
-            if (formationPanel == null)
-            {
-                throw new InvalidOperationException($"{nameof(UIManager)}와 같은 GameObject에 {nameof(IFormationPanel)} 구현체가 없다.");
-            }
-
-            tripPanel = GetComponent<ITripPanel>();
-            if (tripPanel == null)
-            {
-                throw new InvalidOperationException($"{nameof(UIManager)}와 같은 GameObject에 {nameof(ITripPanel)} 구현체가 없다.");
-            }
-
-            fieldUIController = GetComponent<IFieldUIController>();
-            if (fieldUIController == null)
-            {
-                throw new InvalidOperationException($"{nameof(UIManager)}와 같은 GameObject에 {nameof(IFieldUIController)} 구현체가 없다.");
-            }
-
-            sessionState = registrar.Resolve<ISessionState>();
-            encounterManager = registrar.Resolve<IEncounterManager>();
-            battleController = registrar.Resolve<IBattleController>();
-            battleResultSource = registrar.Resolve<IBattleResultSource>();
-            defeatConsequenceSource = registrar.Resolve<IDefeatConsequenceSource>();
-            battleSimulationEvents = registrar.Resolve<IBattleSimulationEvents>();
-
-            registrar.TryResolve(out caravanRosterProvider);
-            registrar.TryResolve(out formationRepository);
-            registrar.TryResolve(out tripInfoProvider);
 
             // TODO: TacticsPanel, HUDPanel, ResultPanel 등 추가 IUIPanel 구현체 연결 - 각 하위 컴포넌트 설계 후 구현
+        }
+
+        public void RegisterPanel(IUIPanel panel)
+        {
+            panelsById[panel.PanelId] = panel;
         }
 
         public void Open(string panelId)
@@ -114,25 +80,13 @@ namespace Game.Core
 
         private void HandleSceneLoaded(string sceneName)
         {
-            if (sceneName == SceneNames.Hub)
+            // ContentSceneId 밖의 씬(예: SampleScene)은 UI 배선 대상이 아니다 - 조용히 건너뛴다.
+            if (!Enum.TryParse<ContentSceneId>(sceneName, out var sceneId) || !wiringBySceneId.TryGetValue(sceneId, out var wiring))
             {
-                hubUIController.RegisterHubUI(this);
-
-                formationPanel.RegisterFormationUI(caravanRosterProvider, formationRepository, this, SceneNames.Hub);
-                panelsById[formationPanel.PanelId] = formationPanel;
-
-                tripPanel.RegisterTripUI(this, gameManager, formationRepository, tripInfoProvider);
-                panelsById[tripPanel.PanelId] = tripPanel;
+                return;
             }
-            else if (sceneName == SceneNames.Field)
-            {
-                // Formation UI(정비창)는 Hub 전용이 아니다 - Field도 자신만의 화면 요소를 갖고 있어
-                // (FieldUIInstaller 참고) 여기서도 다시 등록해야 "정비창 재호출"이 동작한다.
-                formationPanel.RegisterFormationUI(caravanRosterProvider, formationRepository, this, SceneNames.Field);
-                panelsById[formationPanel.PanelId] = formationPanel;
 
-                fieldUIController.RegisterFieldUI(this, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager);
-            }
+            wiring.Wire(registrar, this, this);
         }
 
         private void OnDestroy()

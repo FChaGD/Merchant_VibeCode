@@ -1,6 +1,5 @@
 #if UNITY_EDITOR
 using System;
-using System.Collections.Generic;
 using Game.Core;
 
 namespace Game.Core.DebugTools
@@ -15,7 +14,6 @@ namespace Game.Core.DebugTools
         void RemoveRoute(string cityIdA, string cityIdB);
         void RemoveAllRoutesFor(string cityId);
         void Clear();
-        IReadOnlyList<(string CityIdA, string CityIdB)> GetAll();
         event Action<string, string> RouteAdded;
         event Action<string, string> RouteRemoved;
     }

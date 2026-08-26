@@ -101,7 +101,7 @@ namespace Game.Core
         // 재사용한다(문구·버튼 라벨·콜백만 다름).
         private void HandleArrived()
         {
-            resultPopupView.Show("도착 성공", "도시 입장", onConfirm: () => gameManager.RequestSceneTransition(SceneNames.Hub));
+            resultPopupView.Show("도착 성공", "도시 입장", onConfirm: () => gameManager.RequestSceneTransition(ContentSceneId.Hub));
         }
 
         private bool TryBind(SceneUIRoot sceneUIRoot)

@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using Game.Core;
@@ -16,11 +17,14 @@ namespace Game.Core.Editor
     {
         private const string ManagersRootName = "Managers";
         private const string BootstrapScenePath = "Assets/Scenes/Bootstrap.unity";
-        private static readonly string[] ContentScenePaths =
-        {
-            "Assets/Scenes/Hub.unity",
-            "Assets/Scenes/Field.unity",
-        };
+
+        // ContentSceneId가 유일한 콘텐츠 씬 식별자 출처다 - enum에 값을 추가하면 이 목록도 자동으로
+        // 늘어나 따로 배열을 유지할 필요가 없다(Docs/Refactor/공통_점검.md 3단계 수정안).
+        private static string[] ContentScenePaths =>
+            Enum.GetValues(typeof(ContentSceneId))
+                .Cast<ContentSceneId>()
+                .Select(id => $"Assets/Scenes/{id}.unity")
+                .ToArray();
 
         [MenuItem("Tools/Game/Setup/1. Migrate Managers To Bootstrap Scene")]
         public static void MigrateManagersToBootstrapScene()

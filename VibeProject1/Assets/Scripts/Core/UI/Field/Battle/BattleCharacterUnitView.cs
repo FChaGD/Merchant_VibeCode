@@ -34,6 +34,11 @@ namespace Game.Core
         private RectTransform rectTransform;
         private IBattleCombatant unit;
         private Color baseColor;
+        // 이 유닛이 원거리 공격을 할 때마다 재사용하는 투사체 - 매 발사마다 Destroy+Instantiate하지
+        // 않는다(CLAUDE.md 최적화 규칙). rectTransform이 아니라 rectTransform.parent의 자식이라
+        // 이 유닛(공격자)이 파괴돼도 함께 파괴되지 않는다 - 발사 후 공격자가 죽어도 날아가는 중인
+        // 투사체는 그대로 유지된다는 기존 동작과 동일하다.
+        private Image projectileView;
 
         private void Awake()
         {
@@ -124,11 +129,17 @@ namespace Game.Core
 
         private IEnumerator FireProjectile(Vector2 targetAnchoredPosition)
         {
-            var projectileGo = new GameObject("Projectile", typeof(RectTransform), typeof(Image));
-            projectileGo.transform.SetParent(rectTransform.parent, false);
-            var projectileRect = (RectTransform)projectileGo.transform;
-            projectileRect.sizeDelta = new Vector2(6f, 6f);
-            projectileGo.GetComponent<Image>().color = baseColor;
+            if (projectileView == null)
+            {
+                var projectileGo = new GameObject("Projectile", typeof(RectTransform), typeof(Image));
+                projectileGo.transform.SetParent(rectTransform.parent, false);
+                ((RectTransform)projectileGo.transform).sizeDelta = new Vector2(6f, 6f);
+                projectileView = projectileGo.GetComponent<Image>();
+            }
+
+            projectileView.color = baseColor;
+            projectileView.gameObject.SetActive(true);
+            var projectileRect = (RectTransform)projectileView.transform;
 
             var origin = rectTransform.anchoredPosition;
             var elapsed = 0f;
@@ -138,7 +149,7 @@ namespace Game.Core
                 projectileRect.anchoredPosition = Vector2.Lerp(origin, targetAnchoredPosition, elapsed / ProjectileSeconds);
                 yield return null;
             }
-            Destroy(projectileGo);
+            projectileView.gameObject.SetActive(false);
         }
 
         private IEnumerator FadeOutAndDestroy()

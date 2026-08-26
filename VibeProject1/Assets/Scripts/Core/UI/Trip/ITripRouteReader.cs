@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Game.Core
 {
     /// <summary>
@@ -8,5 +10,8 @@ namespace Game.Core
     public interface ITripRouteReader
     {
         bool HasRoute(string cityIdA, string cityIdB);
+
+        /// <summary>cityId와 연결된 상대 도시 id 전체. 연결이 없으면 빈 컬렉션.</summary>
+        IReadOnlyCollection<string> GetConnectedCityIds(string cityId);
     }
 }

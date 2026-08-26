@@ -17,15 +17,6 @@ namespace Game.Core.DebugTools
 
         public event Action<string> CityRemoved;
 
-        public IReadOnlyList<TripCity> GetAll()
-        {
-            var list = new List<TripCity>(citiesById.Count);
-            list.AddRange(citiesById.Values);
-            return list;
-        }
-
-        public bool TryGet(string cityId, out TripCity city) => citiesById.TryGetValue(cityId, out city);
-
         public string Add(Vector2 mapPosition)
         {
             var id = $"debug-city-{nextSequence++}";

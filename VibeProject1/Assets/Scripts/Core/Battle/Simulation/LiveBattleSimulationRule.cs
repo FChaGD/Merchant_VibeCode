@@ -6,18 +6,13 @@ using UnityEngine;
 namespace Game.Core
 {
     /// <summary>
-    /// PlaceholderBattleResultRule을 대체하는 실제 전투 시뮬레이션. BattleResultEvaluator가
+    /// PlaceholderBattleResultRule을 대체하는 실제 전투 시뮬레이션. BattleManager가
     /// GetComponent&lt;IBattleResultRule&gt;()로 조회하므로 이 컴포넌트를 붙이는 것만으로 교체된다
-    /// (BattleResultEvaluator 무변경). 승패 조건: 적 전멸(사망+도주)=Victory, 아군 전멸(사망+도주)
+    /// (BattleManager 무변경). 승패 조건: 적 전멸(사망+도주)=Victory, 아군 전멸(사망+도주)
     /// 또는 보호 목표 파괴=Defeat.
     /// </summary>
     public class LiveBattleSimulationRule : MonoBehaviour, IBattleResultRule, IRequiresFormationReader, IRequiresCaravanRoster, IBattleSimulationEvents
     {
-        // 배치가 없을 때(hasLayout=false) 스폰 반지름/도주 이탈 거리를 계산할 기준 열 수 -
-        // FormationGridView의 기본값(8)과 맞춘다. 아군이 없으면 어차피 즉시 패배하므로 정확한 값이
-        // 중요하지 않지만, 계산 자체는 항상 유효한 columnCount를 필요로 한다.
-        private const int DefaultColumnCount = 8;
-
         private readonly IBattleUnitStatProvider statProvider = new PlaceholderBattleUnitStatProvider();
         private readonly IEncounterSpawnPointSelector spawnSelector = new UniformRandomSpawnPointSelector();
         private readonly IEnemyCompositionProvider enemyProvider = new PlaceholderBanditCompositionProvider();
@@ -68,7 +63,11 @@ namespace Game.Core
             // 추적하지 못해(CS0165) layout을 먼저 null로 초기화해둬야 한다.
             FormationLayout layout = null;
             var hasLayout = formationReader != null && formationReader.TryLoadCurrent(out layout);
-            var columnCount = hasLayout ? layout.ColumnCount : DefaultColumnCount;
+            // 배치가 없을 때(hasLayout=false) 스폰 반지름/도주 이탈 거리를 계산할 기준 열 수 -
+            // 아군이 없으면 어차피 즉시 패배하므로 정확한 값이 중요하지 않지만, 계산 자체는 항상
+            // 유효한 columnCount를 필요로 한다. FormationLayout.DefaultColumnCount가 FormationGridView
+            // 기본값과 공유하는 단일 출처다.
+            var columnCount = hasLayout ? layout.ColumnCount : FormationLayout.DefaultColumnCount;
             var spawnCenter = fieldLayout.ComputeSpawnPoint(spawnSelector.SelectSpawnPointIndex(), columnCount);
             // 스폰 반지름에서 파생되므로 대형이 클수록(columnCount가 클수록) 도주 이탈 거리도 늘어난다
             // (BattleFieldLayout 참고) - 대형 크기와 무관하게 항상 "전장을 벗어난 곳에서 스폰"이 성립한다.

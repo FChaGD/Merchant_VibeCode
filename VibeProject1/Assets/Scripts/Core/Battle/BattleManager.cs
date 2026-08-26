@@ -8,7 +8,7 @@ namespace Game.Core
         public event Action<BattleResult> OnBattleEnded;
         public event Action<BattleSimulationLoop> OnSimulationBuilt;
 
-        private IBattleResultEvaluator resultEvaluator;
+        private IBattleResultRule resultRule;
         private IDefeatConsequenceRule consequenceRule;
 
         public void RegisterSelf(IDependencyRegistrar registrar)
@@ -22,10 +22,13 @@ namespace Game.Core
         public void ResolveDependencies(IDependencyRegistrar registrar)
         {
             // TODO: TacticsComponent 연결 - 하위 컴포넌트 설계 후 구현
-            resultEvaluator = GetComponent<IBattleResultEvaluator>();
-            if (resultEvaluator == null)
+
+            // 승패 판정을 IBattleResultRule 전략에 위임한다(OCP 확장점) - 실제 전투 로직이 생겨도
+            // PlaceholderBattleResultRule 교체만으로 끝나고 BattleManager는 무변경으로 유지된다.
+            resultRule = GetComponent<IBattleResultRule>();
+            if (resultRule == null)
             {
-                throw new InvalidOperationException($"{nameof(BattleManager)}와 같은 GameObject에 {nameof(IBattleResultEvaluator)} 구현체가 없다.");
+                throw new InvalidOperationException($"{nameof(BattleManager)}와 같은 GameObject에 {nameof(IBattleResultRule)} 구현체가 없다.");
             }
 
             consequenceRule = GetComponent<IDefeatConsequenceRule>();
@@ -37,19 +40,18 @@ namespace Game.Core
             // 규칙이 IFormationReader/ICaravanRosterProvider를 필요로 하면 주입한다 - 어떤 규칙인지는
             // 몰라도 된다(OCP). 이 지원 코드는 여기 한 번만 추가되며, 이후 같은 마커를 구현하는 새
             // 규칙이 추가/교체돼도 BattleManager는 다시 바뀌지 않는다.
-            var rule = GetComponent<IBattleResultRule>();
 
             // IFormationReader 자체는 DI에 등록되지 않는다 - InMemoryFormationRepository는
             // IFormationRepository로만 등록하므로(제네릭 타입 키라 상위 인터페이스로는 조회 불가),
             // IFormationRepository로 조회해 업캐스트한다(UIManager의 기존 패턴과 동일). 상행 관리
             // 데이터 시스템이 아직 없는 동안은 CLAUDE.md 컨벤션대로 TryResolve로 선택 조회한다.
-            if (rule is IRequiresFormationReader formationConsumer
+            if (resultRule is IRequiresFormationReader formationConsumer
                 && registrar.TryResolve<IFormationRepository>(out var formationRepository))
             {
                 formationConsumer.SetFormationReader(formationRepository);
             }
 
-            if (rule is IRequiresCaravanRoster rosterConsumer
+            if (resultRule is IRequiresCaravanRoster rosterConsumer
                 && registrar.TryResolve<ICaravanRosterProvider>(out var rosterProvider))
             {
                 rosterConsumer.SetCaravanRoster(rosterProvider);
@@ -58,7 +60,7 @@ namespace Game.Core
             // 규칙이 시뮬레이션 생성 이벤트를 노출하면(IBattleSimulationEvents), 그대로 흘려보낸다 -
             // 뷰 계층(FieldUIController/BattleViewPresenter)은 BattleManager만 알면 되고 규칙의 구체
             // 타입(LiveBattleSimulationRule)을 몰라도 된다(DIP).
-            if (rule is IBattleSimulationEvents simulationEvents)
+            if (resultRule is IBattleSimulationEvents simulationEvents)
             {
                 simulationEvents.OnSimulationBuilt += loop => OnSimulationBuilt?.Invoke(loop);
             }
@@ -66,7 +68,7 @@ namespace Game.Core
 
         public void StartBattle()
         {
-            resultEvaluator.Evaluate(EndBattle);
+            resultRule.Evaluate(EndBattle);
         }
 
         public DefeatConsequence ResolveDefeatConsequence() => consequenceRule.Resolve();

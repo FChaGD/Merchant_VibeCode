@@ -9,6 +9,11 @@ namespace Game.Core
     /// </summary>
     public class FormationLayout
     {
+        // 배치가 아직 없을 때(Hub 정비창을 한 번도 저장하지 않은 상태 등) 그리드 열 수의 단일 출처 -
+        // FormationGridView의 인스펙터 기본값과 LiveBattleSimulationRule의 배치 없음 폴백이 이 값을
+        // 공유한다. 따로 들고 있으면 하나만 바뀌었을 때 조용히 어긋난다(BattleFieldGeometry와 같은 이유).
+        public const int DefaultColumnCount = 8;
+
         private readonly string[] slotUnitIds;
 
         public int ColumnCount { get; }

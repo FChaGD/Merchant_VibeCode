@@ -18,7 +18,7 @@ namespace Game.Core
         [SerializeField] private GridLayoutGroup slotLayoutGroup;
         [SerializeField] private FormationSlotView slotPrefab;
         [SerializeField] private FormationUnitIconView occupantIconPrefab;
-        [SerializeField, Min(0)] private int columnCount = 8;
+        [SerializeField, Min(0)] private int columnCount = FormationLayout.DefaultColumnCount;
         [SerializeField, Min(0)] private int rowCount = 2;
         [SerializeField] private Vector2 slotSize = new(120f, 120f);
         [SerializeField, Min(0)] private int overscrollTileMargin = 5;
@@ -74,6 +74,10 @@ namespace Game.Core
             CenterContentOnTiles();
         }
 
+        // 유닛 유무와 무관하게 슬롯당 아이콘 인스턴스 하나를 계속 재사용한다(파괴 후 재생성 대신
+        // Bind로 내용을 덮어쓰고 SetActive로 표시만 전환) - CLAUDE.md의 "슬롯/아이콘 렌더링은 매번
+        // Destroy+Instantiate하지 않고 get-or-create로 재사용한다" 규칙을 따른다. 매번 완전히
+        // 덮어쓰므로(Bind/SetHandlers) 이전에 어떤 유닛이 있었든 결과는 동일하다.
         public void RenderSlot(int index, IFormationUnit unit)
         {
             if (index < 0 || index >= slots.Count)
@@ -83,14 +87,12 @@ namespace Game.Core
 
             var slot = slots[index];
 
-            if (slot.CurrentIcon != null)
-            {
-                Destroy(slot.CurrentIcon.gameObject);
-                slot.SetIcon(null);
-            }
-
             if (unit == null)
             {
+                if (slot.CurrentIcon != null)
+                {
+                    slot.CurrentIcon.gameObject.SetActive(false);
+                }
                 return;
             }
 
@@ -100,7 +102,13 @@ namespace Game.Core
                 return;
             }
 
-            var icon = Instantiate(occupantIconPrefab, slot.IconContainer);
+            if (slot.CurrentIcon == null)
+            {
+                slot.SetIcon(Instantiate(occupantIconPrefab, slot.IconContainer));
+            }
+
+            var icon = slot.CurrentIcon;
+            icon.gameObject.SetActive(true);
             icon.Bind(unit);
 
             var slotIndex = slot.SlotIndex;
@@ -109,12 +117,26 @@ namespace Game.Core
                 (iconView, eventData) => onIconBeginDrag?.Invoke(slotIndex, iconView, eventData),
                 eventData => onIconDrag?.Invoke(eventData),
                 eventData => onIconEndDrag?.Invoke(eventData));
-
-            slot.SetIcon(icon);
         }
 
+        // 슬롯 개수(SlotCount)가 이전 빌드와 같으면 파괴 후 재생성 대신 기존 슬롯에 콜백만 다시
+        // 바인딩한다 - Initialize()가 정비창을 열 때마다 호출되는데, 열 때마다 그리드 크기가 바뀌는
+        // 것은 아니므로(디버그 리사이즈 때만 실제로 바뀜) 매번 파괴+재생성할 이유가 없다. 실제로
+        // 개수가 바뀌는 경우(SetGridDimensions)는 기존과 동일하게 전량 재생성한다.
         private void RebuildSlots()
         {
+            if (slots.Count == SlotCount)
+            {
+                for (var i = 0; i < slots.Count; i++)
+                {
+                    slots[i].Initialize(i, onSlotDropped);
+                }
+
+                ApplyLayoutSettings();
+                CenterContentOnTiles();
+                return;
+            }
+
             foreach (var slot in slots)
             {
                 if (slot != null)

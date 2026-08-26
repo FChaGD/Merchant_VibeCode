@@ -19,6 +19,11 @@ namespace Game.Core.DebugTools
 
         public bool HasRoute(string cityIdA, string cityIdB) => routeKeys.Contains(Key(cityIdA, cityIdB));
 
+        public IReadOnlyCollection<string> GetConnectedCityIds(string cityId)
+        {
+            return adjacency.TryGetValue(cityId, out var neighbors) ? neighbors : Array.Empty<string>();
+        }
+
         public bool TryAddRoute(string cityIdA, string cityIdB)
         {
             if (string.IsNullOrEmpty(cityIdA) || string.IsNullOrEmpty(cityIdB) || cityIdA == cityIdB)
@@ -73,17 +78,6 @@ namespace Game.Core.DebugTools
                 var parts = key.Split('|');
                 RouteRemoved?.Invoke(parts[0], parts[1]);
             }
-        }
-
-        public IReadOnlyList<(string CityIdA, string CityIdB)> GetAll()
-        {
-            var list = new List<(string, string)>(routeKeys.Count);
-            foreach (var key in routeKeys)
-            {
-                var parts = key.Split('|');
-                list.Add((parts[0], parts[1]));
-            }
-            return list;
         }
 
         private void AddAdjacency(string from, string to)

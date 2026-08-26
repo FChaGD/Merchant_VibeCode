@@ -152,7 +152,7 @@ namespace Game.Core
                     break;
                 case DefeatConsequence.Rout:
                     resultPopupView.Show("패배 - 궤주", "귀환", onConfirm: () =>
-                        gameManager.RequestSceneTransition(SceneNames.Hub));
+                        gameManager.RequestSceneTransition(ContentSceneId.Hub));
                     break;
                 case DefeatConsequence.Captured:
                 default:

@@ -25,6 +25,12 @@ namespace Game.Core.Editor
             // 잔재를 정리한다(재실행 안전성).
             EditorUIBuilder.DestroyChildIfExists(root.transform, "EventSystem");
 
+            // 리팩토링 과정에서 컴포넌트 스크립트 파일 자체를 지운 적이 있다(예: BattleResultEvaluator) -
+            // 씬에 이미 저장돼 있던 해당 컴포넌트 참조는 삭제된 타입이라 GetComponent<T>()로 찾아
+            // 제거할 방법이 없다("Missing Script" 경고로 남는다). 재실행할 때마다 이 하이어라키 전체를
+            // 훑어 없어진 스크립트 참조를 걷어낸다.
+            RemoveMissingScriptsRecursively(root.transform);
+
             var dependencyManager = GetOrCreateManager<DependencyManager>(root.transform, "DependencyManager");
             var gameManager = GetOrCreateManager<GameManager>(root.transform, "GameManager");
             var inputManager = GetOrCreateManager<InputManager>(root.transform, "InputManager");
@@ -42,11 +48,9 @@ namespace Game.Core.Editor
             // managedComponents 동기화 목록에는 포함하지 않는다.
             EnsureSiblingComponent<SessionStateTracker>(gameManager.gameObject);
 
-            // LiveBattleSimulationRule/BattleResultEvaluator도 BattleManager 산하 컴포넌트라
-            // 전역 DI 대상이 아니다(BattleManager가 GetComponent<IBattleResultEvaluator>()로 직접
-            // 조회, BattleResultEvaluator는 다시 GetComponent<IBattleResultRule>()로 조회).
+            // LiveBattleSimulationRule도 BattleManager 산하 컴포넌트라 전역 DI 대상이 아니다
+            // (BattleManager가 GetComponent<IBattleResultRule>()로 직접 조회).
             EnsureSiblingComponent<LiveBattleSimulationRule>(battleManager.gameObject);
-            EnsureSiblingComponent<BattleResultEvaluator>(battleManager.gameObject);
 
             // PlaceholderDefeatConsequenceRule도 같은 이유로 BattleManager 산하 컴포넌트다
             // (BattleManager가 GetComponent<IDefeatConsequenceRule>()로 직접 조회).
@@ -57,6 +61,11 @@ namespace Game.Core.Editor
             EnsureSiblingComponent<FormationPanel>(uiManager.gameObject);
             EnsureSiblingComponent<TripPanel>(uiManager.gameObject);
             var fieldUIController = EnsureSiblingComponent<FieldUIController>(uiManager.gameObject);
+
+            // 씬별 UI 배선(IContentSceneUIWiring)도 전역 DI 대상이 아니라 UIManager 산하 컴포넌트다 -
+            // UIManager가 GetComponents<IContentSceneUIWiring>()로 이들을 스스로 수집한다.
+            EnsureSiblingComponent<HubUIWiring>(uiManager.gameObject);
+            EnsureSiblingComponent<FieldUIWiring>(uiManager.gameObject);
 
             // 전투 뷰 유닛 프리팹은 FieldUIInstaller(Field 씬 담당)가 자산으로 만들어 두고, 여기(Bootstrap
             // 담당)서는 그 자산을 FieldUIController 필드에 연결만 한다 - FormationUIBuilder의 슬롯/아이콘
@@ -122,6 +131,14 @@ namespace Game.Core.Editor
             Undo.RegisterCreatedObjectUndo(go, $"Create {objectName}");
             Undo.SetTransformParent(go.transform, parent, $"Parent {objectName}");
             return Undo.AddComponent<T>(go);
+        }
+
+        private static void RemoveMissingScriptsRecursively(Transform root)
+        {
+            foreach (var transform in root.GetComponentsInChildren<Transform>(true))
+            {
+                GameObjectUtility.RemoveMonoBehavioursWithMissingScript(transform.gameObject);
+            }
         }
 
         private static T EnsureSiblingComponent<T>(GameObject go) where T : Component
