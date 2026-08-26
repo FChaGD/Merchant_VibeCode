@@ -310,6 +310,8 @@ namespace Game.Core.Editor
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             EditorUIBuilder.ConfigureScrollRect(root.gameObject, viewportRect, contentRect, horizontal: true, vertical: true);
+            // 드래그로만 스크롤한다 - 마우스 휠 스크롤은 쓰지 않는다(사용자 확인).
+            root.GetComponent<ScrollRect>().scrollSensitivity = 0f;
 
             return (viewportRect, contentRect, layoutGroup);
         }

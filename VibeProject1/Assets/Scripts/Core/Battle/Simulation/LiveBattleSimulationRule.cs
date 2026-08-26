@@ -79,8 +79,9 @@ namespace Game.Core
             var allies = hasLayout ? BuildAllies(layout, spawnCenter, allyMorale, fleeTravelDistance) : new List<IBattleCombatant>();
             var enemies = BuildEnemies(spawnCenter, enemyMorale, fleeTravelDistance);
             var protectedUnits = hasLayout ? BuildProtectedUnits(layout) : new List<IDamageable>();
+            var fieldRadius = fieldLayout.ComputeFieldRadius(columnCount);
 
-            return new BattleSimulationLoop(allies, enemies, protectedUnits);
+            return new BattleSimulationLoop(allies, enemies, protectedUnits, fieldRadius);
         }
 
         private List<IBattleCombatant> BuildAllies(FormationLayout layout, Vector2 spawnCenter, PartyMorale allyMorale, float fleeTravelDistance)

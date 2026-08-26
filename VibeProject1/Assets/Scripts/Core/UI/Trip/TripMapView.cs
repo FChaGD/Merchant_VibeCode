@@ -6,26 +6,23 @@ namespace Game.Core
 {
     /// <summary>
     /// 상행 준비 UI의 지도 영역. 상하좌우 드래그 이동은 같은 GameObject의 ScrollRect(Clamped)가
-    /// 담당하고, 이 컴포넌트는 마우스 휠 확대/축소만 처리한다. 출발/도착 표시는 더 이상 고정 핀이
-    /// 아니라 지도 위에 자유 배치되는 디버그 도시 아이콘(TripDebugCityMarkerView)이 대신한다
-    /// (02번 기획 문서 개정 이력 참고). 확대/축소는 content의 localScale을 조절하는 방식이라 축소 시
-    /// 콘텐츠가 뷰포트 경계 밖으로 나갈 수 있어 직접 재클램프한다(ScrollRect의 Clamped 이동은 드래그
-    /// 중에만 적용되고, 스케일 변경 자체는 보정하지 않는다).
+    /// 담당하고, 이 컴포넌트는 마우스 휠 확대/축소만 처리한다 - 실제 줌 계산(커서 위치 고정 줌,
+    /// 최소/최대 줌 경계, 경계 클램핑)은 ScrollRectZoomController에 위임한다. 전투 뷰 카메라
+    /// (BattleFieldCameraView)와 같은 조작 스타일을 공유하기 위한 것으로, 원래 있던 화면 중앙 기준
+    /// 줌·관성 있는 드래그·SmoothDamp 보간은 폐기했다(Docs/설계/09_전투뷰_카메라_아키텍처.md §6 -
+    /// 09번 기획에 따라 전투 뷰와 동일한 스타일로 통일). 출발/도착 표시는 더 이상 고정 핀이 아니라
+    /// 지도 위에 자유 배치되는 디버그 도시 아이콘(TripDebugCityMarkerView)이 대신한다
+    /// (02번 기획 문서 개정 이력 참고).
     /// </summary>
     [RequireComponent(typeof(ScrollRect))]
     public class TripMapView : MonoBehaviour, IScrollHandler
     {
-        [SerializeField] private float minZoom = 1f;
-        [SerializeField] private float maxZoom = 2.5f;
-        [SerializeField] private float zoomStep = 0.1f;
-        [SerializeField, Min(0.01f)] private float zoomSmoothTime = 0.12f;
+        private const float MaxZoomRatio = 2.5f; // 09번 기획 §3.2 확정값 - 전투 뷰 카메라와 동일
 
         private ScrollRect scrollRect;
         private RectTransform viewport;
         private RectTransform content;
-        private float currentZoom;
-        private float targetZoom;
-        private float zoomVelocity;
+        private ScrollRectZoomController zoomController;
 
         /// <summary>
         /// 지도 화면 영역 - 드롭이 지도 안인지 판정할 때 쓴다(디버그 도시 배치 등). Awake 이전에는
@@ -43,62 +40,17 @@ namespace Game.Core
             scrollRect = GetComponent<ScrollRect>();
             viewport = scrollRect.viewport;
             content = scrollRect.content;
+            // 관성 없음 - 09번 기획에 따라 전투 뷰 카메라와 같은 스타일로 통일(기존엔 ScrollRect 기본 관성 있었음).
+            scrollRect.inertia = false;
 
-            if (viewport != null && content != null && content.rect.width > 0f && content.rect.height > 0f)
-            {
-                // 줌아웃 최소 배율(가장 멀리 축소했을 때)은 지도가 상하 또는 좌우 경계 중 먼저 닿는
-                // 쪽에서 멈추도록 계산한다 - 두 축 각각 "뷰포트를 꽉 채우는 배율" 중 더 큰 쪽을 써야
-                // 반대편 축도 화면을 벗어나지 않는다(더 작은 쪽을 쓰면 그 축에 빈 여백이 생긴다).
-                minZoom = Mathf.Max(viewport.rect.width / content.rect.width, viewport.rect.height / content.rect.height);
-            }
-
-            currentZoom = content != null ? Mathf.Clamp(content.localScale.x, minZoom, maxZoom) : minZoom;
-            targetZoom = currentZoom;
+            zoomController = new ScrollRectZoomController(MaxZoomRatio);
+            zoomController.Bind(viewport, content);
+            zoomController.RecomputeBounds();
         }
 
         public void OnScroll(PointerEventData eventData)
         {
-            if (content == null)
-            {
-                return;
-            }
-
-            // 스케일을 즉시 바꾸지 않고 목표값만 갱신한다 - 휠 한 칸(스크롤 이벤트 1회)마다 순간적으로
-            // 점프하면 끊겨 보이므로, 실제 스케일 적용은 Update()에서 목표값을 향해 매끄럽게 보간한다.
-            targetZoom = Mathf.Clamp(targetZoom + eventData.scrollDelta.y * zoomStep, minZoom, maxZoom);
-        }
-
-        private void Update()
-        {
-            if (content == null || Mathf.Approximately(currentZoom, targetZoom))
-            {
-                return;
-            }
-
-            currentZoom = Mathf.SmoothDamp(currentZoom, targetZoom, ref zoomVelocity, zoomSmoothTime);
-            if (Mathf.Abs(currentZoom - targetZoom) < 0.0005f)
-            {
-                currentZoom = targetZoom;
-            }
-
-            content.localScale = new Vector3(currentZoom, currentZoom, 1f);
-            ClampContentPosition();
-        }
-
-        private void ClampContentPosition()
-        {
-            if (viewport == null)
-            {
-                return;
-            }
-
-            var scaledContentSize = content.rect.size * currentZoom;
-            var maxOffset = Vector2.Max((scaledContentSize - viewport.rect.size) * 0.5f, Vector2.zero);
-
-            var position = content.anchoredPosition;
-            position.x = Mathf.Clamp(position.x, -maxOffset.x, maxOffset.x);
-            position.y = Mathf.Clamp(position.y, -maxOffset.y, maxOffset.y);
-            content.anchoredPosition = position;
+            zoomController?.ApplyScroll(eventData.position, eventData.scrollDelta.y, eventData.pressEventCamera);
         }
     }
 }

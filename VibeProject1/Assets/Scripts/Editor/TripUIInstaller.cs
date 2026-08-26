@@ -105,7 +105,11 @@ namespace Game.Core.Editor
             // TripMapView.OnScroll(확대/축소)도 동시에 반응해 휠을 돌리면 줌과 스크롤이 함께 발동됐다.
             // scrollSensitivity를 0으로 두면 ScrollRect 자신의 휠 반응만 꺼지고(드래그 패닝은 별개 경로라
             // 그대로 유지), 휠은 온전히 TripMapView의 줌 전용이 된다.
-            root.GetComponent<ScrollRect>().scrollSensitivity = 0f;
+            var mapScrollRect = root.GetComponent<ScrollRect>();
+            mapScrollRect.scrollSensitivity = 0f;
+            // TripMapView.Awake도 런타임에 같은 값을 강제하지만(09번 설계 §6), 인스톨러가 씬 상태를
+            // 명시적으로 보장하는 기존 관례를 따라 여기서도 설정해 둔다.
+            mapScrollRect.inertia = false;
 
             EditorUIBuilder.GetOrAddComponent<TripMapView>(root);
         }

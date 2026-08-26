@@ -16,12 +16,19 @@ namespace Game.Core
         private int aliveEnemyCount;
         private int aliveProtectedCount;
 
+        // 이번 전투의 전장 반지름(BattleFieldLayout 기준) - BattleViewPresenter가 전투 뷰 카메라의
+        // 콘텐츠 크기를 잡을 때 쓴다(Docs/설계/09_전투뷰_카메라_아키텍처.md §3). 시뮬레이션 로직
+        // 자체는 이 값을 쓰지 않는다 - 렌더링 소비자를 위해 그대로 들고만 있는다.
+        public float FieldRadius { get; }
+
         public BattleSimulationLoop(
-            List<IBattleCombatant> allies, List<IBattleCombatant> enemies, List<IDamageable> protectedUnits)
+            List<IBattleCombatant> allies, List<IBattleCombatant> enemies, List<IDamageable> protectedUnits,
+            float fieldRadius)
         {
             this.allies = allies;
             this.enemies = enemies;
             this.protectedUnits = protectedUnits;
+            FieldRadius = fieldRadius;
             aliveAllyCount = allies.Count;
             aliveEnemyCount = enemies.Count;
             aliveProtectedCount = protectedUnits.Count;

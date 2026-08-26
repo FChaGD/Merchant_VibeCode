@@ -41,7 +41,7 @@ namespace Game.Core
         // "전장 반지름" 자체를 필요로 하는 다른 소비자가 없다(ISP, 필요해지면 인터페이스에 추가).
         public float ComputeFleeTravelDistance(int columnCount) => ComputeFieldRadius(columnCount);
 
-        private float ComputeFieldRadius(int columnCount) => ComputeSpawnRadius(columnCount) - FieldBoundaryGap;
+        public float ComputeFieldRadius(int columnCount) => ComputeSpawnRadius(columnCount) - FieldBoundaryGap;
 
         private float ComputeSpawnRadius(int columnCount) => FormationExtentRadius(columnCount) + SpawnRadiusMargin;
 

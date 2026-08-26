@@ -6,8 +6,9 @@ namespace Game.Core
 {
     /// <summary>
     /// Field 씬의 이동 뷰(진행 게이지, 배경, 정비창 재호출)를 조율한다. 인카운터 발생 시 경고창 점멸,
-    /// 전투 뷰 전환, 결과 팝업 처리는 FieldEncounterFlowCoordinator에 위임한다(SRP) - 도착 처리는
-    /// 아직 구현하지 않았다(Docs/설계/04_Field씬_아키텍처.md §5.3 참고).
+    /// 전투 뷰 전환, 결과 팝업 처리는 FieldEncounterFlowCoordinator에 위임한다(SRP) - 도착 처리
+    /// (게이지 100%↔OnArrived)만은 인카운터/전투와 무관한 단순 이벤트→뷰 반영이라 이 클래스가 직접
+    /// 처리한다(Docs/설계/04_Field씬_아키텍처.md §5.3).
     /// </summary>
     public class FieldUIController : MonoBehaviour, IFieldUIController
     {
@@ -22,10 +23,12 @@ namespace Game.Core
         private RectTransform battleViewRoot;
         private RectTransform battleAllyLayer;
         private RectTransform battleEnemyLayer;
+        private BattleFieldCameraView battleCameraView;
         private FieldResultPopupView resultPopupView;
         private FieldTransitionCurtainView transitionCurtain;
         private FieldEncounterFlowCoordinator flowCoordinator;
         private BattleViewPresenter viewPresenter;
+        private IGameManager gameManager;
 
         public void RegisterFieldUI(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager)
         {
@@ -57,6 +60,8 @@ namespace Game.Core
                 return;
             }
 
+            this.gameManager = gameManager;
+
             formationButton.onClick.RemoveAllListeners();
             formationButton.onClick.AddListener(() => uiManager.Open(UIPanelIds.Formation));
 
@@ -65,6 +70,8 @@ namespace Game.Core
             // (Docs/설계/04_Field씬_아키텍처.md §5 이벤트 구독 수명주기 참고).
             sessionState.OnProgressChanged -= HandleProgressChanged;
             sessionState.OnProgressChanged += HandleProgressChanged;
+            sessionState.OnArrived -= HandleArrived;
+            sessionState.OnArrived += HandleArrived;
 
             // encounterManager/battleResultSource는 Bootstrap 상주 영속 객체다 - flowCoordinator를
             // Field 재방문 시 재생성하지 않아야 이전 상행의 구독이 쌓이지 않는다
@@ -80,7 +87,7 @@ namespace Game.Core
             // 유닛 레이어/프리팹 참조)는 Field 씬을 로드할 때마다 실행한다.
             viewPresenter ??= new BattleViewPresenter();
             viewPresenter.Bind(battleSimulationEvents);
-            viewPresenter.RebindViews(battleAllyLayer, battleEnemyLayer, battleCharacterViewPrefab, battleProtectedViewPrefab);
+            viewPresenter.RebindViews(battleAllyLayer, battleEnemyLayer, battleCharacterViewPrefab, battleProtectedViewPrefab, battleCameraView);
 
             sessionState.Begin();
         }
@@ -88,6 +95,13 @@ namespace Game.Core
         private void HandleProgressChanged(float progress)
         {
             gaugeView.SetProgress(progress);
+        }
+
+        // 도착 성공 처리(Docs/설계/04_Field씬_아키텍처.md §5.3) - 전투 승/패와 같은 resultPopupView를
+        // 재사용한다(문구·버튼 라벨·콜백만 다름).
+        private void HandleArrived()
+        {
+            resultPopupView.Show("도착 성공", "도시 입장", onConfirm: () => gameManager.RequestSceneTransition(SceneNames.Hub));
         }
 
         private bool TryBind(SceneUIRoot sceneUIRoot)
@@ -130,6 +144,16 @@ namespace Game.Core
             if (!sceneUIRoot.TryGetElement<RectTransform>(FieldUIElementIds.BattleViewRoot, out battleViewRoot))
             {
                 WarnMissing(FieldUIElementIds.BattleViewRoot);
+                return false;
+            }
+
+            // BattleFieldCameraView는 BattleViewRoot와 같은 GameObject에 부착된다(UIElementMarker는
+            // GameObject당 하나의 id만 가질 수 있어 별도 마커를 만들 수 없다) - 방금 구한 RectTransform과
+            // 같은 오브젝트에서 바로 GetComponent로 조회한다.
+            battleCameraView = battleViewRoot.GetComponent<BattleFieldCameraView>();
+            if (battleCameraView == null)
+            {
+                WarnMissing(FieldUIElementIds.BattleViewRoot + " (BattleFieldCameraView)");
                 return false;
             }
 

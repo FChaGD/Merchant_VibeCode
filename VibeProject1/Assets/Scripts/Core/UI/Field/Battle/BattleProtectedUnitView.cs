@@ -14,7 +14,6 @@ namespace Game.Core
     {
         [SerializeField] private Image bodyImage;
 
-        private const float PositionScale = 40f;
         private const float HitFlashSeconds = 0.1f;
         private const float DeathFadeSeconds = 0.3f;
         private static readonly Color FallbackBodyColor = new(0.85f, 0.75f, 0.3f, 1f);
@@ -38,7 +37,7 @@ namespace Game.Core
             }
             bodyImage.color = baseColor;
 
-            ((RectTransform)transform).anchoredPosition = unit.Position * PositionScale; // 고정 배치, 이후 갱신 없음
+            ((RectTransform)transform).anchoredPosition = unit.Position * BattleFieldGeometry.CoordinateToPixelScale; // 고정 배치, 이후 갱신 없음
 
             unit.OnDamaged += HandleDamaged;
             unit.OnDied += HandleDestroyed;

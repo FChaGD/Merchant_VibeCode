@@ -136,25 +136,56 @@ namespace Game.Core.Editor
             go.SetActive(false); // 평소에는 숨김 - FieldEncounterWarningView.Show() 호출 시에만 표시
         }
 
+        // BattleFieldCameraView.ConfigureFieldBounds가 매 전투 실제 크기로 다시 잡으므로, 여기서는
+        // 0으로 두면 ScrollRectZoomController의 초기 RecomputeBounds가 나눗셈 대상 크기가 없어 아무
+        // 일도 하지 않는다(문제 없음) - 첫 전투 시작 시 곧바로 재계산되기 때문이다.
+        private static readonly Vector2 InitialBattleContentSize = new(100f, 100f);
+
         private static void BuildBattleView(Transform parent)
         {
             var go = EditorUIBuilder.GetOrCreateUIObject(parent, "BattleView");
             EditorUIBuilder.SetStretch(go.GetComponent<RectTransform>());
             EditorUIBuilder.EnsureMarker(go, FieldUIElementIds.BattleViewRoot);
 
+            // 배경/라벨은 카메라(ScrollRect Content) 밖에 둔다 - 줌아웃해도 항상 화면 전체를 채워야
+            // "전장 밖" 여백이 자연스러운 검은 배경으로 보인다(09번 설계 §7).
             var background = EditorUIBuilder.EnsureImage(go, new Color(0.1f, 0.1f, 0.12f, 1f));
             background.raycastTarget = false;
             EditorUIBuilder.EnsureLabel(go.transform, "전투 중...");
 
-            BuildBattleUnitLayer(go.transform, "AllyLayer", FieldUIElementIds.BattleAllyLayer);
-            BuildBattleUnitLayer(go.transform, "EnemyLayer", FieldUIElementIds.BattleEnemyLayer);
+            // 예전 구조에서는 AllyLayer/EnemyLayer가 BattleView 바로 밑에 있었다 - 이제 Content 밑으로
+            // 옮겼으므로(재실행 안전성) 옛 위치에 남은 것부터 정리한다.
+            EditorUIBuilder.DestroyChildIfExists(go.transform, "AllyLayer");
+            EditorUIBuilder.DestroyChildIfExists(go.transform, "EnemyLayer");
+
+            var (viewport, contentGo) = EditorUIBuilder.CreateViewportAndContent(go.transform);
+            var contentRect = contentGo.GetComponent<RectTransform>();
+            contentRect.anchorMin = new Vector2(0.5f, 0.5f);
+            contentRect.anchorMax = new Vector2(0.5f, 0.5f);
+            contentRect.pivot = new Vector2(0.5f, 0.5f);
+            contentRect.sizeDelta = InitialBattleContentSize;
+            contentRect.anchoredPosition = Vector2.zero;
+
+            EditorUIBuilder.ConfigureScrollRect(go, viewport, contentRect, horizontal: true, vertical: true);
+            var battleScrollRect = go.GetComponent<ScrollRect>();
+            // TripUIInstaller.BuildMap과 같은 이유 - ScrollRect 자신의 휠 스크롤과
+            // BattleFieldCameraView.OnScroll(줌)이 동시에 반응하는 걸 막는다.
+            battleScrollRect.scrollSensitivity = 0f;
+            battleScrollRect.inertia = false;
+
+            EditorUIBuilder.GetOrAddComponent<BattleFieldCameraView>(go);
+
+            // 유닛 레이어는 이제 BattleView가 아니라 카메라 콘텐츠(Content) 하위에 둔다 - 팬/줌이
+            // 유닛까지 함께 움직이려면 콘텐츠의 자식이어야 한다(09번 설계 §7).
+            BuildBattleUnitLayer(contentRect.transform, "AllyLayer", FieldUIElementIds.BattleAllyLayer);
+            BuildBattleUnitLayer(contentRect.transform, "EnemyLayer", FieldUIElementIds.BattleEnemyLayer);
 
             go.SetActive(false); // 평소에는 숨김 - FieldCameraController가 전환 시 활성화
         }
 
         /// <summary>
-        /// BattleViewPresenter가 유닛 뷰(BattleCharacterUnitView 등)를 스폰하는 자리. 스트레치된
-        /// BattleView와 달리 중앙 한 점에 고정된 앵커라, 자식의 anchoredPosition이 곧 전장 좌표
+        /// BattleViewPresenter가 유닛 뷰(BattleCharacterUnitView 등)를 스폰하는 자리. 카메라 콘텐츠와
+        /// 마찬가지로 중앙 한 점에 고정된 앵커라, 자식의 anchoredPosition이 곧 전장 좌표
         /// (BattleFieldLayout) 원점 기준 픽셀 오프셋이 된다.
         /// </summary>
         private static void BuildBattleUnitLayer(Transform parent, string name, string markerId)

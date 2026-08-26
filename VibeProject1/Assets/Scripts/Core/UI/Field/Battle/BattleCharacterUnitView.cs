@@ -14,8 +14,6 @@ namespace Game.Core
     {
         [SerializeField] private Image bodyImage;
 
-        // 전투 좌표(BattleFieldLayout 기준, 대략 -8~8 범위) 1단위를 화면 픽셀로 바꾸는 배율 - Placeholder.
-        private const float PositionScale = 40f;
         private const float HitFlashSeconds = 0.1f;
         // 사망/도주 페이드아웃 공통 소요시간 - 보간(Lerp)으로 2초에 걸쳐 알파를 낮춘다.
         private const float FadeOutSeconds = 2f;
@@ -47,7 +45,7 @@ namespace Game.Core
             this.unit = unit;
             baseColor = unit.IsAlly ? AllyColor : EnemyColor;
             bodyImage.color = baseColor;
-            rectTransform.anchoredPosition = unit.Position * PositionScale;
+            rectTransform.anchoredPosition = unit.Position * BattleFieldGeometry.CoordinateToPixelScale;
             // MaxHp를 크기 신호로 재사용 - 방패병(150) > 전사(100) > 궁수(70) 순서가 자연히 만들어진다(기획 §12).
             rectTransform.localScale = Vector3.one * Mathf.Clamp(unit.MaxHp / 100f, 0.7f, 1.5f);
 
@@ -60,7 +58,7 @@ namespace Game.Core
         private void Update()
         {
             if (unit == null || !unit.IsAlive) return;
-            rectTransform.anchoredPosition = unit.Position * PositionScale;
+            rectTransform.anchoredPosition = unit.Position * BattleFieldGeometry.CoordinateToPixelScale;
         }
 
         private void HandleDamaged(float amount) => StartCoroutine(FlashWhite());
@@ -74,7 +72,7 @@ namespace Game.Core
             }
             else
             {
-                StartCoroutine(FireProjectile(target.Position * PositionScale));
+                StartCoroutine(FireProjectile(target.Position * BattleFieldGeometry.CoordinateToPixelScale));
             }
         }
 
@@ -166,7 +164,7 @@ namespace Game.Core
             while (elapsed < FadeOutSeconds)
             {
                 elapsed += Time.deltaTime;
-                rectTransform.anchoredPosition += velocity * PositionScale * Time.deltaTime;
+                rectTransform.anchoredPosition += velocity * BattleFieldGeometry.CoordinateToPixelScale * Time.deltaTime;
                 var alpha = Mathf.Lerp(startColor.a, 0f, elapsed / FadeOutSeconds);
                 bodyImage.color = new Color(startColor.r, startColor.g, startColor.b, alpha);
                 yield return null;

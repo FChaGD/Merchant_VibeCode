@@ -1950,10 +1950,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 669f45c22e664bdea27431982f0f933f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.TripMapView
-  minZoom: 1
-  maxZoom: 2.5
-  zoomStep: 0.1
-  zoomSmoothTime: 0.12
 --- !u!114 &426045554
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1971,7 +1967,7 @@ MonoBehaviour:
   m_Vertical: 1
   m_MovementType: 2
   m_Elasticity: 0.1
-  m_Inertia: 1
+  m_Inertia: 0
   m_DecelerationRate: 0.135
   m_ScrollSensitivity: 0
   m_Viewport: {fileID: 444257102}

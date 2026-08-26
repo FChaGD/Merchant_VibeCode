@@ -17,6 +17,7 @@ namespace Game.Core
         private RectTransform enemyContainer;
         private BattleCharacterUnitView characterViewPrefab;
         private BattleProtectedUnitView protectedViewPrefab;
+        private BattleFieldCameraView cameraView;
 
         private readonly List<BattleCharacterUnitView> activeCharacterViews = new();
         private readonly List<BattleProtectedUnitView> activeProtectedViews = new();
@@ -31,17 +32,23 @@ namespace Game.Core
 
         public void RebindViews(
             RectTransform allyContainer, RectTransform enemyContainer,
-            BattleCharacterUnitView characterViewPrefab, BattleProtectedUnitView protectedViewPrefab)
+            BattleCharacterUnitView characterViewPrefab, BattleProtectedUnitView protectedViewPrefab,
+            BattleFieldCameraView cameraView)
         {
             this.allyContainer = allyContainer;
             this.enemyContainer = enemyContainer;
             this.characterViewPrefab = characterViewPrefab;
             this.protectedViewPrefab = protectedViewPrefab;
+            this.cameraView = cameraView;
         }
 
         private void Present(BattleSimulationLoop simulation)
         {
             Clear();
+            // 유닛을 스폰하기 전에 이번 전투의 전장 크기로 카메라를 먼저 리셋한다(기획 §5) - 콘텐츠
+            // sizeDelta 자체는 자식 anchoredPosition 계산에 영향을 주지 않아 순서가 안전하지만, 리셋
+            // 시점을 스폰 직전으로 맞춰야 이전 전투의 확대 상태가 새 유닛에 잠깐이라도 겹쳐 보이지 않는다.
+            cameraView?.ConfigureFieldBounds(simulation.FieldRadius);
             foreach (var unit in simulation.Allies) SpawnCharacterView(unit, allyContainer);
             foreach (var unit in simulation.Enemies) SpawnCharacterView(unit, enemyContainer);
             foreach (var unit in simulation.ProtectedUnits) SpawnProtectedView(unit, allyContainer);

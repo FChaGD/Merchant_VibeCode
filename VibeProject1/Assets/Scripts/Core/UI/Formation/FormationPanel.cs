@@ -187,7 +187,25 @@ namespace Game.Core
                 return;
             }
 
+            // 드래그 도중 패널이 강제로 닫히면(예: Field 씬에서 인카운터 발생 시 FieldEncounterFlowCoordinator가
+            // uiManager.Close(UIPanelIds.Formation) 호출) dragGhost가 panelRoot가 아니라 rootCanvas 바로
+            // 아래 별도로 떠 있어(BeginDrag 참고) panelRoot 비활성화와 무관하게 화면에 그대로 남는다 -
+            // 패널을 닫을 때는 항상 진행 중인 드래그도 함께 정리한다.
+            CancelActiveDrag();
+
             panelRoot.SetActive(false);
+        }
+
+        private void CancelActiveDrag()
+        {
+            if (dragGhost != null)
+            {
+                dragGhost.gameObject.SetActive(false);
+            }
+
+            draggedUnit = null;
+            draggedFromSlot = null;
+            dropHandled = false;
         }
 
 #if UNITY_EDITOR
