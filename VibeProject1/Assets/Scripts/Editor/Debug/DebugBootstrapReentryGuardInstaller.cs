@@ -10,7 +10,7 @@ namespace Game.Core.Editor.DebugTools
     /// <summary>
     /// Build Settings에 등록된 콘텐츠 씬(Bootstrap 제외) 전부에 DebugBootstrapReentryGuard를
     /// 설치/제거한다. 콘텐츠 씬 목록을 Build Settings에서 직접 읽으므로, 씬이 늘어나도
-    /// BootstrapSceneInstaller 등 기존 인스톨러를 건드리지 않고 재실행만으로 자동 반영된다.
+    /// 이 파일을 건드리지 않고 재실행만으로 자동 반영된다.
     /// 걷어낼 때는 이 파일과 DebugBootstrapReentryGuard.cs만 지우고 Remove 메뉴를 한 번 실행하면 된다.
     /// </summary>
     public static class DebugBootstrapReentryGuardInstaller

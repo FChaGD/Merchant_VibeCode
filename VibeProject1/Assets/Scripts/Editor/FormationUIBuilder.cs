@@ -7,11 +7,11 @@ using UnityEngine.UI;
 namespace Game.Core.Editor
 {
     /// <summary>
-    /// 배치(Formation) UI 하이어라키 조립 로직. 원래 FormationUIInstaller(Hub 전용)에만 있었으나,
-    /// Field 씬에서도 "정비창 재호출"이 실제로 동작하려면 같은 화면을 Field의 SceneUIRoot 아래에도
-    /// 만들어야 해서(FormationPanel의 실제 요소는 콘텐츠 씬이 언로드되면 함께 파괴된다) 공용 빌더로
-    /// 뽑아냈다. FormationUIInstaller(Hub)/FieldUIInstaller(Field) 둘 다 이 클래스에만 의존하고,
-    /// 서로의 내부 메서드를 참조하지 않는다.
+    /// 배치(Formation) UI 하이어라키 조립 로직. 원래 Hub 전용 인스톨러에만 있었으나, Field 씬에서도
+    /// "정비창 재호출"이 실제로 동작하려면 같은 화면을 Field의 SceneUIRoot 아래에도 만들어야 해서
+    /// (FormationPanel의 실제 요소는 콘텐츠 씬이 언로드되면 함께 파괴된다) 공용 빌더로 뽑아냈다.
+    /// HubSceneInstaller(Hub)/FieldUIInstaller(Field) 둘 다 이 클래스에만 의존하고, 서로의 내부
+    /// 메서드를 참조하지 않는다.
     /// </summary>
     internal static class FormationUIBuilder
     {
@@ -22,9 +22,9 @@ namespace Game.Core.Editor
         // 그리드 배경(연한 민트색, BuildGrid 참고)과 타일이 육안으로 뚜렷이 구분되도록 대비되는 색 사용.
         private static readonly Color SlotBackgroundColor = new(1f, 0.85f, 0.6f, 0.9f);
 
-        public static void Build(SceneUIRoot sceneUIRoot, FormationSlotView slotPrefab, FormationUnitIconView iconPrefab)
+        public static void Build(Transform parentRoot, FormationSlotView slotPrefab, FormationUnitIconView iconPrefab)
         {
-            var panelRoot = EditorUIBuilder.GetOrCreateUIObject(sceneUIRoot.transform, "FormationPanel");
+            var panelRoot = EditorUIBuilder.GetOrCreateUIObject(parentRoot, "FormationPanel");
             EditorUIBuilder.SetStretch(panelRoot.GetComponent<RectTransform>());
             EditorUIBuilder.EnsureMarker(panelRoot, FormationUIElementIds.PanelRoot);
 

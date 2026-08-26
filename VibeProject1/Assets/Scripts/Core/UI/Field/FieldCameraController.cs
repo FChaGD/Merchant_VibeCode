@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using UnityEngine;
 
 namespace Game.Core
@@ -21,12 +20,6 @@ namespace Game.Core
     /// </summary>
     internal class FieldCameraController
     {
-        // 0.6초 2차 곡선(EaseInQuad)이 전체적으로 빠르다는 피드백에 따라, 전체 길이를 늘리고
-        // 3차 곡선(EaseInCubic)으로 바꿨다 - 종료 시점 속도(3×width/0.9)가 이전 2차 곡선의 종료 속도
-        // (2×width/0.6)와 거의 같도록 맞춰, "후반부는 지금과 비슷한 속도" 요구를 만족시키면서
-        // 초반부는 3차 곡선의 더 완만한 시작 구간 덕에 훨씬 느려진다.
-        private const float SlideDurationSeconds = 0.9f;
-
         private readonly MonoBehaviour coroutineRunner;
         private readonly RectTransform movementViewRoot;
         private readonly RectTransform battleViewRoot;
@@ -44,12 +37,12 @@ namespace Game.Core
 
         public void TransitionToBattle(Action onComplete)
         {
-            coroutineRunner.StartCoroutine(SlideRoutine(toBattle: true, onComplete));
+            SlideRoutine(toBattle: true, onComplete);
         }
 
         public void TransitionToMovement(Action onComplete)
         {
-            coroutineRunner.StartCoroutine(SlideRoutine(toBattle: false, onComplete));
+            SlideRoutine(toBattle: false, onComplete);
         }
 
         private float Width()
@@ -57,12 +50,12 @@ namespace Game.Core
             return movementViewRoot.rect.width;
         }
 
-        private static float EaseInCubic(float t) => t * t * t;
-
         // toBattle=true: 이동 뷰가 왼쪽으로 밀려나고 전투 뷰가 오른쪽에서 들어온다(카메라가 오른쪽으로 이동).
         // toBattle=false: 반대 방향으로 재생 - 전투 뷰가 오른쪽으로 밀려나고 이동 뷰가 왼쪽에서 들어온다
-        // (카메라가 왼쪽으로 이동).
-        private IEnumerator SlideRoutine(bool toBattle, Action onComplete)
+        // (카메라가 왼쪽으로 이동). 타이밍(지속시간/이징 곡선) 자체는 SlideTransitionTimeline으로
+        // 공용화했다 - Hub↔Field 씬 전환 연출(SceneTransitionEffectController)도 같은 타이밍을 쓴다
+        // (Docs/설계/10_씬전환_연출_아키텍처.md §3).
+        private void SlideRoutine(bool toBattle, Action onComplete)
         {
             var width = Width();
             var enteringView = toBattle ? battleViewRoot : movementViewRoot;
@@ -82,36 +75,29 @@ namespace Game.Core
                 transitionCurtainRoot.anchoredPosition = new Vector2(enterStartX, 0f);
             }
 
-            var elapsed = 0f;
-            while (elapsed < SlideDurationSeconds)
-            {
-                elapsed += Time.deltaTime;
-                var linearT = Mathf.Clamp01(elapsed / SlideDurationSeconds);
-                // 일정한 속도로 움직이면 딱딱하게 느껴진다는 피드백에 따라 초반은 느리고 후반으로
-                // 갈수록 빨라지는 가속 곡선(ease-in)을 적용한다 - 정교한 물리 곡선이 아니라 대충
-                // 자연스러운 느낌만 내면 되는 연출용이다.
-                var t = EaseInCubic(linearT);
-                exitingView.anchoredPosition = new Vector2(exitEndX * t, 0f);
-                enteringView.anchoredPosition = new Vector2(enterStartX * (1f - t), 0f);
-                if (toBattle)
+            SlideTransitionTimeline.Run(coroutineRunner, SlideTransitionTimeline.DefaultDurationSeconds,
+                onStep: t =>
                 {
-                    transitionCurtainRoot.anchoredPosition = new Vector2(enterStartX * (1f - t), 0f);
-                }
-                yield return null;
-            }
+                    exitingView.anchoredPosition = new Vector2(exitEndX * t, 0f);
+                    enteringView.anchoredPosition = new Vector2(enterStartX * (1f - t), 0f);
+                    if (toBattle)
+                    {
+                        transitionCurtainRoot.anchoredPosition = new Vector2(enterStartX * (1f - t), 0f);
+                    }
+                },
+                onComplete: () =>
+                {
+                    exitingView.gameObject.SetActive(false);
 
-            exitingView.anchoredPosition = new Vector2(exitEndX, 0f);
-            enteringView.anchoredPosition = Vector2.zero;
-            exitingView.gameObject.SetActive(false);
+                    // 커튼은 여기서 걷지 않는다 - 화면을 완전히 덮은 채로 유지되다가, 전투 상태가
+                    // 실제로 재구성된 뒤(onComplete 안에서 StartBattle() 호출 후) FieldEncounterFlowCoordinator가 걷는다.
+                    if (toBattle)
+                    {
+                        transitionCurtainRoot.anchoredPosition = Vector2.zero;
+                    }
 
-            // 커튼은 여기서 걷지 않는다 - 화면을 완전히 덮은 채로 유지되다가, 전투 상태가 실제로
-            // 재구성된 뒤(onComplete 안에서 StartBattle() 호출 후) FieldEncounterFlowCoordinator가 걷는다.
-            if (toBattle)
-            {
-                transitionCurtainRoot.anchoredPosition = Vector2.zero;
-            }
-
-            onComplete?.Invoke();
+                    onComplete?.Invoke();
+                });
         }
     }
 }

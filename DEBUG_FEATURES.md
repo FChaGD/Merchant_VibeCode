@@ -20,13 +20,13 @@ Play 모드에서 배치 UI 그리드의 열(X)/행(Y) 수와 타일 크기를 �
   - `TryBind`의 `DebugPanelRoot` 조회 한 줄
   - `Open()`의 `debugView?.Initialize(...)` 호출 한 줄
   - `HandleDebugApply` / `ResizeGrid` / `ResizeSlotSize` 메서드 블록(디버그 패널의 유일한 호출부라 통째로 묶여 있음)
-- **에디터 인스톨러**: `Assets/Scripts/Editor/FormationUIInstaller.cs`의 `BuildDebugPanel` /
-  `BuildDebugLabel` 메서드 + `BuildFormationUI` 안의 `BuildDebugPanel(panelRoot.transform)` 호출 한 줄
+- **에디터 인스톨러**: `Assets/Scripts/Editor/FormationUIBuilder.cs`의 `BuildDebugPanel` /
+  `BuildDebugLabel` 메서드 + `Build` 안의 `BuildDebugPanel(panelRoot.transform)` 호출 한 줄
   (installer 파일 자체는 항상 Editor 전용이라 `#if` 불필요, `using Game.Core.DebugTools;` 로 참조).
 - **상수**: `FormationUIElementIds.DebugPanelRoot`.
 - **씬에 생성되는 오브젝트**: Hub.unity, Formation 패널 하위 `DebugPanel`(자식 라벨/입력창 포함).
 - **제거 방법**: `Core/Debug/Formation/` 폴더 삭제 → `FormationPanel.cs`의 `#if UNITY_EDITOR` 블록
-  4곳 삭제 → `Tools > Game > Build Formation Hierarchy` 재실행 → Hub.unity에서 `DebugPanel`
+  4곳 삭제 → `Tools > Game > Build Hub Scene` 재실행 → Hub.unity에서 `DebugPanel`
   오브젝트가 정리되는지 확인 후 저장.
 
 ## 2. 상행 준비 UI - 지도 위 디버그 도시 배치 / 경로 연결
@@ -71,9 +71,9 @@ Play 모드에서 배치 UI 그리드의 열(X)/행(Y) 수와 타일 크기를 �
 - **상수**: `TripUIElementIds.cs`의 `DebugCityPaletteRoot` / `DebugRoadToggleButton` /
   `DebugCityBulkDeleteButton` / `DebugRoadBulkDeleteButton` (문자열 상수라 그대로 둬도 무해하지만,
   완전히 정리하려면 함께 삭제).
-- **에디터 인스톨러**: `Assets/Scripts/Editor/TripUIInstaller.cs`의 `BuildDebugMapControls`,
+- **에디터 인스톨러**: `Assets/Scripts/Editor/HubSceneInstaller.cs`의 `BuildTripDebugMapControls`,
   `GetOrCreateCityMarkerPrefab`, `GetOrCreateRoadLinePrefab` 메서드와 `BuildTripUI` 안의
-  `BuildDebugMapControls(panelRoot.transform)` 호출 한 줄 (`using Game.Core.DebugTools;`로 참조).
+  `BuildTripDebugMapControls(panelRoot.transform)` 호출 한 줄 (`using Game.Core.DebugTools;`로 참조).
 - **생성되는 프리팹/오브젝트**:
   - 프리팹: `Assets/Prefabs/UI/Trip/TripDebugCityMarker.prefab`, `TripDebugRoadLine.prefab`.
   - Hub.unity, Trip 패널 하위 `DebugCityPalette`, `DebugRoadToggleButton`,
@@ -81,7 +81,7 @@ Play 모드에서 배치 UI 그리드의 열(X)/행(Y) 수와 타일 크기를 �
 - **제거 방법**: 실제 지역/경로 데이터 시스템이 생겼을 때, `Core/Debug/Trip/` 폴더를 지우고
   `TripPanel.cs`의 `#if UNITY_EDITOR` 블록들을 지운 뒤(`RefreshStartButtonInteractable`은 `#else` 쪽만
   남긴다), 새 데이터 소스로 `TripOriginDestinationAssigner`를 생성/주입하는 코드로 교체하고
-  `Tools > Game > Build Trip UI` 재실행 → Hub.unity 저장.
+  `Tools > Game > Build Hub Scene` 재실행 → Hub.unity 저장.
 
 ## 3. Bootstrap 우회 진입 감지 가드
 

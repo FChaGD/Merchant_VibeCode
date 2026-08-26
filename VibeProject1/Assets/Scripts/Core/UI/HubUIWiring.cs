@@ -32,19 +32,28 @@ namespace Game.Core
             }
 
             var gameManager = registrar.Resolve<IGameManager>();
+            // "상행 시작"/"상행 준비"/"배치" 버튼을 씬 전환 커튼이 완전히 걷힐 때까지 비활성화하는 데
+            // 쓴다(사용자 확정) - HubUIController/TripPanel 둘 다 필요하므로 여기서 한 번만 조회한다.
+            var sceneRevealSignal = registrar.Resolve<ISceneRevealSignal>();
 
             // 상행 관리 데이터 시스템이 아직 없어 선택적으로 조회한다 - 등록되면 자동으로 연결된다.
             registrar.TryResolve<ICaravanRosterProvider>(out var caravanRosterProvider);
             registrar.TryResolve<IFormationRepository>(out var formationRepository);
             registrar.TryResolve<ITripInfoProvider>(out var tripInfoProvider);
 
-            hubUIController.RegisterHubUI(uiManager);
+            hubUIController.RegisterHubUI(uiManager, sceneRevealSignal);
 
             formationPanel.RegisterFormationUI(caravanRosterProvider, formationRepository, uiManager, SceneNames.Hub);
             panelRegistrar.RegisterPanel(formationPanel);
 
-            tripPanel.RegisterTripUI(uiManager, gameManager, formationRepository, tripInfoProvider);
+            tripPanel.RegisterTripUI(uiManager, gameManager, formationRepository, tripInfoProvider, sceneRevealSignal);
             panelRegistrar.RegisterPanel(tripPanel);
+
+            // Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 다음 전환 때 슬라이드시킬
+            // 대상을 등록한다 - 씬을 다시 로드할 때마다 최신 참조로 갱신된다(Docs/설계/10_씬전환_연출_아키텍처.md §8).
+            // 반드시 맨 마지막에 둔다 - 여기서 예외가 나도(예: 설치 도구 미실행) 위 핵심 패널 등록은
+            // 이미 끝난 뒤라 Hub UI 자체는 정상 동작한다.
+            registrar.Resolve<ISceneTransitionContentRootRegistry>().RegisterContentRoot(ContentSceneId.Hub, hubUIController.ContentRoot);
         }
     }
 }

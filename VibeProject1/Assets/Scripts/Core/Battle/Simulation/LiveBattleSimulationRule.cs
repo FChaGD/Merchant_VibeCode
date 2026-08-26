@@ -11,7 +11,7 @@ namespace Game.Core
     /// (BattleManager 무변경). 승패 조건: 적 전멸(사망+도주)=Victory, 아군 전멸(사망+도주)
     /// 또는 보호 목표 파괴=Defeat.
     /// </summary>
-    public class LiveBattleSimulationRule : MonoBehaviour, IBattleResultRule, IRequiresFormationReader, IRequiresCaravanRoster, IBattleSimulationEvents
+    public class LiveBattleSimulationRule : MonoBehaviour, IBattleResultRule, IRequiresFormationReader, IRequiresCaravanRoster, IBattleSimulationEvents, IPausableBattleSimulation
     {
         private readonly IBattleUnitStatProvider statProvider = new PlaceholderBattleUnitStatProvider();
         private readonly IEncounterSpawnPointSelector spawnSelector = new UniformRandomSpawnPointSelector();
@@ -26,6 +26,12 @@ namespace Game.Core
         private Action<BattleResult> onResult;
         private bool resultReported;
 
+        // 화면(커튼)이 완전히 드러나기 전까지는 유닛 위치만 잡아두고 틱은 멈춰둔다(사용자 확정) -
+        // 안 그러면 페이드 아웃 도중 반투명해진 커튼 너머로 이미 움직이는 전투가 비쳐 보인다.
+        // Evaluate()가 매 전투 시작 시 다시 true로 세팅하고, ResumeSimulation()이 걷힘 완료 시
+        // false로 풀어준다(FieldEncounterFlowCoordinator 참고).
+        private bool paused;
+
         public event Action<BattleSimulationLoop> OnSimulationBuilt;
 
         // BattleManager.ResolveDependencies가 IRequiresFormationReader/IRequiresCaravanRoster로
@@ -37,13 +43,17 @@ namespace Game.Core
         {
             this.onResult = onResult;
             resultReported = false;
+            paused = true;
             simulation = BuildSimulation();
             OnSimulationBuilt?.Invoke(simulation);
         }
 
+        // BattleManager.ResumeSimulation()이 IPausableBattleSimulation으로 캐스팅해 호출한다.
+        public void ResumeSimulation() => paused = false;
+
         private void Update()
         {
-            if (simulation == null || resultReported) return;
+            if (simulation == null || resultReported || paused) return;
 
             simulation.Tick(Time.deltaTime);
 

@@ -86,6 +86,11 @@ namespace Game.Core
                 return;
             }
 
+            // 이 씬의 패널 시각 요소는 전부 새로 만들어졌으므로, 이전 씬(또는 이전 방문)의 열림/복귀
+            // 기록은 더 이상 유효하지 않다 - 씬 전환이 항상 UIManager.Close를 거치는 것은 아니므로
+            // (예: "상행 시작"으로 인한 Hub→Field 전환) 여기서 매번 명시적으로 지운다.
+            navigation.Reset();
+
             wiring.Wire(registrar, this, this);
         }
 

@@ -9,7 +9,7 @@ namespace Game.Core.Editor
 {
     /// <summary>
     /// Field 씬에 이동 뷰/전투 뷰/결과 팝업 하이어라키를 코드로 생성/동기화한다. 씬 YAML 수작업 편집
-    /// 대신 이 도구로 재현 가능하게 만든다 - FormationUIInstaller/TripUIInstaller와 동일한 방식.
+    /// 대신 이 도구로 재현 가능하게 만든다 - HubSceneInstaller와 동일한 방식.
     /// Hub 씬과 달리 Field 씬에는 SceneUIRoot가 아직 없어, 기존 Canvas에 이 도구가 직접 부착한다.
     /// 도착 처리(도착 팝업)는 이번 범위에 포함하지 않는다(Docs/설계/04_Field씬_아키텍처.md §5.3 참고).
     /// Formation UI(정비창)의 실제 화면 요소도 이 씬에 만든다 - Hub 씬이 언로드되면 그쪽 Formation UI는
@@ -22,7 +22,7 @@ namespace Game.Core.Editor
         private const string CharacterViewPrefabPath = BattlePrefabFolder + "/BattleCharacterUnitView.prefab";
         private const string ProtectedViewPrefabPath = BattlePrefabFolder + "/BattleProtectedUnitView.prefab";
 
-        [MenuItem("Tools/Game/Build Field UI")]
+        [MenuItem("Tools/Game/Build Field Scene")]
         public static void BuildFieldUI()
         {
             var activeScene = EditorSceneManager.GetActiveScene();
@@ -63,7 +63,7 @@ namespace Game.Core.Editor
             FormationUIBuilder.EnsurePrefabFolder();
             var slotPrefab = FormationUIBuilder.GetOrCreateSlotPrefab();
             var iconPrefab = FormationUIBuilder.GetOrCreateIconPrefab();
-            FormationUIBuilder.Build(sceneUIRoot, slotPrefab, iconPrefab);
+            FormationUIBuilder.Build(sceneUIRoot.transform, slotPrefab, iconPrefab);
 
             // 전투 뷰 유닛 프리팹도 여기서 함께 최신화한다 - ManagerHierarchyInstaller(Bootstrap)가
             // FieldUIController에 이 프리팹들을 연결할 때 재사용한다.
@@ -168,7 +168,7 @@ namespace Game.Core.Editor
 
             EditorUIBuilder.ConfigureScrollRect(go, viewport, contentRect, horizontal: true, vertical: true);
             var battleScrollRect = go.GetComponent<ScrollRect>();
-            // TripUIInstaller.BuildMap과 같은 이유 - ScrollRect 자신의 휠 스크롤과
+            // HubSceneInstaller.BuildTripMap과 같은 이유 - ScrollRect 자신의 휠 스크롤과
             // BattleFieldCameraView.OnScroll(줌)이 동시에 반응하는 걸 막는다.
             battleScrollRect.scrollSensitivity = 0f;
             battleScrollRect.inertia = false;
@@ -330,7 +330,12 @@ namespace Game.Core.Editor
             var image = EditorUIBuilder.EnsureImage(go, Color.black);
             image.raycastTarget = true; // 전환 중 뒤쪽 UI 입력을 차단한다.
 
-            EditorUIBuilder.GetOrAddComponent<FieldTransitionCurtainView>(go);
+            var canvasGroup = EditorUIBuilder.GetOrAddComponent<CanvasGroup>(go); // 페이드 아웃(알파 조절)에 필요.
+
+            var curtainView = EditorUIBuilder.GetOrAddComponent<FieldTransitionCurtainView>(go);
+            var so = new SerializedObject(curtainView);
+            so.FindProperty("canvasGroup").objectReferenceValue = canvasGroup;
+            so.ApplyModifiedProperties();
 
             go.transform.SetAsLastSibling();
             go.SetActive(false); // 평소에는 숨김 - FieldTransitionCurtainView.Show() 호출 시에만 표시

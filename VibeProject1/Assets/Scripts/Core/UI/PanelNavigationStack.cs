@@ -39,5 +39,19 @@ namespace Game.Core
 
             return returnToPanelId.Remove(closedPanelId, out var previous) ? previous : null;
         }
+
+        /// <summary>
+        /// 콘텐츠 씬이 (재)로드될 때마다 호출해야 한다. 패널의 실제 시각 요소는 씬 스코프라 씬이
+        /// 다시 로드되면 전부 재생성되는데, 이 스택이 들고 있는 activePanelId/복귀 매핑은 이전 씬의
+        /// 패널을 가리키는 문자열이라 자동으로는 안 지워진다 - 예를 들어 상행 준비 UI에서 "상행 시작"을
+        /// 눌러 Field로 전환하면 UIManager.Close를 거치지 않으므로 activePanelId가 "Trip"으로 남고,
+        /// 다음 Hub 세션에서 배치 UI를 Hub 배치 버튼으로 직접 열어도 그 잔여값 때문에 잘못된 복귀
+        /// 대상(Trip)이 기록되는 버그가 있었다.
+        /// </summary>
+        public void Reset()
+        {
+            activePanelId = null;
+            returnToPanelId.Clear();
+        }
     }
 }

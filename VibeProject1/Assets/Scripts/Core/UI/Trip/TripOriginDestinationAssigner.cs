@@ -64,6 +64,22 @@ namespace Game.Core
             activePanelRole = activePanelRole == role ? (TripRole?)null : role;
         }
 
+        // 상행 준비 UI "종료" 시 배정을 초기화하는 용도(배치 UI 왕복 중에는 호출되지 않는다 - 그 경우엔
+        // 배정이 유지되어야 하므로). Changed를 태워 정보 패널/지도 강조가 자동으로 함께 비워지게 한다.
+        public void Reset()
+        {
+            if (OriginCityId == null && DestinationCityId == null && activePanelRole == null && awaitingRole == null)
+            {
+                return;
+            }
+
+            OriginCityId = null;
+            DestinationCityId = null;
+            activePanelRole = null;
+            awaitingRole = null;
+            Changed?.Invoke();
+        }
+
         public void HandleCityDeleted(string cityId)
         {
             var changed = false;

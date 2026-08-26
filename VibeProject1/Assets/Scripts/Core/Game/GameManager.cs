@@ -5,7 +5,7 @@ namespace Game.Core
 {
     public class GameManager : MonoBehaviour, IGameManager, IManagedComponent
     {
-        private ISceneLoader sceneLoader;
+        private ISceneTransitionEffectPlayer transitionEffectPlayer;
 
         public void RegisterSelf(IDependencyRegistrar registrar)
         {
@@ -25,13 +25,14 @@ namespace Game.Core
 
         public void ResolveDependencies(IDependencyRegistrar registrar)
         {
-            // 씬 전환 실행은 SceneLoader의 책임 — GameManager는 요청을 그대로 전달만 한다.
-            sceneLoader = registrar.Resolve<ISceneLoader>();
+            // 씬 전환 실행·연출은 SceneTransitionEffectController의 책임 — GameManager는 요청을
+            // 그대로 전달만 한다(Docs/설계/10_씬전환_연출_아키텍처.md §7).
+            transitionEffectPlayer = registrar.Resolve<ISceneTransitionEffectPlayer>();
         }
 
         public void RequestSceneTransition(ContentSceneId sceneId)
         {
-            sceneLoader.Transition(sceneId.ToString());
+            transitionEffectPlayer.PlayTransition(sceneId);
         }
     }
 }

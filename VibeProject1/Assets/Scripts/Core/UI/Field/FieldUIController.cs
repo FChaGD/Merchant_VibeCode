@@ -16,6 +16,13 @@ namespace Game.Core
         [SerializeField] private BattleCharacterUnitView battleCharacterViewPrefab;
         [SerializeField] private BattleProtectedUnitView battleProtectedViewPrefab;
 
+        /// <summary>
+        /// Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 슬라이드시킬 대상. Field는 이번
+        /// 연출 전용 요소를 새로 만들지 않고 기존 이동 뷰 루트를 그대로 재사용한다 - Hub↔Field 왕복
+        /// 시점엔 항상 이동 뷰가 화면에 보이는 상태이기 때문이다(Docs/설계/10_씬전환_연출_아키텍처.md §8).
+        /// </summary>
+        public RectTransform MovementViewRoot => movementViewRoot;
+
         private FieldProgressGaugeView gaugeView;
         private Button formationButton;
         private FieldEncounterWarningView warningView;
@@ -29,8 +36,9 @@ namespace Game.Core
         private FieldEncounterFlowCoordinator flowCoordinator;
         private BattleViewPresenter viewPresenter;
         private IGameManager gameManager;
+        private ISessionState sessionState;
 
-        public void RegisterFieldUI(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager)
+        public void RegisterFieldUI(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal)
         {
             var fieldScene = SceneManager.GetSceneByName(SceneNames.Field);
             if (!fieldScene.IsValid())
@@ -61,9 +69,16 @@ namespace Game.Core
             }
 
             this.gameManager = gameManager;
+            this.sessionState = sessionState;
 
             formationButton.onClick.RemoveAllListeners();
             formationButton.onClick.AddListener(() => uiManager.Open(UIPanelIds.Formation));
+
+            // 화면이 완전히 드러나기 전까지는 정비창 재호출을 막는다(사용자 확정) - HandleSceneRevealed에서
+            // 다시 켠다. 전환 없이 로드된 경우(최초 진입 등)엔 사실상 바로 다시 켜진다.
+            formationButton.interactable = false;
+            sceneRevealSignal.SceneRevealed -= HandleSceneRevealed;
+            sceneRevealSignal.SceneRevealed += HandleSceneRevealed;
 
             // Field 씬은 상행마다 다시 로드되지만 sessionState(SessionStateTracker)는 Bootstrap에 상주하는
             // 영속 객체다 - 재구독 전 항상 먼저 해제해 상행을 반복할수록 구독이 누적되는 것을 막는다
@@ -89,6 +104,18 @@ namespace Game.Core
             viewPresenter.Bind(battleSimulationEvents);
             viewPresenter.RebindViews(battleAllyLayer, battleEnemyLayer, battleCharacterViewPrefab, battleProtectedViewPrefab, battleCameraView);
 
+            // sessionState.Begin()은 여기서 바로 부르지 않는다 - 화면이 완전히 드러난 뒤(HandleSceneRevealed)에
+            // 시작해야 "전투 시작" 준비(=상행 진행 시작)가 페이드 아웃 완료 이후로 미뤄진다(사용자 확정).
+        }
+
+        private void HandleSceneRevealed(ContentSceneId sceneId)
+        {
+            if (sceneId != ContentSceneId.Field)
+            {
+                return;
+            }
+
+            formationButton.interactable = true;
             sessionState.Begin();
         }
 

@@ -37,13 +37,19 @@ namespace Game.Core
             var defeatConsequenceSource = registrar.Resolve<IDefeatConsequenceSource>();
             var battleSimulationEvents = registrar.Resolve<IBattleSimulationEvents>();
             var gameManager = registrar.Resolve<IGameManager>();
+            var sceneRevealSignal = registrar.Resolve<ISceneRevealSignal>();
 
             // Formation UI(정비창)는 Hub 전용이 아니다 - Field도 자신만의 화면 요소를 갖고 있어
             // (FieldUIInstaller 참고) 여기서도 다시 등록해야 "정비창 재호출"이 동작한다.
             formationPanel.RegisterFormationUI(caravanRosterProvider, formationRepository, uiManager, SceneNames.Field);
             panelRegistrar.RegisterPanel(formationPanel);
 
-            fieldUIController.RegisterFieldUI(uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager);
+            fieldUIController.RegisterFieldUI(uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal);
+
+            // Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 다음 전환 때 슬라이드시킬
+            // 대상을 등록한다 - Field는 전용 요소를 새로 만들지 않고 기존 이동 뷰 루트를 재사용한다
+            // (Docs/설계/10_씬전환_연출_아키텍처.md §8).
+            registrar.Resolve<ISceneTransitionContentRootRegistry>().RegisterContentRoot(ContentSceneId.Field, fieldUIController.MovementViewRoot);
         }
     }
 }

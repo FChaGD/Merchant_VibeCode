@@ -46,13 +46,19 @@ namespace Game.Core
         private IGameManager gameManager;
         private IFormationReader formationReader;
         private ITripInfoProvider tripInfoProvider;
+        private ISceneRevealSignal sceneRevealSignal;
 
-        public void RegisterTripUI(IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider)
+        // 화면(Hub)이 완전히 드러나기 전까지는 "상행 시작"을 막는다(사용자 확정) - 출발/도착 배정
+        // 게이팅(RefreshStartButtonInteractable)과 별개 조건이라 AND로 합친다.
+        private bool sceneRevealed;
+
+        public void RegisterTripUI(IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal)
         {
             this.uiManager = uiManager;
             this.gameManager = gameManager;
             this.formationReader = formationReader;
             this.tripInfoProvider = tripInfoProvider;
+            this.sceneRevealSignal = sceneRevealSignal;
 
             var hubScene = SceneManager.GetSceneByName(SceneNames.Hub);
             if (!hubScene.IsValid())
@@ -89,13 +95,28 @@ namespace Game.Core
 #endif
 
             closeButton.onClick.RemoveAllListeners();
-            closeButton.onClick.AddListener(() => uiManager.Close(PanelId));
+            closeButton.onClick.AddListener(() =>
+            {
+                // 배치 UI 왕복(openFormationButton) 중에는 배정을 유지하고, 상행 준비 UI를 완전히
+                // 종료할 때만 출발/도착 배정과 지도 강조를 초기화한다.
+#if UNITY_EDITOR
+                mapInteractionCoordinator?.ResetOriginDestination();
+#endif
+                uiManager.Close(PanelId);
+            });
 
             openFormationButton.onClick.RemoveAllListeners();
             openFormationButton.onClick.AddListener(() => uiManager.Open(UIPanelIds.Formation));
 
             startButton.onClick.RemoveAllListeners();
             startButton.onClick.AddListener(() => gameManager.RequestSceneTransition(ContentSceneId.Field));
+
+            // Hub 화면이 완전히 드러날 때까지 "상행 시작"을 막는다 - 매번 재구독 전 해제해 Hub를
+            // 반복 방문해도 구독이 누적되지 않게 한다(sceneRevealSignal은 Bootstrap 상주 영속 객체).
+            sceneRevealed = false;
+            sceneRevealSignal.SceneRevealed -= HandleSceneRevealed;
+            sceneRevealSignal.SceneRevealed += HandleSceneRevealed;
+            RefreshStartButtonInteractable();
 
             panelRoot.SetActive(false);
         }
@@ -135,13 +156,25 @@ namespace Game.Core
         }
 #endif
 
+        private void HandleSceneRevealed(ContentSceneId sceneId)
+        {
+            if (sceneId != ContentSceneId.Hub)
+            {
+                return;
+            }
+
+            sceneRevealed = true;
+            RefreshStartButtonInteractable();
+        }
+
         private void RefreshStartButtonInteractable()
         {
 #if UNITY_EDITOR
-            startButton.interactable = mapInteractionCoordinator?.OriginDestinationReader.IsBothAssigned ?? true;
+            var debugReady = mapInteractionCoordinator?.OriginDestinationReader.IsBothAssigned ?? true;
 #else
-            startButton.interactable = true;
+            var debugReady = true;
 #endif
+            startButton.interactable = sceneRevealed && debugReady;
         }
 
         private bool TryBind(SceneUIRoot sceneUIRoot)
@@ -219,8 +252,9 @@ namespace Game.Core
                 return;
             }
 
-            originInfoView.Clear();
-            destinationInfoView.Clear();
+            // 출발/도착 정보 패널은 여기서 강제로 비우지 않는다 - 배치 UI를 갔다 와도 배정 상태(및
+            // 지도 강조)가 유지되므로, 정보 패널도 그 상태를 그대로 반영해야 한다(assigner.Changed가
+            // 배정 시점에 이미 채워/비워 둔 값을 그대로 둔다). 완전 초기화는 종료 버튼에서만 일어난다.
             RefreshSummary();
 
             panelRoot.SetActive(true);

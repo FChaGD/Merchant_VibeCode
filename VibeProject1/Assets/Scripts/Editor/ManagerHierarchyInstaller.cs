@@ -2,6 +2,7 @@ using Game.Core;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Game.Core.Editor
 {
@@ -14,7 +15,7 @@ namespace Game.Core.Editor
     {
         private const string RootName = "Managers";
 
-        [MenuItem("Tools/Game/Build Manager Hierarchy")]
+        [MenuItem("Tools/Game/Build Bootstrap Scene")]
         public static void BuildManagerHierarchy()
         {
             var root = GetOrCreateRoot();
@@ -35,6 +36,10 @@ namespace Game.Core.Editor
             var gameManager = GetOrCreateManager<GameManager>(root.transform, "GameManager");
             var inputManager = GetOrCreateManager<InputManager>(root.transform, "InputManager");
             var uiManager = GetOrCreateManager<UIManager>(root.transform, "UIManager");
+            // uiManager보다 뒤에서 만들어야 하는 건 아니다(생성 순서는 무관) - 다만 아래
+            // SyncManagedComponents 배열에서는 반드시 uiManager 뒤에 둬야 한다(주석 참고).
+            var sceneTransitionEffectController = GetOrCreateManager<SceneTransitionEffectController>(root.transform, "SceneTransitionEffectController");
+            EnsureSceneTransitionCurtain(root.transform, sceneTransitionEffectController);
             var battleManager = GetOrCreateManager<BattleManager>(root.transform, "BattleManager");
             var aiManager = GetOrCreateManager<AIManager>(root.transform, "AIManager");
             var encounterManager = GetOrCreateManager<EncounterManager>(root.transform, "EncounterManager");
@@ -89,6 +94,11 @@ namespace Game.Core.Editor
                 gameManager,
                 inputManager,
                 uiManager,
+                // uiManager 바로 뒤에 둔다 - 둘 다 ISceneLoader.OnSceneLoaded를 구독하는데, 새 씬의
+                // Wire(...)가 먼저 끝난 뒤에야 이 컨트롤러가 커튼을 페이드 아웃해야 한다. 구독 순서는
+                // ResolveDependencies 호출 순서(=이 배열 순서)를 따르므로, 이 순서를 바꾸면 안 된다
+                // (Docs/설계/10_씬전환_연출_아키텍처.md §6/§10).
+                sceneTransitionEffectController,
                 battleManager,
                 aiManager,
                 encounterManager,
@@ -145,6 +155,42 @@ namespace Game.Core.Editor
         {
             var existing = go.GetComponent<T>();
             return existing != null ? existing : Undo.AddComponent<T>(go);
+        }
+
+        // Hub↔Field 씬 전환 연출용 커튼은 Bootstrap(영속) 스코프여야 한다 - 콘텐츠 씬 스코프 오브젝트는
+        // 그 씬이 언로드되는 순간 함께 파괴되기 때문이다(Docs/설계/10_씬전환_연출_아키텍처.md §5).
+        // CanvasScaler 설정은 Hub/Field 콘텐츠 씬 캔버스와 반드시 대조해 맞춰야 한다 - 다르면 슬라이드
+        // 거리/커튼 커버리지가 화면상 어긋난다(§12 남은 이슈). 아래 값은 이 프로젝트의 일반적인 설정을
+        // 가정한 자리표시자다.
+        private static void EnsureSceneTransitionCurtain(Transform managersRoot, SceneTransitionEffectController controller)
+        {
+            var canvas = GetOrCreateManager<Canvas>(managersRoot, "SceneTransitionCanvas");
+            canvas.gameObject.layer = LayerMask.NameToLayer("UI");
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 100; // Hub/Field 콘텐츠 씬 캔버스보다 항상 위에 그려지도록 충분히 높은 값
+
+            var scaler = EditorUIBuilder.GetOrAddComponent<CanvasScaler>(canvas.gameObject);
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0.5f;
+
+            EditorUIBuilder.GetOrAddComponent<GraphicRaycaster>(canvas.gameObject);
+
+            var curtainGo = EditorUIBuilder.GetOrCreateUIObject(canvas.transform, "Curtain");
+            EditorUIBuilder.SetStretch(curtainGo.GetComponent<RectTransform>());
+            EditorUIBuilder.EnsureImage(curtainGo, Color.black);
+            var canvasGroup = EditorUIBuilder.GetOrAddComponent<CanvasGroup>(curtainGo);
+            var curtainView = EditorUIBuilder.GetOrAddComponent<SceneTransitionCurtainView>(curtainGo);
+            curtainGo.SetActive(false); // 평상시엔 숨김 - SceneTransitionEffectController.PlayTransition이 Show()로 켠다
+
+            var curtainSerialized = new SerializedObject(curtainView);
+            curtainSerialized.FindProperty("canvasGroup").objectReferenceValue = canvasGroup;
+            curtainSerialized.ApplyModifiedProperties();
+
+            var controllerSerialized = new SerializedObject(controller);
+            controllerSerialized.FindProperty("curtain").objectReferenceValue = curtainView;
+            controllerSerialized.ApplyModifiedProperties();
         }
 
         private static void WireFieldBattleViewPrefabs(FieldUIController fieldUIController)

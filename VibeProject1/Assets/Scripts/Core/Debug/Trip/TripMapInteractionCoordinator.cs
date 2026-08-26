@@ -50,6 +50,12 @@ namespace Game.Core.DebugTools
         /// <summary>TripPanel이 "상행 시작" 게이팅(둘 다 배정돼야 활성화, 02번 5절)에 쓴다.</summary>
         public ITripOriginDestinationReader OriginDestinationReader => assigner;
 
+        /// <summary>
+        /// 상행 준비 UI "종료" 버튼 전용 초기화. 배치 UI를 왕복할 때는 배정이 유지돼야 하므로
+        /// TripPanel.Open()에서는 호출하지 않는다 - 오직 종료(닫기) 시에만 호출한다.
+        /// </summary>
+        public void ResetOriginDestination() => assigner.Reset();
+
         public void Bind(
             TripMapView mapView,
             TripDebugCityMarkerView markerPrefab,

@@ -10,6 +10,7 @@ namespace Game.Core
 
         private IBattleResultRule resultRule;
         private IDefeatConsequenceRule consequenceRule;
+        private IPausableBattleSimulation pausableSimulation;
 
         public void RegisterSelf(IDependencyRegistrar registrar)
         {
@@ -64,12 +65,18 @@ namespace Game.Core
             {
                 simulationEvents.OnSimulationBuilt += loop => OnSimulationBuilt?.Invoke(loop);
             }
+
+            // 규칙이 일시정지/재개를 지원하면(IPausableBattleSimulation) 보관해둔다 - 화면이 완전히
+            // 드러난 뒤 ResumeSimulation()으로 재개한다(FieldEncounterFlowCoordinator 참고).
+            pausableSimulation = resultRule as IPausableBattleSimulation;
         }
 
         public void StartBattle()
         {
             resultRule.Evaluate(EndBattle);
         }
+
+        public void ResumeSimulation() => pausableSimulation?.ResumeSimulation();
 
         public DefeatConsequence ResolveDefeatConsequence() => consequenceRule.Resolve();
 

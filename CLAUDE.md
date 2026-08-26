@@ -13,9 +13,9 @@ UIManager/배치(Formation) UI/상행 준비(Trip) UI 작업(`Assets/Scripts/Cor
 
 ## 씬 편집
 
-- `.unity`/`.prefab` 파일을 텍스트 도구로 직접 편집하지 않는다. 반드시 `Assets/Scripts/Editor/`에 `[MenuItem("Tools/Game/...")]`가 붙은 정적 "get or create" 인스톨러 메서드를 작성해 재실행 가능하게 만든다(예: `ManagerHierarchyInstaller`, `FormationUIInstaller`, `TripUIInstaller`).
+- `.unity`/`.prefab` 파일을 텍스트 도구로 직접 편집하지 않는다. 반드시 `Assets/Scripts/Editor/`에 `[MenuItem("Tools/Game/...")]`가 붙은 정적 "get or create" 인스톨러 메서드를 작성해 재실행 가능하게 만든다(예: `ManagerHierarchyInstaller`, `HubSceneInstaller`, `FieldUIInstaller`).
 - 인스톨러는 항상 기존 오브젝트/컴포넌트를 재사용(get-or-create)하고, 이름/구조가 바뀌어 남은 옛 오브젝트는 `DestroyChildIfExists` 같은 정리 로직으로 제거한다. 재실행해도 안전해야 한다.
-- 여러 인스톨러가 공유하는 저수준 조립 로직(오브젝트 생성, 앵커 설정, 버튼/레이블/마커 부착 등)은 특정 기능의 인스톨러(`FormationUIInstaller` 등)에 두지 않는다. `EditorUIBuilder` 같은 이름의 공용 `internal static` 유틸리티 클래스로 뽑아서 각 인스톨러가 그 공용 유틸리티에 의존하게 한다 — 한 인스톨러가 다른 인스톨러의 내부 메서드를 `internal`로 열어 갖다 쓰지 않는다(결합 방향이 틀어짐).
+- 여러 인스톨러가 공유하는 저수준 조립 로직(오브젝트 생성, 앵커 설정, 버튼/레이블/마커 부착 등)은 특정 기능의 인스톨러(`HubSceneInstaller` 등)에 두지 않는다. `EditorUIBuilder` 같은 이름의 공용 `internal static` 유틸리티 클래스로 뽑아서 각 인스톨러가 그 공용 유틸리티에 의존하게 한다 — 한 인스톨러가 다른 인스톨러의 내부 메서드를 `internal`로 열어 갖다 쓰지 않는다(결합 방향이 틀어짐).
 - 작업 완료 후 사용자에게 "Tools > Game > ... 실행 → Ctrl+S로 씬 저장" 순서를 안내한다.
 
 ## DI / 매니저 계층

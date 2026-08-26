@@ -13,6 +13,7 @@ namespace Game.Core
     internal class FieldEncounterFlowCoordinator
     {
         private const float WarningDisplaySeconds = 2f;
+        private const float TransitionCurtainFadeOutSeconds = 2f; // 사용자 확정값 - Hub↔Field 전환용 커튼과 동일
 
         private bool eventsBound;
 
@@ -85,12 +86,17 @@ namespace Game.Core
                 // 들어가자마자 결과가 즉시 뜨는 문제가 있었다. 전투 뷰 전환이 끝난 시점에 시작해야
                 // "전투 뷰 진입 후 1초 뒤 결과"라는 체감 흐름이 만들어진다.
                 // StartBattle()은 동기적으로 LiveBattleSimulationRule.Evaluate()→BattleViewPresenter
-                // .Present()까지 실행해 유닛 뷰를 새로 갱신한다 - 그 직후에 커튼을 걷어야 갱신된
-                // 상태만 보인다.
+                // .Present()까지 실행해 유닛 뷰를 새로 갱신한다 - 다만 시뮬레이션은 일시정지 상태로
+                // 시작하므로(LiveBattleSimulationRule.paused) 유닛은 배치만 되고 아직 움직이지 않는다.
+                // 커튼 페이드 아웃 도중 반투명해진 커튼 너머로 이미 움직이는 전투가 비쳐 보이는 문제를
+                // 막기 위해, 실제 틱 재개(ResumeSimulation)는 페이드가 완전히 끝난 뒤로 미룬다(사용자 확정).
                 battleController.StartBattle();
-                transitionCurtain.Hide();
-                isTransitioning = false;
-                FlushPendingResultIfAny();
+                transitionCurtain.FadeOut(coroutineRunner, TransitionCurtainFadeOutSeconds, onComplete: () =>
+                {
+                    battleController.ResumeSimulation();
+                    isTransitioning = false;
+                    FlushPendingResultIfAny();
+                });
             });
         }
 
