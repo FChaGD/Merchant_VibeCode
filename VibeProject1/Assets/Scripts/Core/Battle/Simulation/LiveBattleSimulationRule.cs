@@ -11,17 +11,26 @@ namespace Game.Core
     /// (BattleManager 무변경). 승패 조건: 적 전멸(사망+도주)=Victory, 아군 전멸(사망+도주)
     /// 또는 보호 목표 파괴=Defeat.
     /// </summary>
-    public class LiveBattleSimulationRule : MonoBehaviour, IBattleResultRule, IRequiresFormationReader, IRequiresCaravanRoster, IBattleSimulationEvents, IPausableBattleSimulation
+    public class LiveBattleSimulationRule : MonoBehaviour, IBattleResultRule, IRequiresFormationReader, IRequiresCaravanRoster, IRequiresTacticsReader, IBattleSimulationEvents, IPausableBattleSimulation
     {
+        // 직업→역할군 매핑 - 실제 데이터(직업별 항목)는 에디터에서 에셋을 만들어 채운다
+        // (Docs/설계/12번 §2.1). 비어있으면 UnitTacticsProfileResolver가 경고 후 기본값으로 대체한다.
+        [SerializeField] private MercenaryRoleGroupMapAsset roleGroupMap;
+
         private readonly IBattleUnitStatProvider statProvider = new PlaceholderBattleUnitStatProvider();
         private readonly IEncounterSpawnPointSelector spawnSelector = new UniformRandomSpawnPointSelector();
         private readonly IEnemyCompositionProvider enemyProvider = new PlaceholderBanditCompositionProvider();
-        private readonly IBattleFieldLayout fieldLayout = new BattleFieldLayout();
+        // 아군 좌표 변환과 스폰/반지름 계산은 서로 다른 인터페이스지만 구현은 하나 - 내부 헬퍼
+        // 공유 때문에 클래스까지 나누지 않았다(BattleFieldLayout, Docs/설계/12번 §5.2).
+        private readonly BattleFieldLayout sharedFieldLayout = new();
+        private IAllyPositionLayout FieldPositionLayout => sharedFieldLayout;
+        private IBattleFieldGeometry FieldGeometry => sharedFieldLayout;
         private readonly IDamageFormula damageFormula = new PlaceholderDamageFormula();
         private readonly IUnitSpatialQuery spatialQuery = new LinearScanUnitSpatialQuery();
 
         private IFormationReader formationReader;
         private ICaravanRosterProvider rosterProvider;
+        private ITacticsReader tacticsReader;
         private BattleSimulationLoop simulation;
         private Action<BattleResult> onResult;
         private bool resultReported;
@@ -34,10 +43,11 @@ namespace Game.Core
 
         public event Action<BattleSimulationLoop> OnSimulationBuilt;
 
-        // BattleManager.ResolveDependencies가 IRequiresFormationReader/IRequiresCaravanRoster로
-        // 캐스팅해 호출한다.
+        // BattleManager.ResolveDependencies가 IRequiresFormationReader/IRequiresCaravanRoster/
+        // IRequiresTacticsReader로 캐스팅해 호출한다.
         public void SetFormationReader(IFormationReader reader) => formationReader = reader;
         public void SetCaravanRoster(ICaravanRosterProvider provider) => rosterProvider = provider;
+        public void SetTacticsReader(ITacticsReader reader) => tacticsReader = reader;
 
         public void Evaluate(Action<BattleResult> onResult)
         {
@@ -78,22 +88,32 @@ namespace Game.Core
             // 유효한 columnCount를 필요로 한다. FormationLayout.DefaultColumnCount가 FormationGridView
             // 기본값과 공유하는 단일 출처다.
             var columnCount = hasLayout ? layout.ColumnCount : FormationLayout.DefaultColumnCount;
-            var spawnCenter = fieldLayout.ComputeSpawnPoint(spawnSelector.SelectSpawnPointIndex(), columnCount);
+            var spawnCenter = FieldGeometry.ComputeSpawnPoint(spawnSelector.SelectSpawnPointIndex(), columnCount);
             // 스폰 반지름에서 파생되므로 대형이 클수록(columnCount가 클수록) 도주 이탈 거리도 늘어난다
             // (BattleFieldLayout 참고) - 대형 크기와 무관하게 항상 "전장을 벗어난 곳에서 스폰"이 성립한다.
-            var fleeTravelDistance = fieldLayout.ComputeFleeTravelDistance(columnCount);
+            var fleeTravelDistance = FieldGeometry.ComputeFleeTravelDistance(columnCount);
             var allyMorale = new PartyMorale(); // 전투마다 새로 시작
             var enemyMorale = new PartyMorale();
 
-            var allies = hasLayout ? BuildAllies(layout, spawnCenter, allyMorale, fleeTravelDistance) : new List<IBattleCombatant>();
+            // tacticsReader가 없으면(인스톨러 미실행 등) 방향성 지시 없이 기존 동작으로 자연히
+            // 폴백한다 - BuildAllies에 null을 넘기면 UnitTacticsBehaviors도 null이 되어
+            // BattleCharacterUnit이 적 유닛과 같은 경로(TickEngageWithoutTactics)를 탄다.
+            IUnitTacticsProfileResolver tacticsProfileResolver = tacticsReader != null
+                ? new UnitTacticsProfileResolver(tacticsReader, roleGroupMap)
+                : null;
+            var standardActivityRadius = FieldGeometry.ComputeStandardActivityRadius(columnCount);
+
+            var allies = hasLayout ? BuildAllies(layout, spawnCenter, allyMorale, fleeTravelDistance, tacticsProfileResolver, standardActivityRadius) : new List<IBattleCombatant>();
             var enemies = BuildEnemies(spawnCenter, enemyMorale, fleeTravelDistance);
             var protectedUnits = hasLayout ? BuildProtectedUnits(layout) : new List<IDamageable>();
-            var fieldRadius = fieldLayout.ComputeFieldRadius(columnCount);
+            var fieldRadius = FieldGeometry.ComputeFieldRadius(columnCount);
 
             return new BattleSimulationLoop(allies, enemies, protectedUnits, fieldRadius);
         }
 
-        private List<IBattleCombatant> BuildAllies(FormationLayout layout, Vector2 spawnCenter, PartyMorale allyMorale, float fleeTravelDistance)
+        private List<IBattleCombatant> BuildAllies(
+            FormationLayout layout, Vector2 spawnCenter, PartyMorale allyMorale, float fleeTravelDistance,
+            IUnitTacticsProfileResolver tacticsProfileResolver, float standardActivityRadius)
         {
             var allies = new List<IBattleCombatant>();
 
@@ -112,9 +132,19 @@ namespace Game.Core
 
                 var column = slotIndex % layout.ColumnCount;
                 var row = slotIndex / layout.ColumnCount;
-                var position = fieldLayout.ComputeAllyPosition(column, row, layout.ColumnCount);
+                var position = FieldPositionLayout.ComputeAllyPosition(column, row, layout.ColumnCount);
                 var stats = statProvider.GetStats(mercenaryClass);
-                allies.Add(new BattleCharacterUnit(position, isAlly: true, stats, damageFormula, allyMorale, spatialQuery, fleeTravelDistance));
+
+                // 배치 슬롯 좌표(position)가 곧 방향성 지시의 HomePosition이다 - "정비창 슬롯 좌표"라는
+                // 같은 개념을 두 번 계산하지 않는다.
+                UnitTacticsBehaviors tacticsBehaviors = null;
+                if (tacticsProfileResolver != null)
+                {
+                    var profile = tacticsProfileResolver.Resolve(mercenaryClass, position);
+                    tacticsBehaviors = UnitTacticsBehaviorsFactory.Build(profile, standardActivityRadius, spatialQuery);
+                }
+
+                allies.Add(new BattleCharacterUnit(position, isAlly: true, stats, damageFormula, allyMorale, spatialQuery, fleeTravelDistance, tacticsBehaviors));
             }
             return allies;
         }
@@ -140,7 +170,7 @@ namespace Game.Core
 
                 var column = slotIndex % layout.ColumnCount;
                 var row = slotIndex / layout.ColumnCount;
-                var position = fieldLayout.ComputeAllyPosition(column, row, layout.ColumnCount);
+                var position = FieldPositionLayout.ComputeAllyPosition(column, row, layout.ColumnCount);
                 result.Add(new BattleProtectedUnit(position, ProtectedUnitTuning.MaxHp, rosterUnit.Icon));
             }
             return result;

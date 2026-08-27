@@ -31,6 +31,12 @@ namespace Game.Core
                 throw new InvalidOperationException($"{nameof(HubUIWiring)}와 같은 GameObject에 {nameof(ITripPanel)} 구현체가 없다.");
             }
 
+            var tacticsPanel = GetComponent<ITacticsPanel>();
+            if (tacticsPanel == null)
+            {
+                throw new InvalidOperationException($"{nameof(HubUIWiring)}와 같은 GameObject에 {nameof(ITacticsPanel)} 구현체가 없다.");
+            }
+
             var gameManager = registrar.Resolve<IGameManager>();
             // "상행 시작"/"상행 준비"/"배치" 버튼을 씬 전환 커튼이 완전히 걷힐 때까지 비활성화하는 데
             // 쓴다(사용자 확정) - HubUIController/TripPanel 둘 다 필요하므로 여기서 한 번만 조회한다.
@@ -40,6 +46,7 @@ namespace Game.Core
             registrar.TryResolve<ICaravanRosterProvider>(out var caravanRosterProvider);
             registrar.TryResolve<IFormationRepository>(out var formationRepository);
             registrar.TryResolve<ITripInfoProvider>(out var tripInfoProvider);
+            registrar.TryResolve<ITacticsRepository>(out var tacticsRepository);
 
             hubUIController.RegisterHubUI(uiManager, sceneRevealSignal);
 
@@ -48,6 +55,9 @@ namespace Game.Core
 
             tripPanel.RegisterTripUI(uiManager, gameManager, formationRepository, tripInfoProvider, sceneRevealSignal);
             panelRegistrar.RegisterPanel(tripPanel);
+
+            tacticsPanel.RegisterTacticsUI(tacticsRepository, uiManager, SceneNames.Hub);
+            panelRegistrar.RegisterPanel(tacticsPanel);
 
             // Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 다음 전환 때 슬라이드시킬
             // 대상을 등록한다 - 씬을 다시 로드할 때마다 최신 참조로 갱신된다(Docs/설계/10_씬전환_연출_아키텍처.md §8).

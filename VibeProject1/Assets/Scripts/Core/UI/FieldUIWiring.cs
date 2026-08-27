@@ -26,9 +26,16 @@ namespace Game.Core
                 throw new InvalidOperationException($"{nameof(FieldUIWiring)}와 같은 GameObject에 {nameof(IFieldUIController)} 구현체가 없다.");
             }
 
+            var tacticsPanel = GetComponent<ITacticsPanel>();
+            if (tacticsPanel == null)
+            {
+                throw new InvalidOperationException($"{nameof(FieldUIWiring)}와 같은 GameObject에 {nameof(ITacticsPanel)} 구현체가 없다.");
+            }
+
             // 상행 관리 데이터 시스템이 아직 없어 선택적으로 조회한다 - 등록되면 자동으로 연결된다.
             registrar.TryResolve<ICaravanRosterProvider>(out var caravanRosterProvider);
             registrar.TryResolve<IFormationRepository>(out var formationRepository);
+            registrar.TryResolve<ITacticsRepository>(out var tacticsRepository);
 
             var sessionState = registrar.Resolve<ISessionState>();
             var encounterManager = registrar.Resolve<IEncounterManager>();
@@ -43,6 +50,9 @@ namespace Game.Core
             // (FieldUIInstaller 참고) 여기서도 다시 등록해야 "정비창 재호출"이 동작한다.
             formationPanel.RegisterFormationUI(caravanRosterProvider, formationRepository, uiManager, SceneNames.Field);
             panelRegistrar.RegisterPanel(formationPanel);
+
+            tacticsPanel.RegisterTacticsUI(tacticsRepository, uiManager, SceneNames.Field);
+            panelRegistrar.RegisterPanel(tacticsPanel);
 
             fieldUIController.RegisterFieldUI(uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal);
 

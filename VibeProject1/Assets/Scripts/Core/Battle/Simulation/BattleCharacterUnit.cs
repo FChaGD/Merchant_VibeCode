@@ -11,6 +11,10 @@ namespace Game.Core
     /// 매 프레임 O(n) 재탐색을 피하기 위한 의도된 선택이라, "가장 가까운 적"이 엄밀히는 "타겟 획득
     /// 시점 기준 최근접"으로 완화되어 적용된다. 공간 탐색(최근접 타겟·근접 반발)은 IUnitSpatialQuery에
     /// 위임한다 - 전투 규모가 커져 탐색 방식을 공간 분할로 바꿔도 이 클래스는 무변경이다(OCP).
+    ///
+    /// 방향성 지시(Docs/설계/12번)는 tacticsBehaviors가 null이 아닐 때만 적용된다 - 이번 설계는
+    /// 아군에만 적용되고(§0), 적 유닛은 tacticsBehaviors를 null로 받아 기존 동작(TickEngageWithoutTactics)
+    /// 을 그대로 유지한다. 두 경로를 분리한 이유는 적 진영 동작을 절대 건드리지 않기 위함이다.
     /// </summary>
     public class BattleCharacterUnit : IBattleCombatant
     {
@@ -19,6 +23,8 @@ namespace Game.Core
         // 비슷한 크기로 잡았다.
         private const float SeparationRadius = 1f;
         private const float SeparationSpeed = 3f;
+        // Returning 상태 종료(배치 위치 도착) 판정 허용 오차.
+        private const float ReturnArrivalDistance = 0.5f;
 
         public Vector2 Position { get; private set; }
         public bool IsAlly { get; }
@@ -27,7 +33,9 @@ namespace Game.Core
         public bool IsFleeing => isFleeing;
         public Vector2 FleeVelocity => fleeDirection * stats.MoveSpeed;
         public float Defense => stats.Defense;
+        public float Attack => stats.Attack;
         public float MaxHp => stats.MaxHp;
+        public float CurrentHp => currentHp;
         // Character는 아직 직업별 팔레트 아이콘(사각형/오각형/육각형)을 전투 뷰에 재사용하지 않는다
         // (이번 요청 범위 밖 - 마차/시설만 재사용). 뷰는 null이면 기존 단색 도형으로 대체한다.
         public Sprite Icon => null;
@@ -43,6 +51,8 @@ namespace Game.Core
         // 대형 크기(스폰 반지름)에 연동되어 전투마다 달라진다 - BattleFieldLayout.ComputeFleeTravelDistance
         // 참고. 전투 시작 시점에 한 번 계산해 전달받고, 도주 중에는 값이 바뀌지 않는다.
         private readonly float fleeTravelDistance;
+        // null이면 방향성 지시 미적용(적 유닛) - TickEngageWithoutTactics로 분기(Docs/설계/12번 §0).
+        private readonly UnitTacticsBehaviors tacticsBehaviors;
 
         private float currentHp;
         private float unitMorale = MoraleTuning.Initial;
@@ -52,10 +62,14 @@ namespace Game.Core
         private Vector2 fleeDirection;
         private IDamageable target;
         private float attackCooldown;
+        // 활동 반경 밖에서 IPursuitPolicy가 트리거해 배치 위치로 복귀 중인 상태(Docs/설계/12번 §4) -
+        // Fleeing보다는 낮고 통상 Engaging보다는 높은 우선순위.
+        private bool isReturning;
 
         public BattleCharacterUnit(
             Vector2 startPosition, bool isAlly, BattleUnitStats stats, IDamageFormula damageFormula,
-            PartyMorale partyMorale, IUnitSpatialQuery spatialQuery, float fleeTravelDistance)
+            PartyMorale partyMorale, IUnitSpatialQuery spatialQuery, float fleeTravelDistance,
+            UnitTacticsBehaviors tacticsBehaviors = null)
         {
             Position = startPosition;
             IsAlly = isAlly;
@@ -64,6 +78,7 @@ namespace Game.Core
             this.partyMorale = partyMorale;
             this.spatialQuery = spatialQuery;
             this.fleeTravelDistance = fleeTravelDistance;
+            this.tacticsBehaviors = tacticsBehaviors;
             currentHp = stats.MaxHp;
         }
 
@@ -79,35 +94,133 @@ namespace Game.Core
                 return;
             }
 
-            if (target is not { IsAlive: true })
+            if (isReturning)
             {
-                target = spatialQuery.FindNearest(Position, targets);
-                if (target == null)
-                {
-                    ApplySeparation(sameSideUnits, deltaTime);
-                    return;
-                }
+                TickReturning(deltaTime);
+                ApplySeparation(sameSideUnits, deltaTime);
+                return;
             }
 
-            var toTarget = target.Position - Position;
-            var distance = toTarget.magnitude;
-
-            if (distance > stats.Range)
+            if (tacticsBehaviors != null)
             {
-                Position += toTarget.normalized * stats.MoveSpeed * deltaTime;
+                TickEngageWithTactics(deltaTime, targets);
             }
             else
             {
-                attackCooldown -= deltaTime;
-                if (attackCooldown <= 0f)
-                {
-                    target.TakeDamage(damageFormula.ComputeDamage(stats.Attack, target.Defense));
-                    OnAttacked?.Invoke(target);
-                    attackCooldown = stats.AttackInterval;
-                }
+                TickEngageWithoutTactics(deltaTime, targets);
             }
 
             ApplySeparation(sameSideUnits, deltaTime);
+        }
+
+        // 기존(적 유닛) 동작 그대로 - 최근접 스티키 타겟팅, 사거리 밖이면 직진 접근, 안이면 공격.
+        private void TickEngageWithoutTactics(float deltaTime, IReadOnlyList<IDamageable> targets)
+        {
+            if (target is not { IsAlive: true })
+            {
+                target = spatialQuery.FindNearest(Position, targets);
+                if (target == null) return;
+            }
+
+            var distance = (target.Position - Position).magnitude;
+            if (distance > stats.Range)
+            {
+                MoveToward(target.Position, deltaTime);
+            }
+            else
+            {
+                TryAttack(deltaTime, target);
+            }
+        }
+
+        // 방향성 지시가 적용되는 아군 동작. 스티키 타겟팅은 그대로 유지한다 - 타겟이 죽었거나
+        // IPursuitPolicy가 이탈을 트리거했을 때만 재선택한다(매 틱 재선택하지 않음, Docs/설계/12번
+        // §7 점검 이력 - 최적화).
+        private void TickEngageWithTactics(float deltaTime, IReadOnlyList<IDamageable> allEnemies)
+        {
+            var recognized = tacticsBehaviors.RecognitionTracker.TickAndGetRecognized(deltaTime, allEnemies, tacticsBehaviors.RadiusZone);
+
+            if (target is not { IsAlive: true })
+            {
+                target = tacticsBehaviors.TargetSelector.Select(Position, recognized);
+                if (target == null) return;
+            }
+
+            var isOutsideRadius = !tacticsBehaviors.RadiusZone.Contains(Position);
+            var justLandedHit = TryAttack(deltaTime, target);
+            MoveTowardTacticalDestination(deltaTime, target);
+
+            if (tacticsBehaviors.PursuitPolicy.ShouldDisengage(deltaTime, isOutsideRadius, justLandedHit))
+            {
+                Disengage(recognized);
+            }
+        }
+
+        // 트리거되면 인식된 적 중 반경 내의 적으로 재타겟하고, 없으면 타겟을 비우고 복귀 상태로
+        // 전환한다(Docs/기획/12번 §2.3).
+        private void Disengage(IReadOnlyList<IDamageable> recognized)
+        {
+            var withinRadius = new List<IDamageable>();
+            foreach (var candidate in recognized)
+            {
+                if (tacticsBehaviors.RadiusZone.Contains(candidate.Position))
+                {
+                    withinRadius.Add(candidate);
+                }
+            }
+
+            target = withinRadius.Count > 0 ? tacticsBehaviors.TargetSelector.Select(Position, withinRadius) : null;
+            isReturning = target == null;
+        }
+
+        // 자기보호가 발동 중이면 포지셔닝을 덮어쓴다 - Kiting과 Stationary처럼 서로 반대되는 값이
+        // 같은 유닛에 함께 선택될 수 있어, 이 우선순위로 모순을 해소한다(Docs/설계/12번 §4). 최종
+        // 목적지는 HoldPosition 전용 clamp를 한 번 더 거친다.
+        private void MoveTowardTacticalDestination(float deltaTime, IDamageable currentTarget)
+        {
+            var desiredDestination = tacticsBehaviors.SelfPreservationModifier.TryGetOverrideMovement(
+                deltaTime, Position, currentTarget, stats.Range, out var overrideDestination)
+                ? overrideDestination
+                : tacticsBehaviors.PositioningStrategy.ComputeMoveTarget(Position, currentTarget, stats.Range, tacticsBehaviors.HomePosition);
+
+            var clampedDestination = tacticsBehaviors.PursuitPolicy.ClampDestination(desiredDestination, tacticsBehaviors.RadiusZone);
+            MoveToward(clampedDestination, deltaTime);
+        }
+
+        // 배치 위치로 복귀한다 - 도착하면 Returning을 해제하고 다음 틱부터 통상 Engaging으로
+        // 돌아간다(타겟이 없으면 기존 널 타겟 분기가 자연히 재탐색한다).
+        private void TickReturning(float deltaTime)
+        {
+            MoveToward(tacticsBehaviors.HomePosition, deltaTime);
+            if ((Position - tacticsBehaviors.HomePosition).sqrMagnitude <= ReturnArrivalDistance * ReturnArrivalDistance)
+            {
+                isReturning = false;
+            }
+        }
+
+        // 사거리 안일 때만 공격하고 쿨다운을 소모한다 - 명중 여부(justLandedHit)를 반환해
+        // IPursuitPolicy.ShouldDisengage(OffensiveJudgment)가 참조할 수 있게 한다.
+        private bool TryAttack(float deltaTime, IDamageable currentTarget)
+        {
+            var distance = (currentTarget.Position - Position).magnitude;
+            if (distance > stats.Range) return false;
+
+            attackCooldown -= deltaTime;
+            if (attackCooldown > 0f) return false;
+
+            currentTarget.TakeDamage(damageFormula.ComputeDamage(stats.Attack, currentTarget.Defense), this);
+            OnAttacked?.Invoke(currentTarget);
+            attackCooldown = stats.AttackInterval;
+            return true;
+        }
+
+        private void MoveToward(Vector2 destination, float deltaTime)
+        {
+            var toDestination = destination - Position;
+            if (toDestination.sqrMagnitude > 0.0001f)
+            {
+                Position += toDestination.normalized * stats.MoveSpeed * deltaTime;
+            }
         }
 
         // 같은 진영 유닛끼리 SeparationRadius 안으로 겹치면 서로 밀어낸다 - 모든 적이 같은 스폰
@@ -171,11 +284,18 @@ namespace Game.Core
             }
         }
 
-        public void TakeDamage(float amount)
+        public void TakeDamage(float amount, IBattleCombatant attacker)
         {
             if (!IsAlive) return;
             currentHp = Mathf.Max(0f, currentHp - amount);
             OnDamaged?.Invoke(amount);
+            // 피격 인식("근접 또는 피격", 기획 §2.1) - 공격자는 항상 즉시 인식된다. 인식 유형이
+            // 시간/거리 기반이라도, 이미 나를 공격한 상대를 모른 척할 이유가 없어 유형과 무관하게
+            // 적용한다(EnemyRecognitionTrackerBase.NotifyAttackedBy가 그 개체만 recognized에 추가).
+            tacticsBehaviors?.RecognitionTracker.NotifyAttackedBy(attacker);
+            // 자기보호(FallBackOnHeavyDamage/RetreatOnHit)가 피격 시점을 알아야 한다 - MaxHp가 0
+            // 이하일 일은 없으니(스탯 검증은 범위 밖) 나눗셈 가드는 생략.
+            tacticsBehaviors?.SelfPreservationModifier.NotifyDamaged(amount, currentHp / MaxHp);
             if (currentHp <= 0f)
             {
                 partyMorale.NotifyUnitLost();

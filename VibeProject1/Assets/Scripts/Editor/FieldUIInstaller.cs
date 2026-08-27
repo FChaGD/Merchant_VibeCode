@@ -52,6 +52,7 @@ namespace Game.Core.Editor
             BuildBackground(movementViewRoot.transform);
             BuildProgressGauge(movementViewRoot.transform);
             BuildFormationButton(movementViewRoot.transform);
+            BuildTacticsButton(movementViewRoot.transform);
             BuildEncounterWarning(movementViewRoot.transform);
 
             // BattleView/ResultPopup은 MovementView와 형제로 SceneUIRoot 바로 아래 둔다 - 결과 팝업은
@@ -59,6 +60,10 @@ namespace Game.Core.Editor
             BuildBattleView(sceneUIRoot.transform);
             BuildResultPopup(sceneUIRoot.transform);
             BuildTransitionCurtain(sceneUIRoot.transform);
+
+            // 방향성 지시 UI(정비창 Formation UI와 같은 자리 - MovementView 하위가 아니라 SceneUIRoot
+            // 바로 아래, 이동/전투 뷰 어느 쪽 위에서도 떠야 하므로).
+            TacticsUIBuilder.Build(sceneUIRoot.transform);
 
             FormationUIBuilder.EnsurePrefabFolder();
             var slotPrefab = FormationUIBuilder.GetOrCreateSlotPrefab();
@@ -115,6 +120,18 @@ namespace Game.Core.Editor
             EditorUIBuilder.EnsureButton(go);
             EditorUIBuilder.EnsureLabel(go.transform, "정비창");
             EditorUIBuilder.EnsureMarker(go, FieldUIElementIds.FormationButton);
+        }
+
+        // Field.FormationButton 바로 위(간격 0.02, 동일 크기)에 둔다 - 실제 좌표는 Field.unity에서
+        // 실측한 값으로 계산됐다(Docs/설계/11번 §4.1).
+        private static void BuildTacticsButton(Transform parent)
+        {
+            var go = EditorUIBuilder.GetOrCreateUIObject(parent, "TacticsButton");
+            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(0.02f, 0.12f), new Vector2(0.14f, 0.20f));
+            EditorUIBuilder.EnsureImage(go, new Color(0.85f, 0.75f, 0.95f, 1f));
+            EditorUIBuilder.EnsureButton(go);
+            EditorUIBuilder.EnsureLabel(go.transform, "방향성 지시");
+            EditorUIBuilder.EnsureMarker(go, FieldUIElementIds.TacticsButton);
         }
 
         private static void BuildEncounterWarning(Transform parent)

@@ -22,6 +22,7 @@ namespace Game.Core
 
         private Button departureButton;
         private Button formationButton;
+        private Button tacticsButton;
         private ISceneRevealSignal sceneRevealSignal;
 
         public void RegisterHubUI(IUIManager uiManager, ISceneRevealSignal sceneRevealSignal)
@@ -59,6 +60,7 @@ namespace Game.Core
 
             departureButton = BindButton(sceneUIRoot, HubUIElementIds.DepartureButton, () => uiManager.Open(UIPanelIds.Trip));
             formationButton = BindButton(sceneUIRoot, HubUIElementIds.FormationButton, () => uiManager.Open(UIPanelIds.Formation));
+            tacticsButton = BindButton(sceneUIRoot, HubUIElementIds.TacticsButton, () => uiManager.Open(UIPanelIds.Tactics));
 
             // 화면이 완전히 드러나기 전까지는 두 버튼 다 비활성 - 전환 없이 로드된 경우(최초 진입 등)엔
             // SceneRevealed가 즉시 발생해 사실상 바로 다시 활성화된다.
@@ -89,6 +91,11 @@ namespace Game.Core
             if (formationButton != null)
             {
                 formationButton.interactable = interactable;
+            }
+
+            if (tacticsButton != null)
+            {
+                tacticsButton.interactable = interactable;
             }
         }
 

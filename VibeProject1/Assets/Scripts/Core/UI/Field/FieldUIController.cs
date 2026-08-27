@@ -25,6 +25,7 @@ namespace Game.Core
 
         private FieldProgressGaugeView gaugeView;
         private Button formationButton;
+        private Button tacticsButton;
         private FieldEncounterWarningView warningView;
         private RectTransform movementViewRoot;
         private RectTransform battleViewRoot;
@@ -74,9 +75,13 @@ namespace Game.Core
             formationButton.onClick.RemoveAllListeners();
             formationButton.onClick.AddListener(() => uiManager.Open(UIPanelIds.Formation));
 
-            // 화면이 완전히 드러나기 전까지는 정비창 재호출을 막는다(사용자 확정) - HandleSceneRevealed에서
-            // 다시 켠다. 전환 없이 로드된 경우(최초 진입 등)엔 사실상 바로 다시 켜진다.
+            tacticsButton.onClick.RemoveAllListeners();
+            tacticsButton.onClick.AddListener(() => uiManager.Open(UIPanelIds.Tactics));
+
+            // 화면이 완전히 드러나기 전까지는 정비창/방향성 지시 재호출을 막는다(사용자 확정) -
+            // HandleSceneRevealed에서 다시 켠다. 전환 없이 로드된 경우(최초 진입 등)엔 사실상 바로 다시 켜진다.
             formationButton.interactable = false;
+            tacticsButton.interactable = false;
             sceneRevealSignal.SceneRevealed -= HandleSceneRevealed;
             sceneRevealSignal.SceneRevealed += HandleSceneRevealed;
 
@@ -116,6 +121,7 @@ namespace Game.Core
             }
 
             formationButton.interactable = true;
+            tacticsButton.interactable = true;
             sessionState.Begin();
         }
 
@@ -153,6 +159,12 @@ namespace Game.Core
             if (!sceneUIRoot.TryGetElement<Button>(FieldUIElementIds.FormationButton, out formationButton))
             {
                 WarnMissing(FieldUIElementIds.FormationButton);
+                return false;
+            }
+
+            if (!sceneUIRoot.TryGetElement<Button>(FieldUIElementIds.TacticsButton, out tacticsButton))
+            {
+                WarnMissing(FieldUIElementIds.TacticsButton);
                 return false;
             }
 

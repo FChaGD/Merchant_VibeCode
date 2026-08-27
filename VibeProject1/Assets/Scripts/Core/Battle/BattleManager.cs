@@ -22,8 +22,6 @@ namespace Game.Core
 
         public void ResolveDependencies(IDependencyRegistrar registrar)
         {
-            // TODO: TacticsComponent 연결 - 하위 컴포넌트 설계 후 구현
-
             // 승패 판정을 IBattleResultRule 전략에 위임한다(OCP 확장점) - 실제 전투 로직이 생겨도
             // PlaceholderBattleResultRule 교체만으로 끝나고 BattleManager는 무변경으로 유지된다.
             resultRule = GetComponent<IBattleResultRule>();
@@ -56,6 +54,15 @@ namespace Game.Core
                 && registrar.TryResolve<ICaravanRosterProvider>(out var rosterProvider))
             {
                 rosterConsumer.SetCaravanRoster(rosterProvider);
+            }
+
+            // ITacticsRepository도 같은 이유로 TryResolve - InMemoryTacticsRepository는
+            // ITacticsRepository로만 등록되므로 ITacticsReader로 업캐스트해 넘긴다(IFormationReader와
+            // 동일 패턴). 인스톨러를 아직 재실행하지 않은 씬에서는 자연히 건너뛴다.
+            if (resultRule is IRequiresTacticsReader tacticsConsumer
+                && registrar.TryResolve<ITacticsRepository>(out var tacticsRepository))
+            {
+                tacticsConsumer.SetTacticsReader(tacticsRepository);
             }
 
             // 규칙이 시뮬레이션 생성 이벤트를 노출하면(IBattleSimulationEvents), 그대로 흘려보낸다 -

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using TMPro;
 using UnityEditor;
@@ -51,6 +52,15 @@ namespace Game.Core.Editor
             }
         }
 
+        private static void SetLayerRecursively(GameObject go, int layer)
+        {
+            go.layer = layer;
+            foreach (Transform child in go.transform)
+            {
+                SetLayerRecursively(child.gameObject, layer);
+            }
+        }
+
         public static void SetAnchors(RectTransform rect, Vector2 min, Vector2 max)
         {
             rect.anchorMin = min;
@@ -77,6 +87,112 @@ namespace Game.Core.Editor
             var button = GetOrAddComponent<Button>(go);
             button.targetGraphic = go.GetComponent<Image>();
             return button;
+        }
+
+        /// <summary>
+        /// 배경(Image)+체크마크(Image)를 갖춘 최소 토글. 프로젝트 최초 도입(방향성 지시 UI,
+        /// Docs/설계/12번 §5.6-1) - 그 전까지는 버튼 기반 UI만 있었다.
+        /// </summary>
+        public static Toggle EnsureToggle(GameObject go)
+        {
+            EnsureImage(go, new Color(0.9f, 0.9f, 0.9f, 1f));
+            var toggle = GetOrAddComponent<Toggle>(go);
+
+            var checkGo = GetOrCreateUIObject(go.transform, "Checkmark");
+            var checkRect = checkGo.GetComponent<RectTransform>();
+            checkRect.anchorMin = new Vector2(0.5f, 0.5f);
+            checkRect.anchorMax = new Vector2(0.5f, 0.5f);
+            checkRect.sizeDelta = new Vector2(16f, 16f);
+            checkRect.anchoredPosition = Vector2.zero;
+            var checkImage = EnsureImage(checkGo, new Color(0.2f, 0.6f, 0.2f, 1f));
+
+            toggle.targetGraphic = go.GetComponent<Image>();
+            toggle.graphic = checkImage;
+            return toggle;
+        }
+
+        private static TMP_DefaultControls.Resources s_dropdownResources;
+
+        private static TMP_DefaultControls.Resources GetDropdownResources()
+        {
+            if (s_dropdownResources.standard == null)
+            {
+                s_dropdownResources.standard = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+                s_dropdownResources.background = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Background.psd");
+                s_dropdownResources.inputField = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/InputFieldBackground.psd");
+                s_dropdownResources.knob = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
+                s_dropdownResources.checkmark = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Checkmark.psd");
+                s_dropdownResources.dropdown = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/DropdownArrow.psd");
+                s_dropdownResources.mask = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UIMask.psd");
+            }
+            return s_dropdownResources;
+        }
+
+        /// <summary>
+        /// 손으로 계층을 조립한 버전은 항목(Item) 텍스트가 팝업에서 안 보이는 원인 불명 버그가 있었다
+        /// (RectTransform/알파/폰트 전부 정상인데 렌더링만 안 됨 - 유니티 기본 드롭다운은 대조 테스트로
+        /// 정상 확인됨). 그래서 직접 조립하지 않고, 유니티 "Dropdown - TextMeshPro" 메뉴가 실제로 쓰는
+        /// TMP_DefaultControls.CreateDropdown 결과물을 그대로 가져와 go 밑으로 옮겨 붙인다.
+        /// </summary>
+        public static TMP_Dropdown EnsureDropdown(GameObject go)
+        {
+            var existingDropdown = go.GetComponent<TMP_Dropdown>();
+            if (existingDropdown != null && go.transform.Find("Template") != null)
+            {
+                return existingDropdown;
+            }
+
+            DestroyChildIfExists(go.transform, "Label");
+            DestroyChildIfExists(go.transform, "Arrow");
+            DestroyChildIfExists(go.transform, "Template");
+            if (existingDropdown != null)
+            {
+                Undo.DestroyObjectImmediate(existingDropdown);
+            }
+
+            var reference = TMP_DefaultControls.CreateDropdown(GetDropdownResources());
+            reference.transform.SetParent(go.transform, false);
+
+            var children = new List<Transform>();
+            foreach (Transform child in reference.transform)
+            {
+                children.Add(child);
+            }
+            foreach (var child in children)
+            {
+                child.SetParent(go.transform, false);
+                SetLayerRecursively(child.gameObject, go.layer);
+            }
+
+            var referenceImage = reference.GetComponent<Image>();
+            var image = EnsureImage(go, referenceImage.color);
+            image.sprite = referenceImage.sprite;
+            image.type = referenceImage.type;
+
+            var referenceDropdown = reference.GetComponent<TMP_Dropdown>();
+            var dropdown = GetOrAddComponent<TMP_Dropdown>(go);
+            dropdown.targetGraphic = image;
+            dropdown.colors = referenceDropdown.colors;
+            dropdown.template = go.transform.Find("Template").GetComponent<RectTransform>();
+            dropdown.captionText = go.transform.Find("Label").GetComponent<TextMeshProUGUI>();
+            dropdown.itemText = go.transform.Find("Template/Viewport/Content/Item/Item Label").GetComponent<TextMeshProUGUI>();
+            dropdown.options.Clear();
+
+            // TMP_DefaultControls의 기본 글자 크기(14)는 이 UI 스케일에서 너무 작아 보이므로
+            // 원래 설계값(라벨 16 / 항목 15, 세로 중앙 정렬)으로 덮어쓴다.
+            dropdown.captionText.fontSize = 16f;
+            dropdown.captionText.alignment = TextAlignmentOptions.MidlineLeft;
+            dropdown.captionText.color = Color.black;
+            dropdown.itemText.fontSize = 15f;
+            dropdown.itemText.alignment = TextAlignmentOptions.MidlineLeft;
+            dropdown.itemText.color = Color.black;
+            // 팝업이 알파 0→1로 페이드인되는 도중 스크린샷/빠른 확인 시 "안 보인다"로 오인되는 걸
+            // 막기 위해 즉시 표시되게 한다.
+            dropdown.alphaFadeSpeed = 0f;
+
+            Undo.DestroyObjectImmediate(reference);
+
+            return dropdown;
         }
 
         public static TMP_Text EnsureLabel(Transform parent, string text)

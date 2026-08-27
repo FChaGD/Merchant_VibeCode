@@ -11,11 +11,18 @@ namespace Game.Core
     /// 스폰 반지름은 더 이상 고정값이 아니다 - 대형(아군 배치) 크기가 커지면 적도 그만큼 더 바깥에서
     /// 스폰해야 "전장을 벗어난 곳에서 스폰"이라는 전제가 대형 크기와 무관하게 항상 성립한다. 도주
     /// 이탈 거리도 같은 스폰 반지름에서 파생시켜, 두 값이 서로 다른 임의의 상수로 따로 놀지 않게 한다.
+    /// 아군 좌표 변환(IAllyPositionLayout)과 스폰/반지름 계산(IBattleFieldGeometry)을 인터페이스
+    /// 레벨에서 분리했다(방향성 지시 축이 세 번째 반지름 계산을 얹기 전에 06번 문서 §10 backlog를
+    /// 정리, Docs/설계/12번 §5.2) - 구현 클래스는 FormationExtentRadius 같은 내부 헬퍼를 공유해야
+    /// 해서 그대로 하나다.
     /// </summary>
-    public class BattleFieldLayout : IBattleFieldLayout
+    public class BattleFieldLayout : IAllyPositionLayout, IBattleFieldGeometry
     {
+        // 정사각형(1×1)으로 통일 - 이전엔 RowSpacing만 1.5로 다른 임의값이었으나 특별한 근거가
+        // 없었다(Docs/기획/12번 §2.2, 1유닛=1m 정의와 함께 확정). 대형 반지름이 소폭 줄어드는
+        // 정도의 부작용만 있고 다른 소비자엔 영향 없음을 기획 단계에서 확인 완료.
         private const float ColumnSpacing = 1f;
-        private const float RowSpacing = 1.5f;
+        private const float RowSpacing = 1f;
         // 대형 가장자리(모서리)로부터 스폰 지점까지 추가로 벌리는 여유 - 대형이 아무리 작아도
         // 스폰 지점이 대형 바로 옆에 붙지 않도록 한다.
         private const float SpawnRadiusMargin = 10f;
@@ -42,6 +49,10 @@ namespace Game.Core
         public float ComputeFleeTravelDistance(int columnCount) => ComputeFieldRadius(columnCount);
 
         public float ComputeFieldRadius(int columnCount) => ComputeSpawnRadius(columnCount) - FieldBoundaryGap;
+
+        // 대형 중심 기준 "활동 반경 - 표준" 프리셋(Docs/기획/12번 §2.2) - 스폰/전장 반지름과 같은
+        // FormationExtentRadius 파생 패밀리지만 마진 값(TacticsTuning)이 다르다.
+        public float ComputeStandardActivityRadius(int columnCount) => FormationExtentRadius(columnCount) + TacticsTuning.StandardRadiusMarginMeters;
 
         private float ComputeSpawnRadius(int columnCount) => FormationExtentRadius(columnCount) + SpawnRadiusMargin;
 

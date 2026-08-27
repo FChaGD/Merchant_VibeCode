@@ -61,10 +61,11 @@ namespace Game.Core.Editor
             // (BattleManager가 GetComponent<IDefeatConsequenceRule>()로 직접 조회).
             EnsureSiblingComponent<PlaceholderDefeatConsequenceRule>(battleManager.gameObject);
 
-            // HubUIController/FormationPanel/TripPanel/FieldUIController는 전역 매니저가 아니라 UIManager 산하 컴포넌트이므로 같은 GameObject에 부착한다.
+            // HubUIController/FormationPanel/TripPanel/TacticsPanel/FieldUIController는 전역 매니저가 아니라 UIManager 산하 컴포넌트이므로 같은 GameObject에 부착한다.
             EnsureSiblingComponent<HubUIController>(uiManager.gameObject);
             EnsureSiblingComponent<FormationPanel>(uiManager.gameObject);
             EnsureSiblingComponent<TripPanel>(uiManager.gameObject);
+            EnsureSiblingComponent<TacticsPanel>(uiManager.gameObject);
             var fieldUIController = EnsureSiblingComponent<FieldUIController>(uiManager.gameObject);
 
             // 씬별 UI 배선(IContentSceneUIWiring)도 전역 DI 대상이 아니라 UIManager 산하 컴포넌트다 -
@@ -84,6 +85,9 @@ namespace Game.Core.Editor
 
             // 배치 UI의 "적용" 버튼이 반영할 대상 - 현재 플레이 세션 동안만 유지되는 인메모리 저장소.
             var formationRepository = GetOrCreateManager<InMemoryFormationRepository>(root.transform, "InMemoryFormationRepository");
+
+            // 방향성 지시 UI(TacticsPanel, 아직 미착수)가 반영할 대상 - 배치와 같은 성격의 인메모리 저장소.
+            var tacticsRepository = GetOrCreateManager<InMemoryTacticsRepository>(root.transform, "InMemoryTacticsRepository");
 
             // 지역 시스템이 아직 없어, 상행 준비 UI 테스트용 임시 출발지/도착지/상행 요약 제공자를 등록한다.
             // 실제 데이터 시스템이 생기면 이 매니저를 함께 제거한다.
@@ -105,6 +109,7 @@ namespace Game.Core.Editor
                 sceneLoader,
                 placeholderRosterProvider,
                 formationRepository,
+                tacticsRepository,
                 placeholderTripInfoProvider,
             });
 

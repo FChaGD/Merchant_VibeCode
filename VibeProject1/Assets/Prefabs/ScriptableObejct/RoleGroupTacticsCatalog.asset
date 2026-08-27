@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7383b20bc053eb142b8f69f46079b568, type: 3}
+  m_Name: RoleGroupTacticsCatalog
+  m_EditorClassIdentifier: Game.Core::Game.Core.RoleGroupTacticsCatalogAsset
+  entries:
+  - RoleGroup: 0
+    TargetPriorityOptions:
+    - Value: 0
+      DisplayLabel: "\uAC00\uAE4C\uC6B4 \uC801 \uC6B0\uC120"
+    - Value: 1
+      DisplayLabel: "\uC544\uAD70\uC5D0\uAC8C \uAC00\uAE4C\uC774 \uC811\uADFC\uD55C
+        \uC801 \uC6B0\uC120"
+    - Value: 2
+      DisplayLabel: "\uC544\uC9C1 \uACF5\uACA9\uBC1B\uC9C0 \uC54A\uC740 \uC801\uC744
+        \uC6B0\uC120"
+    PositioningOptions:
+    - Value: 0
+      DisplayLabel: "\uB3CC\uACA9"
+    - Value: 1
+      DisplayLabel: "\uBC29\uC9C4 \uD615\uC131"
+    SelfPreservationOptions:
+    - Value: 0
+      DisplayLabel: "\uC790\uAE30\uBCF4\uC2E0 \uC5C6\uB294 \uB9F9\uACF5"
+    - Value: 1
+      DisplayLabel: "\uC911\uC0C1 \uC2DC \uC77C\uC2DC \uD6C4\uD1F4 \uD6C4 \uC7AC\uACF5\uACA9"
+  - RoleGroup: 1
+    TargetPriorityOptions:
+    - Value: 0
+      DisplayLabel: "\uAC00\uAE4C\uC6B4 \uC801 \uC6B0\uC120"
+    - Value: 3
+      DisplayLabel: "\uAC00\uC7A5 \uAC15\uB825\uD55C \uC801 \uC6B0\uC120"
+    - Value: 4
+      DisplayLabel: "\uAC00\uC7A5 \uC801\uC740 \uCCB4\uB825 \uC6B0\uC120"
+    PositioningOptions:
+    - Value: 2
+      DisplayLabel: "\uCD5C\uB300 \uC0AC\uAC70\uB9AC \uC720\uC9C0"
+    - Value: 3
+      DisplayLabel: "\uC790\uB9AC \uC0AC\uC218"
+    SelfPreservationOptions:
+    - Value: 2
+      DisplayLabel: "\uC801 \uC811\uADFC \uC2DC \uAC70\uB9AC \uC720\uC9C0 \uD6C4
+        \uACF5\uACA9"
+    - Value: 3
+      DisplayLabel: "\uD53C\uACA9 \uC2DC \uD6C4\uD1F4 \uD6C4 \uC7AC\uACF5\uACA9"

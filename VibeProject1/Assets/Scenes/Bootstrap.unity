@@ -210,6 +210,7 @@ Transform:
   - {fileID: 1640227777}
   - {fileID: 1639453059}
   - {fileID: 1891997715}
+  - {fileID: 978547923}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &900000002
@@ -279,6 +280,7 @@ MonoBehaviour:
   - {fileID: 900002003}
   - {fileID: 1366398}
   - {fileID: 1427553652}
+  - {fileID: 978547924}
   - {fileID: 1640227778}
 --- !u!1 &900002000
 GameObject:
@@ -412,6 +414,7 @@ GameObject:
   - component: {fileID: 900004006}
   - component: {fileID: 900004008}
   - component: {fileID: 900004007}
+  - component: {fileID: 900004009}
   m_Layer: 0
   m_Name: UIManager
   m_TagString: Untagged
@@ -525,6 +528,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 48f9d1e65c584bb4d8679a00ec52f837, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.HubUIWiring
+--- !u!114 &900004009
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900004000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 800474fac7654bc42b1253b016564127, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.TacticsPanel
+  catalog: {fileID: 11400000, guid: eb531f6fe3807c54184d71b8d33ad7b8, type: 2}
 --- !u!1 &900005000
 GameObject:
   m_ObjectHideFlags: 0
@@ -583,6 +599,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8772e347f28d7b4596673e82d709c14, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.LiveBattleSimulationRule
+  roleGroupMap: {fileID: 11400000, guid: db49a353399787a4c8fec75add67f161, type: 2}
 --- !u!114 &900005005
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -684,6 +701,51 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   checkIntervalSeconds: 5
+--- !u!1 &978547922
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 978547923}
+  - component: {fileID: 978547924}
+  m_Layer: 0
+  m_Name: InMemoryTacticsRepository
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &978547923
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 978547922}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900000001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &978547924
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 978547922}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 892b447b3bdfb7d409598897413d7f60, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.InMemoryTacticsRepository
+  catalog: {fileID: 11400000, guid: eb531f6fe3807c54184d71b8d33ad7b8, type: 2}
 --- !u!1 &1213019814
 GameObject:
   m_ObjectHideFlags: 0

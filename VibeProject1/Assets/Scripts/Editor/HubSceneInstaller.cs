@@ -63,6 +63,7 @@ namespace Game.Core.Editor
 
             BuildFormationUI(contentRoot);
             BuildTripUI(contentRoot);
+            BuildTacticsUI(contentRoot);
 
             EditorSceneManager.MarkSceneDirty(activeScene);
             Debug.Log("Hub Scene UI 생성/동기화 완료. 씬을 저장(Ctrl+S)해야 변경사항이 파일에 반영된다. "
@@ -74,6 +75,22 @@ namespace Game.Core.Editor
         // ==================== 배치(Formation) UI ====================
         // 실제 조립 로직은 FormationUIBuilder(Hub/Field 공용)에 있다 - Field 씬에서도 "정비창 재호출"이
         // 동작하려면 같은 화면이 필요해서 공용화되어 있다(FieldUIInstaller 참고).
+        // Hub.FormationButton 바로 위(간격 0.02, 동일 크기)에 둔다 - 실제 좌표는 Hub.unity에서 실측한
+        // 값으로 계산됐다(Docs/설계/11번 §4.1). 이 버튼은 예전부터 씬에 있던 게 아니라 이번에 새로
+        // 생기는 것이라, DepartureButton/FormationButton과 달리 처음부터 ContentRoot 안에 직접 만든다
+        // (사후 재배치로 인한 중복 생성 버그를 피하기 위함 - BuildHubScene 요약 주석 참고).
+        private static void BuildTacticsUI(Transform contentRoot)
+        {
+            var go = EditorUIBuilder.GetOrCreateUIObject(contentRoot, "TacticsButton");
+            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(0.1052f, 0.5493f), new Vector2(0.2406f, 0.6648f));
+            EditorUIBuilder.EnsureImage(go, new Color(0.85f, 0.75f, 0.95f, 1f));
+            EditorUIBuilder.EnsureButton(go);
+            EditorUIBuilder.EnsureLabel(go.transform, "방향성 지시");
+            EditorUIBuilder.EnsureMarker(go, HubUIElementIds.TacticsButton);
+
+            TacticsUIBuilder.Build(contentRoot);
+        }
+
         private static void BuildFormationUI(Transform contentRoot)
         {
             FormationUIBuilder.EnsurePrefabFolder();

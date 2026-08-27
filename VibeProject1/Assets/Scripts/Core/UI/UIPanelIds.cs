@@ -7,5 +7,6 @@ namespace Game.Core
     {
         public const string Formation = "Formation";
         public const string Trip = "Trip";
+        public const string Tactics = "Tactics";
     }
 }
