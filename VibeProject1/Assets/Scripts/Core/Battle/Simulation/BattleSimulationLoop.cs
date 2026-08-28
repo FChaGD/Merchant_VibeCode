@@ -12,6 +12,14 @@ namespace Game.Core
         private readonly List<IBattleCombatant> allies;
         private readonly List<IBattleCombatant> enemies;
         private readonly List<IDamageable> protectedUnits;
+        // 방진 형성 조율자(Docs/설계/12번 §12.2) - PartyMorale과 같은 자리, 전투마다 새로 만들어진다.
+        // null 가능성 없음 - tacticsReader가 없어 방향성 지시가 전부 비활성화된 전투에서도 코디네이터
+        // 자체는 만들어지지만, Blocking 전열 후보가 하나도 없어(모든 RoleGroup이 null) Update가
+        // 아무 것도 하지 않는 것으로 자연히 무해해진다(BattleCharacterUnit의 tacticsBehaviors=null
+        // 폴백 패턴과 같은 방향).
+        private readonly FrontlineFormationCoordinator frontlineCoordinator;
+        // 포위(Surround) 조율자(Docs/설계/12번 §13.3) - frontlineCoordinator와 같은 자리·같은 이유.
+        private readonly RangedSurroundCoordinator rangedSurroundCoordinator;
         private int aliveAllyCount;
         private int aliveEnemyCount;
         private int aliveProtectedCount;
@@ -23,11 +31,13 @@ namespace Game.Core
 
         public BattleSimulationLoop(
             List<IBattleCombatant> allies, List<IBattleCombatant> enemies, List<IDamageable> protectedUnits,
-            float fieldRadius)
+            float fieldRadius, FrontlineFormationCoordinator frontlineCoordinator, RangedSurroundCoordinator rangedSurroundCoordinator)
         {
             this.allies = allies;
             this.enemies = enemies;
             this.protectedUnits = protectedUnits;
+            this.frontlineCoordinator = frontlineCoordinator;
+            this.rangedSurroundCoordinator = rangedSurroundCoordinator;
             FieldRadius = fieldRadius;
             aliveAllyCount = allies.Count;
             aliveEnemyCount = enemies.Count;
@@ -51,6 +61,12 @@ namespace Game.Core
 
         public void Tick(float deltaTime)
         {
+            // 방진선 재편성은 각 유닛 Tick 전에 실행돼야 한다(Docs/설계/12번 §12.2/§12.4) - 이번 틱
+            // BlockingPositioningStrategy가 참조할 슬롯 위치를 유닛이 움직이기 전에 먼저 확정해둔다.
+            frontlineCoordinator.Update(deltaTime, allies, protectedUnits);
+            // 포위(Surround) 재편성도 같은 이유로 유닛 Tick 전에 실행(Docs/설계/12번 §13.3).
+            rangedSurroundCoordinator.Update(allies);
+
             // 적의 타겟 후보 = 아군 전투원 + 보호 목표. protectedUnits를 빼먹으면 적이 Wagon/Facility를
             // 절대 공격하지 않아 "보호 목표 파괴 = 패배"(기획 §9)가 죽은 코드가 된다 - 아군에게는
             // 보호할 대상이 있지만 적에게는 없으므로(캐러밴만 Wagon/Facility를 가진다) 이 목록은

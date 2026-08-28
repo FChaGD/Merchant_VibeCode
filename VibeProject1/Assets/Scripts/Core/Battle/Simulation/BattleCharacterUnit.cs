@@ -40,6 +40,14 @@ namespace Game.Core
         // 방진 형성 로직(Docs/기획/12번 §3.2)이 "인식한 적이 보호대상을 타겟팅 중인지" 판정해야 해서
         // 노출 - 타겟이 없으면 null.
         public IDamageable CurrentTarget => target;
+        // 방진 형성 로직(Docs/설계/12번 §12.3)이 보호대상 후보군 판정에 써야 해서 노출 - 방향성
+        // 지시 미적용 유닛(적)은 tacticsBehaviors가 null이라 자연히 null(N/A)이 된다.
+        public RoleGroup? RoleGroup => tacticsBehaviors?.RoleGroup;
+        // 방진 형성 로직(Docs/설계/12번 §12.4)이 "Blocking 전열 유닛"을 식별해야 해서 노출.
+        public LocalPositioning? Positioning => tacticsBehaviors?.Positioning;
+        // 방진 형성 로직(Docs/설계/12번 §12.4)이 코디네이터 Update 시점(이 유닛의 이번 틱 Tick 전)에
+        // 읽어야 해서 노출 - TickAndGetRecognized를 또 호출하지 않도록 스냅샷만 전달한다.
+        public IReadOnlyCollection<IDamageable> RecognizedEnemies => tacticsBehaviors?.RecognitionTracker.RecognizedSnapshot ?? Array.Empty<IDamageable>();
         // Character는 아직 직업별 팔레트 아이콘(사각형/오각형/육각형)을 전투 뷰에 재사용하지 않는다
         // (이번 요청 범위 밖 - 마차/시설만 재사용). 뷰는 null이면 기존 단색 도형으로 대체한다.
         public Sprite Icon => null;
@@ -107,7 +115,7 @@ namespace Game.Core
 
             if (tacticsBehaviors != null)
             {
-                TickEngageWithTactics(deltaTime, targets);
+                TickEngageWithTactics(deltaTime, targets, sameSideUnits);
             }
             else
             {
@@ -140,7 +148,7 @@ namespace Game.Core
         // 방향성 지시가 적용되는 아군 동작. 스티키 타겟팅은 그대로 유지한다 - 타겟이 죽었거나
         // IPursuitPolicy가 이탈을 트리거했을 때만 재선택한다(매 틱 재선택하지 않음, Docs/설계/12번
         // §7 점검 이력 - 최적화).
-        private void TickEngageWithTactics(float deltaTime, IReadOnlyList<IDamageable> allEnemies)
+        private void TickEngageWithTactics(float deltaTime, IReadOnlyList<IDamageable> allEnemies, IReadOnlyList<IBattleCombatant> sameSideUnits)
         {
             var recognized = tacticsBehaviors.RecognitionTracker.TickAndGetRecognized(deltaTime, allEnemies, tacticsBehaviors.RadiusZone);
 
@@ -152,7 +160,7 @@ namespace Game.Core
 
             var isOutsideRadius = !tacticsBehaviors.RadiusZone.Contains(Position);
             var justLandedHit = TryAttack(deltaTime, target);
-            MoveTowardTacticalDestination(deltaTime, target);
+            MoveTowardTacticalDestination(deltaTime, target, sameSideUnits);
 
             if (tacticsBehaviors.PursuitPolicy.ShouldDisengage(deltaTime, isOutsideRadius, justLandedHit))
             {
@@ -181,12 +189,12 @@ namespace Game.Core
         // 같은 유닛에 함께 선택될 수 있어, 이 우선순위로 모순을 해소한다(Docs/설계/12번 §4). 최종
         // 목적지는 HoldPosition 전용 clamp(활동 반경) → 전장 경계 clamp(프리셋 무관, §2.2-1) 순으로
         // 한 번씩 더 거친다.
-        private void MoveTowardTacticalDestination(float deltaTime, IDamageable currentTarget)
+        private void MoveTowardTacticalDestination(float deltaTime, IDamageable currentTarget, IReadOnlyList<IBattleCombatant> sameSideUnits)
         {
             var desiredDestination = tacticsBehaviors.SelfPreservationModifier.TryGetOverrideMovement(
                 deltaTime, Position, currentTarget, stats.Range, out var overrideDestination)
                 ? overrideDestination
-                : tacticsBehaviors.PositioningStrategy.ComputeMoveTarget(Position, currentTarget, stats.Range, tacticsBehaviors.HomePosition);
+                : tacticsBehaviors.PositioningStrategy.ComputeMoveTarget(this, Position, currentTarget, stats.Range, tacticsBehaviors.HomePosition, sameSideUnits);
 
             var clampedDestination = tacticsBehaviors.PursuitPolicy.ClampDestination(desiredDestination, tacticsBehaviors.RadiusZone);
             // 전장 경계 하드 캡(Docs/기획/12번 §2.2-1) - 추적 프리셋이 무엇이든 상관없이 항상 적용된다.

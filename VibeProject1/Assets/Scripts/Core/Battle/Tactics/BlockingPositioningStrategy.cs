@@ -1,20 +1,33 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Game.Core
 {
     /// <summary>
-    /// LocalPositioning.Blocking(전열) - 유닛 각자의 배치 슬롯(homePosition)과 타겟 사이, 사거리만큼
-    /// 못 미친 지점을 목적지로 삼는다(Docs/기획/12번 §3.2). 유닛마다 homePosition이 달라 목적지도
-    /// 각자 다른 지점이 되고, 그 결과 타겟을 둘러싼 저지선이 형성된다 - selfPosition을 기준으로 삼으면
-    /// 매 프레임 목적지가 흔들리므로, 전투 내내 고정인 homePosition을 기준점으로 쓴다.
+    /// LocalPositioning.Blocking(전열) - 유닛 개별 계산을 폐기하고, FrontlineFormationCoordinator가
+    /// 전열 전체를 그룹으로 묶어 매 틱 재편성한 슬롯을 그대로 반환한다(Docs/설계/12번 §12, §12.12
+    /// 7단계). 코디네이터가 알아서 이동/정지/당겨오기까지 판단해 슬롯 좌표를 확정해두므로, 이 전략은
+    /// "내 슬롯이 뭔지 물어보고 그대로 반환"하는 것 말고 할 일이 없다.
     /// </summary>
     public class BlockingPositioningStrategy : IPositioningStrategy
     {
-        public Vector2 ComputeMoveTarget(Vector2 selfPosition, IDamageable target, float range, Vector2 homePosition)
+        private readonly FrontlineFormationCoordinator coordinator;
+
+        public BlockingPositioningStrategy(FrontlineFormationCoordinator coordinator)
         {
-            var toTarget = target.Position - homePosition;
-            var direction = toTarget.sqrMagnitude > 0.0001f ? toTarget.normalized : Vector2.zero;
-            return target.Position - direction * range;
+            this.coordinator = coordinator;
+        }
+
+        public Vector2 ComputeMoveTarget(IBattleCombatant self, Vector2 selfPosition, IDamageable target, float range, Vector2 homePosition, IReadOnlyList<IBattleCombatant> sameSideUnits)
+        {
+            foreach (var line in coordinator.ActiveLines)
+            {
+                if (line.TryGetSlotPosition(self, out var slotPosition)) return slotPosition;
+            }
+
+            // 대기(Docs/설계/12번 §12.11) - 아직 어느 라인에도 합류하지 못한 상태. 이번 틱엔 이동
+            // 없음(selfPosition 그대로) - 다음 틱 미배정 풀 처리가 합류 가능해지는 순간 자동 편입된다.
+            return selfPosition;
         }
     }
 }

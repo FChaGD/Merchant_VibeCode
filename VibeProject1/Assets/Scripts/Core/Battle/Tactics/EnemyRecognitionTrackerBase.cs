@@ -48,6 +48,8 @@ namespace Game.Core
             recognized.Add(attacker);
         }
 
+        public IReadOnlyCollection<IDamageable> RecognizedSnapshot => recognized;
+
         protected abstract bool ShouldRecognize(IDamageable enemy, float elapsedSeconds, IActivityRadiusZone radiusZone);
     }
 }

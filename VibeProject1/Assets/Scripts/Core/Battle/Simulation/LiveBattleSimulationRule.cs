@@ -103,17 +103,29 @@ namespace Game.Core
                 : null;
             var standardActivityRadius = FieldGeometry.ComputeStandardActivityRadius(columnCount);
             var fieldRadius = FieldGeometry.ComputeFieldRadius(columnCount);
+            // tacticsReader가 없으면 방향성 지시 자체가 비활성화되므로 파티 추적 설정을 읽을 수 없다 -
+            // 이때는 어차피 Blocking 전열 후보가 하나도 없어(모든 RoleGroup이 null) 어떤 프리셋을
+            // 넘기든 무해하다(기본값 OffensiveJudgment로 대체). BuildAllies보다 먼저 만들어야
+            // BlockingPositioningStrategy(Docs/설계/12번 §12.12 7단계)에 주입할 수 있다.
+            var partyPursuitPreset = tacticsReader?.GetPartySettings().Pursuit ?? PursuitPreset.OffensiveJudgment;
+            var frontlineCoordinator = new FrontlineFormationCoordinator(standardActivityRadius, partyPursuitPreset);
+            // 포위(Surround) 조율자(Docs/설계/12번 §13.3) - frontlineCoordinator와 같은 이유로
+            // BuildAllies보다 먼저 생성해야 SurroundPositioningStrategy에 주입할 수 있다.
+            var rangedSurroundCoordinator = new RangedSurroundCoordinator();
 
-            var allies = hasLayout ? BuildAllies(layout, spawnCenter, allyMorale, fleeTravelDistance, tacticsProfileResolver, standardActivityRadius, fieldRadius) : new List<IBattleCombatant>();
+            var allies = hasLayout
+                ? BuildAllies(layout, spawnCenter, allyMorale, fleeTravelDistance, tacticsProfileResolver, standardActivityRadius, fieldRadius, frontlineCoordinator, rangedSurroundCoordinator)
+                : new List<IBattleCombatant>();
             var enemies = BuildEnemies(spawnCenter, enemyMorale, fleeTravelDistance);
             var protectedUnits = hasLayout ? BuildProtectedUnits(layout) : new List<IDamageable>();
 
-            return new BattleSimulationLoop(allies, enemies, protectedUnits, fieldRadius);
+            return new BattleSimulationLoop(allies, enemies, protectedUnits, fieldRadius, frontlineCoordinator, rangedSurroundCoordinator);
         }
 
         private List<IBattleCombatant> BuildAllies(
             FormationLayout layout, Vector2 spawnCenter, PartyMorale allyMorale, float fleeTravelDistance,
-            IUnitTacticsProfileResolver tacticsProfileResolver, float standardActivityRadius, float fieldRadius)
+            IUnitTacticsProfileResolver tacticsProfileResolver, float standardActivityRadius, float fieldRadius,
+            FrontlineFormationCoordinator frontlineCoordinator, RangedSurroundCoordinator rangedSurroundCoordinator)
         {
             var allies = new List<IBattleCombatant>();
 
@@ -141,7 +153,7 @@ namespace Game.Core
                 if (tacticsProfileResolver != null)
                 {
                     var profile = tacticsProfileResolver.Resolve(mercenaryClass, position);
-                    tacticsBehaviors = UnitTacticsBehaviorsFactory.Build(profile, standardActivityRadius, fieldRadius, spatialQuery);
+                    tacticsBehaviors = UnitTacticsBehaviorsFactory.Build(profile, standardActivityRadius, fieldRadius, spatialQuery, frontlineCoordinator, rangedSurroundCoordinator);
                 }
 
                 allies.Add(new BattleCharacterUnit(position, isAlly: true, stats, damageFormula, allyMorale, spatialQuery, fleeTravelDistance, tacticsBehaviors));

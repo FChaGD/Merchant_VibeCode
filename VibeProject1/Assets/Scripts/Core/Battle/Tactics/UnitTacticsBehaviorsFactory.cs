@@ -7,12 +7,14 @@ namespace Game.Core
     /// </summary>
     public static class UnitTacticsBehaviorsFactory
     {
-        public static UnitTacticsBehaviors Build(UnitTacticsProfile profile, float standardActivityRadius, float fieldRadius, IUnitSpatialQuery spatialQuery)
+        public static UnitTacticsBehaviors Build(
+            UnitTacticsProfile profile, float standardActivityRadius, float fieldRadius, IUnitSpatialQuery spatialQuery,
+            FrontlineFormationCoordinator frontlineCoordinator, RangedSurroundCoordinator rangedSurroundCoordinator)
         {
             var radiusZone = ActivityRadiusZoneFactory.Create(profile.RadiusPreset, profile.HomePosition, standardActivityRadius);
             var recognitionTracker = EnemyRecognitionTrackerFactory.Create(profile.RecognitionType);
             var targetSelector = TargetSelectorFactory.Create(profile.TargetPriority, spatialQuery);
-            var positioningStrategy = PositioningStrategyFactory.Create(profile.Positioning);
+            var positioningStrategy = PositioningStrategyFactory.Create(profile.Positioning, frontlineCoordinator, rangedSurroundCoordinator, spatialQuery);
             var selfPreservationModifier = SelfPreservationModifierFactory.Create(profile.SelfPreservation);
             var pursuitPolicy = PursuitPolicyFactory.Create(profile.Pursuit);
             // 전장 경계 - 추적 프리셋과 무관하게 항상 적용되는 이동 하드 캡(Docs/기획/12번 §2.2-1,
@@ -24,7 +26,7 @@ namespace Game.Core
 
             return new UnitTacticsBehaviors(
                 radiusZone, recognitionTracker, targetSelector, positioningStrategy, selfPreservationModifier, pursuitPolicy,
-                profile.HomePosition, fieldBoundaryZone);
+                profile.HomePosition, fieldBoundaryZone, profile.RoleGroup, profile.Positioning);
         }
     }
 }

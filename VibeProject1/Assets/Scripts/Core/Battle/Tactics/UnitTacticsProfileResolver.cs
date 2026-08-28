@@ -25,22 +25,23 @@ namespace Game.Core
         public UnitTacticsProfile Resolve(MercenaryClass mercenaryClass, Vector2 homePosition)
         {
             var party = tacticsReader.GetPartySettings();
-            var roleGroupOverride = ResolveRoleGroupOverride(mercenaryClass);
+            var roleGroupOverride = ResolveRoleGroupOverride(mercenaryClass, out var roleGroup);
 
             return new UnitTacticsProfile(
                 party.RecognitionType, party.RadiusPreset, party.Pursuit,
                 roleGroupOverride.TargetPriority, roleGroupOverride.Positioning, roleGroupOverride.SelfPreservation,
-                homePosition);
+                homePosition, roleGroup);
         }
 
-        private RoleGroupTacticsOverride ResolveRoleGroupOverride(MercenaryClass mercenaryClass)
+        private RoleGroupTacticsOverride ResolveRoleGroupOverride(MercenaryClass mercenaryClass, out RoleGroup roleGroup)
         {
-            if (roleGroupMap != null && roleGroupMap.TryGetRoleGroup(mercenaryClass, out var roleGroup))
+            if (roleGroupMap != null && roleGroupMap.TryGetRoleGroup(mercenaryClass, out roleGroup))
             {
                 return tacticsReader.GetRoleGroupOverride(roleGroup);
             }
 
             Debug.LogWarning($"{nameof(UnitTacticsProfileResolver)}: 직업 '{mercenaryClass}'에 매핑된 역할군을 찾을 수 없어 '{RoleGroup.Frontline}' 카탈로그 기본값으로 대체한다.");
+            roleGroup = RoleGroup.Frontline;
             return tacticsReader.GetRoleGroupOverride(RoleGroup.Frontline);
         }
     }

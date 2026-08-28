@@ -11,5 +11,10 @@ namespace Game.Core
     {
         IReadOnlyList<IDamageable> TickAndGetRecognized(float deltaTime, IReadOnlyList<IDamageable> allEnemies, IActivityRadiusZone radiusZone);
         void NotifyAttackedBy(IBattleCombatant attacker);
+        // 방진 형성 로직(Docs/설계/12번 §12.4)이 각 유닛 Tick 이전(코디네이터 Update 시점)에
+        // "지금까지 인식된 적 전체"를 읽어야 해서 추가 - TickAndGetRecognized를 또 호출하면 인식
+        // 타이머가 이번 틱에 두 번 흘러버린다. 이 프로퍼티는 상태를 갱신하지 않고 현재 집합만
+        // 읽는다(죽은 적 필터링은 호출자 책임 - allEnemies 기준 필터링은 TickAndGetRecognized만 한다).
+        IReadOnlyCollection<IDamageable> RecognizedSnapshot { get; }
     }
 }

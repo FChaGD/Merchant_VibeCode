@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Game.Core
@@ -10,7 +11,7 @@ namespace Game.Core
     /// </summary>
     public class ChargePositioningStrategy : IPositioningStrategy
     {
-        public Vector2 ComputeMoveTarget(Vector2 selfPosition, IDamageable target, float range, Vector2 homePosition)
+        public Vector2 ComputeMoveTarget(IBattleCombatant self, Vector2 selfPosition, IDamageable target, float range, Vector2 homePosition, IReadOnlyList<IBattleCombatant> sameSideUnits)
         {
             var distance = (target.Position - selfPosition).magnitude;
             return distance > range ? target.Position : selfPosition;

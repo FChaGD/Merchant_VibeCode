@@ -43,9 +43,11 @@ MonoBehaviour:
       DisplayLabel: "\uAC00\uC7A5 \uC801\uC740 \uCCB4\uB825 \uC6B0\uC120"
     PositioningOptions:
     - Value: 2
-      DisplayLabel: "\uCD5C\uB300 \uC0AC\uAC70\uB9AC \uC720\uC9C0"
-    - Value: 3
       DisplayLabel: "\uC790\uB9AC \uC0AC\uC218"
+    - Value: 3
+      DisplayLabel: "\uD3EC\uC704 \uACF5\uACA9"
+    - Value: 4
+      DisplayLabel: "\uC0B0\uAC1C \uACF5\uACA9"
     SelfPreservationOptions:
     - Value: 2
       DisplayLabel: "\uC801 \uC811\uADFC \uC2DC \uAC70\uB9AC \uC720\uC9C0 \uD6C4
