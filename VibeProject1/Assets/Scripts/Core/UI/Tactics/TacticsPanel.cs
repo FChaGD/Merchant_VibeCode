@@ -30,9 +30,9 @@ namespace Game.Core
 
         private static readonly (ActivityRadiusPreset Value, string Label)[] RadiusOptions =
         {
-            (ActivityRadiusPreset.Fixed, "고정(4m)"),
-            (ActivityRadiusPreset.Standard, "표준"),
-            (ActivityRadiusPreset.Wide, "광역"),
+            (ActivityRadiusPreset.FormationHold, "대열 유지(4m)"),
+            (ActivityRadiusPreset.TripWide, "상행 전체"),
+            (ActivityRadiusPreset.FieldWide, "전장 전체"),
         };
 
         private static readonly (PursuitPreset Value, string Label)[] PursuitOptions =

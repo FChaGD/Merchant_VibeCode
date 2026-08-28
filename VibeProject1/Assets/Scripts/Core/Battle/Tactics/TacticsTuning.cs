@@ -7,9 +7,9 @@ namespace Game.Core
     /// </summary>
     public static class TacticsTuning
     {
-        // ActivityRadiusPreset.Fixed - 배치 슬롯 위치 기준 반경.
+        // ActivityRadiusPreset.FormationHold(대열 유지) - 배치 슬롯 위치 기준 반경.
         public const float FixedRadiusMeters = 4f;
-        // ActivityRadiusPreset.Standard - 대형 반지름(FormationExtentRadius)에 더하는 마진.
+        // ActivityRadiusPreset.TripWide(상행 전체) - 대형 반지름(FormationExtentRadius)에 더하는 마진.
         public const float StandardRadiusMarginMeters = 5f;
         // PursuitPreset.OffensiveJudgment - 반경 밖에서 미명중 누적 시 복귀 트리거 시간.
         public const float OffensiveJudgmentTimeoutSeconds = 5f;

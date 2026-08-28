@@ -102,18 +102,18 @@ namespace Game.Core
                 ? new UnitTacticsProfileResolver(tacticsReader, roleGroupMap)
                 : null;
             var standardActivityRadius = FieldGeometry.ComputeStandardActivityRadius(columnCount);
+            var fieldRadius = FieldGeometry.ComputeFieldRadius(columnCount);
 
-            var allies = hasLayout ? BuildAllies(layout, spawnCenter, allyMorale, fleeTravelDistance, tacticsProfileResolver, standardActivityRadius) : new List<IBattleCombatant>();
+            var allies = hasLayout ? BuildAllies(layout, spawnCenter, allyMorale, fleeTravelDistance, tacticsProfileResolver, standardActivityRadius, fieldRadius) : new List<IBattleCombatant>();
             var enemies = BuildEnemies(spawnCenter, enemyMorale, fleeTravelDistance);
             var protectedUnits = hasLayout ? BuildProtectedUnits(layout) : new List<IDamageable>();
-            var fieldRadius = FieldGeometry.ComputeFieldRadius(columnCount);
 
             return new BattleSimulationLoop(allies, enemies, protectedUnits, fieldRadius);
         }
 
         private List<IBattleCombatant> BuildAllies(
             FormationLayout layout, Vector2 spawnCenter, PartyMorale allyMorale, float fleeTravelDistance,
-            IUnitTacticsProfileResolver tacticsProfileResolver, float standardActivityRadius)
+            IUnitTacticsProfileResolver tacticsProfileResolver, float standardActivityRadius, float fieldRadius)
         {
             var allies = new List<IBattleCombatant>();
 
@@ -141,7 +141,7 @@ namespace Game.Core
                 if (tacticsProfileResolver != null)
                 {
                     var profile = tacticsProfileResolver.Resolve(mercenaryClass, position);
-                    tacticsBehaviors = UnitTacticsBehaviorsFactory.Build(profile, standardActivityRadius, spatialQuery);
+                    tacticsBehaviors = UnitTacticsBehaviorsFactory.Build(profile, standardActivityRadius, fieldRadius, spatialQuery);
                 }
 
                 allies.Add(new BattleCharacterUnit(position, isAlly: true, stats, damageFormula, allyMorale, spatialQuery, fleeTravelDistance, tacticsBehaviors));

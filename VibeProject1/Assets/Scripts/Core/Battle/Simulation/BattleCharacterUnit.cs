@@ -34,8 +34,12 @@ namespace Game.Core
         public Vector2 FleeVelocity => fleeDirection * stats.MoveSpeed;
         public float Defense => stats.Defense;
         public float Attack => stats.Attack;
+        public float Range => stats.Range;
         public float MaxHp => stats.MaxHp;
         public float CurrentHp => currentHp;
+        // 방진 형성 로직(Docs/기획/12번 §3.2)이 "인식한 적이 보호대상을 타겟팅 중인지" 판정해야 해서
+        // 노출 - 타겟이 없으면 null.
+        public IDamageable CurrentTarget => target;
         // Character는 아직 직업별 팔레트 아이콘(사각형/오각형/육각형)을 전투 뷰에 재사용하지 않는다
         // (이번 요청 범위 밖 - 마차/시설만 재사용). 뷰는 null이면 기존 단색 도형으로 대체한다.
         public Sprite Icon => null;
@@ -175,7 +179,8 @@ namespace Game.Core
 
         // 자기보호가 발동 중이면 포지셔닝을 덮어쓴다 - Kiting과 Stationary처럼 서로 반대되는 값이
         // 같은 유닛에 함께 선택될 수 있어, 이 우선순위로 모순을 해소한다(Docs/설계/12번 §4). 최종
-        // 목적지는 HoldPosition 전용 clamp를 한 번 더 거친다.
+        // 목적지는 HoldPosition 전용 clamp(활동 반경) → 전장 경계 clamp(프리셋 무관, §2.2-1) 순으로
+        // 한 번씩 더 거친다.
         private void MoveTowardTacticalDestination(float deltaTime, IDamageable currentTarget)
         {
             var desiredDestination = tacticsBehaviors.SelfPreservationModifier.TryGetOverrideMovement(
@@ -184,6 +189,9 @@ namespace Game.Core
                 : tacticsBehaviors.PositioningStrategy.ComputeMoveTarget(Position, currentTarget, stats.Range, tacticsBehaviors.HomePosition);
 
             var clampedDestination = tacticsBehaviors.PursuitPolicy.ClampDestination(desiredDestination, tacticsBehaviors.RadiusZone);
+            // 전장 경계 하드 캡(Docs/기획/12번 §2.2-1) - 추적 프리셋이 무엇이든 상관없이 항상 적용된다.
+            // 카메라가 못 가는 곳은 캐릭터도 스스로 못 간다는 원칙(사기 도주 TickFlee는 별도 경로라 예외).
+            clampedDestination = tacticsBehaviors.FieldBoundaryZone.ClampToZone(clampedDestination);
             MoveToward(clampedDestination, deltaTime);
         }
 

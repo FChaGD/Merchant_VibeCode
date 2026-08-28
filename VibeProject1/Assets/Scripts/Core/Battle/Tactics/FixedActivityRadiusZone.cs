@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace Game.Core
 {
-    /// <summary>ActivityRadiusPreset.Fixed - 유닛 각자의 배치 슬롯 위치 기준 반경(Docs/기획/12번 §2.2).</summary>
+    /// <summary>ActivityRadiusPreset.FormationHold(대열 유지) - 유닛 각자의 배치 슬롯 위치 기준 반경(Docs/기획/12번 §2.2).</summary>
     public class FixedActivityRadiusZone : IActivityRadiusZone
     {
         private readonly Vector2 homePosition;

@@ -20,6 +20,11 @@ namespace Game.Core
         // 방향성 지시 타겟 선택자(HighestAttack)가 필요로 해서 추가 - 기존엔 BattleCharacterUnit
         // 내부에서만 쓰이던 값이었다(Docs/설계/12번 §5.5).
         float Attack { get; }
+        // 방진 형성 로직(Docs/기획/12번 §3.2)이 "인식한 적의 최대 사거리"를 계산해야 해서 추가 -
+        // Attack과 같은 이유로 IDamageable에 둔다(인식 목록이 IReadOnlyList&lt;IDamageable&gt;이라
+        // IBattleCombatant로 캐스팅하지 않고 바로 읽을 수 있어야 함). 이동/공격하지 않는 보호 대상은
+        // Attack과 같은 방식으로 0(N/A)을 반환한다.
+        float Range { get; }
         // 정비창 팔레트가 이미 쓰고 있는 실제 아이콘을 뷰가 재사용할 수 있도록 하는 힌트 - MaxHp와
         // 같은 성격(뷰 전용 힌트). null이면 뷰가 자체 Placeholder 색상으로 대체한다.
         Sprite Icon { get; }

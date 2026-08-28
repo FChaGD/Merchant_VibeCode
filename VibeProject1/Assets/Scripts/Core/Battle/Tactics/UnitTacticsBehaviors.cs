@@ -17,11 +17,14 @@ namespace Game.Core
         public ISelfPreservationModifier SelfPreservationModifier { get; }
         public IPursuitPolicy PursuitPolicy { get; }
         public Vector2 HomePosition { get; }
+        // 추적 프리셋(PursuitPolicy)과 무관하게 항상 적용되는 이동 하드 캡(Docs/기획/12번 §2.2-1) -
+        // RadiusZone(활동 반경 프리셋별)과 별개로, 전장 경계 자체를 나타낸다.
+        public IActivityRadiusZone FieldBoundaryZone { get; }
 
         public UnitTacticsBehaviors(
             IActivityRadiusZone radiusZone, IEnemyRecognitionTracker recognitionTracker, ITargetSelector targetSelector,
             IPositioningStrategy positioningStrategy, ISelfPreservationModifier selfPreservationModifier, IPursuitPolicy pursuitPolicy,
-            Vector2 homePosition)
+            Vector2 homePosition, IActivityRadiusZone fieldBoundaryZone)
         {
             RadiusZone = radiusZone;
             RecognitionTracker = recognitionTracker;
@@ -30,6 +33,7 @@ namespace Game.Core
             SelfPreservationModifier = selfPreservationModifier;
             PursuitPolicy = pursuitPolicy;
             HomePosition = homePosition;
+            FieldBoundaryZone = fieldBoundaryZone;
         }
     }
 }

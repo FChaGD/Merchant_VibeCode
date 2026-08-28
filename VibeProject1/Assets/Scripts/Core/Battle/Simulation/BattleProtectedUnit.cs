@@ -15,6 +15,7 @@ namespace Game.Core
         public bool IsAlive => currentHp > 0f;
         public float Defense => 0f; // 기획 §4: 방어력 해당 없음(N/A)
         public float Attack => 0f; // 공격력 해당 없음(N/A) - 이동/공격하지 않는 대상.
+        public float Range => 0f; // 사거리 해당 없음(N/A) - Attack과 같은 이유.
         public float MaxHp { get; }
         public float CurrentHp => currentHp;
         // 정비창 팔레트에서 이미 쓰던 아이콘(마차=삼각형/시설=원형)을 그대로 - 뷰가 별도 도형을

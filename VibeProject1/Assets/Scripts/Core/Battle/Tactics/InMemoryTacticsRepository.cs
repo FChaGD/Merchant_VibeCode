@@ -15,7 +15,7 @@ namespace Game.Core
         [SerializeField] private RoleGroupTacticsCatalogAsset catalog;
 
         private static readonly PartyTacticsSettings DefaultPartySettings = new(
-            EnemyRecognitionType.OneSecondDelay, ActivityRadiusPreset.Standard, PursuitPreset.OffensiveJudgment);
+            EnemyRecognitionType.OneSecondDelay, ActivityRadiusPreset.TripWide, PursuitPreset.OffensiveJudgment);
 
         private PartyTacticsSettings? partySettings;
         private readonly Dictionary<RoleGroup, RoleGroupTacticsOverride> roleGroupOverrides = new();

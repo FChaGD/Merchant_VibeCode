@@ -13,9 +13,9 @@ namespace Game.Core
         {
             return preset switch
             {
-                ActivityRadiusPreset.Fixed => new FixedActivityRadiusZone(homePosition),
-                ActivityRadiusPreset.Standard => new StandardActivityRadiusZone(standardRadius),
-                ActivityRadiusPreset.Wide => new WideActivityRadiusZone(),
+                ActivityRadiusPreset.FormationHold => new FixedActivityRadiusZone(homePosition),
+                ActivityRadiusPreset.TripWide => new StandardActivityRadiusZone(standardRadius),
+                ActivityRadiusPreset.FieldWide => new WideActivityRadiusZone(),
                 _ => throw new ArgumentOutOfRangeException(nameof(preset), preset, null),
             };
         }
