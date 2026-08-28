@@ -88,6 +88,24 @@ namespace Game.Core.Editor
             EditorUIBuilder.EnsureLabel(go.transform, "방향성 지시");
             EditorUIBuilder.EnsureMarker(go, HubUIElementIds.TacticsButton);
 
+            // 상시 노출 버튼은 배치/상행준비 모달 패널보다 항상 앞쪽 형제여야 한다 - 늦은 형제일수록
+            // 위에 그려지는 Unity UI 특성상, 이 버튼이 모달들보다 뒤에 있으면(이 메서드가 배치/상행준비
+            // 빌드 다음에 실행되어 실제로 그랬었다) 모달이 열려 있어도 이 버튼이 그 위로 떠 보인다 -
+            // 재실행해도 안전하도록 매번 강제한다(FieldUIInstaller.BuildBackground의
+            // SetAsFirstSibling과 같은 패턴).
+            var siblingLimit = contentRoot.childCount;
+            var formationPanelSibling = contentRoot.Find("FormationPanel");
+            if (formationPanelSibling != null)
+            {
+                siblingLimit = Mathf.Min(siblingLimit, formationPanelSibling.GetSiblingIndex());
+            }
+            var tripPanelSibling = contentRoot.Find("TripPanel");
+            if (tripPanelSibling != null)
+            {
+                siblingLimit = Mathf.Min(siblingLimit, tripPanelSibling.GetSiblingIndex());
+            }
+            go.transform.SetSiblingIndex(siblingLimit);
+
             TacticsUIBuilder.Build(contentRoot);
         }
 

@@ -178,14 +178,49 @@ namespace Game.Core.Editor
             dropdown.itemText = go.transform.Find("Template/Viewport/Content/Item/Item Label").GetComponent<TextMeshProUGUI>();
             dropdown.options.Clear();
 
-            // TMP_DefaultControls의 기본 글자 크기(14)는 이 UI 스케일에서 너무 작아 보이므로
-            // 원래 설계값(라벨 16 / 항목 15, 세로 중앙 정렬)으로 덮어쓴다.
-            dropdown.captionText.fontSize = 16f;
+            // 고정 폰트 크기(과거 16/15)는 UI 스케일이 바뀔 때마다 값을 다시 잡아줘야 해서, 라벨/항목
+            // 텍스트칸 크기에 맞춰 자동으로 커지는 Auto Size(TMP enableAutoSizing)로 바꿨다.
+            dropdown.captionText.enableAutoSizing = true;
+            dropdown.captionText.fontSizeMin = DropdownFontSizeMin;
+            dropdown.captionText.fontSizeMax = DropdownFontSizeMax;
             dropdown.captionText.alignment = TextAlignmentOptions.MidlineLeft;
             dropdown.captionText.color = Color.black;
-            dropdown.itemText.fontSize = 15f;
+            dropdown.itemText.enableAutoSizing = true;
+            dropdown.itemText.fontSizeMin = DropdownFontSizeMin;
+            dropdown.itemText.fontSizeMax = DropdownFontSizeMax;
             dropdown.itemText.alignment = TextAlignmentOptions.MidlineLeft;
             dropdown.itemText.color = Color.black;
+
+            // 팝업 항목 한 줄의 높이를 TMP_DefaultControls 기본값(20)이 아니라 드롭다운 UI 자체의
+            // 높이만큼 키운다 - Auto Size는 텍스트칸이 클수록 글자도 커지므로, 항목 칸을 키워야
+            // 항목 텍스트도 라벨만큼 커진다. 드롭다운 RectTransform은 앵커 스트레치라 이 시점엔 이미
+            // 실제 높이가 계산되어 있다(레이아웃 그룹이 없어 별도 리빌드가 필요 없음).
+            // Content의 높이도 Item과 함께 맞춰야 한다 - TMP_Dropdown.Show()가 "Item rect와 Content
+            // rect의 차이"를 항목-배경 사이 여백으로 계산해 매 항목에 적용하는데(offsetMin/offsetMax),
+            // Item만 키우고 Content(기본 28)를 그대로 두면 이 여백 계산이 깨져 팝업이 드롭다운 UI 중심과
+            // 겹치는 위치로 밀리고 첫 항목이 잘려 보인다 - 실플레이에서 확인된 버그.
+            var dropdownHeight = go.GetComponent<RectTransform>().rect.height;
+            if (dropdownHeight > 0f)
+            {
+                var itemRect = go.transform.Find("Template/Viewport/Content/Item").GetComponent<RectTransform>();
+                itemRect.sizeDelta = new Vector2(itemRect.sizeDelta.x, dropdownHeight);
+                var contentRect = go.transform.Find("Template/Viewport/Content").GetComponent<RectTransform>();
+                contentRect.sizeDelta = new Vector2(contentRect.sizeDelta.x, dropdownHeight);
+            }
+
+            // 사이드 스크롤바 제거(사용자 지시) - 세로 드래그/휠 스크롤은 ScrollRect 자체 기능이라
+            // 스크롤바를 없애도 항목이 뷰포트보다 많아지면 여전히 스크롤할 수 있다. 스크롤바가 차지하던
+            // 폭(18)을 Viewport에 되돌려줘 항목이 전체 폭을 쓴다.
+            var templateTransform = go.transform.Find("Template");
+            var scrollbarTransform = templateTransform.Find("Scrollbar");
+            if (scrollbarTransform != null)
+            {
+                Undo.DestroyObjectImmediate(scrollbarTransform.gameObject);
+            }
+            templateTransform.GetComponent<ScrollRect>().verticalScrollbar = null;
+            var viewportRect = templateTransform.Find("Viewport").GetComponent<RectTransform>();
+            viewportRect.sizeDelta = new Vector2(0f, viewportRect.sizeDelta.y);
+
             // 팝업이 알파 0→1로 페이드인되는 도중 스크린샷/빠른 확인 시 "안 보인다"로 오인되는 걸
             // 막기 위해 즉시 표시되게 한다.
             dropdown.alphaFadeSpeed = 0f;
@@ -194,6 +229,9 @@ namespace Game.Core.Editor
 
             return dropdown;
         }
+
+        private const float DropdownFontSizeMin = 8f;
+        private const float DropdownFontSizeMax = 32f;
 
         public static TMP_Text EnsureLabel(Transform parent, string text)
         {

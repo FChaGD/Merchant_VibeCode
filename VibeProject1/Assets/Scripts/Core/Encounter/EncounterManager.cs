@@ -32,8 +32,16 @@ namespace Game.Core
             sessionState.OnProgressChanged += HandleProgressChanged;
         }
 
-        private void HandleProgressChanged(float _)
+        private void HandleProgressChanged(float progress)
         {
+            // 도착(Progress>=1f)과 같은 틱에 판정이 겹치면 SessionStateTracker.Update()가 그 틱 안에서
+            // OnProgressChanged(→인카운터 발생 가능)와 OnArrived를 연달아 발행해, 상행 성공 처리와
+            // 인카운터 발생 처리가 동시에 진행되는 버그가 있었다 - 도착 틱은 판정 자체를 건너뛴다.
+            if (progress >= 1f)
+            {
+                return;
+            }
+
             elapsed += Time.deltaTime;
             if (elapsed < checkIntervalSeconds)
             {

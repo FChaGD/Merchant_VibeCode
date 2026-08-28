@@ -38,6 +38,7 @@ namespace Game.Core
         private BattleViewPresenter viewPresenter;
         private IGameManager gameManager;
         private ISessionState sessionState;
+        private IUIManager uiManager;
 
         public void RegisterFieldUI(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal)
         {
@@ -71,6 +72,7 @@ namespace Game.Core
 
             this.gameManager = gameManager;
             this.sessionState = sessionState;
+            this.uiManager = uiManager;
 
             formationButton.onClick.RemoveAllListeners();
             formationButton.onClick.AddListener(() => uiManager.Open(UIPanelIds.Formation));
@@ -134,6 +136,11 @@ namespace Game.Core
         // 재사용한다(문구·버튼 라벨·콜백만 다름).
         private void HandleArrived()
         {
+            // 인카운터 발생 시 FieldEncounterFlowCoordinator.HandleEncounterTriggered가 배치/방향성
+            // 지시를 닫는 것과 같은 이유 - 열려있는 채로 도착 팝업이 뜨면 그 위로 안 닫힌 패널이 남는다.
+            // 둘 다 Close가 멱등이라 열려있지 않아도 안전하다.
+            uiManager.Close(UIPanelIds.Formation);
+            uiManager.Close(UIPanelIds.Tactics);
             resultPopupView.Show("도착 성공", "도시 입장", onConfirm: () => gameManager.RequestSceneTransition(ContentSceneId.Hub));
         }
 

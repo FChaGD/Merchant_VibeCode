@@ -31,7 +31,12 @@ namespace Game.Core.Editor
 
                 foreach (var mercenaryClass in System.Enum.GetValues(typeof(MercenaryClass)))
                 {
-                    if (!map.TryGetRoleGroup((MercenaryClass)mercenaryClass, out var roleGroup)) continue;
+                    if (!map.TryGetRoleGroup((MercenaryClass)mercenaryClass, out var roleGroup))
+                    {
+                        Debug.LogWarning($"{nameof(TacticsCatalogValidator)}: 직업 '{mercenaryClass}'가 '{map.name}'에 역할군으로 매핑되어 있지 않다 - 실행 중 {nameof(UnitTacticsProfileResolver)}가 Frontline 기본값으로 조용히 대체한다.");
+                        warningCount++;
+                        continue;
+                    }
 
                     foreach (var catalogGuid in catalogGuids)
                     {

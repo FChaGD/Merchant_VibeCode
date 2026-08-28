@@ -15,6 +15,9 @@ namespace Game.Core
 
         public void NotifyDamaged(float amount, float currentHpRatio)
         {
+            // 이미 후퇴 중이면 origin을 다시 잡지 않는다 - 재피격마다 리셋하면 누적 후퇴 거리가 항상
+            // 0에서 다시 시작해 임계값(TacticsTuning.RetreatOnHitDistanceMeters)에 영원히 도달하지 못한다.
+            if (isRetreating) return;
             isRetreating = true;
             hasRetreatOrigin = false;
         }

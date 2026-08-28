@@ -70,8 +70,14 @@ namespace Game.Core
         private ITacticsRepository repository;
         private IUIManager uiManager;
 
+        // TryBind가 중간 요소에서 실패해도 panelRoot는 이미 할당된 상태일 수 있어, panelRoot null
+        // 체크만으로는 "완전히 바인딩됐는지"를 판별할 수 없다 - Open()은 이 플래그로 판별한다.
+        private bool isBound;
+
         public void RegisterTacticsUI(ITacticsRepository repository, IUIManager uiManager, string sceneName)
         {
+            isBound = false;
+
             // repository가 없으면(예: 인스톨러를 아직 재실행하지 않아 InMemoryTacticsRepository가
             // DI에 없는 과도기) 조용히 건너뛴다 - FormationPanel이 IFormationRepository 부재를
             // 다루는 것과 같은 방향(Open()/드롭다운 콜백에서 NPE가 나지 않도록 아예 바인딩을 안 함).
@@ -126,6 +132,7 @@ namespace Game.Core
             BindRoleGroupDropdowns(RoleGroup.Frontline, frontlineOverrideToggle, frontlineTargetDropdown, frontlinePositioningDropdown, frontlineSelfPreservationDropdown);
             BindRoleGroupDropdowns(RoleGroup.RangedDealer, rangedOverrideToggle, rangedTargetDropdown, rangedPositioningDropdown, rangedSelfPreservationDropdown);
 
+            isBound = true;
             panelRoot.SetActive(false);
         }
 
@@ -177,7 +184,7 @@ namespace Game.Core
 
         public void Open()
         {
-            if (panelRoot == null) return;
+            if (!isBound) return;
 
             RefreshFromRepository();
             SwitchTab(TacticsTab.Party);

@@ -67,6 +67,9 @@ namespace Game.Core
         {
             uiManager.Close(UIPanelIds.Formation);   // 열려있지 않아도 안전(Close는 멱등) - 열려 있었다면
                                                       // FormationPanel의 기존 규칙대로 미적용 변경은 자동 폐기됨
+            uiManager.Close(UIPanelIds.Tactics);     // 같은 이유로 인카운터 발생 시 함께 닫는다 - 방향성 지시는
+                                                      // Apply 버튼 없이 즉시 반영이라(TacticsPanel 요약 주석 참고)
+                                                      // 닫아도 버려지는 변경이 없다
             isTransitioning = true;
             warningView.Show();
             coroutineRunner.StartCoroutine(TransitionAfterWarning());
