@@ -61,6 +61,10 @@ namespace Game.Core.Editor
             // (BattleManager가 GetComponent<IDefeatConsequenceRule>()로 직접 조회).
             EnsureSiblingComponent<PlaceholderDefeatConsequenceRule>(battleManager.gameObject);
 
+            // 전투 디버그 기즈모(포위망/방진선/이동 목적지)는 여기서 설치하지 않는다 - "게임 빌드"와
+            // "디버그 도구 켜고 끄기"는 다른 관심사라 DebugBootstrapReentryGuard와 같은 자리
+            // (Tools/Game/Debug/, BattleGizmoInstaller.cs)에서 별도 Install/Remove 메뉴로 관리한다.
+
             // HubUIController/FormationPanel/TripPanel/TacticsPanel/FieldUIController는 전역 매니저가 아니라 UIManager 산하 컴포넌트이므로 같은 GameObject에 부착한다.
             EnsureSiblingComponent<HubUIController>(uiManager.gameObject);
             EnsureSiblingComponent<FormationPanel>(uiManager.gameObject);

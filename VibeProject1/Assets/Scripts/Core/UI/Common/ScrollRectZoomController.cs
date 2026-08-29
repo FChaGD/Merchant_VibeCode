@@ -7,8 +7,10 @@ namespace Game.Core
     /// 고정한 채 확대/축소하고, 최소 줌(콘텐츠 전체가 뷰포트에 들어오는 지점)/최대 줌(최소 줌 배수)
     /// 경계를 계산해 클램핑한다(Docs/기획/09_전투뷰_카메라_기획.md §3/§4). MonoBehaviour가 아닌 순수
     /// C# 객체로 두어 View의 생명주기와 분리한다(FieldCameraController/BattleFieldLayout과 같은 이유).
-    /// TripMapView(콘텐츠 크기 고정, 최초 1회)와 BattleFieldCameraView(콘텐츠 크기가 전투마다 바뀜)가
-    /// RecomputeBounds를 서로 다른 시점에 호출하는 것만 다르고, 계산 자체는 동일하게 재사용한다.
+    /// TripMapView(콘텐츠 크기 고정, 최초 1회)가 RecomputeBounds를 호출해 쓴다. 전투 뷰는 월드
+    /// 오브젝트로 전환되며(Docs/설계/13번) 더 이상 이 클래스를 쓰지 않는다 - 같은 규칙을
+    /// Orthographic 카메라 좌표계로 재유도한 OrthographicCameraZoomController를 대신 쓴다(관계가
+    /// 반대라 공식을 그대로 옮길 수 없었다 - 13번 §7 참고).
     /// 드래그(팬) 자체는 이 클래스가 아니라 Unity 표준 ScrollRect가 전담한다(SRP) - 여기서는 줄과,
     /// 줌이 만들어낸 위치를 다시 경계 안으로 클램핑하는 것만 책임진다.
     /// </summary>

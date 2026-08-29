@@ -48,6 +48,11 @@ namespace Game.Core
         // 방진 형성 로직(Docs/설계/12번 §12.4)이 코디네이터 Update 시점(이 유닛의 이번 틱 Tick 전)에
         // 읽어야 해서 노출 - TickAndGetRecognized를 또 호출하지 않도록 스냅샷만 전달한다.
         public IReadOnlyCollection<IDamageable> RecognizedEnemies => tacticsBehaviors?.RecognitionTracker.RecognizedSnapshot ?? Array.Empty<IDamageable>();
+        // 디버깅 전용(Assets/Scripts/Core/Debug/Battle/BattleMoveTargetGizmoView) - IBattleCombatant.
+        // DebugMoveTarget 참고. 삭제 시 이 필드/프로퍼티와 아래 대입 3곳(MoveTowardTacticalDestination/
+        // TickEngageWithoutTactics/TickReturning)만 지우면 된다 - 다른 로직은 이 값을 읽지 않는다.
+        public Vector2? DebugMoveTarget => debugMoveTarget;
+        private Vector2? debugMoveTarget;
         // Character는 아직 직업별 팔레트 아이콘(사각형/오각형/육각형)을 전투 뷰에 재사용하지 않는다
         // (이번 요청 범위 밖 - 마차/시설만 재사용). 뷰는 null이면 기존 단색 도형으로 대체한다.
         public Sprite Icon => null;
@@ -137,10 +142,12 @@ namespace Game.Core
             var distance = (target.Position - Position).magnitude;
             if (distance > stats.Range)
             {
+                debugMoveTarget = target.Position;
                 MoveToward(target.Position, deltaTime);
             }
             else
             {
+                debugMoveTarget = null;
                 TryAttack(deltaTime, target);
             }
         }
@@ -200,6 +207,7 @@ namespace Game.Core
             // 전장 경계 하드 캡(Docs/기획/12번 §2.2-1) - 추적 프리셋이 무엇이든 상관없이 항상 적용된다.
             // 카메라가 못 가는 곳은 캐릭터도 스스로 못 간다는 원칙(사기 도주 TickFlee는 별도 경로라 예외).
             clampedDestination = tacticsBehaviors.FieldBoundaryZone.ClampToZone(clampedDestination);
+            debugMoveTarget = clampedDestination;
             MoveToward(clampedDestination, deltaTime);
         }
 
@@ -207,6 +215,7 @@ namespace Game.Core
         // 돌아간다(타겟이 없으면 기존 널 타겟 분기가 자연히 재탐색한다).
         private void TickReturning(float deltaTime)
         {
+            debugMoveTarget = tacticsBehaviors.HomePosition;
             MoveToward(tacticsBehaviors.HomePosition, deltaTime);
             if ((Position - tacticsBehaviors.HomePosition).sqrMagnitude <= ReturnArrivalDistance * ReturnArrivalDistance)
             {

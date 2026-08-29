@@ -7,10 +7,12 @@ namespace Game.Core
     /// <summary>
     /// 상행 준비 UI의 지도 영역. 상하좌우 드래그 이동은 같은 GameObject의 ScrollRect(Clamped)가
     /// 담당하고, 이 컴포넌트는 마우스 휠 확대/축소만 처리한다 - 실제 줌 계산(커서 위치 고정 줌,
-    /// 최소/최대 줌 경계, 경계 클램핑)은 ScrollRectZoomController에 위임한다. 전투 뷰 카메라
-    /// (BattleFieldCameraView)와 같은 조작 스타일을 공유하기 위한 것으로, 원래 있던 화면 중앙 기준
-    /// 줌·관성 있는 드래그·SmoothDamp 보간은 폐기했다(Docs/설계/09_전투뷰_카메라_아키텍처.md §6 -
-    /// 09번 기획에 따라 전투 뷰와 동일한 스타일로 통일). 출발/도착 표시는 더 이상 고정 핀이 아니라
+    /// 최소/최대 줌 경계, 경계 클램핑)은 ScrollRectZoomController에 위임한다. 원래 있던 화면 중앙
+    /// 기준 줌·관성 있는 드래그·SmoothDamp 보간은 폐기했다(Docs/설계/09_전투뷰_카메라_아키텍처.md §6 -
+    /// 09번 기획에 따라 당시 전투 뷰와 동일한 스타일로 통일한 것). 전투 뷰가 이후 월드 오브젝트로
+    /// 전환되며(Docs/설계/13번) 카메라 구현 자체는 갈라졌지만(BattleFieldWorldCameraView는
+    /// OrthographicCameraZoomController를 씀, ScrollRectZoomController 아님), 이 지도는 여전히
+    /// UGUI라 ScrollRectZoomController를 그대로 쓴다. 출발/도착 표시는 더 이상 고정 핀이 아니라
     /// 지도 위에 자유 배치되는 디버그 도시 아이콘(TripDebugCityMarkerView)이 대신한다
     /// (02번 기획 문서 개정 이력 참고).
     /// </summary>

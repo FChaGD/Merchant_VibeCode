@@ -13,11 +13,14 @@ namespace Game.Core
     {
         private bool eventsBound;
 
-        private RectTransform allyContainer;
-        private RectTransform enemyContainer;
+        // 월드 오브젝트 전환(Docs/설계/13번) - Canvas 하위 RectTransform이 아니라 BattleWorldRoot
+        // 산하 일반 Transform이다(UI 좌표계와 섞이지 않도록).
+        private Transform allyContainer;
+        private Transform enemyContainer;
         private BattleCharacterUnitView characterViewPrefab;
         private BattleProtectedUnitView protectedViewPrefab;
-        private BattleFieldCameraView cameraView;
+        private BattleFieldWorldCameraView cameraView;
+        private BattleBackgroundGridView backgroundView;
 
         private readonly List<BattleCharacterUnitView> activeCharacterViews = new();
         private readonly List<BattleProtectedUnitView> activeProtectedViews = new();
@@ -31,30 +34,32 @@ namespace Game.Core
         }
 
         public void RebindViews(
-            RectTransform allyContainer, RectTransform enemyContainer,
+            Transform allyContainer, Transform enemyContainer,
             BattleCharacterUnitView characterViewPrefab, BattleProtectedUnitView protectedViewPrefab,
-            BattleFieldCameraView cameraView)
+            BattleFieldWorldCameraView cameraView, BattleBackgroundGridView backgroundView)
         {
             this.allyContainer = allyContainer;
             this.enemyContainer = enemyContainer;
             this.characterViewPrefab = characterViewPrefab;
             this.protectedViewPrefab = protectedViewPrefab;
             this.cameraView = cameraView;
+            this.backgroundView = backgroundView;
         }
 
         private void Present(BattleSimulationLoop simulation)
         {
             Clear();
-            // 유닛을 스폰하기 전에 이번 전투의 전장 크기로 카메라를 먼저 리셋한다(기획 §5) - 콘텐츠
-            // sizeDelta 자체는 자식 anchoredPosition 계산에 영향을 주지 않아 순서가 안전하지만, 리셋
-            // 시점을 스폰 직전으로 맞춰야 이전 전투의 확대 상태가 새 유닛에 잠깐이라도 겹쳐 보이지 않는다.
+            // 유닛을 스폰하기 전에 이번 전투의 전장 크기로 카메라/배경을 먼저 리셋한다(기획 §5) -
+            // 리셋 시점을 스폰 직전으로 맞춰야 이전 전투의 확대 상태/타일 배치가 새 유닛에 잠깐이라도
+            // 안 맞게 겹쳐 보이지 않는다.
             cameraView?.ConfigureFieldBounds(simulation.FieldRadius);
+            backgroundView?.ConfigureField(simulation.SpawnRadius);
             foreach (var unit in simulation.Allies) SpawnCharacterView(unit, allyContainer);
             foreach (var unit in simulation.Enemies) SpawnCharacterView(unit, enemyContainer);
             foreach (var unit in simulation.ProtectedUnits) SpawnProtectedView(unit, allyContainer);
         }
 
-        private void SpawnCharacterView(IBattleCombatant unit, RectTransform parent)
+        private void SpawnCharacterView(IBattleCombatant unit, Transform parent)
         {
             if (characterViewPrefab == null || parent == null) return;
             var view = Object.Instantiate(characterViewPrefab, parent);
@@ -62,7 +67,7 @@ namespace Game.Core
             activeCharacterViews.Add(view);
         }
 
-        private void SpawnProtectedView(IDamageable unit, RectTransform parent)
+        private void SpawnProtectedView(IDamageable unit, Transform parent)
         {
             if (protectedViewPrefab == null || parent == null) return;
             var view = Object.Instantiate(protectedViewPrefab, parent);

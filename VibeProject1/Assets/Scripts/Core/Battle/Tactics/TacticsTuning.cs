@@ -39,5 +39,18 @@ namespace Game.Core
         // ApplySeparation.SeparationRadius(1m, 단순 겹침 방지)보다 커야 실제로 "퍼지는" 효과가 보인다
         // (Docs/설계/12번 §13.2).
         public const float DisperseRadiusMeters = 2.5f;
+        // SurroundRing(포위, §13.3′ 재설계) - 유닛 콜리전이 없어(물리 시스템 부재) "링까지 남은
+        // 거리가 이 이내"를 합류(콜리전 접촉) 판정으로 근사한다.
+        public const float SurroundJoinToleranceMeters = 0.5f;
+        // SurroundRing(포위) - 접근 중 근처 아군(같은 링을 향하는 다른 원거리딜러)과 유지할 최소 간격.
+        // DispersePositioningStrategy와 같은 ComputeSeparationPush 재사용, 반경만 다르다.
+        public const float SurroundAllySpacingMeters = 5f;
+        // SurroundRing(포위) - 빈 구간 쪽으로 트는 접선 방향 보정의 가중치. 하드 배정이 아니라 약한
+        // 힌트라 낮게 잡는다 - 1차 설계의 "간격 중간각 고정 배정" 회귀(§13.3 참고)와 달리, 이 값이
+        // 커도 매 틱 다시 계산되므로 한 번의 계산이 영구 고정되지는 않는다.
+        public const float SurroundGapPullWeight = 0.3f;
+        // SurroundRing(포위) - 합류한 멤버 중 공격 불가 상태가 있으면 반지름이 줄어들고(하한 =
+        // ClusterBoundingRadius), 없으면 이상적 반지름으로 되돌아오는 속도(§13.3′-4).
+        public const float SurroundRingShrinkSpeedMetersPerSecond = 1f;
     }
 }

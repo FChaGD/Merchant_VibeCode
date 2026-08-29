@@ -16,9 +16,20 @@ namespace Game.Core
     {
         public Vector2 LinePoint { get; set; }
         public Vector2 LineDir { get; set; }
+        // 방진선이 앵커(보호대상 중심)로부터 축 방향(AxisDir)으로 얼마나 나가 있는지 - 당기기/전진/
+        // 정지 상태는 이 스칼라 하나만 조절한다(Docs/설계/12번 §12.10 갱신, 사용자 확정
+        // 2026-08-29). LinePoint/LineDir 자체는 상태와 무관하게 매 틱 AnchorCenter+AxisDir로
+        // 재조립되므로, 보호대상이나 적 군집 중심이 움직이면 "정지" 상태에서도 라인이 자동으로
+        // 따라간다 - 더 이상 완전히 고정되지 않는다.
+        public float DistanceFromAnchor { get; set; }
         // 합류 순서를 그대로 보존한다(§12.2) - 슬롯 오프셋과는 별개로 "이 라인에 누가 있는지"를
         // 순서 있는 형태로 노출하는 용도(디버그/향후 UI 등).
         public List<IBattleCombatant> Members { get; } = new();
+        // 디버깅 전용(Assets/Scripts/Core/Debug/Battle/BattleFrontlineGizmoView가 보호대상→라인
+        // 위치 초록 선을 그리는 용도) - 이 라인의 앵커(§12.3) 계산에 실제로 기여한 보호대상 후보들
+        // (FrontlineFormationCoordinator가 매 틱 채운다). 삭제 시 이 프로퍼티와 코디네이터의
+        // 대입부만 지우면 된다 - 다른 로직은 이 값을 읽지 않는다.
+        public List<IDamageable> AnchorCandidates { get; } = new();
         // 교차 처리(§12.9)가 매 틱 다시 계산해 채우는 이동 가능 오프셋 범위 - null이면 그쪽으로
         // 무제한. 두 값 다 null이면 교차 없음(기존 동작 그대로).
         public int? MinAllowedOffset { get; set; }

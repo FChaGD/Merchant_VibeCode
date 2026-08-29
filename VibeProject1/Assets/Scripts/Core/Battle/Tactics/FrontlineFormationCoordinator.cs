@@ -158,6 +158,14 @@ namespace Game.Core
 
         // §12.4 1단계 - 기존 라인 재조정(사망/도주 제거 → recognizedUnion 재계산 → 해체 또는
         // 정지/전진/당겨오기 판단). 뒤에서부터 순회해 해체된 라인을 그 자리에서 제거해도 안전하다.
+        //
+        // §12.10 갱신(사용자 확정, 2026-08-29 - 실전투에서 "교전이 시작되면 라인이 전투 내내 그
+        // 자리에 완전히 고정된다"는 문제 발견 후 재설계): 각도(LineDir)와 위치(LinePoint)를 "정지/
+        // 전진/당겨오기" 하나의 상태로 함께 취급하던 걸 분리했다. 각도·위치는 상태와 무관하게 매 틱
+        // AnchorCenter(보호대상 중심, 실시간)+AxisDir(실시간)로 다시 조립한다 - 원거리딜러/서포터
+        // 같은 보호대상이 전투 중 움직이면(포위/산개 등) 라인도 자동으로 따라간다. 당기기/전진/정지는
+        // 이제 "그 축 위에서 얼마나 멀리 나가 있는가"(DistanceFromAnchor)라는 스칼라 하나만
+        // 조절한다 - 순수하게 "보호대상↔적 군집 중심 거리 비율" 문제로 좁혀졌다.
         private void ReconcileExistingLines(float deltaTime, IReadOnlyList<IDamageable> protectionCandidates)
         {
             for (var i = activeLines.Count - 1; i >= 0; i--)
@@ -177,6 +185,11 @@ namespace Game.Core
 
                 var geometry = ComputeLineGeometry(recognizedUnion, protectionCandidates);
                 line.EnemyCount = recognizedUnion.Count;
+                // 디버깅 전용(BattleFrontlineGizmoView) - anchorCandidateBuffer는 바로 위
+                // ComputeLineGeometry(→ComputeAnchorCenter)가 채운 재사용 버퍼라, 다음 라인 처리
+                // 전에 이 라인 몫만 복사해둬야 한다(그대로 참조하면 다음 라인이 덮어씀).
+                line.AnchorCandidates.Clear();
+                line.AnchorCandidates.AddRange(anchorCandidateBuffer);
 
                 var isOutsideStandardRadius = !standardRadiusZone.Contains(line.LinePoint);
                 var hasEngagedMember = HasEngagedMember(line);
@@ -184,16 +197,20 @@ namespace Game.Core
                 // "교전 가능 상태(사거리 안 타겟 보유)"로 근사한다(OffensiveJudgment 프리셋에만 영향).
                 if (line.PursuitPolicy.ShouldDisengage(deltaTime, isOutsideStandardRadius, hasEngagedMember))
                 {
-                    line.LinePoint = geometry.CanonicalPoint;
-                    line.LineDir = geometry.LineDir;
+                    line.DistanceFromAnchor = geometry.Range;
                 }
                 else if (!hasEngagedMember && line.Members.Count > recognizedUnion.Count)
                 {
+                    var targetDistance = Vector2.Distance(geometry.AnchorCenter, geometry.EnemyCenter);
                     var step = TacticsTuning.LineAdvanceSpeedMetersPerSecond * deltaTime;
-                    line.LinePoint = Vector2.MoveTowards(line.LinePoint, geometry.EnemyCenter, step);
-                    line.LineDir = geometry.LineDir;
+                    line.DistanceFromAnchor = Mathf.MoveTowards(line.DistanceFromAnchor, targetDistance, step);
                 }
-                // 그 외(정지) - 아무 것도 갱신하지 않는다(§12.5 - "정지 상태에서는 라인이 완전히 고정된다").
+                // 그 외(정지) - DistanceFromAnchor는 그대로 둔다. 그래도 아래에서 각도/위치는
+                // 매 틱 다시 조립되므로, 보호대상이 움직이면 라인도 따라간다(§12.5 갱신 - "정지"는
+                // 이제 "거리 조정을 안 한다"는 뜻이지 "라인이 완전히 안 움직인다"는 뜻이 아니다).
+
+                line.LineDir = geometry.LineDir;
+                line.LinePoint = standardRadiusZone.ClampToZone(geometry.AnchorCenter + geometry.AxisDir * line.DistanceFromAnchor);
             }
         }
 
@@ -234,7 +251,15 @@ namespace Game.Core
                 if (clusters.Count == 0) break;
 
                 var geometry = ComputeLineGeometry(clusters[0], protectionCandidates);
-                var newLine = new FrontlineFormationLine { LinePoint = geometry.CanonicalPoint, LineDir = geometry.LineDir };
+                var newLine = new FrontlineFormationLine
+                {
+                    LinePoint = geometry.CanonicalPoint,
+                    LineDir = geometry.LineDir,
+                    // CanonicalPoint = AnchorCenter + AxisDir*Range이므로, 이 초기값이 생성 시점의
+                    // LinePoint와 정확히 일치한다(§12.10 갱신).
+                    DistanceFromAnchor = geometry.Range,
+                };
+                newLine.AnchorCandidates.AddRange(anchorCandidateBuffer); // 디버깅 전용, §12.10 갱신 참고.
 
                 joinedBuffer.Clear();
                 foreach (var candidate in unassignedPoolBuffer)

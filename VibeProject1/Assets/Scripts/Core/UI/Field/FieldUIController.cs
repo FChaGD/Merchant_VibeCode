@@ -29,9 +29,12 @@ namespace Game.Core
         private FieldEncounterWarningView warningView;
         private RectTransform movementViewRoot;
         private RectTransform battleViewRoot;
-        private RectTransform battleAllyLayer;
-        private RectTransform battleEnemyLayer;
-        private BattleFieldCameraView battleCameraView;
+        // 월드 오브젝트 전환(Docs/설계/13번) - UI 마커가 아니라 BattleWorldRoot 산하 Transform이다.
+        private BattleWorldRoot battleWorldRoot;
+        private Transform battleAllyLayer;
+        private Transform battleEnemyLayer;
+        private BattleFieldWorldCameraView battleCameraView;
+        private BattleBackgroundGridView battleBackgroundView;
         private FieldResultPopupView resultPopupView;
         private FieldTransitionCurtainView transitionCurtain;
         private FieldEncounterFlowCoordinator flowCoordinator;
@@ -101,7 +104,7 @@ namespace Game.Core
             // 담고 있어 매번 새로 만든다.
             flowCoordinator ??= new FieldEncounterFlowCoordinator();
             flowCoordinator.Bind(uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, gameManager);
-            var cameraController = new FieldCameraController(this, movementViewRoot, battleViewRoot, transitionCurtain);
+            var cameraController = new FieldCameraController(this, movementViewRoot, battleViewRoot, battleWorldRoot.gameObject, transitionCurtain);
             flowCoordinator.RebindViews(this, cameraController, warningView, resultPopupView, transitionCurtain);
 
             // battleSimulationEvents도 Bootstrap 상주 영속 객체(BattleManager)라 같은 이유로
@@ -109,7 +112,7 @@ namespace Game.Core
             // 유닛 레이어/프리팹 참조)는 Field 씬을 로드할 때마다 실행한다.
             viewPresenter ??= new BattleViewPresenter();
             viewPresenter.Bind(battleSimulationEvents);
-            viewPresenter.RebindViews(battleAllyLayer, battleEnemyLayer, battleCharacterViewPrefab, battleProtectedViewPrefab, battleCameraView);
+            viewPresenter.RebindViews(battleAllyLayer, battleEnemyLayer, battleCharacterViewPrefab, battleProtectedViewPrefab, battleCameraView, battleBackgroundView);
 
             // sessionState.Begin()은 여기서 바로 부르지 않는다 - 화면이 완전히 드러난 뒤(HandleSceneRevealed)에
             // 시작해야 "전투 시작" 준비(=상행 진행 시작)가 페이드 아웃 완료 이후로 미뤄진다(사용자 확정).
@@ -193,25 +196,43 @@ namespace Game.Core
                 return false;
             }
 
-            // BattleFieldCameraView는 BattleViewRoot와 같은 GameObject에 부착된다(UIElementMarker는
-            // GameObject당 하나의 id만 가질 수 있어 별도 마커를 만들 수 없다) - 방금 구한 RectTransform과
-            // 같은 오브젝트에서 바로 GetComponent로 조회한다.
-            battleCameraView = battleViewRoot.GetComponent<BattleFieldCameraView>();
+            // 전투 카메라는 Field 씬의 Main Camera에 부착된다(새 카메라를 만들지 않고 재사용 -
+            // Docs/설계/13번 §6). Main Camera는 Canvas 하위가 아니라 UIElementMarker/SceneUIRoot로는
+            // 조회할 수 없어 Camera.main으로 직접 찾는다.
+            battleCameraView = Camera.main != null ? Camera.main.GetComponent<BattleFieldWorldCameraView>() : null;
             if (battleCameraView == null)
             {
-                WarnMissing(FieldUIElementIds.BattleViewRoot + " (BattleFieldCameraView)");
+                WarnMissing(nameof(BattleFieldWorldCameraView) + " (Main Camera)");
                 return false;
             }
 
-            if (!sceneUIRoot.TryGetElement<RectTransform>(FieldUIElementIds.BattleAllyLayer, out battleAllyLayer))
+            // 전투 유닛(캐릭터/보호목표) 스프라이트의 루트도 Canvas 밖 씬 루트에 독립적으로 있어
+            // (Docs/설계/13번 §2) UIElementMarker가 아니라 BattleWorldRoot 마커로 조회한다.
+            battleWorldRoot = Object.FindFirstObjectByType<BattleWorldRoot>(FindObjectsInactive.Include);
+            if (battleWorldRoot == null)
             {
-                WarnMissing(FieldUIElementIds.BattleAllyLayer);
+                WarnMissing(nameof(BattleWorldRoot));
                 return false;
             }
 
-            if (!sceneUIRoot.TryGetElement<RectTransform>(FieldUIElementIds.BattleEnemyLayer, out battleEnemyLayer))
+            battleAllyLayer = battleWorldRoot.transform.Find("AllyLayer");
+            if (battleAllyLayer == null)
             {
-                WarnMissing(FieldUIElementIds.BattleEnemyLayer);
+                WarnMissing(nameof(BattleWorldRoot) + "/AllyLayer");
+                return false;
+            }
+
+            battleEnemyLayer = battleWorldRoot.transform.Find("EnemyLayer");
+            if (battleEnemyLayer == null)
+            {
+                WarnMissing(nameof(BattleWorldRoot) + "/EnemyLayer");
+                return false;
+            }
+
+            battleBackgroundView = battleWorldRoot.GetComponent<BattleBackgroundGridView>();
+            if (battleBackgroundView == null)
+            {
+                WarnMissing(nameof(BattleWorldRoot) + " (BattleBackgroundGridView)");
                 return false;
             }
 

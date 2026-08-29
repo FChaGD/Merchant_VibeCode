@@ -54,7 +54,7 @@ namespace Game.Core
         // FormationExtentRadius 파생 패밀리지만 마진 값(TacticsTuning)이 다르다.
         public float ComputeStandardActivityRadius(int columnCount) => FormationExtentRadius(columnCount) + TacticsTuning.StandardRadiusMarginMeters;
 
-        private float ComputeSpawnRadius(int columnCount) => FormationExtentRadius(columnCount) + SpawnRadiusMargin;
+        public float ComputeSpawnRadius(int columnCount) => FormationExtentRadius(columnCount) + SpawnRadiusMargin;
 
         // 대형의 네 모서리 중 원점에서 가장 먼 지점까지의 거리 - 행은 항상 2행(ComputeAllyPosition의
         // (row - 0.5f) 가정)이라 행 방향 반쪽 폭은 RowSpacing*0.5로 고정이고, 열 방향 반쪽 폭만

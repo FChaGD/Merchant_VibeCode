@@ -8,9 +8,10 @@ namespace Game.Core
     public static class BattleFieldGeometry
     {
         public const int SpawnPointCount = 12;
-        // 전투 좌표(BattleFieldLayout 반지름 단위) 1단위를 화면 픽셀로 바꾸는 배율 - 유닛 뷰(BattleCharacterUnitView,
-        // BattleProtectedUnitView)와 전투 뷰 카메라(BattleFieldCameraView)가 모두 같은 배율을 써야
-        // 좌표계가 어긋나지 않는다(Docs/설계/09_전투뷰_카메라_아키텍처.md §4).
-        public const float CoordinateToPixelScale = 40f;
+        // CoordinateToPixelScale(전투 좌표→픽셀 배율)은 전투 뷰가 월드 오브젝트로 전환되면서 폐기됨
+        // (Docs/설계/13_전투뷰_월드오브젝트_전환_아키텍처.md) - 1시뮬레이션 좌표=1월드 유닛이라 변환이 필요 없다.
+        // 전투 월드 오브젝트(유닛/배경 타일)가 공유하는 레이어 이름 - Editor 인스톨러(FieldUIInstaller)와
+        // 런타임 코드(BattleBackgroundGridView 등) 양쪽에서 문자열이 따로 놀지 않도록 한곳에 둔다.
+        public const string BattleLayerName = "Battle";
     }
 }

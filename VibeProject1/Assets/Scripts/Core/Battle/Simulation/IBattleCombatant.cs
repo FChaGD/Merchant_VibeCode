@@ -27,6 +27,12 @@ namespace Game.Core
         // 인식된 적 목록을 읽어야 해서 추가 - IEnemyRecognitionTracker.RecognizedSnapshot을 그대로
         // 전달한다. 방향성 지시 미적용 유닛(적)은 빈 컬렉션(N/A) - Attack/Range와 같은 패턴.
         IReadOnlyCollection<IDamageable> RecognizedEnemies { get; }
+        // 디버깅 전용(Assets/Scripts/Core/Debug/Battle/BattleMoveTargetGizmoView가 캐릭터→목적지
+        // 선을 그리는 용도) - 이번 틱 실제로 이동을 시도한 목적지(자기보호/전장 경계 clamp까지
+        // 반영된 최종값). 이동 의도가 없으면(공격 중, 도주/복귀 등 이 값을 안 채우는 상태) null.
+        // BattleMoveTargetGizmoView를 삭제할 때 이 프로퍼티와 대입부(BattleCharacterUnit)도 함께
+        // 제거해도 안전하다 - 다른 로직은 이 값을 읽지 않는다.
+        Vector2? DebugMoveTarget { get; }
         event Action OnFled;
         event Action<IDamageable> OnAttacked;
         void Tick(float deltaTime, IReadOnlyList<IDamageable> targets, IReadOnlyList<IBattleCombatant> sameSideUnits);

@@ -27,7 +27,7 @@ namespace Game.Core
             return nearest;
         }
 
-        public Vector2 ComputeSeparationPush(IBattleCombatant self, Vector2 position, float radius, IReadOnlyList<IBattleCombatant> candidates)
+        public Vector2 ComputeSeparationPush(IBattleCombatant self, Vector2 position, float radius, IReadOnlyList<IDamageable> candidates)
         {
             var radiusSqr = radius * radius;
             var pushOut = Vector2.zero;

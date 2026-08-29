@@ -103,15 +103,17 @@ namespace Game.Core
                 : null;
             var standardActivityRadius = FieldGeometry.ComputeStandardActivityRadius(columnCount);
             var fieldRadius = FieldGeometry.ComputeFieldRadius(columnCount);
+            var spawnRadius = FieldGeometry.ComputeSpawnRadius(columnCount);
             // tacticsReader가 없으면 방향성 지시 자체가 비활성화되므로 파티 추적 설정을 읽을 수 없다 -
             // 이때는 어차피 Blocking 전열 후보가 하나도 없어(모든 RoleGroup이 null) 어떤 프리셋을
             // 넘기든 무해하다(기본값 OffensiveJudgment로 대체). BuildAllies보다 먼저 만들어야
             // BlockingPositioningStrategy(Docs/설계/12번 §12.12 7단계)에 주입할 수 있다.
             var partyPursuitPreset = tacticsReader?.GetPartySettings().Pursuit ?? PursuitPreset.OffensiveJudgment;
             var frontlineCoordinator = new FrontlineFormationCoordinator(standardActivityRadius, partyPursuitPreset);
-            // 포위(Surround) 조율자(Docs/설계/12번 §13.3) - frontlineCoordinator와 같은 이유로
-            // BuildAllies보다 먼저 생성해야 SurroundPositioningStrategy에 주입할 수 있다.
-            var rangedSurroundCoordinator = new RangedSurroundCoordinator();
+            // 포위(Surround) 조율자(Docs/설계/12번 §13.3′) - frontlineCoordinator와 같은 이유로
+            // BuildAllies보다 먼저 생성해야 SurroundPositioningStrategy에 주입할 수 있다. 군집화
+            // 알고리즘 재사용을 위해 frontlineCoordinator 참조가 필요하다(§13.3′ "로직 공유").
+            var rangedSurroundCoordinator = new RangedSurroundCoordinator(standardActivityRadius, frontlineCoordinator);
 
             var allies = hasLayout
                 ? BuildAllies(layout, spawnCenter, allyMorale, fleeTravelDistance, tacticsProfileResolver, standardActivityRadius, fieldRadius, frontlineCoordinator, rangedSurroundCoordinator)
@@ -119,7 +121,7 @@ namespace Game.Core
             var enemies = BuildEnemies(spawnCenter, enemyMorale, fleeTravelDistance);
             var protectedUnits = hasLayout ? BuildProtectedUnits(layout) : new List<IDamageable>();
 
-            return new BattleSimulationLoop(allies, enemies, protectedUnits, fieldRadius, frontlineCoordinator, rangedSurroundCoordinator);
+            return new BattleSimulationLoop(allies, enemies, protectedUnits, fieldRadius, spawnRadius, frontlineCoordinator, rangedSurroundCoordinator);
         }
 
         private List<IBattleCombatant> BuildAllies(

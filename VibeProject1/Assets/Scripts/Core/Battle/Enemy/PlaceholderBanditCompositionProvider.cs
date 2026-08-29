@@ -5,7 +5,7 @@ namespace Game.Core
 {
     /// <summary>
     /// 실제 인카운터 콘텐츠 시스템 설계 후 대체/제거 대상 - Docs/기획/08_전투_해석로직_기획.md §13,
-    /// 도적/산적 단일 유형을 인카운터당 3~5마리 무작위로 제공한다.
+    /// 도적/산적 단일 유형을 인카운터당 8~10마리 무작위로 제공한다.
     /// </summary>
     public class PlaceholderBanditCompositionProvider : IEnemyCompositionProvider
     {
@@ -14,7 +14,7 @@ namespace Game.Core
 
         public IReadOnlyList<BattleUnitStats> GetEncounterComposition()
         {
-            var count = Random.Range(3, 6); // 3~5 (Range의 max는 배타적)
+            var count = Random.Range(8, 11); // 8~10 (Range의 max는 배타적)
             var result = new List<BattleUnitStats>(count);
             for (var i = 0; i < count; i++)
             {

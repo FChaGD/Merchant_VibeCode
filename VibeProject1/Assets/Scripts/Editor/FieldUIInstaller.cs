@@ -58,6 +58,9 @@ namespace Game.Core.Editor
             // BattleView/ResultPopup은 MovementView와 형제로 SceneUIRoot 바로 아래 둔다 - 결과 팝업은
             // 이동 뷰(도착)/전투 뷰(승패) 양쪽에서 모두 떠야 해서 어느 한쪽 하위에 종속시키지 않는다.
             BuildBattleView(sceneUIRoot.transform);
+            // 전투 유닛 스프라이트 루트/카메라는 Canvas 밖 별도 하이어라키다(Docs/설계/13번 §2).
+            BuildBattleWorldRoot();
+            ConfigureBattleCamera();
             BuildResultPopup(sceneUIRoot.transform);
             BuildTransitionCurtain(sceneUIRoot.transform);
 
@@ -153,10 +156,13 @@ namespace Game.Core.Editor
             go.SetActive(false); // 평소에는 숨김 - FieldEncounterWarningView.Show() 호출 시에만 표시
         }
 
-        // BattleFieldCameraView.ConfigureFieldBounds가 매 전투 실제 크기로 다시 잡으므로, 여기서는
-        // 0으로 두면 ScrollRectZoomController의 초기 RecomputeBounds가 나눗셈 대상 크기가 없어 아무
-        // 일도 하지 않는다(문제 없음) - 첫 전투 시작 시 곧바로 재계산되기 때문이다.
-        private static readonly Vector2 InitialBattleContentSize = new(100f, 100f);
+        // 전투 뷰 월드 오브젝트 전환(Docs/설계/13_전투뷰_월드오브젝트_전환_아키텍처.md) - 실제 유닛은
+        // 더 이상 이 파일이 만드는 UI 하이어라키에 없다(BattleWorldRoot/BuildBattleWorldRoot 참고).
+        // BattleView에는 배경/라벨/입력 캡처(드래그팬·휠줌)만 남는다.
+        // BattleFieldGeometry(런타임 클래스)의 값을 그대로 가져와 쓴다 - 문자열이 두 곳에서 따로
+        // 놀지 않게 한곳(BattleFieldGeometry)에서만 정의한다.
+        private const string BattleLayerName = BattleFieldGeometry.BattleLayerName;
+        private const string BattleWorldRootName = "BattleWorldRoot";
 
         private static void BuildBattleView(Transform parent)
         {
@@ -164,57 +170,119 @@ namespace Game.Core.Editor
             EditorUIBuilder.SetStretch(go.GetComponent<RectTransform>());
             EditorUIBuilder.EnsureMarker(go, FieldUIElementIds.BattleViewRoot);
 
-            // 배경/라벨은 카메라(ScrollRect Content) 밖에 둔다 - 줌아웃해도 항상 화면 전체를 채워야
-            // "전장 밖" 여백이 자연스러운 검은 배경으로 보인다(09번 설계 §7).
-            var background = EditorUIBuilder.EnsureImage(go, new Color(0.1f, 0.1f, 0.12f, 1f));
-            background.raycastTarget = false;
-            EditorUIBuilder.EnsureLabel(go.transform, "전투 중...");
-
-            // 예전 구조에서는 AllyLayer/EnemyLayer가 BattleView 바로 밑에 있었다 - 이제 Content 밑으로
-            // 옮겼으므로(재실행 안전성) 옛 위치에 남은 것부터 정리한다.
+            // 1차 UGUI 버전(ScrollRect/Viewport/Content/AllyLayer/EnemyLayer)의 잔재를 정리한다
+            // (재실행 안전성) - 실제 유닛은 이제 BattleWorldRoot 쪽에 있다.
             EditorUIBuilder.DestroyChildIfExists(go.transform, "AllyLayer");
             EditorUIBuilder.DestroyChildIfExists(go.transform, "EnemyLayer");
+            EditorUIBuilder.DestroyChildIfExists(go.transform, "Viewport");
+            var oldScrollRect = go.GetComponent<ScrollRect>();
+            if (oldScrollRect != null)
+            {
+                Undo.DestroyObjectImmediate(oldScrollRect);
+            }
+            // 1차 UGUI 버전의 BattleFieldCameraView 컴포넌트 자체를 삭제했다 - 씬에 남은 참조는
+            // 타입을 못 찾아 "Missing Script"가 된다(ManagerHierarchyInstaller.
+            // RemoveMissingScriptsRecursively와 같은 이유). GetComponent로는 찾을 수 없어 이걸로 정리한다.
+            GameObjectUtility.RemoveMonoBehavioursWithMissingScript(go);
 
-            var (viewport, contentGo) = EditorUIBuilder.CreateViewportAndContent(go.transform);
-            var contentRect = contentGo.GetComponent<RectTransform>();
-            contentRect.anchorMin = new Vector2(0.5f, 0.5f);
-            contentRect.anchorMax = new Vector2(0.5f, 0.5f);
-            contentRect.pivot = new Vector2(0.5f, 0.5f);
-            contentRect.sizeDelta = InitialBattleContentSize;
-            contentRect.anchoredPosition = Vector2.zero;
-
-            EditorUIBuilder.ConfigureScrollRect(go, viewport, contentRect, horizontal: true, vertical: true);
-            var battleScrollRect = go.GetComponent<ScrollRect>();
-            // HubSceneInstaller.BuildTripMap과 같은 이유 - ScrollRect 자신의 휠 스크롤과
-            // BattleFieldCameraView.OnScroll(줌)이 동시에 반응하는 걸 막는다.
-            battleScrollRect.scrollSensitivity = 0f;
-            battleScrollRect.inertia = false;
-
-            EditorUIBuilder.GetOrAddComponent<BattleFieldCameraView>(go);
-
-            // 유닛 레이어는 이제 BattleView가 아니라 카메라 콘텐츠(Content) 하위에 둔다 - 팬/줌이
-            // 유닛까지 함께 움직이려면 콘텐츠의 자식이어야 한다(09번 설계 §7).
-            BuildBattleUnitLayer(contentRect.transform, "AllyLayer", FieldUIElementIds.BattleAllyLayer);
-            BuildBattleUnitLayer(contentRect.transform, "EnemyLayer", FieldUIElementIds.BattleEnemyLayer);
+            // 배경은 드래그팬/휠줌 입력 캡처 대상일 뿐 시각적으로는 투명해야 한다(EditorUIBuilder.
+            // CreateViewportAndContent의 Viewport와 같은 패턴 - alpha가 0에 가까워도 raycastTarget=true면
+            // 클릭/드래그는 그대로 잡힌다). Screen Space Overlay 캔버스는 항상 모든 카메라 렌더링
+            // "위"에 그려지므로, 여기가 불투명하면 월드 카메라가 그리는 유닛 스프라이트를 통째로
+            // 가려버린다(실전투 확인 - Docs/설계/13번). "전장 밖" 여백의 어두운 배경색은 UI가 아니라
+            // ConfigureBattleCamera가 Main Camera의 backgroundColor로 설정한다(스프라이트 "뒤"에
+            // 그려지므로 가리지 않음).
+            var background = EditorUIBuilder.EnsureImage(go, new Color(1f, 1f, 1f, 0.001f));
+            background.raycastTarget = true;
+            EditorUIBuilder.EnsureLabel(go.transform, "전투 중...");
+            EditorUIBuilder.GetOrAddComponent<BattleFieldInputForwarder>(go);
 
             go.SetActive(false); // 평소에는 숨김 - FieldCameraController가 전환 시 활성화
         }
 
         /// <summary>
-        /// BattleViewPresenter가 유닛 뷰(BattleCharacterUnitView 등)를 스폰하는 자리. 카메라 콘텐츠와
-        /// 마찬가지로 중앙 한 점에 고정된 앵커라, 자식의 anchoredPosition이 곧 전장 좌표
-        /// (BattleFieldLayout) 원점 기준 픽셀 오프셋이 된다.
+        /// 전투 유닛(캐릭터/보호목표) 스프라이트의 루트 - Canvas 밖 씬 루트에 독립적으로 만든다
+        /// (Docs/설계/13번 §2, UI 좌표계와 섞이면 스케일 문제가 재발한다). BattleViewPresenter가
+        /// AllyLayer/EnemyLayer를 부모 삼아 유닛 뷰를 스폰한다.
         /// </summary>
-        private static void BuildBattleUnitLayer(Transform parent, string name, string markerId)
+        private static void BuildBattleWorldRoot()
         {
-            var go = EditorUIBuilder.GetOrCreateUIObject(parent, name);
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = Vector2.zero;
-            rect.anchoredPosition = Vector2.zero;
-            EditorUIBuilder.EnsureMarker(go, markerId);
+            var activeScene = EditorSceneManager.GetActiveScene();
+            GameObject root = null;
+            foreach (var rootObject in activeScene.GetRootGameObjects())
+            {
+                if (rootObject.name == BattleWorldRootName)
+                {
+                    root = rootObject;
+                    break;
+                }
+            }
+            if (root == null)
+            {
+                root = new GameObject(BattleWorldRootName);
+                Undo.RegisterCreatedObjectUndo(root, $"Create {BattleWorldRootName}");
+            }
+            EditorUIBuilder.GetOrAddComponent<BattleWorldRoot>(root);
+
+            var battleLayer = LayerMask.NameToLayer(BattleLayerName);
+            if (battleLayer < 0)
+            {
+                Debug.LogWarning($"'{BattleLayerName}' 레이어가 없다 - Project Settings > Tags and Layers에서 추가하라. 추가 전까지는 Default 레이어로 대체된다.");
+                battleLayer = 0;
+            }
+
+            EnsureBattleUnitLayer(root.transform, "AllyLayer", battleLayer);
+            EnsureBattleUnitLayer(root.transform, "EnemyLayer", battleLayer);
+            EditorUIBuilder.GetOrAddComponent<BattleBackgroundGridView>(root);
+
+            root.SetActive(false); // 평소에는 숨김 - FieldCameraController가 battleViewRoot와 동기화해 전환.
+        }
+
+        // 유닛 스폰 부모 - 일반 Transform(RectTransform 아님)이라 UI 좌표계와 무관하게 순수 월드
+        // 좌표로 배치된다. layer를 Battle로 지정해 전투 카메라의 cullingMask와 맞춘다.
+        private static void EnsureBattleUnitLayer(Transform parent, string name, int layer)
+        {
+            var existing = parent.Find(name);
+            GameObject go;
+            if (existing != null)
+            {
+                go = existing.gameObject;
+            }
+            else
+            {
+                go = new GameObject(name);
+                Undo.RegisterCreatedObjectUndo(go, $"Create {name}");
+                Undo.SetTransformParent(go.transform, parent, $"Parent {name}");
+            }
+            go.layer = layer;
+            go.transform.localPosition = Vector3.zero;
+        }
+
+        /// <summary>
+        /// 새 카메라를 만들지 않고 씬의 기존 Main Camera를 재사용한다(Docs/설계/13번 §6 확정 - 이미
+        /// Orthographic이고 AudioListener도 있어 재사용이 더 안전함).
+        /// </summary>
+        private static void ConfigureBattleCamera()
+        {
+            var mainCamera = Camera.main;
+            if (mainCamera == null)
+            {
+                Debug.LogWarning("씬에서 Main Camera를 찾을 수 없어 전투 카메라를 구성하지 못했다.");
+                return;
+            }
+
+            var battleLayer = LayerMask.NameToLayer(BattleLayerName);
+            if (battleLayer >= 0)
+            {
+                mainCamera.cullingMask = 1 << battleLayer;
+            }
+
+            // "전장 밖" 여백의 어두운 배경 - BattleView의 UI 배경 Image는 투명하게 바뀌었으므로
+            // (스프라이트를 가리지 않기 위해, 위 BuildBattleView 참고) 이 색이 그 자리를 대신한다.
+            mainCamera.clearFlags = CameraClearFlags.SolidColor;
+            mainCamera.backgroundColor = new Color(0.1f, 0.1f, 0.12f, 1f);
+
+            EditorUIBuilder.GetOrAddComponent<BattleFieldWorldCameraView>(mainCamera.gameObject);
         }
 
         private static void EnsureBattlePrefabFolder()
@@ -236,30 +304,28 @@ namespace Game.Core.Editor
         /// <summary>
         /// ManagerHierarchyInstaller(Bootstrap)가 FieldUIController에 연결할 때도 재사용한다 -
         /// FormationUIBuilder.GetOrCreateSlotPrefab()을 FieldUIInstaller가 가져다 쓰는 것과 같은 패턴.
+        /// 1차 UGUI 버전(RectTransform+Image) 프리팹이 이미 그 경로에 있으면 SpriteRenderer 버전으로
+        /// 재생성한다(재실행 안전성 - 존재 여부만으론 옛 버전인지 구분이 안 돼 SpriteRenderer 보유
+        /// 여부로 판정한다).
         /// </summary>
         internal static BattleCharacterUnitView GetOrCreateCharacterViewPrefab()
         {
             var existing = AssetDatabase.LoadAssetAtPath<GameObject>(CharacterViewPrefabPath);
-            if (existing != null)
+            if (existing != null && existing.GetComponent<SpriteRenderer>() != null)
             {
                 return existing.GetComponent<BattleCharacterUnitView>();
             }
 
             EnsureBattlePrefabFolder();
 
-            var go = new GameObject("BattleCharacterUnitView", typeof(RectTransform));
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(24f, 24f);
-
-            var image = go.AddComponent<Image>();
-            image.color = Color.white;
+            var go = new GameObject("BattleCharacterUnitView", typeof(SpriteRenderer));
+            var charLayer = LayerMask.NameToLayer(BattleLayerName);
+            go.layer = charLayer >= 0 ? charLayer : 0;
+            var renderer = go.GetComponent<SpriteRenderer>();
 
             var view = go.AddComponent<BattleCharacterUnitView>();
             var so = new SerializedObject(view);
-            so.FindProperty("bodyImage").objectReferenceValue = image;
+            so.FindProperty("bodyRenderer").objectReferenceValue = renderer;
             so.ApplyModifiedProperties();
 
             var savedPrefab = PrefabUtility.SaveAsPrefabAsset(go, CharacterViewPrefabPath);
@@ -271,26 +337,21 @@ namespace Game.Core.Editor
         internal static BattleProtectedUnitView GetOrCreateProtectedViewPrefab()
         {
             var existing = AssetDatabase.LoadAssetAtPath<GameObject>(ProtectedViewPrefabPath);
-            if (existing != null)
+            if (existing != null && existing.GetComponent<SpriteRenderer>() != null)
             {
                 return existing.GetComponent<BattleProtectedUnitView>();
             }
 
             EnsureBattlePrefabFolder();
 
-            var go = new GameObject("BattleProtectedUnitView", typeof(RectTransform));
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(28f, 28f);
-
-            var image = go.AddComponent<Image>();
-            image.color = Color.white;
+            var go = new GameObject("BattleProtectedUnitView", typeof(SpriteRenderer));
+            var protLayer = LayerMask.NameToLayer(BattleLayerName);
+            go.layer = protLayer >= 0 ? protLayer : 0;
+            var renderer = go.GetComponent<SpriteRenderer>();
 
             var view = go.AddComponent<BattleProtectedUnitView>();
             var so = new SerializedObject(view);
-            so.FindProperty("bodyImage").objectReferenceValue = image;
+            so.FindProperty("bodyRenderer").objectReferenceValue = renderer;
             so.ApplyModifiedProperties();
 
             var savedPrefab = PrefabUtility.SaveAsPrefabAsset(go, ProtectedViewPrefabPath);

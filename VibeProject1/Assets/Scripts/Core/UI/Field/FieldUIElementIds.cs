@@ -12,8 +12,8 @@ namespace Game.Core
         public const string TacticsButton = "Field.TacticsButton";
         public const string EncounterWarning = "Field.EncounterWarning";
         public const string BattleViewRoot = "Field.BattleViewRoot";
-        public const string BattleAllyLayer = "Field.BattleAllyLayer";
-        public const string BattleEnemyLayer = "Field.BattleEnemyLayer";
+        // BattleAllyLayer/BattleEnemyLayer는 전투 뷰 월드 오브젝트 전환(Docs/설계/13번)으로 폐기됨 -
+        // 이제 UI 마커가 아니라 BattleWorldRoot 컴포넌트(씬 루트, Canvas 밖)로 조회한다.
         public const string ResultPopup = "Field.ResultPopup";
         public const string TransitionCurtain = "Field.TransitionCurtain";
     }

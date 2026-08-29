@@ -17,20 +17,29 @@ namespace Game.Core
     /// 보인다(연속 전투 시 이전 전투 잔여 유닛이 살짝 보이는 문제를 가리려다 발견됨). 커튼은 슬라이드가
     /// 끝난 뒤(화면을 완전히 덮은 채) 유지되고, 실제로 걷는 시점(전투 상태 재구성 완료 후)은
     /// FieldEncounterFlowCoordinator가 결정한다 - 여기서는 걷지 않는다.
+    /// 전투 뷰가 월드 오브젝트로 전환되면서(Docs/설계/13번) battleWorldRoot도 함께 받는다 - 전투 유닛
+    /// 스프라이트는 battleViewRoot(UI 패널) 밑이 아니라 Canvas 밖의 별도 하이어라키에 있어, 예전처럼
+    /// battleViewRoot.SetActive만으로는 자동으로 켜지고/꺼지지 않는다. battleViewRoot와 정확히 같은
+    /// 시점에 battleWorldRoot도 SetActive해 전투 종료 후 이동 뷰로 돌아왔을 때 이전 전투의 스프라이트가
+    /// 화면에 남아있지 않게 한다.
     /// </summary>
     internal class FieldCameraController
     {
         private readonly MonoBehaviour coroutineRunner;
         private readonly RectTransform movementViewRoot;
         private readonly RectTransform battleViewRoot;
+        private readonly GameObject battleWorldRoot;
         private readonly FieldTransitionCurtainView transitionCurtain;
         private readonly RectTransform transitionCurtainRoot;
 
-        public FieldCameraController(MonoBehaviour coroutineRunner, RectTransform movementViewRoot, RectTransform battleViewRoot, FieldTransitionCurtainView transitionCurtain)
+        public FieldCameraController(
+            MonoBehaviour coroutineRunner, RectTransform movementViewRoot, RectTransform battleViewRoot,
+            GameObject battleWorldRoot, FieldTransitionCurtainView transitionCurtain)
         {
             this.coroutineRunner = coroutineRunner;
             this.movementViewRoot = movementViewRoot;
             this.battleViewRoot = battleViewRoot;
+            this.battleWorldRoot = battleWorldRoot;
             this.transitionCurtain = transitionCurtain;
             transitionCurtainRoot = (RectTransform)transitionCurtain.transform;
         }
@@ -64,6 +73,7 @@ namespace Game.Core
             var exitEndX = toBattle ? -width : width;
 
             enteringView.gameObject.SetActive(true);
+            if (toBattle) battleWorldRoot.SetActive(true);
             exitingView.anchoredPosition = Vector2.zero;
             enteringView.anchoredPosition = new Vector2(enterStartX, 0f);
 
@@ -88,6 +98,7 @@ namespace Game.Core
                 onComplete: () =>
                 {
                     exitingView.gameObject.SetActive(false);
+                    if (!toBattle) battleWorldRoot.SetActive(false);
 
                     // 커튼은 여기서 걷지 않는다 - 화면을 완전히 덮은 채로 유지되다가, 전투 상태가
                     // 실제로 재구성된 뒤(onComplete 안에서 StartBattle() 호출 후) FieldEncounterFlowCoordinator가 걷는다.
