@@ -6,11 +6,13 @@ namespace Game.Core
 {
     /// <summary>
     /// 전투 중에만 존재하는 순수 데이터+행동 객체 - Unity 생명주기가 필요 없어 MonoBehaviour가 아니다.
-    /// Docs/기획/08_전투_해석로직_기획.md §5.1(최근접 타겟팅)·§5.2(이동-공격 사이클)·
-    /// §7.1~§7.3(사기 동기화·도주)을 구현한다. 타겟 고정(살아있는 타겟이 있는 동안 재탐색하지 않음)은
-    /// 매 프레임 O(n) 재탐색을 피하기 위한 의도된 선택이라, "가장 가까운 적"이 엄밀히는 "타겟 획득
-    /// 시점 기준 최근접"으로 완화되어 적용된다. 공간 탐색(최근접 타겟·근접 반발)은 IUnitSpatialQuery에
-    /// 위임한다 - 전투 규모가 커져 탐색 방식을 공간 분할로 바꿔도 이 클래스는 무변경이다(OCP).
+    /// Docs/기획/08_전투_해석로직_기획.md §5.1(최근접 타겟팅)·§5.1-1(재탐색 조건 확장)·§5.2(이동-공격
+    /// 사이클)·§7.1~§7.3(사기 동기화·도주)을 구현한다. 타겟 고정(살아있는 타겟이 있는 동안 재탐색하지
+    /// 않음)은 매 프레임 O(n) 재탐색을 피하기 위한 의도된 선택이라, "가장 가까운 적"이 엄밀히는 "타겟
+    /// 획득 시점 기준 최근접"으로 완화되어 적용된다 - 단, 사거리 밖에서(접근 중) 피격당하면 예외적으로
+    /// 재탐색한다(retargetRequested, Docs/설계/06번 §10-9). 공간 탐색(최근접 타겟·근접 반발)은
+    /// IUnitSpatialQuery에 위임한다 - 전투 규모가 커져 탐색 방식을 공간 분할로 바꿔도 이 클래스는
+    /// 무변경이다(OCP).
     ///
     /// 방향성 지시(Docs/설계/12번)는 tacticsBehaviors가 null이 아닐 때만 적용된다 - 이번 설계는
     /// 아군에만 적용되고(§0), 적 유닛은 tacticsBehaviors를 null로 받아 기존 동작(TickEngageWithoutTactics)
@@ -78,6 +80,10 @@ namespace Game.Core
         private float fledDistance;
         private Vector2 fleeDirection;
         private IDamageable target;
+        // 타겟이 사거리 밖(접근 중)인 상태에서 피격당하면 세팅된다 - 다음 Tick 진입 시 재탐색 분기가
+        // 소비한다(기획 08번 §5.1-1, 설계 06번 §10-9). "누구로" 재탐색할지는 그대로, "언제"만 이 플래그로
+        // 하나 더 열어준다.
+        private bool retargetRequested;
         private float attackCooldown;
         // 활동 반경 밖에서 IPursuitPolicy가 트리거해 배치 위치로 복귀 중인 상태(Docs/설계/12번 §4) -
         // Fleeing보다는 낮고 통상 Engaging보다는 높은 우선순위.
@@ -130,12 +136,14 @@ namespace Game.Core
             ApplySeparation(sameSideUnits, deltaTime);
         }
 
-        // 기존(적 유닛) 동작 그대로 - 최근접 스티키 타겟팅, 사거리 밖이면 직진 접근, 안이면 공격.
+        // 최근접 스티키 타겟팅, 사거리 밖이면 직진 접근, 안이면 공격 - 단 사거리 밖에서 피격당하면
+        // retargetRequested(§5.1-1)로 재탐색한다.
         private void TickEngageWithoutTactics(float deltaTime, IReadOnlyList<IDamageable> targets)
         {
-            if (target is not { IsAlive: true })
+            if (target is not { IsAlive: true } || retargetRequested)
             {
                 target = spatialQuery.FindNearest(Position, targets);
+                retargetRequested = false;
                 if (target == null) return;
             }
 
@@ -152,16 +160,17 @@ namespace Game.Core
             }
         }
 
-        // 방향성 지시가 적용되는 아군 동작. 스티키 타겟팅은 그대로 유지한다 - 타겟이 죽었거나
-        // IPursuitPolicy가 이탈을 트리거했을 때만 재선택한다(매 틱 재선택하지 않음, Docs/설계/12번
-        // §7 점검 이력 - 최적화).
+        // 방향성 지시가 적용되는 아군 동작. 스티키 타겟팅은 그대로 유지한다 - 타겟이 죽었거나,
+        // IPursuitPolicy가 이탈을 트리거했거나, retargetRequested(사거리 밖에서 피격, §5.1-1)일
+        // 때만 재선택한다(매 틱 재선택하지 않음, Docs/설계/12번 §7 점검 이력 - 최적화).
         private void TickEngageWithTactics(float deltaTime, IReadOnlyList<IDamageable> allEnemies, IReadOnlyList<IBattleCombatant> sameSideUnits)
         {
             var recognized = tacticsBehaviors.RecognitionTracker.TickAndGetRecognized(deltaTime, allEnemies, tacticsBehaviors.RadiusZone);
 
-            if (target is not { IsAlive: true })
+            if (target is not { IsAlive: true } || retargetRequested)
             {
                 target = tacticsBehaviors.TargetSelector.Select(Position, recognized);
+                retargetRequested = false;
                 if (target == null) return;
             }
 
@@ -314,6 +323,13 @@ namespace Game.Core
             if (!IsAlive) return;
             currentHp = Mathf.Max(0f, currentHp - amount);
             OnDamaged?.Invoke(amount);
+            // 재탐색 트리거(기획 08번 §5.1-1) - 타겟이 사거리 밖(접근 중)인 상태에서 피격당하면 다음
+            // Tick에서 재탐색한다. 이미 사거리 안에서 교전 중이면 이 거리 비교 자체가 성립하지 않아
+            // 별도 분기 없이 자동으로 무시된다.
+            if (target is { IsAlive: true } && (target.Position - Position).magnitude > stats.Range)
+            {
+                retargetRequested = true;
+            }
             // 피격 인식("근접 또는 피격", 기획 §2.1) - 공격자는 항상 즉시 인식된다. 인식 유형이
             // 시간/거리 기반이라도, 이미 나를 공격한 상대를 모른 척할 이유가 없어 유형과 무관하게
             // 적용한다(EnemyRecognitionTrackerBase.NotifyAttackedBy가 그 개체만 recognized에 추가).
