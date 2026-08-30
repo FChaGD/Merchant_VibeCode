@@ -109,6 +109,7 @@ namespace Game.Core
         {
             if (!IsAlive) return;
 
+            ApplyRegen(deltaTime);
             TickMorale(deltaTime, targets);
             if (isFleeing)
             {
@@ -269,6 +270,14 @@ namespace Game.Core
             {
                 Position += pushOut * SeparationSpeed * deltaTime;
             }
+        }
+
+        // 괴수 타입 전용 지속 재생(기획 08번 §13.1) - 교전/도주/복귀 상태와 무관하게 항상 적용한다.
+        // 나머지 타입은 HpRegenPerSecond가 0이라 조기 반환되어 비용이 없다.
+        private void ApplyRegen(float deltaTime)
+        {
+            if (stats.HpRegenPerSecond <= 0f) return;
+            currentHp = Mathf.Min(stats.MaxHp, currentHp + stats.HpRegenPerSecond * deltaTime);
         }
 
         // 매초 PartyMorale 쪽으로 다가가고, 임계치 이하로 떨어지면 도주를 시작한다.

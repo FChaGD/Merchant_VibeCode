@@ -19,7 +19,7 @@ namespace Game.Core
 
         private readonly IBattleUnitStatProvider statProvider = new PlaceholderBattleUnitStatProvider();
         private readonly IEncounterSpawnPointSelector spawnSelector = new UniformRandomSpawnPointSelector();
-        private readonly IEnemyCompositionProvider enemyProvider = new PlaceholderBanditCompositionProvider();
+        private readonly IEnemyCompositionProvider enemyProvider = new PlaceholderEnemyTypeCompositionProvider();
         // 아군 좌표 변환과 스폰/반지름 계산은 서로 다른 인터페이스지만 구현은 하나 - 내부 헬퍼
         // 공유 때문에 클래스까지 나누지 않았다(BattleFieldLayout, Docs/설계/12번 §5.2).
         private readonly BattleFieldLayout sharedFieldLayout = new();
