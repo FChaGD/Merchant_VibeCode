@@ -20,6 +20,9 @@ namespace Game.Core
         private readonly FrontlineFormationCoordinator frontlineCoordinator;
         // 포위(Surround) 조율자(Docs/설계/12번 §13.3) - frontlineCoordinator와 같은 자리·같은 이유.
         private readonly RangedSurroundCoordinator rangedSurroundCoordinator;
+        // 사기 파동 조율자(Docs/설계/14번 §6) - 진영별로 하나씩, PartyMorale과 같은 자리.
+        private readonly MoraleWaveCoordinator allyWaveCoordinator;
+        private readonly MoraleWaveCoordinator enemyWaveCoordinator;
         private int aliveAllyCount;
         private int aliveEnemyCount;
         private int aliveProtectedCount;
@@ -35,13 +38,16 @@ namespace Game.Core
 
         public BattleSimulationLoop(
             List<IBattleCombatant> allies, List<IBattleCombatant> enemies, List<IDamageable> protectedUnits,
-            float fieldRadius, float spawnRadius, FrontlineFormationCoordinator frontlineCoordinator, RangedSurroundCoordinator rangedSurroundCoordinator)
+            float fieldRadius, float spawnRadius, FrontlineFormationCoordinator frontlineCoordinator, RangedSurroundCoordinator rangedSurroundCoordinator,
+            MoraleWaveCoordinator allyWaveCoordinator, MoraleWaveCoordinator enemyWaveCoordinator)
         {
             this.allies = allies;
             this.enemies = enemies;
             this.protectedUnits = protectedUnits;
             this.frontlineCoordinator = frontlineCoordinator;
             this.rangedSurroundCoordinator = rangedSurroundCoordinator;
+            this.allyWaveCoordinator = allyWaveCoordinator;
+            this.enemyWaveCoordinator = enemyWaveCoordinator;
             FieldRadius = fieldRadius;
             SpawnRadius = spawnRadius;
             aliveAllyCount = allies.Count;
@@ -79,6 +85,10 @@ namespace Game.Core
             // 포위(Surround) 재편성도 같은 이유로 유닛 Tick 전에 실행(Docs/설계/12번 §13.3′) -
             // 반지름 축소/복원(§13.3′-4)이 시간 기반이라 deltaTime이 필요하다.
             rangedSurroundCoordinator.Update(deltaTime, allies);
+            // 사기 파동도 유닛 Tick 전에 갱신한다(Docs/설계/14번 §6) - 진영별로 완전히 분리해 상대
+            // 진영에는 영향이 없다.
+            allyWaveCoordinator.Update(deltaTime, allies);
+            enemyWaveCoordinator.Update(deltaTime, enemies);
 
             // 적의 타겟 후보 = 아군 전투원 + 보호 목표. protectedUnits를 빼먹으면 적이 Wagon/Facility를
             // 절대 공격하지 않아 "보호 목표 파괴 = 패배"(기획 §9)가 죽은 코드가 된다 - 아군에게는

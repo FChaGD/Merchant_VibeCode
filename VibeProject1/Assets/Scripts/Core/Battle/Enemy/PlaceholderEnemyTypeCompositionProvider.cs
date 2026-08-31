@@ -12,9 +12,10 @@ namespace Game.Core
     {
         private static readonly Dictionary<EnemyType, BattleUnitStats> StatsByType = new()
         {
-            [EnemyType.Marauder] = new BattleUnitStats(maxHp: 60, attack: 12, defense: 5, moveSpeed: 3.0f, attackInterval: 1.0f, range: 1.5f),
-            [EnemyType.Monster] = new BattleUnitStats(maxHp: 90, attack: 12, defense: 6, moveSpeed: 4.0f, attackInterval: 1.0f, range: 1.5f, hpRegenPerSecond: 3f),
-            [EnemyType.Adversary] = new BattleUnitStats(maxHp: 50, attack: 20, defense: 4, moveSpeed: 3.5f, attackInterval: 1.2f, range: 1.5f),
+            // moraleSyncRate는 기획 08번 §7.4 표 - 약탈자(빠른 붕괴) 7.5, 괴수(표준) 5, 적대자(느린 붕괴) 2.5.
+            [EnemyType.Marauder] = new BattleUnitStats(maxHp: 60, attack: 12, defense: 5, moveSpeed: 3.0f, attackInterval: 1.0f, range: 1.5f, moraleSyncRate: 7.5f, enemyType: EnemyType.Marauder),
+            [EnemyType.Monster] = new BattleUnitStats(maxHp: 90, attack: 12, defense: 6, moveSpeed: 4.0f, attackInterval: 1.0f, range: 1.5f, moraleSyncRate: 5f, hpRegenPerSecond: 3f, enemyType: EnemyType.Monster),
+            [EnemyType.Adversary] = new BattleUnitStats(maxHp: 50, attack: 20, defense: 4, moveSpeed: 3.5f, attackInterval: 1.2f, range: 1.5f, moraleSyncRate: 2.5f, enemyType: EnemyType.Adversary),
         };
 
         // Random.Range의 max는 배타적 - (3,6)=3~5, (2,5)=2~4, (1,3)=1~2 (기획 08번 §13.1 표 그대로).

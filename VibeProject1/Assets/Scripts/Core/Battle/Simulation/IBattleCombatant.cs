@@ -35,6 +35,12 @@ namespace Game.Core
         Vector2? DebugMoveTarget { get; }
         event Action OnFled;
         event Action<IDamageable> OnAttacked;
+        // 사기 파동(기획 08번 §7.3, 설계 14번)이 자신에게 닿았을 때 MoraleWaveCoordinator가 호출 -
+        // 델타를 개인 목표치에 반영하고, 델타가 음수면 §7.6 확률적 붕괴 체크를 1회 굴린다.
+        void ReceiveMoraleWave(float delta);
+        // 이 유닛이 상대를 처치했을 때(피해자의 TakeDamage 내부에서 공격자 쪽을 향해 호출) - 자기
+        // 진영 PartyMorale에 +4를 반영하고 자기 위치를 중심으로 파동을 생성한다(기획 §7.1/§7.3).
+        void NotifyKilledEnemy();
         void Tick(float deltaTime, IReadOnlyList<IDamageable> targets, IReadOnlyList<IBattleCombatant> sameSideUnits);
     }
 }

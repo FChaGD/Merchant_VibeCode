@@ -33,8 +33,10 @@ namespace Game.Core
         // hasLeftBattle이 true가 되면(도주 완료) 더 이상 전투 참가자가 아니다 - HP는 남아있어도 IsAlive는 false.
         public bool IsAlive => currentHp > 0f && !hasLeftBattle;
         public bool IsFleeing => isFleeing;
-        public Vector2 FleeVelocity => fleeDirection * stats.MoveSpeed;
-        public float Defense => stats.Defense;
+        public Vector2 FleeVelocity => fleeDirection * EffectiveMoveSpeed;
+        // 사기 고사기 버프(기획 08번 §7.5, 설계 14번 §9.1) - 이동속도 버프는 EffectiveMoveSpeed로 모아
+        // MoveToward/TickFlee/FleeVelocity가 전부 같은 값을 참조하게 한다(DRY).
+        public float Defense => stats.Defense * DefenseMoraleMultiplier;
         public float Attack => stats.Attack;
         public float Range => stats.Range;
         public float MaxHp => stats.MaxHp;
@@ -55,9 +57,10 @@ namespace Game.Core
         // TickEngageWithoutTactics/TickReturning)만 지우면 된다 - 다른 로직은 이 값을 읽지 않는다.
         public Vector2? DebugMoveTarget => debugMoveTarget;
         private Vector2? debugMoveTarget;
-        // Character는 아직 직업별 팔레트 아이콘(사각형/오각형/육각형)을 전투 뷰에 재사용하지 않는다
-        // (이번 요청 범위 밖 - 마차/시설만 재사용). 뷰는 null이면 기존 단색 도형으로 대체한다.
-        public Sprite Icon => null;
+        // 아군은 아직 직업별 팔레트 아이콘(사각형/오각형/육각형)을 전투 뷰에 재사용하지 않아(이번
+        // 요청 범위 밖) 항상 null로 생성된다 - 뷰는 null이면 기존 단색 도형으로 대체한다. 적은
+        // 타입 구분용 도형(약탈자/괴수/적대자)이 채워져 들어온다(LiveBattleSimulationRule 참고).
+        public Sprite Icon => icon;
         public event Action OnDied;
         public event Action OnFled;
         public event Action<float> OnDamaged;
@@ -66,7 +69,10 @@ namespace Game.Core
         private readonly BattleUnitStats stats;
         private readonly IDamageFormula damageFormula;
         private readonly PartyMorale partyMorale;
+        // partyMorale과 항상 짝을 이뤄 주입된다(같은 진영의 사기 파동 발신처, 기획 §7.3/설계 14번 §6).
+        private readonly MoraleWaveCoordinator waveCoordinator;
         private readonly IUnitSpatialQuery spatialQuery;
+        private readonly Sprite icon;
         // 대형 크기(스폰 반지름)에 연동되어 전투마다 달라진다 - BattleFieldLayout.ComputeFleeTravelDistance
         // 참고. 전투 시작 시점에 한 번 계산해 전달받고, 도주 중에는 값이 바뀌지 않는다.
         private readonly float fleeTravelDistance;
@@ -75,6 +81,15 @@ namespace Game.Core
 
         private float currentHp;
         private float unitMorale = MoraleTuning.Initial;
+        // 파동으로만 갱신되는 개인 목표치(기획 §7.4) - UnitMorale이 매초 이 값을 향해 다가간다.
+        // PartyMorale을 더 이상 직접 참조하지 않는다.
+        private float personalTargetMorale = MoraleTuning.Initial;
+        // 이번 프레임의 targets(Tick 인자)를 캐시해 둔다 - TryRollFleeCheck가 TakeDamage/ReceiveMoraleWave
+        // 처럼 Tick 바깥에서도 호출돼 ComputeFleeDirection에 넘길 targets가 필요하기 때문(설계 14번 §9.5).
+        private IReadOnlyList<IDamageable> currentTargets = Array.Empty<IDamageable>();
+        // 도주 "결정" 시점(붕괴 확률 판정에 당첨된 순간)의 위치 - 도주 완료 시점이 아니라 이 위치가
+        // 사기 파동의 중심 좌표로 쓰인다(기획 §7.6, 설계 14번 §13-2 - 디버그 전용 아님).
+        private Vector2 fleeDecisionPosition;
         private bool isFleeing;
         private bool hasLeftBattle;
         private float fledDistance;
@@ -91,17 +106,19 @@ namespace Game.Core
 
         public BattleCharacterUnit(
             Vector2 startPosition, bool isAlly, BattleUnitStats stats, IDamageFormula damageFormula,
-            PartyMorale partyMorale, IUnitSpatialQuery spatialQuery, float fleeTravelDistance,
-            UnitTacticsBehaviors tacticsBehaviors = null)
+            PartyMorale partyMorale, MoraleWaveCoordinator waveCoordinator, IUnitSpatialQuery spatialQuery, float fleeTravelDistance,
+            UnitTacticsBehaviors tacticsBehaviors = null, Sprite icon = null)
         {
             Position = startPosition;
             IsAlly = isAlly;
             this.stats = stats;
             this.damageFormula = damageFormula;
             this.partyMorale = partyMorale;
+            this.waveCoordinator = waveCoordinator;
             this.spatialQuery = spatialQuery;
             this.fleeTravelDistance = fleeTravelDistance;
             this.tacticsBehaviors = tacticsBehaviors;
+            this.icon = icon;
             currentHp = stats.MaxHp;
         }
 
@@ -109,8 +126,9 @@ namespace Game.Core
         {
             if (!IsAlive) return;
 
+            currentTargets = targets;
             ApplyRegen(deltaTime);
-            TickMorale(deltaTime, targets);
+            TickMorale(deltaTime);
             if (isFleeing)
             {
                 TickFlee(deltaTime);
@@ -145,6 +163,7 @@ namespace Game.Core
             {
                 target = spatialQuery.FindNearest(Position, targets);
                 retargetRequested = false;
+                TryRollFleeCheck(); // §7.6 체크 이벤트 2 - 타겟 (재)결정 시
                 if (target == null) return;
             }
 
@@ -172,6 +191,7 @@ namespace Game.Core
             {
                 target = tacticsBehaviors.TargetSelector.Select(Position, recognized);
                 retargetRequested = false;
+                TryRollFleeCheck(); // §7.6 체크 이벤트 2 - 타겟 (재)결정 시
                 if (target == null) return;
             }
 
@@ -254,9 +274,18 @@ namespace Game.Core
             var toDestination = destination - Position;
             if (toDestination.sqrMagnitude > 0.0001f)
             {
-                Position += toDestination.normalized * stats.MoveSpeed * deltaTime;
+                Position += toDestination.normalized * EffectiveMoveSpeed * deltaTime;
             }
         }
+
+        // 사기 3단계(기획 §7.2/§7.5, 설계 14번 §4/§9.1) - UnitMorale 자기 자신의 값으로 판정한다.
+        // PartyMorale과 완전히 같은 임계치를 공유한다(MoraleTierExtensions).
+        private MoraleTier UnitTier => unitMorale.ToMoraleTier();
+        private float DefenseMoraleMultiplier => UnitTier == MoraleTier.High ? MoraleTuning.HighTierDefenseMultiplier : 1f;
+        private float MoveSpeedMoraleMultiplier => UnitTier == MoraleTier.High ? MoraleTuning.HighTierMoveSpeedMultiplier : 1f;
+        // 저사기 "패닉 스노우볼" - 동기화 속도가 가속돼 다음 파동에 더 빠르게 휩쓸린다.
+        private float EffectiveSyncRate => stats.MoraleSyncRate * (UnitTier == MoraleTier.Low ? MoraleTuning.LowTierSyncMultiplier : 1f);
+        private float EffectiveMoveSpeed => stats.MoveSpeed * MoveSpeedMoraleMultiplier;
 
         // 같은 진영 유닛끼리 SeparationRadius 안으로 겹치면 서로 밀어낸다 - 모든 적이 같은 스폰
         // 지점에서 동일한 스탯/타겟팅으로 출발해 좌표가 완전히 겹친 채로 움직이는 문제(육안상 "적이
@@ -280,15 +309,45 @@ namespace Game.Core
             currentHp = Mathf.Min(stats.MaxHp, currentHp + stats.HpRegenPerSecond * deltaTime);
         }
 
-        // 매초 PartyMorale 쪽으로 다가가고, 임계치 이하로 떨어지면 도주를 시작한다.
-        private void TickMorale(float deltaTime, IReadOnlyList<IDamageable> targets)
+        // 매초 개인 목표치(파동으로만 갱신, §7.4) 쪽으로 다가간다 - PartyMorale을 더 이상 직접
+        // 참조하지 않는다. 기존처럼 "0 이하 = 즉시 도주"가 아니다 - §7.6 확률 체크는 파동 수신/타겟
+        // 결정/피격 세 지점에서만 굴린다(TryRollFleeCheck).
+        private void TickMorale(float deltaTime)
         {
-            unitMorale = Mathf.MoveTowards(unitMorale, partyMorale.CurrentValue, MoraleTuning.SyncRatePerSecond * deltaTime);
-            if (!isFleeing && unitMorale <= MoraleTuning.FleeThreshold)
-            {
-                isFleeing = true;
-                fleeDirection = ComputeFleeDirection(targets);
-            }
+            unitMorale = Mathf.Clamp(
+                Mathf.MoveTowards(unitMorale, personalTargetMorale, EffectiveSyncRate * deltaTime), 0f, 100f);
+        }
+
+        // 사기 파동(§7.3)이 자신에게 닿았을 때 MoraleWaveCoordinator가 호출한다(IBattleCombatant 구현).
+        public void ReceiveMoraleWave(float delta)
+        {
+            personalTargetMorale = Mathf.Clamp(personalTargetMorale + delta, 0f, 100f);
+            if (delta < 0f) TryRollFleeCheck(); // §7.6 체크 이벤트 1 - 하락 파동만
+        }
+
+        // 이 유닛이 상대를 처치했을 때 피해자의 TakeDamage가 호출한다(IBattleCombatant 구현) - 자기
+        // 자신의 partyMorale/waveCoordinator를 이미 들고 있어 상대 진영 참조 없이 해결된다.
+        public void NotifyKilledEnemy()
+        {
+            var delta = partyMorale.NotifyEnemyKilled();
+            waveCoordinator.SpawnWave(Position, delta); // §7.3 중심 좌표 = 처치한(공격자) 캐릭터 위치
+        }
+
+        // §7.6 체크 이벤트 3곳(파동 수신/타겟 결정/피격)에서 공통으로 호출한다. 고정 주기 체크가 아니라
+        // 이 세 이벤트에만 붙어 있어야 한다(사용자 확정) - 새 호출부를 추가할 때도 이 원칙을 지킬 것.
+        private void TryRollFleeCheck()
+        {
+            if (isFleeing || unitMorale > MoraleTuning.FleeCandidateThreshold) return;
+
+            var x = (MoraleTuning.FleeCandidateThreshold - unitMorale) / MoraleTuning.FleeCandidateThreshold;
+            var probability = MoraleTuning.FleeProbabilityFloor
+                + (100f - MoraleTuning.FleeProbabilityFloor) * Mathf.Pow(x, MoraleTuning.FleeProbabilityExponent);
+
+            if (UnityEngine.Random.value * 100f >= probability) return;
+
+            isFleeing = true;
+            fleeDirection = ComputeFleeDirection(currentTargets);
+            fleeDecisionPosition = Position; // 이 순간 위치가 파동 중심(§7.6) - 도주 완료 시점이 아니다.
         }
 
         // "필드 중심(원점)→자기 위치" 방향과 "가장 가까운 적→자기 위치" 방향을 더해 도주 방향을 정한다.
@@ -315,14 +374,15 @@ namespace Game.Core
         // fleeDirection으로 이동만 한다 - 타겟팅/공격 없음(기획 §7.3 "이동/공격을 멈추고").
         private void TickFlee(float deltaTime)
         {
-            var step = stats.MoveSpeed * deltaTime;
+            var step = EffectiveMoveSpeed * deltaTime;
             Position += fleeDirection * step;
             fledDistance += step;
 
             if (fledDistance >= fleeTravelDistance)
             {
                 hasLeftBattle = true;
-                partyMorale.NotifyUnitLost(); // §7.2 - 도주도 "전투 불능"에 포함된다
+                var delta = partyMorale.NotifyFled(); // §7.2 - 도주도 "전투 불능"에 포함된다
+                waveCoordinator.SpawnWave(fleeDecisionPosition, delta); // 완료 시점이 아니라 결정 시점 위치(§7.6)
                 OnFled?.Invoke();
             }
         }
@@ -348,8 +408,14 @@ namespace Game.Core
             tacticsBehaviors?.SelfPreservationModifier.NotifyDamaged(amount, currentHp / MaxHp);
             if (currentHp <= 0f)
             {
-                partyMorale.NotifyUnitLost();
+                var delta = partyMorale.NotifyDeath();
+                waveCoordinator.SpawnWave(Position, delta); // §7.3 중심 좌표 = 사망한 캐릭터 위치
+                attacker.NotifyKilledEnemy(); // §7.1 처치 회복(+4) - 공격자 진영에 반영
                 OnDied?.Invoke();
+            }
+            else
+            {
+                TryRollFleeCheck(); // §7.6 체크 이벤트 3 - 피격 시
             }
         }
 

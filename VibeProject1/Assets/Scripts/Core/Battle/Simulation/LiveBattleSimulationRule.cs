@@ -104,6 +104,10 @@ namespace Game.Core
             var standardActivityRadius = FieldGeometry.ComputeStandardActivityRadius(columnCount);
             var fieldRadius = FieldGeometry.ComputeFieldRadius(columnCount);
             var spawnRadius = FieldGeometry.ComputeSpawnRadius(columnCount);
+            // 사기 파동 조율자(Docs/설계/14번 §6) - fieldRadius가 있어야 소멸 조건을 계산할 수 있어
+            // 그 직후 생성한다. PartyMorale과 마찬가지로 진영별 인스턴스, 전투마다 새로 시작.
+            var allyWaveCoordinator = new MoraleWaveCoordinator(fieldRadius);
+            var enemyWaveCoordinator = new MoraleWaveCoordinator(fieldRadius);
             // tacticsReader가 없으면 방향성 지시 자체가 비활성화되므로 파티 추적 설정을 읽을 수 없다 -
             // 이때는 어차피 Blocking 전열 후보가 하나도 없어(모든 RoleGroup이 null) 어떤 프리셋을
             // 넘기든 무해하다(기본값 OffensiveJudgment로 대체). BuildAllies보다 먼저 만들어야
@@ -116,16 +120,16 @@ namespace Game.Core
             var rangedSurroundCoordinator = new RangedSurroundCoordinator(standardActivityRadius, frontlineCoordinator);
 
             var allies = hasLayout
-                ? BuildAllies(layout, spawnCenter, allyMorale, fleeTravelDistance, tacticsProfileResolver, standardActivityRadius, fieldRadius, frontlineCoordinator, rangedSurroundCoordinator)
+                ? BuildAllies(layout, spawnCenter, allyMorale, allyWaveCoordinator, fleeTravelDistance, tacticsProfileResolver, standardActivityRadius, fieldRadius, frontlineCoordinator, rangedSurroundCoordinator)
                 : new List<IBattleCombatant>();
-            var enemies = BuildEnemies(spawnCenter, enemyMorale, fleeTravelDistance);
+            var enemies = BuildEnemies(spawnCenter, enemyMorale, enemyWaveCoordinator, fleeTravelDistance);
             var protectedUnits = hasLayout ? BuildProtectedUnits(layout) : new List<IDamageable>();
 
-            return new BattleSimulationLoop(allies, enemies, protectedUnits, fieldRadius, spawnRadius, frontlineCoordinator, rangedSurroundCoordinator);
+            return new BattleSimulationLoop(allies, enemies, protectedUnits, fieldRadius, spawnRadius, frontlineCoordinator, rangedSurroundCoordinator, allyWaveCoordinator, enemyWaveCoordinator);
         }
 
         private List<IBattleCombatant> BuildAllies(
-            FormationLayout layout, Vector2 spawnCenter, PartyMorale allyMorale, float fleeTravelDistance,
+            FormationLayout layout, Vector2 spawnCenter, PartyMorale allyMorale, MoraleWaveCoordinator allyWaveCoordinator, float fleeTravelDistance,
             IUnitTacticsProfileResolver tacticsProfileResolver, float standardActivityRadius, float fieldRadius,
             FrontlineFormationCoordinator frontlineCoordinator, RangedSurroundCoordinator rangedSurroundCoordinator)
         {
@@ -158,16 +162,17 @@ namespace Game.Core
                     tacticsBehaviors = UnitTacticsBehaviorsFactory.Build(profile, standardActivityRadius, fieldRadius, spatialQuery, frontlineCoordinator, rangedSurroundCoordinator);
                 }
 
-                allies.Add(new BattleCharacterUnit(position, isAlly: true, stats, damageFormula, allyMorale, spatialQuery, fleeTravelDistance, tacticsBehaviors));
+                allies.Add(new BattleCharacterUnit(position, isAlly: true, stats, damageFormula, allyMorale, allyWaveCoordinator, spatialQuery, fleeTravelDistance, tacticsBehaviors));
             }
             return allies;
         }
 
-        private List<IBattleCombatant> BuildEnemies(Vector2 spawnCenter, PartyMorale enemyMorale, float fleeTravelDistance)
+        private List<IBattleCombatant> BuildEnemies(Vector2 spawnCenter, PartyMorale enemyMorale, MoraleWaveCoordinator enemyWaveCoordinator, float fleeTravelDistance)
         {
             return enemyProvider.GetEncounterComposition()
                 .Select(enemyStats => (IBattleCombatant)new BattleCharacterUnit(
-                    spawnCenter, isAlly: false, enemyStats, damageFormula, enemyMorale, spatialQuery, fleeTravelDistance))
+                    spawnCenter, isAlly: false, enemyStats, damageFormula, enemyMorale, enemyWaveCoordinator, spatialQuery, fleeTravelDistance,
+                    icon: BattlePlaceholderSprite.ForEnemyType(enemyStats.EnemyType)))
                 .ToList();
         }
 

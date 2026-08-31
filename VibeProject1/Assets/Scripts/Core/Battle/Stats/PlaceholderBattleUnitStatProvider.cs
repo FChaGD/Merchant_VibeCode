@@ -10,9 +10,10 @@ namespace Game.Core
     {
         private static readonly Dictionary<MercenaryClass, BattleUnitStats> Table = new()
         {
-            [MercenaryClass.Warrior] = new BattleUnitStats(100, 20, 10, 3.0f, 1.0f, 1.5f),
-            [MercenaryClass.Archer] = new BattleUnitStats(70, 15, 5, 3.0f, 1.2f, 6.0f),
-            [MercenaryClass.ShieldBearer] = new BattleUnitStats(150, 8, 20, 2.5f, 1.5f, 1.2f),
+            // 마지막 인자(moraleSyncRate)는 기획 08번 §7.4 표 - 방패병만 방어력과 결을 맞춰 낮게(3), 나머지는 5.
+            [MercenaryClass.Warrior] = new BattleUnitStats(100, 20, 10, 3.0f, 1.0f, 1.5f, moraleSyncRate: 5f),
+            [MercenaryClass.Archer] = new BattleUnitStats(70, 15, 5, 3.0f, 1.2f, 6.0f, moraleSyncRate: 5f),
+            [MercenaryClass.ShieldBearer] = new BattleUnitStats(150, 8, 20, 2.5f, 1.5f, 1.2f, moraleSyncRate: 3f),
         };
 
         public BattleUnitStats GetStats(MercenaryClass mercenaryClass) => Table[mercenaryClass];
