@@ -47,12 +47,15 @@ namespace Game.Core
         private void Awake()
         {
             if (bodyRenderer == null) bodyRenderer = GetComponent<SpriteRenderer>();
-            bodyRenderer.sprite = BattlePlaceholderSprite.WhiteSquare;
         }
 
         public void Bind(IBattleCombatant unit)
         {
             this.unit = unit;
+            // 적 진영 구분(기획 08번 §13.1) - unit.Icon이 있으면(약탈자/괴수/적대자 도형) 그대로 쓰고,
+            // 없으면(아군, 아직 직업별 아이콘 미도입) 기존 단색 사각형으로 대체한다. 흰색 스프라이트라
+            // 아래 진영 틴트가 그대로 곱해져 도형과 무관하게 색 구분은 유지된다(BattlePlaceholderSprite 참고).
+            bodyRenderer.sprite = unit.Icon != null ? unit.Icon : BattlePlaceholderSprite.WhiteSquare;
             baseColor = unit.IsAlly ? AllyColor : EnemyColor;
             bodyRenderer.color = baseColor;
             transform.position = ToWorld(unit.Position);
