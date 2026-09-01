@@ -12,7 +12,7 @@ namespace Game.Core
     /// 콘텐츠 씬이 Hub/Field 2개뿐이라는 현재 범위를 그대로 이용해 "현재 씬 = 대상 씬의 반대"로
     /// 추론한다(별도로 현재 씬을 추적하지 않음) - 씬이 3개 이상으로 늘어나면 이 추론은 깨지므로
     /// 그때는 ISceneLoader가 현재 씬 id를 명시적으로 노출하도록 다시 설계해야 한다
-    /// (Docs/설계/10_씬전환_연출_아키텍처.md §4/§12).
+    /// (Docs/설계/10-2026-08-26-씬전환_연출_아키텍처.md §4/§12).
     /// </summary>
     public class SceneTransitionEffectController : MonoBehaviour,
         ISceneTransitionEffectPlayer, ISceneTransitionContentRootRegistry, ISceneRevealSignal, IManagedComponent

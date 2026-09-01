@@ -5,7 +5,7 @@ namespace Game.Core
 {
     /// <summary>
     /// 기획 08번 문서 §11 Placeholder 사양 - 단색 사각형으로 BattleCharacterUnit 1기를 표현한다.
-    /// 월드 오브젝트(SpriteRenderer) 기반이다(Docs/설계/13_전투뷰_월드오브젝트_전환_아키텍처.md -
+    /// 월드 오브젝트(SpriteRenderer) 기반이다(Docs/설계/13-2026-08-29-전투뷰_월드오브젝트_전환_아키텍처.md -
     /// UGUI Screen Space Overlay와 시뮬레이션 좌표계의 스케일 차이가 커서 Scene 뷰 디버그 도구 등이
     /// 화면 구석에 조그맣게 그려지는 문제로 전환됨). 이동은 매 프레임 Position을 그대로 따라가고,
     /// 공격/피격/사망/도주는 유닛이 발행하는 이벤트에 반응해서만 처리한다(폴링 없음).

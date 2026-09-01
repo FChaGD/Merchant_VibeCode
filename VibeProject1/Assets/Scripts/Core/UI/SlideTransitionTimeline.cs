@@ -8,7 +8,7 @@ namespace Game.Core
     /// 지속시간/이징 곡선을 따라 매 프레임 진행률(0~1)을 흘려보내는 부분만 공용화한 유틸리티.
     /// "무엇을 움직이는가"는 onStep 콜백이 결정하므로, FieldCameraController(나가는 뷰+들어오는 뷰+커튼
     /// 3개)와 SceneTransitionEffectController(나가는 콘텐츠+커튼 2개)처럼 움직이는 대상 개수가 달라도
-    /// 같은 타이밍 로직을 그대로 재사용할 수 있다(Docs/설계/10_씬전환_연출_아키텍처.md §3).
+    /// 같은 타이밍 로직을 그대로 재사용할 수 있다(Docs/설계/10-2026-08-26-씬전환_연출_아키텍처.md §3).
     /// </summary>
     internal static class SlideTransitionTimeline
     {

@@ -8,7 +8,7 @@ namespace Game.Core
     /// 순수 C# 합성 객체로, FieldUIController가 최초 1회만 생성해 필드로 유지한다. encounterManager/
     /// battleResultSource는 Bootstrap에 상주하는 영속 객체라 Field 씬을 다시 로드할 때마다 재구독하면
     /// 이전 상행의 구독이 해제되지 않고 계속 쌓인다 - 그래서 매니저 이벤트 구독(Bind)은 최초 1회만,
-    /// 씬 뷰 참조 교체(RebindViews)는 Field 씬을 로드할 때마다 실행한다(Docs/설계/04_Field씬_아키텍처.md §5.2).
+    /// 씬 뷰 참조 교체(RebindViews)는 Field 씬을 로드할 때마다 실행한다(Docs/설계/04-2026-08-25-Field씬_아키텍처.md §5.2).
     /// </summary>
     internal class FieldEncounterFlowCoordinator
     {

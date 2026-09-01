@@ -28,7 +28,7 @@ namespace Game.Core
         private int aliveProtectedCount;
 
         // 이번 전투의 전장 반지름(BattleFieldLayout 기준) - BattleViewPresenter가 전투 뷰 카메라의
-        // 시야 경계를 잡을 때 쓴다(Docs/설계/13_전투뷰_월드오브젝트_전환_아키텍처.md). 시뮬레이션
+        // 시야 경계를 잡을 때 쓴다(Docs/설계/13-2026-08-29-전투뷰_월드오브젝트_전환_아키텍처.md). 시뮬레이션
         // 로직 자체는 이 값을 쓰지 않는다 - 렌더링 소비자를 위해 그대로 들고만 있는다.
         public float FieldRadius { get; }
         // 이번 전투의 스폰 반지름(FieldRadius보다 항상 더 바깥, BattleFieldLayout.ComputeSpawnRadius
@@ -55,9 +55,42 @@ namespace Game.Core
             aliveProtectedCount = protectedUnits.Count;
 
             // 사망(OnDied)과 도주(OnFled) 둘 다 "전장에서 사라짐"이므로 둘 다 카운트를 줄인다(기획 §7.4).
-            foreach (var ally in allies) { ally.OnDied += () => aliveAllyCount--; ally.OnFled += () => aliveAllyCount--; }
-            foreach (var enemy in enemies) { enemy.OnDied += () => aliveEnemyCount--; enemy.OnFled += () => aliveEnemyCount--; }
+            foreach (var ally in allies) SubscribeDeathAndFlee(ally, isAlly: true);
+            foreach (var enemy in enemies) SubscribeDeathAndFlee(enemy, isAlly: false);
             foreach (var unit in protectedUnits) unit.OnDied += () => aliveProtectedCount--;
+        }
+
+        private void SubscribeDeathAndFlee(IBattleCombatant unit, bool isAlly)
+        {
+            if (isAlly)
+            {
+                unit.OnDied += () => aliveAllyCount--;
+                unit.OnFled += () => aliveAllyCount--;
+            }
+            else
+            {
+                unit.OnDied += () => aliveEnemyCount--;
+                unit.OnFled += () => aliveEnemyCount--;
+            }
+        }
+
+        // 배틀 테스트 씬 전용(BattleTestSimulationRule) - 전투 도중 드래그로 유닛을 즉시 추가할 때 쓴다.
+        // 생성자와 같은 생존 카운트/사망·도주 구독 로직을 공유해야 IsAllyWiped/IsEnemyWiped가 새로
+        // 추가된 유닛도 정확히 반영한다. 실제 게임(LiveBattleSimulationRule)은 이 메서드를 호출하지
+        // 않는다 - 순수 추가, 기존 동작 불변.
+        public void RegisterAdditionalUnit(IBattleCombatant unit, bool isAlly)
+        {
+            if (isAlly)
+            {
+                allies.Add(unit);
+                aliveAllyCount++;
+            }
+            else
+            {
+                enemies.Add(unit);
+                aliveEnemyCount++;
+            }
+            SubscribeDeathAndFlee(unit, isAlly);
         }
 
         public IReadOnlyList<IBattleCombatant> Allies => allies;
@@ -70,6 +103,10 @@ namespace Game.Core
         // 위치를 그리는 용도) - ActiveLines 조회 외에는 쓰이지 않는다. 삭제 시 이 프로퍼티만
         // 지우면 된다.
         public FrontlineFormationCoordinator FrontlineCoordinator => frontlineCoordinator;
+        // 디버깅 전용(배틀 테스트 씬의 사기 파동 기즈모 시각화) - FrontlineCoordinator/SurroundCoordinator와
+        // 같은 자리. 삭제 시 이 두 프로퍼티만 지우면 된다.
+        public MoraleWaveCoordinator AllyWaveCoordinator => allyWaveCoordinator;
+        public MoraleWaveCoordinator EnemyWaveCoordinator => enemyWaveCoordinator;
 
         public bool IsAllyWiped => aliveAllyCount <= 0;
         public bool IsEnemyWiped => aliveEnemyCount <= 0;

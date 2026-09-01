@@ -417,7 +417,7 @@ namespace Game.Core.Editor
 
         // ==================== Hub↔Field 전환 연출용 ContentRoot ====================
         // 슬라이드 대상은 "Hub 배경"이 아니라 "그 순간 화면에 보이는 Hub 콘텐츠 전체"여야 한다
-        // (Docs/설계/10_씬전환_연출_아키텍처.md §9). 배치/상행 준비 UI는 이 메서드가 반환하는 Transform
+        // (Docs/설계/10-2026-08-26-씬전환_연출_아키텍처.md §9). 배치/상행 준비 UI는 이 메서드가 반환하는 Transform
         // 안에 처음부터 직접 생성되므로(BuildFormationUI/BuildTripUI 참고) 별도 재배치가 필요 없다.
         // Background/버튼은 이 도구가 만드는 게 아니라 Hub 씬에 이미 존재하는 요소라 여전히 찾아서
         // 옮겨야 한다.

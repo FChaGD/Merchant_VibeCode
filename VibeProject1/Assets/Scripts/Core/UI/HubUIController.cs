@@ -16,7 +16,7 @@ namespace Game.Core
 
         /// <summary>
         /// Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 슬라이드시킬 대상 - Background+
-        /// 버튼 전체를 감싸는 루트다. RegisterHubUI가 끝나야 값이 채워진다(Docs/설계/10_씬전환_연출_아키텍처.md §8).
+        /// 버튼 전체를 감싸는 루트다. RegisterHubUI가 끝나야 값이 채워진다(Docs/설계/10-2026-08-26-씬전환_연출_아키텍처.md §8).
         /// </summary>
         public RectTransform ContentRoot { get; private set; }
 

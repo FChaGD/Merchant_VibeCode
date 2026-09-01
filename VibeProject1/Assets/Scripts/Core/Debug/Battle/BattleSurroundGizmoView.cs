@@ -17,7 +17,9 @@ namespace Game.Core.DebugTools
     public class BattleSurroundGizmoView : MonoBehaviour
     {
         private static readonly Color RingColor = Color.cyan;
+        private static readonly Color SlotColor = Color.magenta;
         private const int CircleSegments = 32;
+        private const float SlotMarkerRadius = 0.2f;
 
         private BattleSimulationLoop simulation;
 
@@ -25,16 +27,33 @@ namespace Game.Core.DebugTools
         {
             var events = GetComponent<IBattleSimulationEvents>();
             if (events != null) events.OnSimulationBuilt += loop => simulation = loop;
+
+            // 배틀 테스트 씬(BattleTestSimulationRule)에서만 구현되는 마커 - 리셋 시 캐싱해둔
+            // simulation 참조를 지워야 리셋 이후에도 이전 전투의 라인이 계속 그려지는 걸 막는다.
+            // 실제 게임의 LiveBattleSimulationRule은 이 인터페이스를 구현하지 않아 그냥 건너뛴다.
+            var resettable = GetComponent<IResettableBattleSimulation>();
+            if (resettable != null) resettable.OnReset += () => simulation = null;
         }
 
         private void OnDrawGizmos()
         {
             if (!Application.isPlaying || simulation == null) return;
 
-            Gizmos.color = RingColor;
             foreach (var ring in simulation.SurroundCoordinator.ActiveRings)
             {
+                Gizmos.color = RingColor;
                 DrawCircle(ring.ClusterCenter, ring.CurrentRadius);
+
+                // 포위 배치 슬롯 - 링에 배정된 유닛이 실제로 향하는 반지름 위 지점(요구사항 "포위선 및
+                // 배치슬롯"). Frontline과 달리 고정 슬롯이 아니라 유닛 현재 위치에서 파생되는 값이라
+                // (SurroundRing에는 "슬롯" 저장소가 없음) 매 유닛마다 새로 계산한다.
+                Gizmos.color = SlotColor;
+                foreach (var unit in ring.AssignedUnits)
+                {
+                    if (!unit.IsAlive) continue;
+                    var slotPosition = ring.ComputeRadialPoint(unit.Position);
+                    Gizmos.DrawWireSphere(ToWorld(slotPosition), SlotMarkerRadius);
+                }
             }
         }
 

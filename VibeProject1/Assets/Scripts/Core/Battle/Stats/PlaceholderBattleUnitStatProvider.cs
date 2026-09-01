@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace Game.Core
 {
     /// <summary>
-    /// 실제 용병 밸런싱 시스템 설계 후 대체/제거 대상 - Docs/기획/08_전투_해석로직_기획.md §12 표를
+    /// 실제 용병 밸런싱 시스템 설계 후 대체/제거 대상 - Docs/기획/08-2026-09-01-전투_해석로직_기획.md §12 표를
     /// 그대로 반영한 테스트 수치다.
     /// </summary>
     public class PlaceholderBattleUnitStatProvider : IBattleUnitStatProvider

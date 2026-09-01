@@ -8,7 +8,7 @@ namespace Game.Core
     /// Field 씬의 이동 뷰(진행 게이지, 배경, 정비창 재호출)를 조율한다. 인카운터 발생 시 경고창 점멸,
     /// 전투 뷰 전환, 결과 팝업 처리는 FieldEncounterFlowCoordinator에 위임한다(SRP) - 도착 처리
     /// (게이지 100%↔OnArrived)만은 인카운터/전투와 무관한 단순 이벤트→뷰 반영이라 이 클래스가 직접
-    /// 처리한다(Docs/설계/04_Field씬_아키텍처.md §5.3).
+    /// 처리한다(Docs/설계/04-2026-08-25-Field씬_아키텍처.md §5.3).
     /// </summary>
     public class FieldUIController : MonoBehaviour, IFieldUIController
     {
@@ -19,7 +19,7 @@ namespace Game.Core
         /// <summary>
         /// Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 슬라이드시킬 대상. Field는 이번
         /// 연출 전용 요소를 새로 만들지 않고 기존 이동 뷰 루트를 그대로 재사용한다 - Hub↔Field 왕복
-        /// 시점엔 항상 이동 뷰가 화면에 보이는 상태이기 때문이다(Docs/설계/10_씬전환_연출_아키텍처.md §8).
+        /// 시점엔 항상 이동 뷰가 화면에 보이는 상태이기 때문이다(Docs/설계/10-2026-08-26-씬전환_연출_아키텍처.md §8).
         /// </summary>
         public RectTransform MovementViewRoot => movementViewRoot;
 
@@ -92,7 +92,7 @@ namespace Game.Core
 
             // Field 씬은 상행마다 다시 로드되지만 sessionState(SessionStateTracker)는 Bootstrap에 상주하는
             // 영속 객체다 - 재구독 전 항상 먼저 해제해 상행을 반복할수록 구독이 누적되는 것을 막는다
-            // (Docs/설계/04_Field씬_아키텍처.md §5 이벤트 구독 수명주기 참고).
+            // (Docs/설계/04-2026-08-25-Field씬_아키텍처.md §5 이벤트 구독 수명주기 참고).
             sessionState.OnProgressChanged -= HandleProgressChanged;
             sessionState.OnProgressChanged += HandleProgressChanged;
             sessionState.OnArrived -= HandleArrived;
@@ -100,7 +100,7 @@ namespace Game.Core
 
             // encounterManager/battleResultSource는 Bootstrap 상주 영속 객체다 - flowCoordinator를
             // Field 재방문 시 재생성하지 않아야 이전 상행의 구독이 쌓이지 않는다
-            // (Docs/설계/04_Field씬_아키텍처.md §5.2). cameraController는 이번 Field 씬의 뷰 참조를
+            // (Docs/설계/04-2026-08-25-Field씬_아키텍처.md §5.2). cameraController는 이번 Field 씬의 뷰 참조를
             // 담고 있어 매번 새로 만든다.
             flowCoordinator ??= new FieldEncounterFlowCoordinator();
             flowCoordinator.Bind(uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, gameManager);
@@ -135,7 +135,7 @@ namespace Game.Core
             gaugeView.SetProgress(progress);
         }
 
-        // 도착 성공 처리(Docs/설계/04_Field씬_아키텍처.md §5.3) - 전투 승/패와 같은 resultPopupView를
+        // 도착 성공 처리(Docs/설계/04-2026-08-25-Field씬_아키텍처.md §5.3) - 전투 승/패와 같은 resultPopupView를
         // 재사용한다(문구·버튼 라벨·콜백만 다름).
         private void HandleArrived()
         {

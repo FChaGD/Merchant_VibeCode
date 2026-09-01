@@ -13,7 +13,7 @@ namespace Game.Core
         // 도주 유닛이 "전장을 완전히 벗어났다"고 볼 이동 거리 - 전장 반지름과 같다(BattleFieldLayout 참고).
         float ComputeFleeTravelDistance(int columnCount);
         // 전장 반지름 자체 - 전투 카메라(BattleFieldWorldCameraView)가 전장을 감싸는 시야 경계를
-        // 계산할 때 쓴다(Docs/설계/13_전투뷰_월드오브젝트_전환_아키텍처.md, 09번 문서의 UGUI
+        // 계산할 때 쓴다(Docs/설계/13-2026-08-29-전투뷰_월드오브젝트_전환_아키텍처.md, 09번 문서의 UGUI
         // 버전에서 전환됨). ComputeFleeTravelDistance와 같은 값이지만 소비자마다 의미가 다르므로
         // 이름을 분리해 노출한다(ISP).
         float ComputeFieldRadius(int columnCount);

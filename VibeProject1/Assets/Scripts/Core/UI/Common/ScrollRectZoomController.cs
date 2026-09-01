@@ -5,7 +5,7 @@ namespace Game.Core
     /// <summary>
     /// ScrollRect(Clamped) 기반 드래그팬+휠줌 View가 공유하는 줌 계산 로직 - 커서가 가리키는 지점을
     /// 고정한 채 확대/축소하고, 최소 줌(콘텐츠 전체가 뷰포트에 들어오는 지점)/최대 줌(최소 줌 배수)
-    /// 경계를 계산해 클램핑한다(Docs/기획/09_전투뷰_카메라_기획.md §3/§4). MonoBehaviour가 아닌 순수
+    /// 경계를 계산해 클램핑한다(Docs/기획/09-2026-08-26-전투뷰_카메라_기획.md §3/§4). MonoBehaviour가 아닌 순수
     /// C# 객체로 두어 View의 생명주기와 분리한다(FieldCameraController/BattleFieldLayout과 같은 이유).
     /// TripMapView(콘텐츠 크기 고정, 최초 1회)가 RecomputeBounds를 호출해 쓴다. 전투 뷰는 월드
     /// 오브젝트로 전환되며(Docs/설계/13번) 더 이상 이 클래스를 쓰지 않는다 - 같은 규칙을

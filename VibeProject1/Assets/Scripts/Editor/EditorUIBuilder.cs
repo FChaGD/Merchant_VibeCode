@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.IO;
+using Game.Core;
 using TMPro;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -31,6 +33,88 @@ namespace Game.Core.Editor
             Undo.RegisterCreatedObjectUndo(go, $"Create {name}");
             Undo.SetTransformParent(go.transform, parent, $"Parent {name}");
             return go;
+        }
+
+        /// <summary>
+        /// UI가 아닌 월드 오브젝트(전장 라인렌더러/마커 등) 버전의 get-or-create. 이름이 같은 자식이
+        /// 이미 여럿 있으면(과거 `new GameObject(...)`를 그대로 호출하던 코드가 재실행마다 중복
+        /// 생성해 실제로 발생했던 문제 - BattleTestExtentGizmoView의 "ExtentBox"가 재실행 8회 만에
+        /// 8개로 늘어나 있었다) 하나만 남기고 나머지를 정리해 자동으로 복구한다.
+        /// </summary>
+        public static GameObject GetOrCreateWorldChild(Transform parent, string name, int layer)
+        {
+            GameObject keep = null;
+            var duplicates = new List<GameObject>();
+            for (var i = 0; i < parent.childCount; i++)
+            {
+                var child = parent.GetChild(i);
+                if (child.name != name) continue;
+                if (keep == null) keep = child.gameObject;
+                else duplicates.Add(child.gameObject);
+            }
+            foreach (var duplicate in duplicates) Undo.DestroyObjectImmediate(duplicate);
+
+            if (keep != null) return keep;
+
+            var go = new GameObject(name);
+            go.layer = layer;
+            Undo.RegisterCreatedObjectUndo(go, $"Create {name}");
+            Undo.SetTransformParent(go.transform, parent, $"Parent {name}");
+            return go;
+        }
+
+        /// <summary>
+        /// 씬 루트(최상위) 오브젝트를 이름으로 찾아 재사용하거나 없으면 새로 만든다 - Managers 루트처럼
+        /// 씬마다 하나만 있어야 하는 최상위 컨테이너에 쓴다(ManagerHierarchyInstaller/
+        /// BattleTestSceneInstaller 공용).
+        /// </summary>
+        public static GameObject GetOrCreateSceneRoot(Scene scene, string name)
+        {
+            foreach (var rootObject in scene.GetRootGameObjects())
+            {
+                if (rootObject.name == name)
+                {
+                    return rootObject;
+                }
+            }
+
+            var root = new GameObject(name);
+            Undo.RegisterCreatedObjectUndo(root, $"Create {name}");
+            return root;
+        }
+
+        /// <summary>
+        /// 매니저류 컴포넌트를 parent의 자식 오브젝트(이름=objectName)에 get-or-create로 부착한다
+        /// (ManagerHierarchyInstaller/BattleTestSceneInstaller 공용 - 둘 다 "매니저 하이어라키를 코드로
+        /// 재현 가능하게 만든다"는 같은 패턴을 쓴다).
+        /// </summary>
+        public static T GetOrCreateManager<T>(Transform parent, string objectName) where T : Component
+        {
+            var existing = parent.Find(objectName);
+            if (existing != null)
+            {
+                var component = existing.GetComponent<T>();
+                return component != null ? component : Undo.AddComponent<T>(existing.gameObject);
+            }
+
+            var go = new GameObject(objectName);
+            Undo.RegisterCreatedObjectUndo(go, $"Create {objectName}");
+            Undo.SetTransformParent(go.transform, parent, $"Parent {objectName}");
+            return Undo.AddComponent<T>(go);
+        }
+
+        /// <summary>
+        /// 리팩토링 과정에서 컴포넌트 스크립트 파일 자체를 지운 적이 있다(예: BattleResultEvaluator) -
+        /// 씬에 이미 저장돼 있던 해당 컴포넌트 참조는 삭제된 타입이라 GetComponent&lt;T&gt;()로 찾아
+        /// 제거할 방법이 없다("Missing Script" 경고로 남는다). 재실행할 때마다 하이어라키 전체를 훑어
+        /// 없어진 스크립트 참조를 걷어낸다.
+        /// </summary>
+        public static void RemoveMissingScriptsRecursively(Transform root)
+        {
+            foreach (var transform in root.GetComponentsInChildren<Transform>(true))
+            {
+                GameObjectUtility.RemoveMonoBehavioursWithMissingScript(transform.gameObject);
+            }
         }
 
         public static T GetOrAddComponent<T>(GameObject go) where T : Component
@@ -352,6 +436,173 @@ namespace Game.Core.Editor
             importer.SaveAndReimport();
 
             return AssetDatabase.LoadAssetAtPath<Sprite>(SolidSpritePath);
+        }
+
+        // ==================== 전투 뷰(월드 오브젝트) 공용 조립 ====================
+        // FieldUIInstaller(Field 씬)와 BattleTestSceneInstaller(독립 배틀 테스트 씬) 둘 다 같은
+        // 전투 뷰(유닛 스프라이트 루트/카메라/유닛 프리팹)가 필요해서 여기로 뽑아냈다 - 두 인스톨러가
+        // 서로의 내부 메서드를 참조하지 않게 한다(CLAUDE.md 씬 편집 컨벤션).
+        private const string BattleWorldRootName = "BattleWorldRoot";
+        private static readonly string BattleLayerName = BattleFieldGeometry.BattleLayerName;
+        private const string BattlePrefabFolder = "Assets/Prefabs/UI/Battle";
+        private const string BattleCharacterViewPrefabPath = BattlePrefabFolder + "/BattleCharacterUnitView.prefab";
+        private const string BattleProtectedViewPrefabPath = BattlePrefabFolder + "/BattleProtectedUnitView.prefab";
+
+        /// <summary>
+        /// 전투 유닛(캐릭터/보호목표) 스프라이트의 루트 - Canvas 밖 씬 루트에 독립적으로 만든다
+        /// (Docs/설계/13번 §2, UI 좌표계와 섞이면 스케일 문제가 재발한다). 활성/비활성 여부는 호출자가
+        /// 결정한다 - Field는 카메라 전환 전까지 숨겨야 하고, 배틀 테스트 씬은 처음부터 항상 보여야 한다.
+        /// </summary>
+        public static BattleWorldRoot EnsureBattleWorldRoot()
+        {
+            var activeScene = EditorSceneManager.GetActiveScene();
+            GameObject root = null;
+            foreach (var rootObject in activeScene.GetRootGameObjects())
+            {
+                if (rootObject.name == BattleWorldRootName)
+                {
+                    root = rootObject;
+                    break;
+                }
+            }
+            if (root == null)
+            {
+                root = new GameObject(BattleWorldRootName);
+                Undo.RegisterCreatedObjectUndo(root, $"Create {BattleWorldRootName}");
+            }
+            var battleWorldRoot = GetOrAddComponent<BattleWorldRoot>(root);
+
+            var battleLayer = LayerMask.NameToLayer(BattleLayerName);
+            if (battleLayer < 0)
+            {
+                Debug.LogWarning($"'{BattleLayerName}' 레이어가 없다 - Project Settings > Tags and Layers에서 추가하라. 추가 전까지는 Default 레이어로 대체된다.");
+                battleLayer = 0;
+            }
+
+            EnsureBattleUnitLayer(root.transform, "AllyLayer", battleLayer);
+            EnsureBattleUnitLayer(root.transform, "EnemyLayer", battleLayer);
+            GetOrAddComponent<BattleBackgroundGridView>(root);
+
+            return battleWorldRoot;
+        }
+
+        // 유닛 스폰 부모 - 일반 Transform(RectTransform 아님)이라 UI 좌표계와 무관하게 순수 월드
+        // 좌표로 배치된다. layer를 Battle로 지정해 전투 카메라의 cullingMask와 맞춘다.
+        private static void EnsureBattleUnitLayer(Transform parent, string name, int layer)
+        {
+            var existing = parent.Find(name);
+            GameObject go;
+            if (existing != null)
+            {
+                go = existing.gameObject;
+            }
+            else
+            {
+                go = new GameObject(name);
+                Undo.RegisterCreatedObjectUndo(go, $"Create {name}");
+                Undo.SetTransformParent(go.transform, parent, $"Parent {name}");
+            }
+            go.layer = layer;
+            go.transform.localPosition = Vector3.zero;
+        }
+
+        /// <summary>
+        /// 새 카메라를 만들지 않고 씬의 기존 Main Camera를 재사용한다(Docs/설계/13번 §6 확정 - 이미
+        /// Orthographic이고 AudioListener도 있어 재사용이 더 안전함).
+        /// </summary>
+        public static void ConfigureBattleCamera()
+        {
+            var mainCamera = Camera.main;
+            if (mainCamera == null)
+            {
+                Debug.LogWarning("씬에서 Main Camera를 찾을 수 없어 전투 카메라를 구성하지 못했다.");
+                return;
+            }
+
+            var battleLayer = LayerMask.NameToLayer(BattleLayerName);
+            if (battleLayer >= 0)
+            {
+                mainCamera.cullingMask = 1 << battleLayer;
+            }
+
+            mainCamera.clearFlags = CameraClearFlags.SolidColor;
+            mainCamera.backgroundColor = new Color(0.1f, 0.1f, 0.12f, 1f);
+
+            GetOrAddComponent<BattleFieldWorldCameraView>(mainCamera.gameObject);
+        }
+
+        private static void EnsureBattlePrefabFolder()
+        {
+            if (!AssetDatabase.IsValidFolder("Assets/Prefabs"))
+            {
+                AssetDatabase.CreateFolder("Assets", "Prefabs");
+            }
+            if (!AssetDatabase.IsValidFolder("Assets/Prefabs/UI"))
+            {
+                AssetDatabase.CreateFolder("Assets/Prefabs", "UI");
+            }
+            if (!AssetDatabase.IsValidFolder(BattlePrefabFolder))
+            {
+                AssetDatabase.CreateFolder("Assets/Prefabs/UI", "Battle");
+            }
+        }
+
+        /// <summary>
+        /// ManagerHierarchyInstaller(Bootstrap)/BattleTestSceneInstaller가 전투 뷰 컨트롤러에 연결할 때
+        /// 재사용한다. 1차 UGUI 버전(RectTransform+Image) 프리팹이 이미 그 경로에 있으면 SpriteRenderer
+        /// 버전으로 재생성한다(재실행 안전성 - 존재 여부만으론 옛 버전인지 구분이 안 돼 SpriteRenderer
+        /// 보유 여부로 판정한다).
+        /// </summary>
+        public static BattleCharacterUnitView GetOrCreateBattleCharacterViewPrefab()
+        {
+            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(BattleCharacterViewPrefabPath);
+            if (existing != null && existing.GetComponent<SpriteRenderer>() != null)
+            {
+                return existing.GetComponent<BattleCharacterUnitView>();
+            }
+
+            EnsureBattlePrefabFolder();
+
+            var go = new GameObject("BattleCharacterUnitView", typeof(SpriteRenderer));
+            var charLayer = LayerMask.NameToLayer(BattleLayerName);
+            go.layer = charLayer >= 0 ? charLayer : 0;
+            var renderer = go.GetComponent<SpriteRenderer>();
+
+            var view = go.AddComponent<BattleCharacterUnitView>();
+            var so = new SerializedObject(view);
+            so.FindProperty("bodyRenderer").objectReferenceValue = renderer;
+            so.ApplyModifiedProperties();
+
+            var savedPrefab = PrefabUtility.SaveAsPrefabAsset(go, BattleCharacterViewPrefabPath);
+            Object.DestroyImmediate(go);
+
+            return savedPrefab.GetComponent<BattleCharacterUnitView>();
+        }
+
+        public static BattleProtectedUnitView GetOrCreateBattleProtectedViewPrefab()
+        {
+            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(BattleProtectedViewPrefabPath);
+            if (existing != null && existing.GetComponent<SpriteRenderer>() != null)
+            {
+                return existing.GetComponent<BattleProtectedUnitView>();
+            }
+
+            EnsureBattlePrefabFolder();
+
+            var go = new GameObject("BattleProtectedUnitView", typeof(SpriteRenderer));
+            var protLayer = LayerMask.NameToLayer(BattleLayerName);
+            go.layer = protLayer >= 0 ? protLayer : 0;
+            var renderer = go.GetComponent<SpriteRenderer>();
+
+            var view = go.AddComponent<BattleProtectedUnitView>();
+            var so = new SerializedObject(view);
+            so.FindProperty("bodyRenderer").objectReferenceValue = renderer;
+            so.ApplyModifiedProperties();
+
+            var savedPrefab = PrefabUtility.SaveAsPrefabAsset(go, BattleProtectedViewPrefabPath);
+            Object.DestroyImmediate(go);
+
+            return savedPrefab.GetComponent<BattleProtectedUnitView>();
         }
     }
 }

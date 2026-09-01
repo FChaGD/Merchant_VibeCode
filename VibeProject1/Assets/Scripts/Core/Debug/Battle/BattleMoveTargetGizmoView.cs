@@ -25,6 +25,12 @@ namespace Game.Core.DebugTools
         {
             var events = GetComponent<IBattleSimulationEvents>();
             if (events != null) events.OnSimulationBuilt += loop => simulation = loop;
+
+            // 배틀 테스트 씬(BattleTestSimulationRule)에서만 구현되는 마커 - 리셋 시 캐싱해둔
+            // simulation 참조를 지워야 리셋 이후에도 이전 전투의 선이 계속 그려지는 걸 막는다.
+            // 실제 게임의 LiveBattleSimulationRule은 이 인터페이스를 구현하지 않아 그냥 건너뛴다.
+            var resettable = GetComponent<IResettableBattleSimulation>();
+            if (resettable != null) resettable.OnReset += () => simulation = null;
         }
 
         private void OnDrawGizmos()

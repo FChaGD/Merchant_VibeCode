@@ -5,7 +5,7 @@ namespace Game.Core
 {
     /// <summary>
     /// UIManager 산하 컴포넌트. Hub 씬이 로드될 때 필요한 UI 배선만 담당한다 - UIManager가 Hub 전용
-    /// 패널/데이터 의존성을 직접 알지 않도록 분리했다(SRP, Docs/Refactor/공통_점검.md 3단계 수정안).
+    /// 패널/데이터 의존성을 직접 알지 않도록 분리했다(SRP, Docs/Refactor/2026-08-26-공통.md 3단계 수정안).
     /// </summary>
     public class HubUIWiring : MonoBehaviour, IContentSceneUIWiring
     {
@@ -60,7 +60,7 @@ namespace Game.Core
             panelRegistrar.RegisterPanel(tacticsPanel);
 
             // Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 다음 전환 때 슬라이드시킬
-            // 대상을 등록한다 - 씬을 다시 로드할 때마다 최신 참조로 갱신된다(Docs/설계/10_씬전환_연출_아키텍처.md §8).
+            // 대상을 등록한다 - 씬을 다시 로드할 때마다 최신 참조로 갱신된다(Docs/설계/10-2026-08-26-씬전환_연출_아키텍처.md §8).
             // 반드시 맨 마지막에 둔다 - 여기서 예외가 나도(예: 설치 도구 미실행) 위 핵심 패널 등록은
             // 이미 끝난 뒤라 Hub UI 자체는 정상 동작한다.
             registrar.Resolve<ISceneTransitionContentRootRegistry>().RegisterContentRoot(ContentSceneId.Hub, hubUIController.ContentRoot);

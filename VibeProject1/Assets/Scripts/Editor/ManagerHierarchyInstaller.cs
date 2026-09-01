@@ -18,7 +18,7 @@ namespace Game.Core.Editor
         [MenuItem("Tools/Game/Build Bootstrap Scene")]
         public static void BuildManagerHierarchy()
         {
-            var root = GetOrCreateRoot();
+            var root = EditorUIBuilder.GetOrCreateSceneRoot(EditorSceneManager.GetActiveScene(), RootName);
 
             // 한때 Bootstrap에 EventSystem을 영속시켜봤으나 콘텐츠 씬(Hub/Field)의 그리드 드래그가
             // 깨지는 회귀가 있어 되돌렸다 - 콘텐츠 씬마다 자기 EventSystem을 갖는 원래 구조로 복귀
@@ -30,19 +30,19 @@ namespace Game.Core.Editor
             // 씬에 이미 저장돼 있던 해당 컴포넌트 참조는 삭제된 타입이라 GetComponent<T>()로 찾아
             // 제거할 방법이 없다("Missing Script" 경고로 남는다). 재실행할 때마다 이 하이어라키 전체를
             // 훑어 없어진 스크립트 참조를 걷어낸다.
-            RemoveMissingScriptsRecursively(root.transform);
+            EditorUIBuilder.RemoveMissingScriptsRecursively(root.transform);
 
-            var dependencyManager = GetOrCreateManager<DependencyManager>(root.transform, "DependencyManager");
-            var gameManager = GetOrCreateManager<GameManager>(root.transform, "GameManager");
-            var inputManager = GetOrCreateManager<InputManager>(root.transform, "InputManager");
-            var uiManager = GetOrCreateManager<UIManager>(root.transform, "UIManager");
+            var dependencyManager = EditorUIBuilder.GetOrCreateManager<DependencyManager>(root.transform, "DependencyManager");
+            var gameManager = EditorUIBuilder.GetOrCreateManager<GameManager>(root.transform, "GameManager");
+            var inputManager = EditorUIBuilder.GetOrCreateManager<InputManager>(root.transform, "InputManager");
+            var uiManager = EditorUIBuilder.GetOrCreateManager<UIManager>(root.transform, "UIManager");
             // uiManager보다 뒤에서 만들어야 하는 건 아니다(생성 순서는 무관) - 다만 아래
             // SyncManagedComponents 배열에서는 반드시 uiManager 뒤에 둬야 한다(주석 참고).
-            var sceneTransitionEffectController = GetOrCreateManager<SceneTransitionEffectController>(root.transform, "SceneTransitionEffectController");
+            var sceneTransitionEffectController = EditorUIBuilder.GetOrCreateManager<SceneTransitionEffectController>(root.transform, "SceneTransitionEffectController");
             EnsureSceneTransitionCurtain(root.transform, sceneTransitionEffectController);
-            var battleManager = GetOrCreateManager<BattleManager>(root.transform, "BattleManager");
-            var aiManager = GetOrCreateManager<AIManager>(root.transform, "AIManager");
-            var encounterManager = GetOrCreateManager<EncounterManager>(root.transform, "EncounterManager");
+            var battleManager = EditorUIBuilder.GetOrCreateManager<BattleManager>(root.transform, "BattleManager");
+            var aiManager = EditorUIBuilder.GetOrCreateManager<AIManager>(root.transform, "AIManager");
+            var encounterManager = EditorUIBuilder.GetOrCreateManager<EncounterManager>(root.transform, "EncounterManager");
 
             // SceneLoader는 GameManager와 같은 GameObject에 부착하되, 자체적으로 DI에 등록되는
             // 독립된 관리 대상이므로 managedComponents 동기화 목록에도 포함한다.
@@ -77,25 +77,24 @@ namespace Game.Core.Editor
             EnsureSiblingComponent<HubUIWiring>(uiManager.gameObject);
             EnsureSiblingComponent<FieldUIWiring>(uiManager.gameObject);
 
-            // 전투 뷰 유닛 프리팹은 FieldUIInstaller(Field 씬 담당)가 자산으로 만들어 두고, 여기(Bootstrap
-            // 담당)서는 그 자산을 FieldUIController 필드에 연결만 한다 - FormationUIBuilder의 슬롯/아이콘
-            // 프리팹을 FieldUIInstaller가 가져다 쓰는 것과 같은 크로스 인스톨러 재사용 패턴.
+            // 전투 뷰 유닛 프리팹은 EditorUIBuilder(공용 조립 로직)가 자산으로 만들어 두고, 여기(Bootstrap
+            // 담당)서는 그 자산을 FieldUIController 필드에 연결만 한다.
             WireFieldBattleViewPrefabs(fieldUIController);
 
             // 상행 관리 데이터 시스템이 아직 없어, 배치 UI 팔레트 테스트용 임시 로스터 제공자를 등록한다.
             // 실제 데이터 시스템이 생기면 이 매니저와 아이콘 생성 로직을 함께 제거한다.
-            var placeholderRosterProvider = GetOrCreateManager<PlaceholderCaravanRosterProvider>(root.transform, "PlaceholderCaravanRosterProvider");
+            var placeholderRosterProvider = EditorUIBuilder.GetOrCreateManager<PlaceholderCaravanRosterProvider>(root.transform, "PlaceholderCaravanRosterProvider");
             WirePlaceholderRosterIcons(placeholderRosterProvider);
 
             // 배치 UI의 "적용" 버튼이 반영할 대상 - 현재 플레이 세션 동안만 유지되는 인메모리 저장소.
-            var formationRepository = GetOrCreateManager<InMemoryFormationRepository>(root.transform, "InMemoryFormationRepository");
+            var formationRepository = EditorUIBuilder.GetOrCreateManager<InMemoryFormationRepository>(root.transform, "InMemoryFormationRepository");
 
             // 방향성 지시 UI(TacticsPanel)가 반영할 대상 - 배치와 같은 성격의 인메모리 저장소.
-            var tacticsRepository = GetOrCreateManager<InMemoryTacticsRepository>(root.transform, "InMemoryTacticsRepository");
+            var tacticsRepository = EditorUIBuilder.GetOrCreateManager<InMemoryTacticsRepository>(root.transform, "InMemoryTacticsRepository");
 
             // 지역 시스템이 아직 없어, 상행 준비 UI 테스트용 임시 출발지/도착지/상행 요약 제공자를 등록한다.
             // 실제 데이터 시스템이 생기면 이 매니저를 함께 제거한다.
-            var placeholderTripInfoProvider = GetOrCreateManager<PlaceholderTripInfoProvider>(root.transform, "PlaceholderTripInfoProvider");
+            var placeholderTripInfoProvider = EditorUIBuilder.GetOrCreateManager<PlaceholderTripInfoProvider>(root.transform, "PlaceholderTripInfoProvider");
 
             SyncManagedComponents(dependencyManager, new MonoBehaviour[]
             {
@@ -105,7 +104,7 @@ namespace Game.Core.Editor
                 // uiManager 바로 뒤에 둔다 - 둘 다 ISceneLoader.OnSceneLoaded를 구독하는데, 새 씬의
                 // Wire(...)가 먼저 끝난 뒤에야 이 컨트롤러가 커튼을 페이드 아웃해야 한다. 구독 순서는
                 // ResolveDependencies 호출 순서(=이 배열 순서)를 따르므로, 이 순서를 바꾸면 안 된다
-                // (Docs/설계/10_씬전환_연출_아키텍처.md §6/§10).
+                // (Docs/설계/10-2026-08-26-씬전환_연출_아키텍처.md §6/§10).
                 sceneTransitionEffectController,
                 battleManager,
                 aiManager,
@@ -121,45 +120,6 @@ namespace Game.Core.Editor
             Debug.Log("매니저 하이어라키 생성/동기화 완료. 씬을 저장(Ctrl+S)해야 변경사항이 파일에 반영된다.");
         }
 
-        private static GameObject GetOrCreateRoot()
-        {
-            var activeScene = EditorSceneManager.GetActiveScene();
-            foreach (var rootObject in activeScene.GetRootGameObjects())
-            {
-                if (rootObject.name == RootName)
-                {
-                    return rootObject;
-                }
-            }
-
-            var root = new GameObject(RootName);
-            Undo.RegisterCreatedObjectUndo(root, "Create Managers Root");
-            return root;
-        }
-
-        private static T GetOrCreateManager<T>(Transform parent, string objectName) where T : Component
-        {
-            var existing = parent.Find(objectName);
-            if (existing != null)
-            {
-                var component = existing.GetComponent<T>();
-                return component != null ? component : Undo.AddComponent<T>(existing.gameObject);
-            }
-
-            var go = new GameObject(objectName);
-            Undo.RegisterCreatedObjectUndo(go, $"Create {objectName}");
-            Undo.SetTransformParent(go.transform, parent, $"Parent {objectName}");
-            return Undo.AddComponent<T>(go);
-        }
-
-        private static void RemoveMissingScriptsRecursively(Transform root)
-        {
-            foreach (var transform in root.GetComponentsInChildren<Transform>(true))
-            {
-                GameObjectUtility.RemoveMonoBehavioursWithMissingScript(transform.gameObject);
-            }
-        }
-
         private static T EnsureSiblingComponent<T>(GameObject go) where T : Component
         {
             var existing = go.GetComponent<T>();
@@ -167,13 +127,13 @@ namespace Game.Core.Editor
         }
 
         // Hub↔Field 씬 전환 연출용 커튼은 Bootstrap(영속) 스코프여야 한다 - 콘텐츠 씬 스코프 오브젝트는
-        // 그 씬이 언로드되는 순간 함께 파괴되기 때문이다(Docs/설계/10_씬전환_연출_아키텍처.md §5).
+        // 그 씬이 언로드되는 순간 함께 파괴되기 때문이다(Docs/설계/10-2026-08-26-씬전환_연출_아키텍처.md §5).
         // CanvasScaler 설정은 Hub/Field 콘텐츠 씬 캔버스와 반드시 대조해 맞춰야 한다 - 다르면 슬라이드
         // 거리/커튼 커버리지가 화면상 어긋난다(§12 남은 이슈). 아래 값은 이 프로젝트의 일반적인 설정을
         // 가정한 자리표시자다.
         private static void EnsureSceneTransitionCurtain(Transform managersRoot, SceneTransitionEffectController controller)
         {
-            var canvas = GetOrCreateManager<Canvas>(managersRoot, "SceneTransitionCanvas");
+            var canvas = EditorUIBuilder.GetOrCreateManager<Canvas>(managersRoot, "SceneTransitionCanvas");
             canvas.gameObject.layer = LayerMask.NameToLayer("UI");
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 100; // Hub/Field 콘텐츠 씬 캔버스보다 항상 위에 그려지도록 충분히 높은 값
@@ -205,8 +165,8 @@ namespace Game.Core.Editor
         private static void WireFieldBattleViewPrefabs(FieldUIController fieldUIController)
         {
             var so = new SerializedObject(fieldUIController);
-            so.FindProperty("battleCharacterViewPrefab").objectReferenceValue = FieldUIInstaller.GetOrCreateCharacterViewPrefab();
-            so.FindProperty("battleProtectedViewPrefab").objectReferenceValue = FieldUIInstaller.GetOrCreateProtectedViewPrefab();
+            so.FindProperty("battleCharacterViewPrefab").objectReferenceValue = EditorUIBuilder.GetOrCreateBattleCharacterViewPrefab();
+            so.FindProperty("battleProtectedViewPrefab").objectReferenceValue = EditorUIBuilder.GetOrCreateBattleProtectedViewPrefab();
             so.ApplyModifiedProperties();
         }
 

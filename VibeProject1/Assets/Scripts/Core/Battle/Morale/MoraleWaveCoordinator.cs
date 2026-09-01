@@ -20,6 +20,10 @@ namespace Game.Core
 
         public void SpawnWave(Vector2 center, float delta) => waves.Add(new MoraleWave(center, delta));
 
+        // 디버깅 전용(배틀 테스트 씬의 사기 파동 기즈모 시각화) - 판정 로직은 이 프로퍼티를 쓰지 않는다.
+        // 삭제 시 이 프로퍼티만 지우면 된다(FrontlineCoordinator/SurroundCoordinator와 같은 자리).
+        public IReadOnlyList<MoraleWave> ActiveWaves => waves;
+
         public void Update(float deltaTime, IReadOnlyList<IBattleCombatant> units)
         {
             for (var i = waves.Count - 1; i >= 0; i--)

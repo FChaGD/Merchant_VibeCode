@@ -15,16 +15,29 @@ namespace Game.Core
     {
         private const float ZoomStep = 0.1f;
 
-        private readonly float maxZoomRatio;
+        private readonly float zoomInRatio;
+        // 배틀 테스트 씬 전용 확장 - 기본값 1이면 기존 동작과 완전히 동일하다(베이스라인보다 더 못
+        // 넓힘). Field 씬은 이 값을 바꿀 방법 자체가 없어(BattleFieldWorldCameraView.Awake가 고정
+        // 생성자만 씀) 영향이 없다.
+        private readonly float zoomOutRatio;
+        // 배틀 테스트 씬 전용 확장 - true(기본값)면 기존 동작 그대로(전장 정사각형 밖으로 못 나감).
+        // 테스트 씬은 이 제약 자체를 없애고 싶다는 요구라 false로 구성해 ClampPosition의 X/Y 클램프를
+        // 건너뛴다. Field 씬은 이 값을 바꿀 방법이 없어 영향이 없다.
+        private readonly bool clampToField;
         private Camera targetCamera;
         private float fieldRadius;
-        private float minSize = 1f;
-        private float maxSize = 1f;
+        // 전장 전체가 여백 없이 보이는 기준 줌(=orthographicSize). 이름을 minSize→baselineSize로
+        // 바꿨다 - zoomOutRatio 도입으로 "최소 줌(가장 넓게)"이 더 이상 이 값이 아니게 됐다.
+        private float baselineSize = 1f;
+        private float zoomedInLimit = 1f;
+        private float zoomedOutLimit = 1f;
         private float currentSize = 1f;
 
-        public OrthographicCameraZoomController(float maxZoomRatio)
+        public OrthographicCameraZoomController(float zoomInRatio, float zoomOutRatio = 1f, bool clampToField = true)
         {
-            this.maxZoomRatio = maxZoomRatio;
+            this.zoomInRatio = zoomInRatio;
+            this.zoomOutRatio = Mathf.Max(1f, zoomOutRatio);
+            this.clampToField = clampToField;
         }
 
         public void Bind(Camera camera)
@@ -32,11 +45,15 @@ namespace Game.Core
             targetCamera = camera;
         }
 
+        // 배틀 테스트 씬의 유닛 팔레트 드래그 고스트가 현재 줌 배율에 맞춰 자기 크기를 계산할 때 쓴다 -
+        // 순수 접근성 확장, 기존 팬/줌 동작에는 영향 없음.
+        public float CurrentSize => currentSize;
+
         /// <summary>
         /// 전장 반지름이 바뀔 때(전투마다) 최소/최대 orthographicSize 경계를 다시 잡는다.
-        /// minSize = fieldRadius / max(1, aspect) - UGUI 버전의 "여백 없이 화면을 꽉 채우는 최소
+        /// baselineSize = fieldRadius / max(1, aspect) - UGUI 버전의 "여백 없이 화면을 꽉 채우는 최소
         /// 줌"(cover-fit)과 같은 결과를 내도록 재유도한 공식이다: 화면이 가로로 넓을수록(aspect>1)
-        /// 세로가 먼저 꽉 차므로 그만큼 더 확대된 상태(작은 size)가 "전장 전체가 보이는" 최소 줌이 된다.
+        /// 세로가 먼저 꽉 차므로 그만큼 더 확대된 상태(작은 size)가 "전장 전체가 보이는" 기준 줌이 된다.
         /// </summary>
         public void RecomputeBounds(float fieldRadius)
         {
@@ -44,22 +61,23 @@ namespace Game.Core
 
             this.fieldRadius = fieldRadius;
             var aspect = targetCamera.aspect;
-            minSize = fieldRadius / Mathf.Max(1f, aspect);
+            baselineSize = fieldRadius / Mathf.Max(1f, aspect);
             // orthographicSize는 작을수록 확대이므로, UGUI 버전의 "minZoom*ratio"(곱하기)가 아니라
             // 나누기로 더 작은(더 확대된) 값을 얻는다.
-            maxSize = minSize / maxZoomRatio;
-            currentSize = Mathf.Clamp(currentSize, maxSize, minSize);
+            zoomedInLimit = baselineSize / zoomInRatio;
+            zoomedOutLimit = baselineSize * zoomOutRatio;
+            currentSize = Mathf.Clamp(currentSize, zoomedInLimit, zoomedOutLimit);
             ApplySize(currentSize);
             ClampPosition();
         }
 
-        /// <summary>전장 전체가 보이는 최소 줌(=최대 orthographicSize) + 중앙 위치로 강제 리셋한다
+        /// <summary>전장 전체가 보이는 기준 줌(=baselineSize) + 중앙 위치로 강제 리셋한다
         /// (전투 시작마다, 기획 09번 §5와 동일 규칙).</summary>
         public void ResetToMinZoom()
         {
             if (targetCamera == null) return;
 
-            currentSize = minSize;
+            currentSize = baselineSize;
             ApplySize(currentSize);
             var pos = targetCamera.transform.position;
             targetCamera.transform.position = new Vector3(0f, 0f, pos.z);
@@ -71,7 +89,7 @@ namespace Game.Core
             if (targetCamera == null) return;
 
             // scrollDeltaY>0(휠 위로 굴림)이면 확대(size 감소)해야 하므로 부호를 뒤집는다.
-            var newSize = Mathf.Clamp(currentSize - scrollDeltaY * ZoomStep, maxSize, minSize);
+            var newSize = Mathf.Clamp(currentSize - scrollDeltaY * ZoomStep, zoomedInLimit, zoomedOutLimit);
             if (Mathf.Approximately(newSize, currentSize)) return;
 
             var cursorWorldBefore = ScreenToWorld(screenPoint);
@@ -101,7 +119,9 @@ namespace Game.Core
             ClampPosition();
         }
 
-        private Vector3 ScreenToWorld(Vector2 screenPoint)
+        // 배틀 테스트 씬의 팔레트 드래그-드롭(화면 좌표 → 전장 월드 좌표 변환)이 재사용할 수 있도록
+        // BattleFieldWorldCameraView.ScreenToWorld를 통해 노출한다(순수 접근성 확장, 계산 로직 불변).
+        public Vector3 ScreenToWorld(Vector2 screenPoint)
         {
             var screenPoint3 = new Vector3(screenPoint.x, screenPoint.y, -targetCamera.transform.position.z);
             return targetCamera.ScreenToWorldPoint(screenPoint3);
@@ -114,7 +134,7 @@ namespace Game.Core
         // 경계 안에 가두는 반대 방향 계산이다.
         private void ClampPosition()
         {
-            if (targetCamera == null) return;
+            if (targetCamera == null || !clampToField) return;
 
             var halfHeight = currentSize;
             var halfWidth = currentSize * targetCamera.aspect;

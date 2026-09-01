@@ -40,5 +40,9 @@ namespace Game.Core
             }
             return result;
         }
+
+        // 배틀 테스트 씬(BattleTestEnemyRoster)이 적 밸런스 수치를 별도로 복제해 관리하지 않도록 조회만
+        // 노출한다 - 이 클래스의 랜덤 구성 동작 자체는 그대로 유지(순수 추가).
+        public static BattleUnitStats GetStatsForType(EnemyType type) => StatsByType[type];
     }
 }

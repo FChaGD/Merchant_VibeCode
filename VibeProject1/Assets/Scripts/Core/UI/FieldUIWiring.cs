@@ -6,7 +6,7 @@ namespace Game.Core
     /// <summary>
     /// UIManager 산하 컴포넌트. Field 씬이 로드될 때 필요한 UI 배선만 담당한다 - Battle 도메인
     /// 인터페이스(IBattleController 등)를 아는 곳을 UIManager에서 이 클래스로 옮겨, 공통 UI 프레임워크가
-    /// 특정 씬의 구체 도메인을 몰라도 되게 한다(DIP, Docs/Refactor/공통_점검.md 3단계 수정안).
+    /// 특정 씬의 구체 도메인을 몰라도 되게 한다(DIP, Docs/Refactor/2026-08-26-공통.md 3단계 수정안).
     /// </summary>
     public class FieldUIWiring : MonoBehaviour, IContentSceneUIWiring
     {
@@ -58,7 +58,7 @@ namespace Game.Core
 
             // Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 다음 전환 때 슬라이드시킬
             // 대상을 등록한다 - Field는 전용 요소를 새로 만들지 않고 기존 이동 뷰 루트를 재사용한다
-            // (Docs/설계/10_씬전환_연출_아키텍처.md §8).
+            // (Docs/설계/10-2026-08-26-씬전환_연출_아키텍처.md §8).
             registrar.Resolve<ISceneTransitionContentRootRegistry>().RegisterContentRoot(ContentSceneId.Field, fieldUIController.MovementViewRoot);
         }
     }
