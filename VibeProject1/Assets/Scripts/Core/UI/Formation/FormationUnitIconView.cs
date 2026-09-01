@@ -31,6 +31,18 @@ namespace Game.Core
             }
         }
 
+        // 정비창 팔레트 카테고리 행(FormationPaletteRowView, 설계 16번)은 특정 개체가 아니라 카테고리
+        // 요약을 표시한다 - 구체적인 IFormationUnit 없이 스프라이트만 필요할 때 쓴다. Unit은 null로
+        // 남는다(팔레트에서는 아무도 읽지 않는 값).
+        public void BindIconOnly(Sprite icon)
+        {
+            Unit = null;
+            if (iconImage != null)
+            {
+                iconImage.sprite = icon;
+            }
+        }
+
         public void SetHandlers(
             Action<FormationUnitIconView> clickHandler,
             Action<FormationUnitIconView, PointerEventData> beginDragHandler,

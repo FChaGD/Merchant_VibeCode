@@ -12,6 +12,8 @@ namespace Game.Core
     public class BattleProtectedUnitView : MonoBehaviour
     {
         [SerializeField] private SpriteRenderer bodyRenderer;
+        // 체력 게이지바(사용자 요청, BattleHealthGaugeView) - BattleCharacterUnitView와 같은 방식으로 재사용.
+        [SerializeField] private BattleHealthGaugeView gaugeView;
 
         private const float HitFlashSeconds = 0.1f;
         private const float DeathFadeSeconds = 0.3f;
@@ -47,6 +49,7 @@ namespace Game.Core
             transform.localScale = Vector3.one * BodySize;
             // 고정 배치라 Update에서 매 프레임 갱신할 필요 없이 최초 1회만 계산한다.
             bodyRenderer.sortingOrder = -Mathf.RoundToInt(transform.position.y * SortingOrderYScale);
+            gaugeView?.Bind(unit);
 
             unit.OnDamaged += HandleDamaged;
             unit.OnDied += HandleDestroyed;
@@ -70,6 +73,7 @@ namespace Game.Core
                 elapsed += Time.deltaTime;
                 var alpha = Mathf.Lerp(baseColor.a, 0f, elapsed / DeathFadeSeconds);
                 bodyRenderer.color = new Color(baseColor.r, baseColor.g, baseColor.b, alpha);
+                gaugeView?.SetAlpha(alpha);
                 yield return null;
             }
             Destroy(gameObject);

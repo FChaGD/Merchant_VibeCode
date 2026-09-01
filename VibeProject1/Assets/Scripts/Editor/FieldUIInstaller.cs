@@ -68,7 +68,8 @@ namespace Game.Core.Editor
             FormationUIBuilder.EnsurePrefabFolder();
             var slotPrefab = FormationUIBuilder.GetOrCreateSlotPrefab();
             var iconPrefab = FormationUIBuilder.GetOrCreateIconPrefab();
-            FormationUIBuilder.Build(sceneUIRoot.transform, slotPrefab, iconPrefab);
+            var rowPrefab = FormationUIBuilder.GetOrCreateRowPrefab();
+            FormationUIBuilder.Build(sceneUIRoot.transform, slotPrefab, iconPrefab, rowPrefab);
 
             // 전투 뷰 유닛 프리팹도 여기서 함께 최신화한다 - ManagerHierarchyInstaller(Bootstrap)가
             // FieldUIController에 이 프리팹들을 연결할 때 재사용한다(EditorUIBuilder 공용 조립 로직).

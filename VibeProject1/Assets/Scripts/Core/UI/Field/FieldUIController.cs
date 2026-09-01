@@ -42,8 +42,11 @@ namespace Game.Core
         private IGameManager gameManager;
         private ISessionState sessionState;
         private IUIManager uiManager;
+        // 상행 시작/종료(허브 복귀) 시 보유 유닛 HP를 리셋하는 데 쓴다(설계 15번) - 없어도(TryResolve
+        // 실패) 상행 진행 자체는 정상 동작한다(null-조건부 호출).
+        private IUnitConditionRepository unitConditionRepository;
 
-        public void RegisterFieldUI(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal)
+        public void RegisterFieldUI(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository)
         {
             var fieldScene = SceneManager.GetSceneByName(SceneNames.Field);
             if (!fieldScene.IsValid())
@@ -76,6 +79,7 @@ namespace Game.Core
             this.gameManager = gameManager;
             this.sessionState = sessionState;
             this.uiManager = uiManager;
+            this.unitConditionRepository = unitConditionRepository;
 
             formationButton.onClick.RemoveAllListeners();
             formationButton.onClick.AddListener(() => uiManager.Open(UIPanelIds.Formation));
@@ -127,6 +131,7 @@ namespace Game.Core
 
             formationButton.interactable = true;
             tacticsButton.interactable = true;
+            unitConditionRepository?.ResetAllToFull(); // 상행 시작 = 전원 만피로 출발(기획 13번 §4-1, 설계 15번 §4)
             sessionState.Begin();
         }
 
@@ -139,6 +144,8 @@ namespace Game.Core
         // 재사용한다(문구·버튼 라벨·콜백만 다름).
         private void HandleArrived()
         {
+            unitConditionRepository?.ResetAllToFull(); // 상행 종료(허브 복귀) = 전원 회복(기획 13번 §4-3, 사용자 확정)
+
             // 인카운터 발생 시 FieldEncounterFlowCoordinator.HandleEncounterTriggered가 배치/방향성
             // 지시를 닫는 것과 같은 이유 - 열려있는 채로 도착 팝업이 뜨면 그 위로 안 닫힌 패널이 남는다.
             // 둘 다 Close가 멱등이라 열려있지 않아도 안전하다.

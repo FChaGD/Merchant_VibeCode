@@ -56,6 +56,14 @@ namespace Game.Core
                 rosterConsumer.SetCaravanRoster(rosterProvider);
             }
 
+            // 유닛 상태(HP) 저장소도 같은 이유로 TryResolve(설계 15번) - 인스톨러를 아직 재실행하지
+            // 않은 씬에서는 자연히 건너뛰고, LiveBattleSimulationRule은 직업 기준 기본 스탯으로 폴백한다.
+            if (resultRule is IRequiresUnitConditionRepository conditionConsumer
+                && registrar.TryResolve<IUnitConditionRepository>(out var conditionRepository))
+            {
+                conditionConsumer.SetUnitConditionRepository(conditionRepository);
+            }
+
             // ITacticsRepository도 같은 이유로 TryResolve - InMemoryTacticsRepository는
             // ITacticsRepository로만 등록되므로 ITacticsReader로 업캐스트해 넘긴다(IFormationReader와
             // 동일 패턴). 인스톨러를 아직 재실행하지 않은 씬에서는 자연히 건너뛴다.

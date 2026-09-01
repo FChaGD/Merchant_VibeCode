@@ -89,6 +89,12 @@ namespace Game.Core.Editor
             // 배치 UI의 "적용" 버튼이 반영할 대상 - 현재 플레이 세션 동안만 유지되는 인메모리 저장소.
             var formationRepository = EditorUIBuilder.GetOrCreateManager<InMemoryFormationRepository>(root.transform, "InMemoryFormationRepository");
 
+            // 상행 동안 보유 유닛 HP/사망 상태를 저장하는 대상(설계 15번) - formationRepository와 같은
+            // 성격의 인메모리 저장소. ResolveDependencies에서 ICaravanRosterProvider를 TryResolve하므로
+            // placeholderRosterProvider보다 뒤에 둔다(가독성 목적 - DependencyManager가 RegisterSelf를
+            // 전부 끝낸 뒤 ResolveDependencies를 호출하는 2단계 구조라 실제 순서 의존성은 없다).
+            var unitConditionRepository = EditorUIBuilder.GetOrCreateManager<InMemoryUnitConditionRepository>(root.transform, "InMemoryUnitConditionRepository");
+
             // 방향성 지시 UI(TacticsPanel)가 반영할 대상 - 배치와 같은 성격의 인메모리 저장소.
             var tacticsRepository = EditorUIBuilder.GetOrCreateManager<InMemoryTacticsRepository>(root.transform, "InMemoryTacticsRepository");
 
@@ -112,6 +118,7 @@ namespace Game.Core.Editor
                 sceneLoader,
                 placeholderRosterProvider,
                 formationRepository,
+                unitConditionRepository,
                 tacticsRepository,
                 placeholderTripInfoProvider,
             });

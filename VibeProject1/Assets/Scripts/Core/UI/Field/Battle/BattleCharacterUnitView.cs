@@ -13,6 +13,9 @@ namespace Game.Core
     public class BattleCharacterUnitView : MonoBehaviour
     {
         [SerializeField] private SpriteRenderer bodyRenderer;
+        // 체력 게이지바(사용자 요청, BattleHealthGaugeView) - 본체와 같은 자식 계층에서 스케일을
+        // 물려받으므로 이 뷰가 직접 위치/크기를 계산하지 않는다.
+        [SerializeField] private BattleHealthGaugeView gaugeView;
 
         private const float HitFlashSeconds = 0.1f;
         // 사망/도주 페이드아웃 공통 소요시간 - 보간(Lerp)으로 2초에 걸쳐 알파를 낮춘다.
@@ -62,6 +65,7 @@ namespace Game.Core
             // MaxHp를 크기 신호로 재사용 - 방패병(150) > 전사(100) > 궁수(70) 순서가 자연히 만들어진다(기획 §12).
             transform.localScale = Vector3.one * (BaseBodySize * Mathf.Clamp(unit.MaxHp / 100f, 0.7f, 1.5f));
             UpdateSortingOrder();
+            gaugeView?.Bind(unit);
 
             unit.OnDamaged += HandleDamaged;
             unit.OnAttacked += HandleAttacked;
@@ -177,6 +181,7 @@ namespace Game.Core
                 elapsed += Time.deltaTime;
                 var alpha = Mathf.Lerp(startColor.a, 0f, elapsed / FadeOutSeconds);
                 bodyRenderer.color = new Color(startColor.r, startColor.g, startColor.b, alpha);
+                gaugeView?.SetAlpha(alpha);
                 yield return null;
             }
             Destroy(gameObject);
@@ -196,6 +201,7 @@ namespace Game.Core
                 UpdateSortingOrder();
                 var alpha = Mathf.Lerp(startColor.a, 0f, elapsed / FadeOutSeconds);
                 bodyRenderer.color = new Color(startColor.r, startColor.g, startColor.b, alpha);
+                gaugeView?.SetAlpha(alpha);
                 yield return null;
             }
             Destroy(gameObject);

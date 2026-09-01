@@ -556,7 +556,10 @@ namespace Game.Core.Editor
         public static BattleCharacterUnitView GetOrCreateBattleCharacterViewPrefab()
         {
             var existing = AssetDatabase.LoadAssetAtPath<GameObject>(BattleCharacterViewPrefabPath);
-            if (existing != null && existing.GetComponent<SpriteRenderer>() != null)
+            // 체력 게이지바(사용자 요청) 추가 전 프리팹은 게이지 자식이 아예 없거나, 배경/채움 스케일이
+            // 서로 간섭하던 구버전 구조일 수 있다(HasUpToDateHealthGauge 참고) - 그 경우도
+            // UGUI→SpriteRenderer 전환 때와 같은 방식으로 통째로 재생성한다.
+            if (existing != null && HasUpToDateHealthGauge(existing))
             {
                 return existing.GetComponent<BattleCharacterUnitView>();
             }
@@ -567,10 +570,12 @@ namespace Game.Core.Editor
             var charLayer = LayerMask.NameToLayer(BattleLayerName);
             go.layer = charLayer >= 0 ? charLayer : 0;
             var renderer = go.GetComponent<SpriteRenderer>();
+            var gaugeView = CreateHealthGaugeChild(go.transform, charLayer);
 
             var view = go.AddComponent<BattleCharacterUnitView>();
             var so = new SerializedObject(view);
             so.FindProperty("bodyRenderer").objectReferenceValue = renderer;
+            so.FindProperty("gaugeView").objectReferenceValue = gaugeView;
             so.ApplyModifiedProperties();
 
             var savedPrefab = PrefabUtility.SaveAsPrefabAsset(go, BattleCharacterViewPrefabPath);
@@ -582,7 +587,7 @@ namespace Game.Core.Editor
         public static BattleProtectedUnitView GetOrCreateBattleProtectedViewPrefab()
         {
             var existing = AssetDatabase.LoadAssetAtPath<GameObject>(BattleProtectedViewPrefabPath);
-            if (existing != null && existing.GetComponent<SpriteRenderer>() != null)
+            if (existing != null && HasUpToDateHealthGauge(existing))
             {
                 return existing.GetComponent<BattleProtectedUnitView>();
             }
@@ -593,16 +598,58 @@ namespace Game.Core.Editor
             var protLayer = LayerMask.NameToLayer(BattleLayerName);
             go.layer = protLayer >= 0 ? protLayer : 0;
             var renderer = go.GetComponent<SpriteRenderer>();
+            var gaugeView = CreateHealthGaugeChild(go.transform, protLayer);
 
             var view = go.AddComponent<BattleProtectedUnitView>();
             var so = new SerializedObject(view);
             so.FindProperty("bodyRenderer").objectReferenceValue = renderer;
+            so.FindProperty("gaugeView").objectReferenceValue = gaugeView;
             so.ApplyModifiedProperties();
 
             var savedPrefab = PrefabUtility.SaveAsPrefabAsset(go, BattleProtectedViewPrefabPath);
             Object.DestroyImmediate(go);
 
             return savedPrefab.GetComponent<BattleProtectedUnitView>();
+        }
+
+        // 게이지 컴포넌트가 있어도 구버전(배경 SpriteRenderer가 게이지 오브젝트 자신에 있어 채움과
+        // 스케일이 간섭하던 구조, CreateHealthGaugeChild 주석 참고)일 수 있다 - 새 구조는 게이지
+        // 오브젝트 자신엔 SpriteRenderer가 없다(배경/채움 둘 다 그 자식으로 분리됨).
+        private static bool HasUpToDateHealthGauge(GameObject prefabRoot)
+        {
+            var gaugeView = prefabRoot.GetComponentInChildren<BattleHealthGaugeView>();
+            return gaugeView != null && gaugeView.GetComponent<SpriteRenderer>() == null;
+        }
+
+        // 체력 게이지바(BattleHealthGaugeView, 사용자 요청) 자식을 만들어 부착한다 - 캐릭터/보호대상
+        // 프리팹 둘 다 같은 구조(배경+채움 SpriteRenderer 2개)를 쓴다. 배경/채움을 "HealthGauge"의
+        // 형제(sibling) 자식으로 각각 따로 둔다 - 배경 SpriteRenderer를 BattleHealthGaugeView가 붙은
+        // 오브젝트 자신에 두면(예전 구조) 배경 크기 조정용 localScale이 곧 부모 스케일이 되어 자식인
+        // 채움 바에도 그대로 곱해져 이중으로 축소되는 버그가 있었다(실전투 확인됨) - "HealthGauge"는
+        // 순수 위치 앵커로만 쓰고 스케일은 절대 건드리지 않는다.
+        private static BattleHealthGaugeView CreateHealthGaugeChild(Transform parent, int layer)
+        {
+            var gaugeGo = new GameObject("HealthGauge");
+            gaugeGo.transform.SetParent(parent, false);
+            gaugeGo.layer = layer >= 0 ? layer : 0;
+
+            var backgroundGo = new GameObject("Background", typeof(SpriteRenderer));
+            backgroundGo.transform.SetParent(gaugeGo.transform, false);
+            backgroundGo.layer = layer >= 0 ? layer : 0;
+            var backgroundRenderer = backgroundGo.GetComponent<SpriteRenderer>();
+
+            var fillGo = new GameObject("Fill", typeof(SpriteRenderer));
+            fillGo.transform.SetParent(gaugeGo.transform, false);
+            fillGo.layer = layer >= 0 ? layer : 0;
+            var fillRenderer = fillGo.GetComponent<SpriteRenderer>();
+
+            var gaugeView = gaugeGo.AddComponent<BattleHealthGaugeView>();
+            var so = new SerializedObject(gaugeView);
+            so.FindProperty("backgroundRenderer").objectReferenceValue = backgroundRenderer;
+            so.FindProperty("fillRenderer").objectReferenceValue = fillRenderer;
+            so.ApplyModifiedProperties();
+
+            return gaugeView;
         }
     }
 }

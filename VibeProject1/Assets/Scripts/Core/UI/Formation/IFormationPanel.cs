@@ -8,6 +8,6 @@ namespace Game.Core
         /// 그 씬의 화면 요소로 재바인딩한다 - 이전 콘텐츠 씬이 언로드되며 파괴된 요소를 계속 들고 있지
         /// 않게 하기 위함이다.
         /// </summary>
-        void RegisterFormationUI(ICaravanRosterProvider rosterProvider, IFormationRepository repository, IUIManager uiManager, string sceneName);
+        void RegisterFormationUI(ICaravanRosterProvider rosterProvider, IFormationRepository repository, IUnitConditionRepository conditionRepository, IUIManager uiManager, string sceneName);
     }
 }

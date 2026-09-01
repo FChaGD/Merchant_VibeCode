@@ -40,17 +40,22 @@ namespace Game.Core
 
         private ICaravanRosterProvider rosterProvider;
         private IFormationRepository repository;
+        // 사망 판정(가용수 계산, 설계 15/16번 교차 의존)에만 쓴다 - 없어도(TryResolve 실패) 팔레트는
+        // "미배치 여부"만으로 잔여수를 계산해 정상 동작한다.
+        private IUnitConditionRepository conditionRepository;
         private IUIManager uiManager;
 
         private FormationLayout currentLayout;
         private readonly Dictionary<string, IFormationUnit> unitsById = new();
+        private IReadOnlyList<IFormationUnit> currentRoster = Array.Empty<IFormationUnit>();
 
         private readonly FormationDragCoordinator dragCoordinator = new();
 
-        public void RegisterFormationUI(ICaravanRosterProvider rosterProvider, IFormationRepository repository, IUIManager uiManager, string sceneName)
+        public void RegisterFormationUI(ICaravanRosterProvider rosterProvider, IFormationRepository repository, IUnitConditionRepository conditionRepository, IUIManager uiManager, string sceneName)
         {
             this.rosterProvider = rosterProvider;
             this.repository = repository;
+            this.conditionRepository = conditionRepository;
             this.uiManager = uiManager;
 
             // 배치 UI 화면 요소는 콘텐츠 씬(Hub/Field 등) 안에 있어 그 씬이 언로드되면 함께 파괴된다.
@@ -155,16 +160,15 @@ namespace Game.Core
                 return;
             }
 
-            var roster = rosterProvider?.GetRoster() ?? Array.Empty<IFormationUnit>();
+            currentRoster = rosterProvider?.GetRoster() ?? Array.Empty<IFormationUnit>();
             unitsById.Clear();
-            foreach (var unit in roster)
+            foreach (var unit in currentRoster)
             {
                 unitsById[unit.Id] = unit;
             }
 
             currentLayout = BuildInitialLayout();
 
-            paletteView.SetRoster(roster, HandleUnitIconClicked, HandlePaletteIconBeginDrag, HandleIconDrag, HandleIconEndDrag);
             gridView.Initialize(HandleSlotDropped, HandleUnitIconClicked, HandleGridIconBeginDrag, HandleIconDrag, HandleIconEndDrag);
 
             RefreshAllSlots();
@@ -262,16 +266,118 @@ namespace Game.Core
 
         private void HandleUnitIconClicked(IFormationUnit unit) => infoPanelView.Show(unit);
 
-        private void HandlePaletteIconBeginDrag(IFormationUnit unit, FormationUnitIconView icon, PointerEventData eventData)
-            => dragCoordinator.BeginFromPalette(unit, eventData);
+        // 카테고리 행 클릭 시 같은 카테고리 개체는 전부 스탯/외형이 동일하므로(기획 11번 §3), 대표로
+        // 로스터에서 그 카테고리의 첫 개체 정보를 보여준다.
+        private void HandlePaletteRowClicked(FormationCategoryKey key)
+        {
+            foreach (var unit in currentRoster)
+            {
+                if (FormationCategoryKey.Of(unit).Equals(key))
+                {
+                    infoPanelView.Show(unit);
+                    return;
+                }
+            }
+        }
+
+        // 카테고리 행은 구체적인 개체를 모른다(설계 16번) - 여기서 그 카테고리의 가용(미배치+생존)
+        // 개체 하나를 골라 기존 드래그 파이프라인(FormationDragCoordinator/FormationLayout)에 그대로
+        // 넘긴다. 그 아래 로직은 항상 구체적인 IFormationUnit을 다뤄왔으므로 한 줄도 바뀌지 않는다.
+        private void HandlePaletteRowBeginDrag(FormationCategoryKey key, PointerEventData eventData)
+        {
+            var available = FindAvailableUnit(key);
+            if (available == null)
+            {
+                return; // 방어적 - 잔여 0이면 행 자체가 비활성화라 정상 흐름에선 호출되지 않는다.
+            }
+
+            dragCoordinator.BeginFromPalette(available, eventData);
+        }
+
+        private IFormationUnit FindAvailableUnit(FormationCategoryKey key)
+        {
+            var placedIds = CollectPlacedIds();
+            foreach (var unit in currentRoster)
+            {
+                if (!FormationCategoryKey.Of(unit).Equals(key)) continue;
+                if (placedIds.Contains(unit.Id)) continue;
+                if (conditionRepository != null && unit is IMercenaryUnit && conditionRepository.IsDead(unit.Id)) continue;
+
+                return unit;
+            }
+            return null;
+        }
+
+        private HashSet<string> CollectPlacedIds()
+        {
+            var placedIds = new HashSet<string>();
+            for (var i = 0; i < currentLayout.SlotCount; i++)
+            {
+                var id = currentLayout.GetUnitId(i);
+                if (!string.IsNullOrEmpty(id))
+                {
+                    placedIds.Add(id);
+                }
+            }
+            return placedIds;
+        }
+
+        private List<FormationCategorySummary> BuildCategorySummaries()
+        {
+            var placedIds = CollectPlacedIds();
+            var order = new List<FormationCategoryKey>();
+            var totals = new Dictionary<FormationCategoryKey, int>();
+            var availables = new Dictionary<FormationCategoryKey, int>();
+            var names = new Dictionary<FormationCategoryKey, string>();
+            var icons = new Dictionary<FormationCategoryKey, Sprite>();
+
+            foreach (var unit in currentRoster)
+            {
+                var key = FormationCategoryKey.Of(unit);
+                if (!totals.ContainsKey(key))
+                {
+                    order.Add(key);
+                    totals[key] = 0;
+                    availables[key] = 0;
+                    names[key] = unit.DisplayName;
+                    icons[key] = unit.Icon;
+                }
+
+                totals[key]++;
+
+                var isDead = conditionRepository != null && unit is IMercenaryUnit && conditionRepository.IsDead(unit.Id);
+                if (!isDead && !placedIds.Contains(unit.Id))
+                {
+                    availables[key]++;
+                }
+            }
+
+            var summaries = new List<FormationCategorySummary>(order.Count);
+            foreach (var key in order)
+            {
+                summaries.Add(new FormationCategorySummary(key, names[key], icons[key], totals[key], availables[key]));
+            }
+            return summaries;
+        }
+
+        private void RefreshPalette()
+        {
+            paletteView.SetCategories(BuildCategorySummaries(), HandlePaletteRowClicked, HandlePaletteRowBeginDrag, HandleIconDrag, HandleIconEndDrag);
+        }
 
         private void HandleGridIconBeginDrag(int originSlotIndex, FormationUnitIconView icon, PointerEventData eventData)
             => dragCoordinator.BeginFromGrid(originSlotIndex, currentLayout, unitsById, eventData);
 
         private void HandleIconDrag(PointerEventData eventData) => dragCoordinator.UpdateGhostPosition(eventData);
 
+        // 드래그가 실제로 끝나는 시점(취소/스왑/팔레트 배치 전부 포함) - 여기서만 팔레트를 갱신하면
+        // 충분하다. HandleSlotDropped 시점엔 아직 드래그 중이라 갱신하지 않는다
+        // (FormationDragCoordinator.HandleSlotDropped 주석 참고).
         private void HandleIconEndDrag(PointerEventData eventData)
-            => dragCoordinator.HandleIconEndDrag(currentLayout, RefreshSlot);
+        {
+            dragCoordinator.HandleIconEndDrag(currentLayout, RefreshSlot);
+            RefreshPalette();
+        }
 
         private void HandleSlotDropped(int targetSlotIndex)
             => dragCoordinator.HandleSlotDropped(targetSlotIndex, currentLayout, RefreshSlot);
@@ -294,6 +400,9 @@ namespace Game.Core
             {
                 RefreshSlot(i);
             }
+            // 슬롯 배치가 통째로 바뀌었을 수 있으므로(Open/디버그 리사이즈) 팔레트 잔여수도 다시
+            // 계산한다 - 카테고리는 최대 5개뿐이라 매번 다시 그려도 비용이 미미하다(설계 16번 §3).
+            RefreshPalette();
         }
     }
 }

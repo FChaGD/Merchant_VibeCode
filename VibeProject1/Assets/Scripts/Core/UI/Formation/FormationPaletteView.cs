@@ -6,66 +6,60 @@ using UnityEngine.EventSystems;
 namespace Game.Core
 {
     /// <summary>
-    /// 배치 UI의 팔레트(보유 유닛 목록) 영역. 무제한 소스로 취급되므로 아이콘을 드래그해도
-    /// 목록에서 제거하지 않는다. 배치 여부와 무관하게 항상 동일하게 표시한다.
+    /// 배치 UI의 팔레트(보유 유닛 목록) 영역. 유닛 배치 상한 기획(11번) §4 확정대로 개체 하나당
+    /// 아이콘 하나가 아니라 카테고리(직업/마차/시설) 하나당 한 줄 + 잔여/전체 수를 보여준다(설계
+    /// 16번) - 어떤 구체적 개체를 배치할지는 FormationPanel이 카테고리에서 가용 개체를 골라 해석한다.
     /// </summary>
     public class FormationPaletteView : MonoBehaviour
     {
-        [SerializeField] private Transform iconContent;
-        [SerializeField] private FormationUnitIconView iconPrefab;
+        [SerializeField] private Transform rowContent;
+        [SerializeField] private FormationPaletteRowView rowPrefab;
 
-        private readonly List<FormationUnitIconView> icons = new();
+        private readonly List<FormationPaletteRowView> rows = new();
 
-        // 아이콘 인스턴스를 매번 파괴 후 재생성하지 않고, 로스터 개수 변화분만큼만 생성/파괴하고
-        // 나머지는 Bind/SetHandlers로 내용만 덮어써 재사용한다(get-or-create, CLAUDE.md 최적화 규칙).
-        // 매번 전체를 다시 바인딩하므로 이전에 어떤 로스터였든 결과는 동일하다.
-        public void SetRoster(
-            IReadOnlyList<IFormationUnit> roster,
-            Action<IFormationUnit> iconClicked,
-            Action<IFormationUnit, FormationUnitIconView, PointerEventData> iconBeginDrag,
-            Action<PointerEventData> iconDrag,
-            Action<PointerEventData> iconEndDrag)
+        // 행 인스턴스를 매번 파괴 후 재생성하지 않고, 카테고리 개수 변화분만큼만 생성/파괴하고
+        // 나머지는 Bind로 내용만 덮어써 재사용한다(get-or-create, CLAUDE.md 최적화 규칙). 매번 전체를
+        // 다시 바인딩하므로 이전에 어떤 요약이었든 결과는 동일하다.
+        public void SetCategories(
+            IReadOnlyList<FormationCategorySummary> categories,
+            Action<FormationCategoryKey> categoryClicked,
+            Action<FormationCategoryKey, PointerEventData> categoryBeginDrag,
+            Action<PointerEventData> rowDrag,
+            Action<PointerEventData> rowEndDrag)
         {
-            if (iconPrefab == null || iconContent == null)
+            if (rowPrefab == null || rowContent == null)
             {
-                foreach (var icon in icons)
+                foreach (var row in rows)
                 {
-                    if (icon != null)
+                    if (row != null)
                     {
-                        Destroy(icon.gameObject);
+                        Destroy(row.gameObject);
                     }
                 }
-                icons.Clear();
+                rows.Clear();
 
-                Debug.LogWarning($"{nameof(FormationPaletteView)}에 {nameof(iconPrefab)} 또는 {nameof(iconContent)}가 지정되어 있지 않다.");
+                Debug.LogWarning($"{nameof(FormationPaletteView)}에 {nameof(rowPrefab)} 또는 {nameof(rowContent)}가 지정되어 있지 않다.");
                 return;
             }
 
-            while (icons.Count > roster.Count)
+            while (rows.Count > categories.Count)
             {
-                var last = icons[^1];
+                var last = rows[^1];
                 if (last != null)
                 {
                     Destroy(last.gameObject);
                 }
-                icons.RemoveAt(icons.Count - 1);
+                rows.RemoveAt(rows.Count - 1);
             }
 
-            while (icons.Count < roster.Count)
+            while (rows.Count < categories.Count)
             {
-                icons.Add(Instantiate(iconPrefab, iconContent));
+                rows.Add(Instantiate(rowPrefab, rowContent));
             }
 
-            for (var i = 0; i < roster.Count; i++)
+            for (var i = 0; i < categories.Count; i++)
             {
-                var unit = roster[i];
-                var icon = icons[i];
-                icon.Bind(unit);
-                icon.SetHandlers(
-                    _ => iconClicked?.Invoke(unit),
-                    (iconView, eventData) => iconBeginDrag?.Invoke(unit, iconView, eventData),
-                    eventData => iconDrag?.Invoke(eventData),
-                    eventData => iconEndDrag?.Invoke(eventData));
+                rows[i].Bind(categories[i], categoryClicked, categoryBeginDrag, rowDrag, rowEndDrag);
             }
         }
     }

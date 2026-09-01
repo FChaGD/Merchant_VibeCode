@@ -11,7 +11,7 @@ namespace Game.Core
     /// (BattleManager 무변경). 승패 조건: 적 전멸(사망+도주)=Victory, 아군 전멸(사망+도주)
     /// 또는 보호 목표 파괴=Defeat.
     /// </summary>
-    public class LiveBattleSimulationRule : MonoBehaviour, IBattleResultRule, IRequiresFormationReader, IRequiresCaravanRoster, IRequiresTacticsReader, IBattleSimulationEvents, IPausableBattleSimulation
+    public class LiveBattleSimulationRule : MonoBehaviour, IBattleResultRule, IRequiresFormationReader, IRequiresCaravanRoster, IRequiresTacticsReader, IRequiresUnitConditionRepository, IBattleSimulationEvents, IPausableBattleSimulation
     {
         // 직업→역할군 매핑 - 실제 데이터(직업별 항목)는 에디터에서 에셋을 만들어 채운다
         // (Docs/설계/12번 §2.1). 비어있으면 UnitTacticsProfileResolver가 경고 후 기본값으로 대체한다.
@@ -31,9 +31,13 @@ namespace Game.Core
         private IFormationReader formationReader;
         private ICaravanRosterProvider rosterProvider;
         private ITacticsReader tacticsReader;
+        private IUnitConditionRepository unitConditionRepository;
         private BattleSimulationLoop simulation;
         private Action<BattleResult> onResult;
         private bool resultReported;
+        // 이번 전투에 참여한 아군의 unitId - 전투 종료 시 각자 최종 HP를 unitConditionRepository에
+        // 되돌려 쓰기 위해 BuildAllies()가 채워둔다(설계 15번 §3). BuildSimulation()마다 새로 채운다.
+        private readonly List<(string unitId, IBattleCombatant unit)> allyUnitIds = new();
 
         // 화면(커튼)이 완전히 드러나기 전까지는 유닛 위치만 잡아두고 틱은 멈춰둔다(사용자 확정) -
         // 안 그러면 페이드 아웃 도중 반투명해진 커튼 너머로 이미 움직이는 전투가 비쳐 보인다.
@@ -48,6 +52,7 @@ namespace Game.Core
         public void SetFormationReader(IFormationReader reader) => formationReader = reader;
         public void SetCaravanRoster(ICaravanRosterProvider provider) => rosterProvider = provider;
         public void SetTacticsReader(ITacticsReader reader) => tacticsReader = reader;
+        public void SetUnitConditionRepository(IUnitConditionRepository repository) => unitConditionRepository = repository;
 
         public void Evaluate(Action<BattleResult> onResult)
         {
@@ -74,11 +79,29 @@ namespace Game.Core
         private void Report(BattleOutcome outcome)
         {
             resultReported = true;
+            SyncRosterConditionFromBattle();
             onResult(new BattleResult(outcome));
+        }
+
+        // 전투가 끝난 시점(승/패 확정)의 아군 최종 상태를 로스터 저장소에 되돌려 쓴다(설계 15번 §3b).
+        // 사망 여부는 IsAlive(도주/이탈 포함)가 아니라 CurrentHp<=0f로 직접 판정한다 - 도주 등은
+        // 사망이 아니라 HP만 유지해야 한다(기획 13번 §5/§6).
+        private void SyncRosterConditionFromBattle()
+        {
+            if (unitConditionRepository == null) return;
+
+            foreach (var (unitId, unit) in allyUnitIds)
+            {
+                unitConditionRepository.ApplyBattleResult(unitId, unit.CurrentHp, died: unit.CurrentHp <= 0f);
+            }
         }
 
         private BattleSimulationLoop BuildSimulation()
         {
+            // 전투마다 새로 채운다(설계 15번 §3b) - 이전 전투의 매핑이 남아있으면 이번 전투 종료 시
+            // 그 유닛들에게도 잘못된 결과를 되돌려 쓰게 된다.
+            allyUnitIds.Clear();
+
             // hasLayout을 별도 변수로 옮겨 담으면 컴파일러의 확정 대입 분석이 layout과의 연결을
             // 추적하지 못해(CS0165) layout을 먼저 null로 초기화해둬야 한다.
             FormationLayout layout = null;
@@ -143,6 +166,10 @@ namespace Game.Core
                 var rosterUnit = FindRosterUnit(unitId);
                 if (rosterUnit == null || rosterUnit.Kind != FormationUnitKind.Character) continue;
 
+                // 사망한 개체는 그 상행 동안 배치 불가라 정상 흐름에선 정비창 팔레트가 이미 막지만
+                // (기획 13번 §6, 설계 16번), 방어적으로 한 번 더 확인한다.
+                if (unitConditionRepository != null && unitConditionRepository.IsDead(unitId)) continue;
+
                 // 직업 정보가 없는 Character(로스터 구현체가 IMercenaryUnit이 아닌 경우)는 예외적
                 // 상황이라 Warrior를 기본값으로 둔다 - 정식 로스터 시스템이 생기면 모든 Character가
                 // IMercenaryUnit을 구현하게 되어 이 분기 자체가 필요 없어질 것으로 예상된다.
@@ -153,6 +180,15 @@ namespace Game.Core
                 var position = FieldPositionLayout.ComputeAllyPosition(column, row, layout.ColumnCount);
                 var stats = statProvider.GetStats(mercenaryClass);
 
+                // 저장된 HP가 있으면(상행 중 이전 전투에서 입은 피해) 이번 전투의 MaxHp를 그 값으로
+                // 교체한다(설계 15번 §1/§3a) - 인-배틀 회복 수단이 없는 현재 범위에선 "저장된 HP"와
+                // "이번 전투에서 낼 수 있는 최대치"가 항상 같은 값이라 BattleUnitStats/BattleCharacterUnit
+                // 자체는 건드리지 않아도 된다.
+                if (unitConditionRepository != null && unitConditionRepository.TryGetCurrentHp(unitId, out var currentHp))
+                {
+                    stats = new BattleUnitStats(currentHp, stats.Attack, stats.Defense, stats.MoveSpeed, stats.AttackInterval, stats.Range, stats.MoraleSyncRate, stats.HpRegenPerSecond, stats.EnemyType);
+                }
+
                 // 배치 슬롯 좌표(position)가 곧 방향성 지시의 HomePosition이다 - "정비창 슬롯 좌표"라는
                 // 같은 개념을 두 번 계산하지 않는다.
                 UnitTacticsBehaviors tacticsBehaviors = null;
@@ -162,7 +198,9 @@ namespace Game.Core
                     tacticsBehaviors = UnitTacticsBehaviorsFactory.Build(profile, standardActivityRadius, fieldRadius, spatialQuery, frontlineCoordinator, rangedSurroundCoordinator);
                 }
 
-                allies.Add(new BattleCharacterUnit(position, isAlly: true, stats, damageFormula, allyMorale, allyWaveCoordinator, spatialQuery, fleeTravelDistance, tacticsBehaviors));
+                var characterUnit = new BattleCharacterUnit(position, isAlly: true, stats, damageFormula, allyMorale, allyWaveCoordinator, spatialQuery, fleeTravelDistance, tacticsBehaviors);
+                allies.Add(characterUnit);
+                allyUnitIds.Add((unitId, characterUnit));
             }
             return allies;
         }

@@ -9293,8 +9293,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04be1a3b73f18794cbc800fdab956498, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.FormationPaletteView
-  iconContent: {fileID: 1206425828}
-  iconPrefab: {fileID: 4722751072990681403, guid: d8073edbd1293ab47b24970ec43254f2, type: 3}
+  rowContent: {fileID: 1206425828}
+  rowPrefab: {fileID: 1808965193897998091, guid: 3d7a88d34c25d6649b973607e54feb5f, type: 3}
 --- !u!114 &1087764059
 MonoBehaviour:
   m_ObjectHideFlags: 0

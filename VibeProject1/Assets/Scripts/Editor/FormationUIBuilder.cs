@@ -18,17 +18,18 @@ namespace Game.Core.Editor
         private const string PrefabFolder = "Assets/Prefabs/UI/Formation";
         private const string SlotPrefabPath = PrefabFolder + "/FormationSlot.prefab";
         private const string IconPrefabPath = PrefabFolder + "/FormationUnitIcon.prefab";
+        private const string RowPrefabPath = PrefabFolder + "/FormationPaletteRow.prefab";
 
         // 그리드 배경(연한 민트색, BuildGrid 참고)과 타일이 육안으로 뚜렷이 구분되도록 대비되는 색 사용.
         private static readonly Color SlotBackgroundColor = new(1f, 0.85f, 0.6f, 0.9f);
 
-        public static void Build(Transform parentRoot, FormationSlotView slotPrefab, FormationUnitIconView iconPrefab)
+        public static void Build(Transform parentRoot, FormationSlotView slotPrefab, FormationUnitIconView iconPrefab, FormationPaletteRowView rowPrefab)
         {
             var panelRoot = EditorUIBuilder.GetOrCreateUIObject(parentRoot, "FormationPanel");
             EditorUIBuilder.SetStretch(panelRoot.GetComponent<RectTransform>());
             EditorUIBuilder.EnsureMarker(panelRoot, FormationUIElementIds.PanelRoot);
 
-            BuildPalette(panelRoot.transform, iconPrefab);
+            BuildPalette(panelRoot.transform, rowPrefab);
             BuildTopRightButtons(panelRoot.transform);
             BuildGrid(panelRoot.transform, slotPrefab, iconPrefab);
             BuildInfoPanel(panelRoot.transform);
@@ -78,6 +79,63 @@ namespace Game.Core.Editor
             return savedPrefab.GetComponent<FormationUnitIconView>();
         }
 
+        /// <summary>
+        /// 정비창 팔레트 카테고리 한 줄(설계 16번) - 아이콘 표시/드래그는 FormationUnitIconView를
+        /// 자식으로 합성해 재사용하고, 그 아래 잔여/전체 수 라벨을 붙인다. 소진 시 비활성화는
+        /// FormationPaletteRowView가 루트의 CanvasGroup으로 처리한다.
+        /// </summary>
+        public static FormationPaletteRowView GetOrCreateRowPrefab()
+        {
+            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(RowPrefabPath);
+            if (existing != null)
+            {
+                return existing.GetComponent<FormationPaletteRowView>();
+            }
+
+            var go = new GameObject("FormationPaletteRow", typeof(RectTransform));
+            go.GetComponent<RectTransform>().sizeDelta = new Vector2(96, 116);
+            var canvasGroup = go.AddComponent<CanvasGroup>();
+
+            var iconGo = new GameObject("Icon", typeof(RectTransform));
+            iconGo.transform.SetParent(go.transform, false);
+            var iconRect = iconGo.GetComponent<RectTransform>();
+            iconRect.anchorMin = new Vector2(0f, 0.2f);
+            iconRect.anchorMax = new Vector2(1f, 1f);
+            iconRect.offsetMin = Vector2.zero;
+            iconRect.offsetMax = Vector2.zero;
+            var iconImage = iconGo.AddComponent<Image>();
+            iconImage.color = Color.white;
+            var iconView = iconGo.AddComponent<FormationUnitIconView>();
+            var iconSo = new SerializedObject(iconView);
+            iconSo.FindProperty("iconImage").objectReferenceValue = iconImage;
+            iconSo.ApplyModifiedProperties();
+
+            var countGo = new GameObject("CountLabel", typeof(RectTransform));
+            countGo.transform.SetParent(go.transform, false);
+            var countRect = countGo.GetComponent<RectTransform>();
+            countRect.anchorMin = new Vector2(0f, 0f);
+            countRect.anchorMax = new Vector2(1f, 0.2f);
+            countRect.offsetMin = Vector2.zero;
+            countRect.offsetMax = Vector2.zero;
+            var countLabel = countGo.AddComponent<TextMeshProUGUI>();
+            countLabel.alignment = TextAlignmentOptions.Center;
+            countLabel.fontSize = 16;
+            countLabel.color = Color.black;
+            countLabel.raycastTarget = false;
+
+            var rowView = go.AddComponent<FormationPaletteRowView>();
+            var rowSo = new SerializedObject(rowView);
+            rowSo.FindProperty("iconView").objectReferenceValue = iconView;
+            rowSo.FindProperty("countLabel").objectReferenceValue = countLabel;
+            rowSo.FindProperty("canvasGroup").objectReferenceValue = canvasGroup;
+            rowSo.ApplyModifiedProperties();
+
+            var savedRowPrefab = PrefabUtility.SaveAsPrefabAsset(go, RowPrefabPath);
+            Object.DestroyImmediate(go);
+
+            return savedRowPrefab.GetComponent<FormationPaletteRowView>();
+        }
+
         public static FormationSlotView GetOrCreateSlotPrefab()
         {
             var existing = AssetDatabase.LoadAssetAtPath<GameObject>(SlotPrefabPath);
@@ -112,7 +170,7 @@ namespace Game.Core.Editor
             return savedPrefab.GetComponent<FormationSlotView>();
         }
 
-        private static void BuildPalette(Transform parent, FormationUnitIconView iconPrefab)
+        private static void BuildPalette(Transform parent, FormationPaletteRowView rowPrefab)
         {
             var root = EditorUIBuilder.GetOrCreateUIObject(parent, "Palette");
             EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.08f, 0.75f), new Vector2(0.62f, 0.85f));
@@ -123,8 +181,8 @@ namespace Game.Core.Editor
 
             var paletteView = EditorUIBuilder.GetOrAddComponent<FormationPaletteView>(root);
             var so = new SerializedObject(paletteView);
-            so.FindProperty("iconContent").objectReferenceValue = content;
-            so.FindProperty("iconPrefab").objectReferenceValue = iconPrefab;
+            so.FindProperty("rowContent").objectReferenceValue = content;
+            so.FindProperty("rowPrefab").objectReferenceValue = rowPrefab;
             so.ApplyModifiedProperties();
         }
 

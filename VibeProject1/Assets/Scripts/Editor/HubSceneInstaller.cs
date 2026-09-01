@@ -93,7 +93,12 @@ namespace Game.Core.Editor
             // 빌드 다음에 실행되어 실제로 그랬었다) 모달이 열려 있어도 이 버튼이 그 위로 떠 보인다 -
             // 재실행해도 안전하도록 매번 강제한다(FieldUIInstaller.BuildBackground의
             // SetAsFirstSibling과 같은 패턴).
-            var siblingLimit = contentRoot.childCount;
+            // go(TacticsButton) 자신이 두 패널 사이 어딘가에 이미 끼어있는 상태에서 목표 인덱스를
+            // 읽으면, SetSiblingIndex로 이동시킬 때 그 자신이 빠지며 뒤쪽 인덱스가 하나씩 당겨져
+            // 계산했던 목표보다 한 칸 뒤로 어긋난다(실제로 TripPanel 뒤로 밀리는 버그가 있었다) -
+            // 먼저 맨 뒤로 보내 두 패널의 인덱스가 go의 영향을 받지 않는 상태에서 다시 읽는다.
+            go.transform.SetAsLastSibling();
+            var siblingLimit = contentRoot.childCount - 1;
             var formationPanelSibling = contentRoot.Find("FormationPanel");
             if (formationPanelSibling != null)
             {
@@ -114,7 +119,8 @@ namespace Game.Core.Editor
             FormationUIBuilder.EnsurePrefabFolder();
             var slotPrefab = FormationUIBuilder.GetOrCreateSlotPrefab();
             var iconPrefab = FormationUIBuilder.GetOrCreateIconPrefab();
-            FormationUIBuilder.Build(contentRoot, slotPrefab, iconPrefab);
+            var rowPrefab = FormationUIBuilder.GetOrCreateRowPrefab();
+            FormationUIBuilder.Build(contentRoot, slotPrefab, iconPrefab, rowPrefab);
         }
 
         // ==================== 상행 준비(Trip) UI ====================

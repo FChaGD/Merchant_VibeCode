@@ -45,12 +45,13 @@ namespace Game.Core
             // 상행 관리 데이터 시스템이 아직 없어 선택적으로 조회한다 - 등록되면 자동으로 연결된다.
             registrar.TryResolve<ICaravanRosterProvider>(out var caravanRosterProvider);
             registrar.TryResolve<IFormationRepository>(out var formationRepository);
+            registrar.TryResolve<IUnitConditionRepository>(out var unitConditionRepository);
             registrar.TryResolve<ITripInfoProvider>(out var tripInfoProvider);
             registrar.TryResolve<ITacticsRepository>(out var tacticsRepository);
 
             hubUIController.RegisterHubUI(uiManager, sceneRevealSignal);
 
-            formationPanel.RegisterFormationUI(caravanRosterProvider, formationRepository, uiManager, SceneNames.Hub);
+            formationPanel.RegisterFormationUI(caravanRosterProvider, formationRepository, unitConditionRepository, uiManager, SceneNames.Hub);
             panelRegistrar.RegisterPanel(formationPanel);
 
             tripPanel.RegisterTripUI(uiManager, gameManager, formationRepository, tripInfoProvider, sceneRevealSignal);
