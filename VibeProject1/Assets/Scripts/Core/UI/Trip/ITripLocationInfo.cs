@@ -8,7 +8,7 @@ namespace Game.Core
     /// </summary>
     public interface ITripLocationInfo
     {
-        string Id { get; }
+        int Id { get; }
         string DisplayName { get; }
         string Description { get; }
         Sprite Icon { get; }

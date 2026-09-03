@@ -1,0 +1,19 @@
+ClosedXML.dll 및 전이 의존성 - 각 패키지 라이선스 요약(THIRD_PARTY_NOTICE)
+
+- ClosedXML 0.105.1: MIT
+- ClosedXML.Parser 2.0.0: MIT
+- DocumentFormat.OpenXml 3.1.1: MIT
+- DocumentFormat.OpenXml.Framework 3.1.1: MIT
+- ExcelNumberFormat 1.1.0: MIT
+- Microsoft.Bcl.HashCode 1.1.1: MIT
+- RBush.Signed 4.0.0: MIT
+- SixLabors.Fonts 1.0.0: Apache-2.0
+- System.IO.Packaging 8.0.1: MIT
+
+**중요 - Microsoft.Bcl.HashCode.dll은 반드시 "Auto Reference" 꺼진 상태로 둘 것**(Unity 에디터에서
+이 DLL 선택 → Inspector → "Auto Reference" 체크 해제 → Apply). 이 DLL은 System.HashCode를 다시
+정의하는데, Unity가 .NET Standard 2.1로 그 타입을 이미 자체 제공해서 자동 참조되면 프로젝트 전체가
+CS0433(타입 중복)으로 컴파일 불가능해진다(2026-09-03 실제 발생). 반대로 DLL 자체를 빼면 ClosedXML.dll이
+"이 어셈블리를 못 찾는다"며 로드를 거부해 Game.Core 이하 전부 연쇄 실패한다(같은 날 실제 발생) - DLL은
+존재해야 ClosedXML.dll의 참조가 해소되지만, Auto Reference를 꺼서 다른 코드가 이 타입을 컴파일 시점에
+보지 못하게 해야 한다. Unity 에디터에서 한 번만 설정하면 되고 .meta에 저장된다.

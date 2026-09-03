@@ -39,6 +39,7 @@ namespace Game.Core
         private TripDebugRoadToggleView debugRoadToggleView;
         private Button debugCityBulkDeleteButton;
         private Button debugRoadBulkDeleteButton;
+        private Button debugMapSaveButton;
         private TripMapInteractionCoordinator mapInteractionCoordinator;
 #endif
 
@@ -131,6 +132,7 @@ namespace Game.Core
         {
             if (debugCityPaletteView == null || debugRoadToggleView == null
                 || debugCityBulkDeleteButton == null || debugRoadBulkDeleteButton == null
+                || debugMapSaveButton == null
                 || debugCityMarkerPrefab == null || debugRoadLinePrefab == null)
             {
                 Debug.LogWarning($"{nameof(TripPanel)}: 지도 디버그 배치/경로 연결 요소 중 일부가 연결되지 않아 해당 기능을 건너뛴다.");
@@ -146,6 +148,7 @@ namespace Game.Core
                 debugRoadToggleView,
                 debugCityBulkDeleteButton,
                 debugRoadBulkDeleteButton,
+                debugMapSaveButton,
                 rootCanvas != null ? rootCanvas.transform : null,
                 originInfoView,
                 destinationInfoView);
@@ -235,6 +238,7 @@ namespace Game.Core
             sceneUIRoot.TryGetElement<TripDebugRoadToggleView>(TripUIElementIds.DebugRoadToggleButton, out debugRoadToggleView);
             sceneUIRoot.TryGetElement<Button>(TripUIElementIds.DebugCityBulkDeleteButton, out debugCityBulkDeleteButton);
             sceneUIRoot.TryGetElement<Button>(TripUIElementIds.DebugRoadBulkDeleteButton, out debugRoadBulkDeleteButton);
+            sceneUIRoot.TryGetElement<Button>(TripUIElementIds.DebugMapSaveButton, out debugMapSaveButton);
 #endif
 
             return true;
@@ -258,6 +262,14 @@ namespace Game.Core
             RefreshSummary();
 
             panelRoot.SetActive(true);
+
+#if UNITY_EDITOR
+            // TripMapView.Content/Viewport는 Awake 이전엔 null이라(패널이 비활성 상태로 배치돼 최초
+            // 활성화 시점까지 Awake가 지연됨, TripMapView.cs 참고) 패널이 실제로 활성화된 지금 시점에
+            // 불러와야 한다 - RegisterTripUI/Bind() 시점에 불러오면 마커가 Content 밖에 생성돼 화면에
+            // 나타나지 않는다. 코디네이터가 세션당 한 번만 불러오도록 내부에서 가드한다.
+            mapInteractionCoordinator?.EnsureSavedMapLoaded();
+#endif
         }
 
         // 순수 "숨기기"만 한다. Hub로 돌아갈지 이전 패널로 돌아갈지는 UIManager.Close(PanelId)가 결정하므로

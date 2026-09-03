@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30f7aa413467dd3448f776b1a95c8e59, type: 3}
+  m_Name: TripCityStringsTable
+  m_EditorClassIdentifier: Game.Core::Game.Core.TripCityStringsTableAsset
+  entries:
+  - Id: 1
+    Name: "\uB514\uBC84\uADF8 \uB3C4\uC2DC 1"
+    Description: "\uC124\uBA851"
+  - Id: 2
+    Name: "\uB514\uBC84\uADF8 \uB3C4\uC2DC 2"
+    Description: "\uC124\uBA852"
+  - Id: 3
+    Name: "\uB514\uBC84\uADF8 \uB3C4\uC2DC 3"
+    Description: "\uC124\uBA853"
+  - Id: 4
+    Name: "\uB514\uBC84\uADF8 \uB3C4\uC2DC 4"
+    Description: "\uC124\uBA854"
+  - Id: 5
+    Name: "\uB514\uBC84\uADF8 \uB3C4\uC2DC 5"
+    Description: "\uC124\uBA855"
+  - Id: 6
+    Name: "\uB514\uBC84\uADF8 \uB3C4\uC2DC 6"
+    Description: "\uC124\uBA856"
+  - Id: 7
+    Name: "\uB514\uBC84\uADF8 \uB3C4\uC2DC 7"
+    Description: "\uC124\uBA857"
+  - Id: 8
+    Name: "\uB514\uBC84\uADF8 \uB3C4\uC2DC 8"
+    Description: "\uC124\uBA858"
+  - Id: 9
+    Name: "\uB514\uBC84\uADF8 \uB3C4\uC2DC 9"
+    Description: "\uC124\uBA859"
+  - Id: 10
+    Name: "\uB514\uBC84\uADF8 \uB3C4\uC2DC 10"
+    Description: "\uC124\uBA8510"

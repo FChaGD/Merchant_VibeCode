@@ -19,5 +19,6 @@ namespace Game.Core
         public const string DebugRoadToggleButton = "Trip.DebugRoadToggleButton";
         public const string DebugCityBulkDeleteButton = "Trip.DebugCityBulkDeleteButton";
         public const string DebugRoadBulkDeleteButton = "Trip.DebugRoadBulkDeleteButton";
+        public const string DebugMapSaveButton = "Trip.DebugMapSaveButton";
     }
 }

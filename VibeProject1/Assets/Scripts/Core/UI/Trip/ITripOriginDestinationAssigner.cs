@@ -5,8 +5,8 @@ namespace Game.Core
     /// </summary>
     public interface ITripOriginDestinationAssigner : ITripOriginDestinationReader
     {
-        void HandleCityClicked(string cityId);
+        void HandleCityClicked(int cityId);
         void HandlePanelClicked(TripRole role);
-        void HandleCityDeleted(string cityId);
+        void HandleCityDeleted(int cityId);
     }
 }

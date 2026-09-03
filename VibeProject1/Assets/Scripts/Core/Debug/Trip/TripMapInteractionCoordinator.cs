@@ -26,8 +26,8 @@ namespace Game.Core.DebugTools
         private readonly TripDebugRoadModeController roadMode = new TripDebugRoadModeController();
         private readonly TripOriginDestinationAssigner assigner;
 
-        private readonly Dictionary<string, TripDebugCityMarkerView> markersByCityId = new();
-        private readonly Dictionary<string, TripDebugRoadLineView> linesByRouteKey = new();
+        private readonly Dictionary<int, TripDebugCityMarkerView> markersByCityId = new();
+        private readonly Dictionary<(int, int), TripDebugRoadLineView> linesByRouteKey = new();
 
         private TripMapView mapView;
         private TripDebugCityMarkerView markerPrefab;
@@ -37,6 +37,7 @@ namespace Game.Core.DebugTools
         private Image dragGhost;
         private Sprite cityIconSprite;
         private Vector2 markerBaseSize;
+        private TripCityStringsTableAsset cityStringsTable;
 
         private MoveCityDragBehavior moveBehavior;
         private DrawRoadDragBehavior drawRoadBehavior;
@@ -64,6 +65,7 @@ namespace Game.Core.DebugTools
             TripDebugRoadToggleView roadToggleView,
             Button cityBulkDeleteButton,
             Button roadBulkDeleteButton,
+            Button saveButton,
             Transform rootCanvasTransform,
             TripLocationInfoView originInfoView,
             TripLocationInfoView destinationInfoView)
@@ -101,6 +103,9 @@ namespace Game.Core.DebugTools
             roadBulkDeleteButton.onClick.RemoveAllListeners();
             roadBulkDeleteButton.onClick.AddListener(() => routeRepository.Clear());
 
+            saveButton.onClick.RemoveAllListeners();
+            saveButton.onClick.AddListener(() => TripCityMapPersistence.Save(cityRepository, routeRepository));
+
             cityRepository.CityRemoved += HandleCityMarkerRemoved;
             cityRepository.CityRemoved += cityId => routeRepository.RemoveAllRoutesFor(cityId); // 도시 삭제 시 연결선 연쇄 삭제
             cityRepository.CityRemoved += assigner.HandleCityDeleted; // 도시 삭제 시 그 역할만 해제(반대편 유지, 02번 3.1절)
@@ -110,6 +115,49 @@ namespace Game.Core.DebugTools
             originInfoView.SetPanelClickHandler(() => assigner.HandlePanelClicked(TripRole.Origin));
             destinationInfoView.SetPanelClickHandler(() => assigner.HandlePanelClicked(TripRole.Destination));
             assigner.Changed += RefreshOriginDestinationDisplay;
+
+            // 불러오기는 여기서 하지 않는다 - mapView.Content/Viewport는 TripMapView.Awake 이전엔
+            // null인데, 이 상행 준비 UI 패널은 씬에 비활성 상태로 배치돼 Awake가 최초 활성화
+            // (TripPanel.Open) 시점까지 지연된다(TripMapView.cs 주석 참고). Bind()는 그보다 먼저
+            // (RegisterTripUI, 패널이 아직 비활성) 실행되므로, 여기서 마커를 생성하면 Content가 null이라
+            // 부모 없는 오브젝트로 만들어져 화면에 나타나지 않는다 - 실제로 겪은 버그(2026-09-03).
+            // EnsureSavedMapLoaded()를 TripPanel.Open() 이후(패널 활성화 후)에 호출해야 한다.
+        }
+
+        private bool hasLoadedSavedMap;
+
+        /// <summary>
+        /// 저장된 지도가 있으면 도시/경로/이름을 그대로 복원한다 - TripPanel.Open()이 패널을 활성화한
+        /// "뒤"에 호출해야 한다(위 Bind() 주석 참고). 패널을 여러 번 열어도 세션당 한 번만 불러오도록
+        /// 가드한다(재호출 시 같은 도시를 중복 인스턴스화하는 것을 막기 위함).
+        /// </summary>
+        public void EnsureSavedMapLoaded()
+        {
+            if (hasLoadedSavedMap)
+            {
+                return;
+            }
+            hasLoadedSavedMap = true;
+
+            TripCityMapPersistence.TryLoadStrings(out cityStringsTable); // 없어도(임포트 전) null로 두고 계속 진행 - BuildLocationInfo가 폴백한다.
+
+            if (!TripCityMapPersistence.TryLoad(out var asset))
+            {
+                return;
+            }
+
+            // 출발/도착 배정은 저장 대상이 아니라서(기획 15번 §2) 불러온 직후에도 아무 도시에 역할이
+            // 없는 상태로 시작한다.
+            foreach (var city in asset.Cities)
+            {
+                cityRepository.AddWithId(city.CityId, city.MapPosition);
+                CreateMarker(city.CityId, city.MapPosition);
+            }
+
+            foreach (var route in asset.Routes)
+            {
+                routeRepository.TryAddRoute(route.CityIdA, route.CityIdB);
+            }
         }
 
         private void CreateDragGhost(Sprite icon, Transform rootCanvasTransform)
@@ -184,7 +232,7 @@ namespace Game.Core.DebugTools
             CreateMarker(cityId, localPoint);
         }
 
-        private void CreateMarker(string cityId, Vector2 position)
+        private void CreateMarker(int cityId, Vector2 position)
         {
             var marker = Object.Instantiate(markerPrefab, mapView.Content);
             marker.Bind(cityId);
@@ -194,7 +242,7 @@ namespace Game.Core.DebugTools
         }
 
         // road-mode 여부와 무관하게 항상 호출된다 - 클릭은 드래그와 별개 이벤트이기 때문이다(04번 4.2절).
-        private void HandleMarkerClicked(string cityId) => assigner.HandleCityClicked(cityId);
+        private void HandleMarkerClicked(int cityId) => assigner.HandleCityClicked(cityId);
 
         private void HandleMarkerBeginDrag(TripDebugCityMarkerView marker, PointerEventData eventData)
         {
@@ -210,7 +258,7 @@ namespace Game.Core.DebugTools
             activeDragBehavior = null;
         }
 
-        private string ResolveCityUnderPointer(PointerEventData eventData)
+        private int? ResolveCityUnderPointer(PointerEventData eventData)
         {
             var target = eventData.pointerCurrentRaycast.gameObject;
             if (target == null)
@@ -223,8 +271,8 @@ namespace Game.Core.DebugTools
         }
 
         // 연결된 도시만 routeRepository의 인접 정보(RemoveAllRoutesFor와 같은 자료구조)로 바로 조회한다 -
-        // 드래그 중 매 프레임 호출되므로 전체 노선을 훑거나 키 문자열을 매번 분해하지 않는다.
-        private void RefreshLinesForCity(string cityId, Vector2 newPosition)
+        // 드래그 중 매 프레임 호출되므로 전체 노선을 훑지 않는다.
+        private void RefreshLinesForCity(int cityId, Vector2 newPosition)
         {
             foreach (var otherId in routeRepository.GetConnectedCityIds(cityId))
             {
@@ -240,7 +288,7 @@ namespace Game.Core.DebugTools
             }
         }
 
-        private void HandleCityMarkerRemoved(string cityId)
+        private void HandleCityMarkerRemoved(int cityId)
         {
             if (!markersByCityId.TryGetValue(cityId, out var marker))
             {
@@ -254,7 +302,7 @@ namespace Game.Core.DebugTools
             markersByCityId.Remove(cityId);
         }
 
-        private void HandleRouteAdded(string cityIdA, string cityIdB)
+        private void HandleRouteAdded(int cityIdA, int cityIdB)
         {
             var line = CreateLineInstance();
             if (markersByCityId.TryGetValue(cityIdA, out var markerA) && markersByCityId.TryGetValue(cityIdB, out var markerB))
@@ -265,7 +313,7 @@ namespace Game.Core.DebugTools
             linesByRouteKey[RouteKey(cityIdA, cityIdB)] = line;
         }
 
-        private void HandleRouteRemoved(string cityIdA, string cityIdB)
+        private void HandleRouteRemoved(int cityIdA, int cityIdB)
         {
             var key = RouteKey(cityIdA, cityIdB);
             if (!linesByRouteKey.TryGetValue(key, out var line))
@@ -290,7 +338,7 @@ namespace Game.Core.DebugTools
             return line;
         }
 
-        private static string RouteKey(string a, string b) => string.CompareOrdinal(a, b) < 0 ? $"{a}|{b}" : $"{b}|{a}";
+        private static (int, int) RouteKey(int a, int b) => a <= b ? (a, b) : (b, a);
 
         // 배정이 바뀔 때마다(지정/취소/교환/삭제로 인한 해제) assigner.Changed가 이 메서드를 부른다.
         // 상태 머신의 모든 전이가 결국 클릭에서 비롯되므로, 여기서 갱신하는 것만으로 "정보 패널은
@@ -302,28 +350,28 @@ namespace Game.Core.DebugTools
             RefreshMarkerRoleVisuals();
         }
 
-        private void ShowOrClear(TripLocationInfoView view, string cityId)
+        private void ShowOrClear(TripLocationInfoView view, int? cityId)
         {
-            if (string.IsNullOrEmpty(cityId))
+            if (cityId == null)
             {
                 view.Clear();
                 return;
             }
 
-            view.Show(BuildLocationInfo(cityId));
+            view.Show(BuildLocationInfo(cityId.Value));
         }
 
-        // 배치된 도시는 실제 지역 데이터가 없으므로 표시 정보는 자동 생성한 placeholder 값을 쓴다
-        // (03번 4.2절) - 기존 PlaceholderTripLocationInfo를 그대로 재사용한다(새 클래스 불필요).
-        private ITripLocationInfo BuildLocationInfo(string cityId)
+        // 엑셀 String 시트(TripCityStrings)에 실제 이름/설명이 있으면 그걸 쓴다(기획 15번 §8.4, 설계
+        // 20번 §9.6) - 창작 금지 원칙과 반대로, 있는 데이터는 실데이터를 쓴다. 아직 이름을 안 붙인
+        // 도시(갓 드래그 배치 등)는 기존처럼 자동 생성 placeholder로 폴백한다(03번 4.2절).
+        private ITripLocationInfo BuildLocationInfo(int cityId)
         {
-            return new PlaceholderTripLocationInfo(cityId, $"디버그 도시 {ExtractSequence(cityId)}", "값 없음", cityIconSprite);
-        }
+            if (cityStringsTable != null && cityStringsTable.TryGetEntry(cityId, out var entry))
+            {
+                return new PlaceholderTripLocationInfo(cityId, entry.Name, entry.Description, cityIconSprite);
+            }
 
-        private static string ExtractSequence(string cityId)
-        {
-            var dashIndex = cityId.LastIndexOf('-');
-            return dashIndex >= 0 ? cityId[(dashIndex + 1)..] : cityId;
+            return new PlaceholderTripLocationInfo(cityId, $"디버그 도시 {cityId}", "값 없음", cityIconSprite);
         }
 
         private void RefreshMarkerRoleVisuals()

@@ -22,7 +22,7 @@ namespace Game.Core.DebugTools
 
         private TripDebugCityMarkerView draggingMarker;
 
-        public event Action<string, Vector2> Moved;
+        public event Action<int, Vector2> Moved;
 
         public MoveCityDragBehavior(ITripCityRepository cityRepository, TripMapView mapView)
         {

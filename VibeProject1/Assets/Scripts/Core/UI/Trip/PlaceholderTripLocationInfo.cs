@@ -8,12 +8,12 @@ namespace Game.Core
     /// </summary>
     public class PlaceholderTripLocationInfo : ITripLocationInfo
     {
-        public string Id { get; }
+        public int Id { get; }
         public string DisplayName { get; }
         public string Description { get; }
         public Sprite Icon { get; }
 
-        public PlaceholderTripLocationInfo(string id, string displayName, string description, Sprite icon)
+        public PlaceholderTripLocationInfo(int id, string displayName, string description, Sprite icon)
         {
             Id = id;
             DisplayName = displayName;

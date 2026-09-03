@@ -35,10 +35,13 @@ Play 모드에서 배치 UI 그리드의 열(X)/행(Y) 수와 타일 크기를 �
 기능(정식, 02번 기획)을 테스트할 수 있게 만든 임시 배치 도구.
 
 - **경계**: `TripOriginDestinationAssigner`/`ITripOriginDestinationReader`/`ITripOriginDestinationAssigner`
-  /`TripRole`/`ITripRouteReader`(출발/도착 지정 상태 머신, 정식 로직, `Core/UI/Trip/`)는 이 리팩토링에서
-  전혀 손대지 않았다. `TripOriginDestinationAssigner`는 `ITripRouteReader` 인터페이스에만 의존해 지금은
-  아래 디버그 구현체가 그 데이터를 대지만, 실제 지역/경로 데이터 시스템이 생겨도 이 클래스 자체는
-  손댈 필요가 없다.
+  /`TripRole`/`ITripRouteReader`(출발/도착 지정 상태 머신, 정식 로직, `Core/UI/Trip/`)는 애초 리팩토링
+  (배치 도구 신설)에서는 전혀 손대지 않았으나, **2026-09-03 도시 지도 Id 전면 정수화(기획 15번 §8.2,
+  설계 20번 §9)로 이 경계를 예외적으로 한 번 넘었다** - 도시 Id 타입을 `string`→`int`(미배정 자리는
+  `int?`)로 바꾸면서 이 정식 코드들의 시그니처도 함께 바뀌었다(`OriginCityId`/`DestinationCityId`
+  등). 로직 자체(상태 전이 규칙)는 그대로이고 타입만 바뀐 것 - `TripOriginDestinationAssigner`가
+  `ITripRouteReader` 인터페이스에만 의존하는 구조는 유지되므로, 실제 지역/경로 데이터 시스템이
+  생기면 이 클래스 자체는 여전히 손댈 필요가 없다(구현체만 교체).
 - **디버그 전용 폴더**: `Assets/Scripts/Core/Debug/Trip/` (전부 `#if UNITY_EDITOR`, `Game.Core.DebugTools`
   네임스페이스). `Core/UI/Trip/`에 있던 아래 파일들을 원래 `.meta`(GUID)를 유지한 채 이 폴더로
   옮겼다 - 씬/프리팹의 컴포넌트 참조는 그대로 유지된다.
@@ -52,36 +55,59 @@ Play 모드에서 배치 UI 그리드의 열(X)/행(Y) 수와 타일 크기를 �
     이동/경로 그리기 처리.
   - `TripCity.cs` - 디버그로 배치한 도시의 좌표 데이터 구조체.
   - `InMemoryTripCityRepository.cs`, `ITripCityRepository.cs`, `ITripCityReader.cs` - 디버그 배치
-    도시를 세션 동안만 들고 있는 임시 저장소.
+    도시를 세션 동안만 들고 있는 임시 저장소(`ITripCityRepository`는 `ITripCityReader`를 상속 - 저장
+    기능 전용 전체 조회 계약, 2026-09-03 도시 지도 데이터 저장 기능에서 추가됨).
   - `InMemoryTripRouteRepository.cs`, `ITripRouteRepository.cs` - 디버그로 그은 경로를 세션 동안만
-    들고 있는 임시 저장소(`ITripRouteRepository`는 정식 `ITripRouteReader`를 상속).
+    들고 있는 임시 저장소(`ITripRouteRepository`는 정식 `ITripRouteReader`를 상속 + 저장 기능 전용
+    `GetAllRoutes()` 추가).
+  - `TripCityMapPersistence.cs` - "저장" 버튼이 배치된 도시/경로를 엑셀 워크북(`Assets/Table/Trip/
+    TripCityMap.xlsx`)으로 내보내는 에디터 전용 로직(2026-09-03 도입, 2026-09-03 엑셀 테이블화로
+    개정 - Docs/설계/19번→20번). `TripCityMapAsset`을 더 이상 직접 쓰지 않는다 - `TryLoad`로 읽기만
+    한다(그 에셋은 이제 `TripCityMapTableImporter`가 채운다, 아래 "제거 방법" 참고).
   - `TripMapInteractionCoordinator.cs` - 디버그 도시/경로 배선과 `TripOriginDestinationAssigner`
     생성·연결을 모두 담당하는 조율자. 이 클래스 자체가 디버그 저장소(`InMemoryTripCityRepository` 등)에
     의존하므로 이 폴더에 있다 - 실제 지역/경로 시스템이 생기면 이 파일 전체를 그 시스템에 맞는
     코디네이터로 새로 짜야 한다(내부에서 만드는 `TripOriginDestinationAssigner`는 그대로 재사용 가능).
+    `Bind()`가 저장 버튼 배선 + `LoadSavedMap()`(씬 진입 시 저장된 지도 자동 복원)도 담당한다.
 - **정식 코드 연동 지점** (`Core/UI/Trip/TripPanel.cs`, 전부 `#if UNITY_EDITOR`로 표시돼 있음):
   - `debugCityMarkerPrefab`/`debugRoadLinePrefab` 직렬화 필드
   - `debugCityPaletteView`/`debugRoadToggleView`/`debugCityBulkDeleteButton`/`debugRoadBulkDeleteButton`
-    /`mapInteractionCoordinator` 필드
-  - `TryBind` 안의 디버그 요소 조회 4줄
+    /`debugMapSaveButton`/`mapInteractionCoordinator` 필드
+  - `TryBind` 안의 디버그 요소 조회 5줄
   - `RegisterTripUI` 안의 `SetupDebugMapInteraction()` 호출 한 줄
   - `SetupDebugMapInteraction` 메서드 전체
   - `RefreshStartButtonInteractable`는 `#if/#else`로 분기 - 디버그가 없으면 "상행 시작" 버튼은
     항상 활성 상태로 대체된다.
 - **상수**: `TripUIElementIds.cs`의 `DebugCityPaletteRoot` / `DebugRoadToggleButton` /
-  `DebugCityBulkDeleteButton` / `DebugRoadBulkDeleteButton` (문자열 상수라 그대로 둬도 무해하지만,
-  완전히 정리하려면 함께 삭제).
+  `DebugCityBulkDeleteButton` / `DebugRoadBulkDeleteButton` / `DebugMapSaveButton` (문자열 상수라
+  그대로 둬도 무해하지만, 완전히 정리하려면 함께 삭제).
 - **에디터 인스톨러**: `Assets/Scripts/Editor/HubSceneInstaller.cs`의 `BuildTripDebugMapControls`,
   `GetOrCreateCityMarkerPrefab`, `GetOrCreateRoadLinePrefab` 메서드와 `BuildTripUI` 안의
   `BuildTripDebugMapControls(panelRoot.transform)` 호출 한 줄 (`using Game.Core.DebugTools;`로 참조).
 - **생성되는 프리팹/오브젝트**:
   - 프리팹: `Assets/Prefabs/UI/Trip/TripDebugCityMarker.prefab`, `TripDebugRoadLine.prefab`.
   - Hub.unity, Trip 패널 하위 `DebugCityPalette`, `DebugRoadToggleButton`,
-    `DebugCityBulkDeleteButton`, `DebugRoadBulkDeleteButton`.
+    `DebugCityBulkDeleteButton`, `DebugRoadBulkDeleteButton`, `DebugMapSaveButton`.
 - **제거 방법**: 실제 지역/경로 데이터 시스템이 생겼을 때, `Core/Debug/Trip/` 폴더를 지우고
   `TripPanel.cs`의 `#if UNITY_EDITOR` 블록들을 지운 뒤(`RefreshStartButtonInteractable`은 `#else` 쪽만
   남긴다), 새 데이터 소스로 `TripOriginDestinationAssigner`를 생성/주입하는 코드로 교체하고
-  `Tools > Game > Build Hub Scene` 재실행 → Hub.unity 저장.
+  `Tools > Game > Build Hub Scene` 재실행 → Hub.unity 저장. **주의**: 다음은 **제거 대상이 아니다**
+  - 데이터 테이블 임포터들(`CharacterStatsTableImporter` 등)과 같은 성격의 정식 콘텐츠 파이프라인이라
+  실제 지역 시스템이 이어받는다(Docs/기획/15번 §5, 설계 20번 §7):
+  - `Core/UI/Trip/TripCityMapAsset.cs`와 그 `.asset` 인스턴스(`Assets/Prefabs/ScriptableObejct/TripCityMap.asset`)
+  - `Core/UI/Trip/TripCityStringsTableAsset.cs`와 그 `.asset` 인스턴스(`Assets/Prefabs/ScriptableObejct/TripCityStringsTable.asset`, 도시 이름/설명)
+  - `Core/UI/Trip/TripCityMapCoordinateConverter.cs`(좌표 정규화 변환)
+  - `Assets/Scripts/Editor/TripCityMapTableImporter.cs`(엑셀→에셋 임포터)와 그 워크북(`Assets/Table/Trip/TripCityMap.xlsx`)
+  - `Assets/Plugins/Editor/ClosedXML/`(엑셀 쓰기 라이브러리)
+
+  지워야 하는 건 `TripCityMapPersistence.cs`(저장 버튼이 엑셀로 내보내는 에디터 전용 로직)와 저장
+  버튼 배선뿐이다.
+- **알려진 버그(2026-09-03 발견/수정)**: 도시/경로 불러오기는 `TripPanel.Open()`이 패널을 활성화한
+  "뒤"(`mapInteractionCoordinator.EnsureSavedMapLoaded()`)에 실행돼야 한다 - `Bind()`(등록 시점, 패널
+  아직 비활성) 때 불러오면 `TripMapView.Content`가 아직 `null`이라 마커가 부모 없이 생성돼 화면에
+  나타나지 않는다(저장 자체는 정상 동작 - 실제로 저장된 데이터를 다시 불러오지 못하는 것처럼 보이는
+  버그였다). `TripMapView.Content`/`Viewport`가 패널 최초 활성화 전까지 지연 초기화된다는 제약은
+  `TripMapView.cs`의 기존 주석에 이미 명시돼 있었다.
 
 ## 3. Bootstrap 우회 진입 감지 가드
 

@@ -20,7 +20,6 @@ namespace Game.Core.Editor
     /// </summary>
     public static class HubSceneInstaller
     {
-        private const float MapContentSize = 2400f;
         private const string TripPrefabFolder = "Assets/Prefabs/UI/Trip";
         private const string CityMarkerPrefabPath = TripPrefabFolder + "/TripDebugCityMarker.prefab";
         private const string RoadLinePrefabPath = TripPrefabFolder + "/TripDebugRoadLine.prefab";
@@ -174,7 +173,7 @@ namespace Game.Core.Editor
             contentRect.anchorMin = new Vector2(0.5f, 0.5f);
             contentRect.anchorMax = new Vector2(0.5f, 0.5f);
             contentRect.pivot = new Vector2(0.5f, 0.5f);
-            contentRect.sizeDelta = new Vector2(MapContentSize, MapContentSize);
+            contentRect.sizeDelta = new Vector2(TripMapView.ContentSize, TripMapView.ContentSize);
             contentRect.anchoredPosition = Vector2.zero;
             EditorUIBuilder.EnsureImage(contentGo, new Color(0.55f, 0.75f, 0.55f, 1f));
 
@@ -336,6 +335,16 @@ namespace Game.Core.Editor
             var roadDeleteLabel = EditorUIBuilder.EnsureLabel(roadDeleteGo.transform, "경로 전체삭제");
             roadDeleteLabel.fontSize = 10;
             EditorUIBuilder.EnsureMarker(roadDeleteGo, TripUIElementIds.DebugRoadBulkDeleteButton);
+
+            // 기존 4개 버튼(0.06~0.62) 뒤 빈 구간에 이어 붙여 겹치지 않게 배치(Docs/기획/15번 §3.1,
+            // 설계 19번 §8). 저장=긍정 동작이라 기존 빨강(삭제)/황토(토글)와 구분되는 녹색 계열.
+            var saveGo = EditorUIBuilder.GetOrCreateUIObject(parent, "DebugMapSaveButton");
+            EditorUIBuilder.SetAnchors(saveGo.GetComponent<RectTransform>(), new Vector2(0.64f, top), new Vector2(0.78f, bottom));
+            EditorUIBuilder.EnsureImage(saveGo, new Color(0.6f, 0.85f, 0.6f, 1f));
+            EditorUIBuilder.EnsureButton(saveGo);
+            var saveLabel = EditorUIBuilder.EnsureLabel(saveGo.transform, "지도 저장");
+            saveLabel.fontSize = 10;
+            EditorUIBuilder.EnsureMarker(saveGo, TripUIElementIds.DebugMapSaveButton);
         }
 
         private static void EnsureTripPrefabFolder()

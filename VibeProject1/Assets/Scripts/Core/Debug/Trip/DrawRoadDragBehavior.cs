@@ -20,17 +20,17 @@ namespace Game.Core.DebugTools
         private readonly ITripRouteRepository routeRepository;
         private readonly TripMapView mapView;
         private readonly Func<TripDebugRoadLineView> createLine;
-        private readonly Func<PointerEventData, string> resolveCityUnderPointer;
+        private readonly Func<PointerEventData, int?> resolveCityUnderPointer;
 
         private TripDebugRoadLineView previewLine;
-        private string originCityId;
+        private int? originCityId;
         private Vector2 originLocalPosition;
 
         public DrawRoadDragBehavior(
             ITripRouteRepository routeRepository,
             TripMapView mapView,
             Func<TripDebugRoadLineView> createLine,
-            Func<PointerEventData, string> resolveCityUnderPointer)
+            Func<PointerEventData, int?> resolveCityUnderPointer)
         {
             this.routeRepository = routeRepository;
             this.mapView = mapView;
@@ -85,7 +85,7 @@ namespace Game.Core.DebugTools
             var targetCityId = resolveCityUnderPointer(eventData);
             if (targetCityId != null && targetCityId != originCityId)
             {
-                routeRepository.TryAddRoute(originCityId, targetCityId);
+                routeRepository.TryAddRoute(originCityId.Value, targetCityId.Value);
             }
             // 도시가 아닌 곳에 드롭 = 취소, 아무 일도 하지 않는다.
 

@@ -11,6 +11,9 @@ namespace Game.Core
     /// 확정되고, *다음* 클릭이 반대편을 채운다)은 activePanelRole 하나만으로는 표현할 수 없다 - 첫
     /// 클릭 직후에도 여전히 같은 역할 모드인 것처럼 보이면 두 번째 클릭이 같은 역할을 다시 덮어쓰게
     /// 된다. "지금 이 클릭이 채워야 할 역할"을 별도로 추적해야 한다(설계 문서 03번 4.1절 참고).
+    ///
+    /// 도시 Id는 int? - 도시 식별자가 정수로 통일되면서(기획 15번 §8.2, 설계 20번 §9) "미배정"을
+    /// 표현하던 string의 null을 nullable int로 그대로 대체했다.
     /// </summary>
     internal class TripOriginDestinationAssigner : ITripOriginDestinationAssigner
     {
@@ -24,13 +27,13 @@ namespace Game.Core
             this.routeReader = routeReader;
         }
 
-        public string OriginCityId { get; private set; }
-        public string DestinationCityId { get; private set; }
+        public int? OriginCityId { get; private set; }
+        public int? DestinationCityId { get; private set; }
         public bool IsBothAssigned => OriginCityId != null && DestinationCityId != null;
 
         public event Action Changed;
 
-        public void HandleCityClicked(string cityId)
+        public void HandleCityClicked(int cityId)
         {
             if (awaitingRole.HasValue)
             {
@@ -80,7 +83,7 @@ namespace Game.Core
             Changed?.Invoke();
         }
 
-        public void HandleCityDeleted(string cityId)
+        public void HandleCityDeleted(int cityId)
         {
             var changed = false;
 
@@ -102,7 +105,7 @@ namespace Game.Core
             }
         }
 
-        private void HandleBaseClick(string cityId)
+        private void HandleBaseClick(int cityId)
         {
             if (OriginCityId == null)
             {
@@ -114,7 +117,7 @@ namespace Game.Core
                 {
                     OriginCityId = null;
                 }
-                else if (routeReader.HasRoute(OriginCityId, cityId))
+                else if (routeReader.HasRoute(OriginCityId.Value, cityId))
                 {
                     DestinationCityId = cityId;
                 }
@@ -132,7 +135,7 @@ namespace Game.Core
             Changed?.Invoke();
         }
 
-        private void HandlePanelModePick(string clickedCityId)
+        private void HandlePanelModePick(int clickedCityId)
         {
             var role = activePanelRole.Value;
             var oppositeRole = Opposite(role);
@@ -160,7 +163,7 @@ namespace Game.Core
 
             if (opposite != null)
             {
-                if (routeReader.HasRoute(clickedCityId, opposite))
+                if (routeReader.HasRoute(clickedCityId, opposite.Value))
                 {
                     Set(role, clickedCityId);
                     activePanelRole = null;
@@ -177,12 +180,12 @@ namespace Game.Core
             Changed?.Invoke();
         }
 
-        private void HandleAwaitingPick(string clickedCityId)
+        private void HandleAwaitingPick(int clickedCityId)
         {
             var role = awaitingRole.Value;
             var opposite = Get(Opposite(role));
 
-            if (routeReader.HasRoute(clickedCityId, opposite))
+            if (opposite != null && routeReader.HasRoute(clickedCityId, opposite.Value))
             {
                 Set(role, clickedCityId);
                 awaitingRole = null;
@@ -192,9 +195,9 @@ namespace Game.Core
             // 실패 시 awaitingRole 유지 - 이미 확정된 반대편 값은 그대로(부분 성공), 다른 도시로 바로 재시도 가능.
         }
 
-        private string Get(TripRole role) => role == TripRole.Origin ? OriginCityId : DestinationCityId;
+        private int? Get(TripRole role) => role == TripRole.Origin ? OriginCityId : DestinationCityId;
 
-        private void Set(TripRole role, string cityId)
+        private void Set(TripRole role, int? cityId)
         {
             if (role == TripRole.Origin)
             {

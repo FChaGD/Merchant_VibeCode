@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using System;
+using System.Collections.Generic;
 using Game.Core;
 
 namespace Game.Core.DebugTools
@@ -10,12 +11,15 @@ namespace Game.Core.DebugTools
     /// </summary>
     public interface ITripRouteRepository : ITripRouteReader
     {
-        bool TryAddRoute(string cityIdA, string cityIdB);
-        void RemoveRoute(string cityIdA, string cityIdB);
-        void RemoveAllRoutesFor(string cityId);
+        bool TryAddRoute(int cityIdA, int cityIdB);
+        void RemoveRoute(int cityIdA, int cityIdB);
+        void RemoveAllRoutesFor(int cityId);
         void Clear();
-        event Action<string, string> RouteAdded;
-        event Action<string, string> RouteRemoved;
+        // 저장 기능 전용 - 정식 ITripRouteReader(TripOriginDestinationAssigner가 의존)에는 얹지 않는다
+        // (ISP, Docs/설계/19번 §2.2).
+        IReadOnlyCollection<(int CityIdA, int CityIdB)> GetAllRoutes();
+        event Action<int, int> RouteAdded;
+        event Action<int, int> RouteRemoved;
     }
 }
 #endif

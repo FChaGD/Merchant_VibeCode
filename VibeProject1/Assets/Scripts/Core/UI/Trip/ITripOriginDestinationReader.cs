@@ -9,8 +9,8 @@ namespace Game.Core
     /// </summary>
     public interface ITripOriginDestinationReader
     {
-        string OriginCityId { get; }
-        string DestinationCityId { get; }
+        int? OriginCityId { get; }
+        int? DestinationCityId { get; }
         bool IsBothAssigned { get; }
         event Action Changed;
     }

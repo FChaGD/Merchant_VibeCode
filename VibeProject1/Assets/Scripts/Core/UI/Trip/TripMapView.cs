@@ -21,6 +21,13 @@ namespace Game.Core
     {
         private const float MaxZoomRatio = 2.5f; // 09번 기획 §3.2 확정값 - 전투 뷰 카메라와 동일
 
+        // 지도 콘텐츠(정사각형)의 가로/세로 크기 - HubSceneInstaller(Editor 전용 어셈블리)가 실제
+        // RectTransform 크기를 맞출 때와, TripCityMapCoordinateConverter(일반 어셈블리)가 좌표계를
+        // 정규화할 때 둘 다 이 값을 기준으로 삼는다. 원래 HubSceneInstaller의 private const였으나,
+        // Editor→Core 참조는 되고 반대는 안 되는 어셈블리 경계 제약 때문에(설계 20번 §2.1) 여기로
+        // 옮겼다 - 매직넘버 중복도 함께 해소.
+        public const float ContentSize = 2400f;
+
         private ScrollRect scrollRect;
         private RectTransform viewport;
         private RectTransform content;

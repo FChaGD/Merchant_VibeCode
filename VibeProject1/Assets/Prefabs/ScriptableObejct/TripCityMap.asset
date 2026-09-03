@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a58bb68c6c102d048affc4fc36c4dc8a, type: 3}
+  m_Name: TripCityMap
+  m_EditorClassIdentifier: Game.Core::Game.Core.TripCityMapAsset
+  cities:
+  - CityId: 1
+    MapPosition: {x: 715.3938, y: 357.71008}
+  - CityId: 2
+    MapPosition: {x: 343.411, y: 698.03455}
+  - CityId: 3
+    MapPosition: {x: -499.48572, y: 678.2483}
+  - CityId: 4
+    MapPosition: {x: -238.30646, y: 183.59058}
+  - CityId: 5
+    MapPosition: {x: -780.45123, y: 318.13745}
+  - CityId: 6
+    MapPosition: {x: 109.93262, y: -18.229736}
+  - CityId: 7
+    MapPosition: {x: -657.7762, y: -477.2721}
+  - CityId: 8
+    MapPosition: {x: 446.2998, y: -346.68237}
+  - CityId: 9
+    MapPosition: {x: 588.76135, y: 9.471069}
+  - CityId: 10
+    MapPosition: {x: -119.58862, y: -560.3745}
+  routes:
+  - CityIdA: 1
+    CityIdB: 3
+  - CityIdA: 2
+    CityIdB: 3
+  - CityIdA: 2
+    CityIdB: 4
+  - CityIdA: 4
+    CityIdB: 6
+  - CityIdA: 4
+    CityIdB: 10
+  - CityIdA: 4
+    CityIdB: 7
+  - CityIdA: 5
+    CityIdB: 7
+  - CityIdA: 6
+    CityIdB: 9
+  - CityIdA: 6
+    CityIdB: 8

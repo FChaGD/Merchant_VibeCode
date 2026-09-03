@@ -17,10 +17,10 @@ namespace Game.Core.DebugTools
     {
         [SerializeField] private Image iconImage;
 
-        public string CityId { get; private set; }
+        public int CityId { get; private set; }
         public RectTransform RectTransform { get; private set; }
 
-        private Action<string> onClicked;
+        private Action<int> onClicked;
         private Action<TripDebugCityMarkerView, PointerEventData> onBeginDrag;
         private Action<PointerEventData> onDrag;
         private Action<PointerEventData> onEndDrag;
@@ -30,7 +30,7 @@ namespace Game.Core.DebugTools
             RectTransform = (RectTransform)transform;
         }
 
-        public void Bind(string cityId)
+        public void Bind(int cityId)
         {
             CityId = cityId;
         }
@@ -60,7 +60,7 @@ namespace Game.Core.DebugTools
         }
 
         public void SetHandlers(
-            Action<string> clicked,
+            Action<int> clicked,
             Action<TripDebugCityMarkerView, PointerEventData> beginDrag,
             Action<PointerEventData> drag,
             Action<PointerEventData> endDrag)
