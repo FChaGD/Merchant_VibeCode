@@ -15,6 +15,17 @@ namespace Game.Core.Editor
     {
         private const string RootName = "Managers";
 
+        // CharacterStatsTableImporter가 만드는 에셋과 같은 경로(Docs/설계/17번 §4) - 여기서는 배선만
+        // 담당하고 값 채움은 그 임포터의 몫이다.
+        private const string CharacterStatsTableAssetPath = "Assets/Prefabs/ScriptableObejct/CharacterStatsTable.asset";
+        private const string EnemyStatsTableAssetPath = "Assets/Prefabs/ScriptableObejct/EnemyStatsTable.asset";
+        private const string EnemyEncounterCompositionTableAssetPath = "Assets/Prefabs/ScriptableObejct/EnemyEncounterCompositionTable.asset";
+        // PartyPolicyTableImporter/RoleGroupTacticsTableImporter가 만드는 에셋과 같은 경로
+        // (Docs/설계/17번 §10.5, 18번 §8.2).
+        private const string PartyPolicyCatalogAssetPath = "Assets/Prefabs/ScriptableObejct/PartyTacticsPolicyCatalog.asset";
+        private const string PartyPolicyStringsTableAssetPath = "Assets/Prefabs/ScriptableObejct/PartyTacticsPolicyStringsTable.asset";
+        private const string RoleGroupTacticsStringsTableAssetPath = "Assets/Prefabs/ScriptableObejct/RoleGroupTacticsStringsTable.asset";
+
         [MenuItem("Tools/Game/Build Bootstrap Scene")]
         public static void BuildManagerHierarchy()
         {
@@ -55,7 +66,8 @@ namespace Game.Core.Editor
 
             // LiveBattleSimulationRule도 BattleManager 산하 컴포넌트라 전역 DI 대상이 아니다
             // (BattleManager가 GetComponent<IBattleResultRule>()로 직접 조회).
-            EnsureSiblingComponent<LiveBattleSimulationRule>(battleManager.gameObject);
+            var liveBattleSimulationRule = EnsureSiblingComponent<LiveBattleSimulationRule>(battleManager.gameObject);
+            WireTableAssets(liveBattleSimulationRule);
 
             // PlaceholderDefeatConsequenceRule도 같은 이유로 BattleManager 산하 컴포넌트다
             // (BattleManager가 GetComponent<IDefeatConsequenceRule>()로 직접 조회).
@@ -69,7 +81,9 @@ namespace Game.Core.Editor
             EnsureSiblingComponent<HubUIController>(uiManager.gameObject);
             EnsureSiblingComponent<FormationPanel>(uiManager.gameObject);
             EnsureSiblingComponent<TripPanel>(uiManager.gameObject);
-            EnsureSiblingComponent<TacticsPanel>(uiManager.gameObject);
+            var tacticsPanel = EnsureSiblingComponent<TacticsPanel>(uiManager.gameObject);
+            WirePartyPolicyCatalog(tacticsPanel);
+            WireTacticsStringTables(tacticsPanel);
             var fieldUIController = EnsureSiblingComponent<FieldUIController>(uiManager.gameObject);
 
             // 씬별 UI 배선(IContentSceneUIWiring)도 전역 DI 대상이 아니라 UIManager 산하 컴포넌트다 -
@@ -94,9 +108,11 @@ namespace Game.Core.Editor
             // placeholderRosterProvider보다 뒤에 둔다(가독성 목적 - DependencyManager가 RegisterSelf를
             // 전부 끝낸 뒤 ResolveDependencies를 호출하는 2단계 구조라 실제 순서 의존성은 없다).
             var unitConditionRepository = EditorUIBuilder.GetOrCreateManager<InMemoryUnitConditionRepository>(root.transform, "InMemoryUnitConditionRepository");
+            WireTableAssets(unitConditionRepository);
 
             // 방향성 지시 UI(TacticsPanel)가 반영할 대상 - 배치와 같은 성격의 인메모리 저장소.
             var tacticsRepository = EditorUIBuilder.GetOrCreateManager<InMemoryTacticsRepository>(root.transform, "InMemoryTacticsRepository");
+            WirePartyPolicyCatalog(tacticsRepository);
 
             // 지역 시스템이 아직 없어, 상행 준비 UI 테스트용 임시 출발지/도착지/상행 요약 제공자를 등록한다.
             // 실제 데이터 시스템이 생기면 이 매니저를 함께 제거한다.
@@ -186,6 +202,53 @@ namespace Game.Core.Editor
             serializedProvider.FindProperty("wagonIcon").objectReferenceValue = FormationPlaceholderIcons.GetOrCreateTriangle();
             serializedProvider.FindProperty("facilityIcon").objectReferenceValue = FormationPlaceholderIcons.GetOrCreateCircle();
             serializedProvider.ApplyModifiedProperties();
+        }
+
+        // roleGroupMap과 같은 배선 전례(Docs/설계/17번 §1/§6) - 엑셀 임포트 결과 테이블은 DI로
+        // 등록하지 않고 소비자마다 SerializeField로 개별 배선한다. 에셋이 아직 임포트 전(Tools/Game/
+        // Table/Import Character Stats 미실행)이라 없을 수 있으므로 null 배선을 경고 없이 허용한다 -
+        // 그 상태로 실행하면 TableBattleUnitStatProvider가 조회 시점에 즉시 예외로 드러낸다.
+        private static void WireTableAssets(LiveBattleSimulationRule rule)
+        {
+            var so = new SerializedObject(rule);
+            so.FindProperty("characterStatsTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<CharacterStatsTableAsset>(CharacterStatsTableAssetPath);
+            so.FindProperty("enemyStatsTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<EnemyStatsTableAsset>(EnemyStatsTableAssetPath);
+            so.FindProperty("enemyEncounterCompositionTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<EnemyEncounterCompositionTableAsset>(EnemyEncounterCompositionTableAssetPath);
+            so.ApplyModifiedProperties();
+        }
+
+        private static void WireTableAssets(InMemoryUnitConditionRepository repository)
+        {
+            var so = new SerializedObject(repository);
+            so.FindProperty("characterStatsTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<CharacterStatsTableAsset>(CharacterStatsTableAssetPath);
+            so.ApplyModifiedProperties();
+        }
+
+        // roleGroupMap/catalog와 달리(수동 인스펙터 연결 전례) 이 에셋은 처음 생기는 것이라 두
+        // 소비자(TacticsPanel/InMemoryTacticsRepository) 모두 자동 배선한다(Docs/설계/17번 §10.5).
+        private static void WirePartyPolicyCatalog(TacticsPanel panel)
+        {
+            var so = new SerializedObject(panel);
+            so.FindProperty("partyPolicyCatalog").objectReferenceValue = AssetDatabase.LoadAssetAtPath<PartyTacticsPolicyCatalogAsset>(PartyPolicyCatalogAssetPath);
+            so.ApplyModifiedProperties();
+        }
+
+        private static void WirePartyPolicyCatalog(InMemoryTacticsRepository repository)
+        {
+            var so = new SerializedObject(repository);
+            so.FindProperty("partyPolicyCatalog").objectReferenceValue = AssetDatabase.LoadAssetAtPath<PartyTacticsPolicyCatalogAsset>(PartyPolicyCatalogAssetPath);
+            so.ApplyModifiedProperties();
+        }
+
+        // 라벨 조회용 String 에셋 2종 - catalog(값)와 마찬가지로 처음 생기는 에셋이라 자동 배선한다
+        // (Docs/설계/18번 §8.2). InMemoryTacticsRepository는 라벨을 다루지 않아(값/정책만 저장) 배선
+        // 대상이 아니다 - TacticsPanel(UI 계층)만 필요로 한다.
+        private static void WireTacticsStringTables(TacticsPanel panel)
+        {
+            var so = new SerializedObject(panel);
+            so.FindProperty("partyPolicyStrings").objectReferenceValue = AssetDatabase.LoadAssetAtPath<PartyTacticsPolicyStringsTableAsset>(PartyPolicyStringsTableAssetPath);
+            so.FindProperty("roleGroupTacticsStrings").objectReferenceValue = AssetDatabase.LoadAssetAtPath<RoleGroupTacticsStringsTableAsset>(RoleGroupTacticsStringsTableAssetPath);
+            so.ApplyModifiedProperties();
         }
 
         private static void SyncManagedComponents(DependencyManager dependencyManager, MonoBehaviour[] managedComponents)

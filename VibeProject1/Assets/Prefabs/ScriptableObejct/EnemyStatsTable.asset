@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3654f0a43af41a74980bfb8f117dc352, type: 3}
+  m_Name: EnemyStatsTable
+  m_EditorClassIdentifier: Game.Core::Game.Core.EnemyStatsTableAsset
+  entries:
+  - EnemyType: 1
+    MaxHp: 60
+    Attack: 12
+    Defense: 5
+    MoveSpeed: 3
+    AttackInterval: 1
+    Range: 1.5
+    MoraleSyncRate: 7.5
+    HpRegenPerSecond: 0
+  - EnemyType: 2
+    MaxHp: 90
+    Attack: 12
+    Defense: 6
+    MoveSpeed: 4
+    AttackInterval: 1
+    Range: 1.5
+    MoraleSyncRate: 5
+    HpRegenPerSecond: 3
+  - EnemyType: 3
+    MaxHp: 50
+    Attack: 20
+    Defense: 4
+    MoveSpeed: 3.5
+    AttackInterval: 1.2
+    Range: 1.5
+    MoraleSyncRate: 2.5
+    HpRegenPerSecond: 0

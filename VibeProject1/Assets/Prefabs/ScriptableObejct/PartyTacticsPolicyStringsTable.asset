@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9ce6c1f96ba7dd4fa10502b880fde7b, type: 3}
+  m_Name: PartyTacticsPolicyStringsTable
+  m_EditorClassIdentifier: Game.Core::Game.Core.PartyTacticsPolicyStringsTableAsset
+  recognitionStrings:
+  - Id: 1
+    Ko: "1\uCD08"
+  - Id: 2
+    Ko: "5\uCD08 \uC9C0\uC5F0 \uB610\uB294 \uADFC\uC811"
+  - Id: 3
+    Ko: "\uADFC\uC811 \uB610\uB294 \uD53C\uACA9"
+  radiusStrings:
+  - Id: 1
+    Ko: "\uB300\uC5F4 \uC720\uC9C0(4m)"
+  - Id: 2
+    Ko: "\uC0C1\uD589 \uC804\uCCB4"
+  - Id: 3
+    Ko: "\uC804\uC7A5 \uC804\uCCB4"
+  pursuitStrings:
+  - Id: 1
+    Ko: "\uC790\uC728\uD589\uB3D9"
+  - Id: 2
+    Ko: "\uCD94\uC0B4"
+  - Id: 3
+    Ko: "\uACF5\uC138\uD310\uB2E8"
+  - Id: 4
+    Ko: "\uCD94\uC801\uAE08\uC9C0"
+  - Id: 5
+    Ko: "\uC704\uCE58\uC0AC\uC218"

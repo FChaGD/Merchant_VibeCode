@@ -543,6 +543,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.TacticsPanel
   catalog: {fileID: 11400000, guid: eb531f6fe3807c54184d71b8d33ad7b8, type: 2}
+  partyPolicyCatalog: {fileID: 11400000, guid: 52c8416038382f148ba96f37207f56c6, type: 2}
+  roleGroupTacticsStrings: {fileID: 11400000, guid: b242f5be5ff22f147b3aec9a1ecf584b, type: 2}
+  partyPolicyStrings: {fileID: 11400000, guid: de96e2c3be77c194cbae1b1d4e762009, type: 2}
 --- !u!1 &900005000
 GameObject:
   m_ObjectHideFlags: 0
@@ -605,6 +608,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.LiveBattleSimulationRule
   roleGroupMap: {fileID: 11400000, guid: db49a353399787a4c8fec75add67f161, type: 2}
+  characterStatsTable: {fileID: 11400000, guid: b1473094d8379ba4eb3c1dc126a974e9, type: 2}
+  enemyStatsTable: {fileID: 11400000, guid: e3f0986ccc2a75e46bd3debe94204d2a, type: 2}
+  enemyEncounterCompositionTable: {fileID: 11400000, guid: e0a40a33d92c58144940b43b4ab263c5, type: 2}
 --- !u!114 &900005005
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -787,6 +793,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.InMemoryTacticsRepository
   catalog: {fileID: 11400000, guid: eb531f6fe3807c54184d71b8d33ad7b8, type: 2}
+  partyPolicyCatalog: {fileID: 11400000, guid: 52c8416038382f148ba96f37207f56c6, type: 2}
 --- !u!1 &1213019814
 GameObject:
   m_ObjectHideFlags: 0
@@ -933,6 +940,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e98f662c1d9107e40abf037d8d8a1218, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.InMemoryUnitConditionRepository
+  characterStatsTable: {fileID: 11400000, guid: b1473094d8379ba4eb3c1dc126a974e9, type: 2}
 --- !u!1 &1427553650
 GameObject:
   m_ObjectHideFlags: 0

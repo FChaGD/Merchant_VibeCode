@@ -876,7 +876,7 @@ MonoBehaviour:
   iconImage: {fileID: 127066688}
   isAlly: 0
   mercenaryClass: 0
-  enemyType: 0
+  enemyType: 1
 --- !u!114 &58914141
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3043,7 +3043,7 @@ LineRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 1270117202}
+  - {fileID: 430192249}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -4067,7 +4067,7 @@ LineRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 1595414072}
+  - {fileID: 1213697249}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -6522,6 +6522,47 @@ MonoBehaviour:
   - {fileID: 58914140}
   - {fileID: 1196211762}
   - {fileID: 1095281559}
+--- !u!21 &430192249
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Sprites/Default
+  m_Shader: {fileID: 10753, guid: 0000000000000000f000000000000000, type: 0}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _AlphaTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - PixelSnap: 0
+    - _EnableExternalAlpha: 0
+    m_Colors:
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _Flip: {r: 1, g: 1, b: 1, a: 1}
+    - _RendererColor: {r: 1, g: 1, b: 1, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!1 &440263593
 GameObject:
   m_ObjectHideFlags: 0
@@ -9374,7 +9415,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.Core::Game.Core.BattleTestPaletteIconView
   iconImage: {fileID: 931314295}
   isAlly: 1
-  mercenaryClass: 2
+  mercenaryClass: 3
   enemyType: 0
 --- !u!114 &663829932
 MonoBehaviour:
@@ -14729,7 +14770,7 @@ MonoBehaviour:
   iconImage: {fileID: 495694527}
   isAlly: 0
   mercenaryClass: 0
-  enemyType: 2
+  enemyType: 3
 --- !u!114 &1095281560
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15302,7 +15343,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.Core::Game.Core.BattleTestPaletteIconView
   iconImage: {fileID: 1843482729}
   isAlly: 1
-  mercenaryClass: 0
+  mercenaryClass: 1
   enemyType: 0
 --- !u!114 &1127437322
 MonoBehaviour:
@@ -15733,6 +15774,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.InMemoryTacticsRepository
   catalog: {fileID: 11400000, guid: eb531f6fe3807c54184d71b8d33ad7b8, type: 2}
+  partyPolicyCatalog: {fileID: 11400000, guid: 52c8416038382f148ba96f37207f56c6, type: 2}
 --- !u!1 &1154771253
 GameObject:
   m_ObjectHideFlags: 0
@@ -16411,7 +16453,7 @@ MonoBehaviour:
   iconImage: {fileID: 292613927}
   isAlly: 0
   mercenaryClass: 0
-  enemyType: 1
+  enemyType: 2
 --- !u!114 &1196211763
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -16486,6 +16528,47 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 102.81604}
   m_Pivot: {x: 0.5, y: 1}
+--- !u!21 &1213697249
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Sprites/Default
+  m_Shader: {fileID: 10753, guid: 0000000000000000f000000000000000, type: 0}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _AlphaTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - PixelSnap: 0
+    - _EnableExternalAlpha: 0
+    m_Colors:
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _Flip: {r: 1, g: 1, b: 1, a: 1}
+    - _RendererColor: {r: 1, g: 1, b: 1, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!1 &1219996419
 GameObject:
   m_ObjectHideFlags: 0
@@ -17663,47 +17746,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.RectMask2D
   m_Padding: {x: 0, y: 0, z: 0, w: 0}
   m_Softness: {x: 0, y: 0}
---- !u!21 &1270117202
-Material:
-  serializedVersion: 8
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: Sprites/Default
-  m_Shader: {fileID: 10753, guid: 0000000000000000f000000000000000, type: 0}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
-  m_InvalidKeywords: []
-  m_LightmapFlags: 4
-  m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs:
-    - _AlphaTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _MainTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    m_Ints: []
-    m_Floats:
-    - PixelSnap: 0
-    - _EnableExternalAlpha: 0
-    m_Colors:
-    - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _Flip: {r: 1, g: 1, b: 1, a: 1}
-    - _RendererColor: {r: 1, g: 1, b: 1, a: 1}
-  m_BuildTextureStacks: []
-  m_AllowLocking: 1
 --- !u!1 &1276913311
 GameObject:
   m_ObjectHideFlags: 0
@@ -18418,6 +18460,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.BattleTestSimulationRule
   roleGroupMap: {fileID: 11400000, guid: db49a353399787a4c8fec75add67f161, type: 2}
+  characterStatsTable: {fileID: 11400000, guid: b1473094d8379ba4eb3c1dc126a974e9, type: 2}
+  enemyStatsTable: {fileID: 11400000, guid: e3f0986ccc2a75e46bd3debe94204d2a, type: 2}
+  enemyEncounterCompositionTable: {fileID: 11400000, guid: e0a40a33d92c58144940b43b4ab263c5, type: 2}
 --- !u!114 &1294555436
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -18518,6 +18563,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.LiveBattleSimulationRule
   roleGroupMap: {fileID: 0}
+  characterStatsTable: {fileID: 0}
+  enemyStatsTable: {fileID: 0}
+  enemyEncounterCompositionTable: {fileID: 0}
 --- !u!1 &1306357686
 GameObject:
   m_ObjectHideFlags: 0
@@ -18833,7 +18881,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.Core::Game.Core.BattleTestPaletteIconView
   iconImage: {fileID: 866989094}
   isAlly: 1
-  mercenaryClass: 1
+  mercenaryClass: 2
   enemyType: 0
 --- !u!114 &1326582501
 MonoBehaviour:
@@ -21901,6 +21949,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.TacticsPanel
   catalog: {fileID: 11400000, guid: eb531f6fe3807c54184d71b8d33ad7b8, type: 2}
+  partyPolicyCatalog: {fileID: 11400000, guid: 52c8416038382f148ba96f37207f56c6, type: 2}
+  roleGroupTacticsStrings: {fileID: 11400000, guid: b242f5be5ff22f147b3aec9a1ecf584b, type: 2}
+  partyPolicyStrings: {fileID: 11400000, guid: de96e2c3be77c194cbae1b1d4e762009, type: 2}
 --- !u!114 &1547144634
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -22642,47 +22693,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.RectMask2D
   m_Padding: {x: 0, y: 0, z: 0, w: 0}
   m_Softness: {x: 0, y: 0}
---- !u!21 &1595414072
-Material:
-  serializedVersion: 8
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: Sprites/Default
-  m_Shader: {fileID: 10753, guid: 0000000000000000f000000000000000, type: 0}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
-  m_InvalidKeywords: []
-  m_LightmapFlags: 4
-  m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs:
-    - _AlphaTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _MainTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    m_Ints: []
-    m_Floats:
-    - PixelSnap: 0
-    - _EnableExternalAlpha: 0
-    m_Colors:
-    - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _Flip: {r: 1, g: 1, b: 1, a: 1}
-    - _RendererColor: {r: 1, g: 1, b: 1, a: 1}
-  m_BuildTextureStacks: []
-  m_AllowLocking: 1
 --- !u!1 &1598348070
 GameObject:
   m_ObjectHideFlags: 0
@@ -26043,6 +26053,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.TacticsPanel
   catalog: {fileID: 0}
+  partyPolicyCatalog: {fileID: 0}
+  roleGroupTacticsStrings: {fileID: 0}
+  partyPolicyStrings: {fileID: 0}
 --- !u!114 &1857808082
 MonoBehaviour:
   m_ObjectHideFlags: 0

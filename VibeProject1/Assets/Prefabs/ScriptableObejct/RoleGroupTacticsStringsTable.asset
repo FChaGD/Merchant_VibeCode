@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cfe02a727719fb643b42b8996ed1ab7b, type: 3}
+  m_Name: RoleGroupTacticsStringsTable
+  m_EditorClassIdentifier: Game.Core::Game.Core.RoleGroupTacticsStringsTableAsset
+  targetPriorityStrings:
+  - Id: 1
+    Ko: "\uAC00\uAE4C\uC6B4 \uC801 \uC6B0\uC120"
+  - Id: 2
+    Ko: "\uC544\uAD70\uC5D0\uAC8C \uAC00\uAE4C\uC774 \uC811\uADFC\uD55C \uC801 \uC6B0\uC120"
+  - Id: 3
+    Ko: "\uC544\uC9C1 \uACF5\uACA9\uBC1B\uC9C0 \uC54A\uC740 \uC801\uC744 \uC6B0\uC120"
+  - Id: 4
+    Ko: "\uAC00\uC7A5 \uAC15\uB825\uD55C \uC801 \uC6B0\uC120"
+  - Id: 5
+    Ko: "\uAC00\uC7A5 \uC801\uC740 \uCCB4\uB825 \uC6B0\uC120"
+  positioningStrings:
+  - Id: 1
+    Ko: "\uB3CC\uACA9"
+  - Id: 2
+    Ko: "\uBC29\uC9C4 \uD615\uC131"
+  - Id: 3
+    Ko: "\uC790\uB9AC \uC0AC\uC218"
+  - Id: 4
+    Ko: "\uD3EC\uC704 \uACF5\uACA9"
+  - Id: 5
+    Ko: "\uC0B0\uAC1C \uACF5\uACA9"
+  selfPreservationStrings:
+  - Id: 1
+    Ko: "\uC790\uAE30\uBCF4\uC2E0 \uC5C6\uB294 \uB9F9\uACF5"
+  - Id: 2
+    Ko: "\uC911\uC0C1 \uC2DC \uC77C\uC2DC \uD6C4\uD1F4 \uD6C4 \uC7AC\uACF5\uACA9"
+  - Id: 3
+    Ko: "\uC801 \uC811\uADFC \uC2DC \uAC70\uB9AC \uC720\uC9C0 \uD6C4 \uACF5\uACA9"
+  - Id: 4
+    Ko: "\uD53C\uACA9 \uC2DC \uD6C4\uD1F4 \uD6C4 \uC7AC\uACF5\uACA9"

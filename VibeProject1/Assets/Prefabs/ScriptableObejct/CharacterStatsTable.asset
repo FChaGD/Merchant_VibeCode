@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb452dcd502bfb848b81e0fda24cfba0, type: 3}
+  m_Name: CharacterStatsTable
+  m_EditorClassIdentifier: Game.Core::Game.Core.CharacterStatsTableAsset
+  entries:
+  - MercenaryClass: 1
+    MaxHp: 100
+    Attack: 20
+    Defense: 10
+    MoveSpeed: 3
+    AttackInterval: 1
+    Range: 1.5
+    MoraleSyncRate: 5
+  - MercenaryClass: 2
+    MaxHp: 70
+    Attack: 15
+    Defense: 5
+    MoveSpeed: 3
+    AttackInterval: 1.2
+    Range: 6
+    MoraleSyncRate: 5
+  - MercenaryClass: 3
+    MaxHp: 150
+    Attack: 8
+    Defense: 20
+    MoveSpeed: 2.5
+    AttackInterval: 1.5
+    Range: 1.2
+    MoraleSyncRate: 3

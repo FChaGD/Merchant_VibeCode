@@ -25,6 +25,13 @@ namespace Game.Core
     {
         [SerializeField] private MercenaryRoleGroupMapAsset roleGroupMap;
 
+        // 엑셀 임포트 결과 테이블(Docs/설계/17번 §6) - LiveBattleSimulationRule과 같은 배선 전례.
+        // enemyEncounterCompositionTable은 이 씬이 실제로 쓰는 GetStatsForType에는 필요 없지만
+        // TableEnemyTypeCompositionProvider 생성자 시그니처를 두 씬이 공유하므로 함께 배선한다.
+        [SerializeField] private CharacterStatsTableAsset characterStatsTable;
+        [SerializeField] private EnemyStatsTableAsset enemyStatsTable;
+        [SerializeField] private EnemyEncounterCompositionTableAsset enemyEncounterCompositionTable;
+
         // 순수 C# 객체라 UnityEngine.Object가 아니다(SerializedObject로 연결 불가) - 인스톨러가 아니라
         // 이 컴포넌트가 직접 만들어 소유하고, 형제 컴포넌트(팔레트/기즈모/적 구성 패널)는 아래 공개
         // 프로퍼티로 GetComponent&lt;BattleTestSimulationRule&gt;() 경유해 접근한다.
@@ -42,9 +49,16 @@ namespace Game.Core
         public BattleTestEnemyRoster EnemyRoster => enemyRoster;
         public BattleTestSpawnPointReservations SpawnPointReservations => spawnPointReservations;
 
-        private readonly IBattleUnitStatProvider statProvider = new PlaceholderBattleUnitStatProvider();
+        private IBattleUnitStatProvider statProvider;
+        private TableEnemyTypeCompositionProvider enemyProvider;
         private readonly IDamageFormula damageFormula = new PlaceholderDamageFormula();
         private readonly IUnitSpatialQuery spatialQuery = new LinearScanUnitSpatialQuery();
+
+        private void Awake()
+        {
+            statProvider = new TableBattleUnitStatProvider(characterStatsTable);
+            enemyProvider = new TableEnemyTypeCompositionProvider(enemyStatsTable, enemyEncounterCompositionTable);
+        }
 
         private ITacticsReader tacticsReader;
         private IUnitTacticsProfileResolver tacticsProfileResolver;
@@ -184,7 +198,7 @@ namespace Game.Core
 
             if (IsRunning)
             {
-                var stats = PlaceholderEnemyTypeCompositionProvider.GetStatsForType(enemyType);
+                var stats = enemyProvider.GetStatsForType(enemyType);
                 var unit = new BattleCharacterUnit(worldPosition, isAlly: false, stats, damageFormula, enemyMorale, enemyWaveCoordinator, spatialQuery, fleeTravelDistance, icon: BattlePlaceholderSprite.ForEnemyType(enemyType));
                 simulation.RegisterAdditionalUnit(unit, isAlly: false);
                 OnUnitAdded?.Invoke(unit, false, entry.Id);
@@ -240,7 +254,7 @@ namespace Game.Core
 
         public BattleUnitStats GetAllyDefaultStats(MercenaryClass unitClass) => statProvider.GetStats(unitClass);
 
-        public BattleUnitStats GetEnemyDefaultStats(EnemyType type) => PlaceholderEnemyTypeCompositionProvider.GetStatsForType(type);
+        public BattleUnitStats GetEnemyDefaultStats(EnemyType type) => enemyProvider.GetStatsForType(type);
 
         // 세팅 단계(전투 시작 전/리셋 후) 미리보기 전용 - 절대 Tick되지 않으므로(BattleSimulationLoop에
         // 등록되지 않음) PartyMorale/MoraleWaveCoordinator/fleeTravelDistance는 새로 만든 더미
@@ -253,7 +267,7 @@ namespace Game.Core
 
         private BattleCharacterUnit BuildPreviewEnemy(BattleTestEnemyRoster.Entry entry)
         {
-            var stats = entry.StatsOverride ?? PlaceholderEnemyTypeCompositionProvider.GetStatsForType(entry.Type);
+            var stats = entry.StatsOverride ?? enemyProvider.GetStatsForType(entry.Type);
             return new BattleCharacterUnit(entry.Position, isAlly: false, stats, damageFormula, new PartyMorale(), new MoraleWaveCoordinator(0f), spatialQuery, 0f, icon: BattlePlaceholderSprite.ForEnemyType(entry.Type));
         }
 
@@ -317,7 +331,7 @@ namespace Game.Core
             var enemies = new List<IBattleCombatant>(enemyRoster.Entries.Count);
             foreach (var entry in enemyRoster.Entries)
             {
-                var stats = entry.StatsOverride ?? PlaceholderEnemyTypeCompositionProvider.GetStatsForType(entry.Type);
+                var stats = entry.StatsOverride ?? enemyProvider.GetStatsForType(entry.Type);
                 enemies.Add(new BattleCharacterUnit(entry.Position, isAlly: false, stats, damageFormula, enemyMorale, enemyWaveCoordinator, spatialQuery, fleeTravelDistance, icon: BattlePlaceholderSprite.ForEnemyType(entry.Type)));
             }
             return enemies;

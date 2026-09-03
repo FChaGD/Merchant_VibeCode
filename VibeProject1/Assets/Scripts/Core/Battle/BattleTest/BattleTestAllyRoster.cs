@@ -20,7 +20,7 @@ namespace Game.Core
             public int Id { get; }
             public MercenaryClass Class { get; }
             public Vector2 Position { get; }
-            // null이면 직업 기본 스탯(PlaceholderBattleUnitStatProvider) 그대로 사용 - 유닛 정보
+            // null이면 직업 기본 스탯(TableBattleUnitStatProvider) 그대로 사용 - 유닛 정보
             // 패널에서 값을 조절하면 여기에 채워진다.
             public BattleUnitStats? StatsOverride { get; set; }
 

@@ -17,9 +17,16 @@ namespace Game.Core
         // (Docs/설계/12번 §2.1). 비어있으면 UnitTacticsProfileResolver가 경고 후 기본값으로 대체한다.
         [SerializeField] private MercenaryRoleGroupMapAsset roleGroupMap;
 
-        private readonly IBattleUnitStatProvider statProvider = new PlaceholderBattleUnitStatProvider();
+        // 엑셀 임포트 결과 테이블(Docs/설계/17번 §6) - roleGroupMap과 같은 배선 전례(소비자별
+        // SerializeField + 인스톨러가 채움). statProvider/enemyProvider는 이 값들을 참조해야 해서
+        // 더 이상 인라인 필드 초기화(readonly)로 만들 수 없어 Awake()에서 대입한다.
+        [SerializeField] private CharacterStatsTableAsset characterStatsTable;
+        [SerializeField] private EnemyStatsTableAsset enemyStatsTable;
+        [SerializeField] private EnemyEncounterCompositionTableAsset enemyEncounterCompositionTable;
+
+        private IBattleUnitStatProvider statProvider;
         private readonly IEncounterSpawnPointSelector spawnSelector = new UniformRandomSpawnPointSelector();
-        private readonly IEnemyCompositionProvider enemyProvider = new PlaceholderEnemyTypeCompositionProvider();
+        private IEnemyCompositionProvider enemyProvider;
         // 아군 좌표 변환과 스폰/반지름 계산은 서로 다른 인터페이스지만 구현은 하나 - 내부 헬퍼
         // 공유 때문에 클래스까지 나누지 않았다(BattleFieldLayout, Docs/설계/12번 §5.2).
         private readonly BattleFieldLayout sharedFieldLayout = new();
@@ -46,6 +53,12 @@ namespace Game.Core
         private bool paused;
 
         public event Action<BattleSimulationLoop> OnSimulationBuilt;
+
+        private void Awake()
+        {
+            statProvider = new TableBattleUnitStatProvider(characterStatsTable);
+            enemyProvider = new TableEnemyTypeCompositionProvider(enemyStatsTable, enemyEncounterCompositionTable);
+        }
 
         // BattleManager.ResolveDependencies가 IRequiresFormationReader/IRequiresCaravanRoster/
         // IRequiresTacticsReader로 캐스팅해 호출한다.

@@ -15,34 +15,18 @@ namespace Game.Core
     /// </summary>
     public class TacticsPanel : MonoBehaviour, ITacticsPanel
     {
-        // 역할군 후보+라벨 - InMemoryTacticsRepository/LiveBattleSimulationRule과 같은 에셋 파일을
+        // 역할군 후보(값만) - InMemoryTacticsRepository/LiveBattleSimulationRule과 같은 에셋 파일을
         // 인스펙터에서 각자 참조한다(같은 자리, 같은 패턴).
         [SerializeField] private RoleGroupTacticsCatalogAsset catalog;
+        // 파티 3축 후보(값만, 엑셀 임포트 결과, Docs/설계/17번 §10) - 예전엔 이 자리에 하드코딩된
+        // 배열 3개였다.
+        [SerializeField] private PartyTacticsPolicyCatalogAsset partyPolicyCatalog;
+        // 라벨은 v2부터 값(catalog/partyPolicyCatalog)과 분리된 별도 String 에셋에서 조회한다
+        // (Docs/설계/18번 §5/§8.1).
+        [SerializeField] private RoleGroupTacticsStringsTableAsset roleGroupTacticsStrings;
+        [SerializeField] private PartyTacticsPolicyStringsTableAsset partyPolicyStrings;
 
         public string PanelId => UIPanelIds.Tactics;
-
-        private static readonly (EnemyRecognitionType Value, string Label)[] RecognitionOptions =
-        {
-            (EnemyRecognitionType.OneSecondDelay, "1초 지연"),
-            (EnemyRecognitionType.FiveSecondOrProximity, "5초 지연 또는 근접"),
-            (EnemyRecognitionType.ProximityOrHit, "근접 또는 피격"),
-        };
-
-        private static readonly (ActivityRadiusPreset Value, string Label)[] RadiusOptions =
-        {
-            (ActivityRadiusPreset.FormationHold, "대열 유지(4m)"),
-            (ActivityRadiusPreset.TripWide, "상행 전체"),
-            (ActivityRadiusPreset.FieldWide, "전장 전체"),
-        };
-
-        private static readonly (PursuitPreset Value, string Label)[] PursuitOptions =
-        {
-            (PursuitPreset.Autonomous, "자율행동"),
-            (PursuitPreset.HuntToKill, "추살"),
-            (PursuitPreset.OffensiveJudgment, "공세판단"),
-            (PursuitPreset.NoPursuit, "추적금지"),
-            (PursuitPreset.HoldPosition, "위치사수"),
-        };
 
         private GameObject panelRoot;
         private Button closeButton;
@@ -208,10 +192,13 @@ namespace Game.Core
 
         private void RefreshFromRepository()
         {
-            var party = repository.GetPartySettings();
-            SelectWithoutNotify(recognitionDropdown, IndexOf(RecognitionOptions, party.RecognitionType));
-            SelectWithoutNotify(radiusDropdown, IndexOf(RadiusOptions, party.RadiusPreset));
-            SelectWithoutNotify(pursuitDropdown, IndexOf(PursuitOptions, party.Pursuit));
+            if (partyPolicyCatalog != null)
+            {
+                var party = repository.GetPartySettings();
+                SelectWithoutNotify(recognitionDropdown, IndexOfOption(partyPolicyCatalog.RecognitionOptions, party.RecognitionType));
+                SelectWithoutNotify(radiusDropdown, IndexOfOption(partyPolicyCatalog.RadiusOptions, party.RadiusPreset));
+                SelectWithoutNotify(pursuitDropdown, IndexOfOption(partyPolicyCatalog.PursuitOptions, party.Pursuit));
+            }
 
             RefreshRoleGroupSelection(RoleGroup.Frontline, frontlineTargetDropdown, frontlinePositioningDropdown, frontlineSelfPreservationDropdown);
             RefreshRoleGroupSelection(RoleGroup.RangedDealer, rangedTargetDropdown, rangedPositioningDropdown, rangedSelfPreservationDropdown);
@@ -229,28 +216,40 @@ namespace Game.Core
 
         private void BindPartyDropdowns()
         {
-            SetOptions(recognitionDropdown, RecognitionOptions);
+            if (partyPolicyCatalog == null)
+            {
+                Debug.LogWarning($"{nameof(TacticsPanel)}: {nameof(PartyTacticsPolicyCatalogAsset)}가 연결되지 않아 파티 3축 드롭다운을 채우지 못했다.");
+                return;
+            }
+
+            if (partyPolicyStrings == null)
+            {
+                Debug.LogWarning($"{nameof(TacticsPanel)}: {nameof(PartyTacticsPolicyStringsTableAsset)}가 연결되지 않아 파티 3축 라벨을 표시하지 못했다.");
+                return;
+            }
+
+            SetOptions(recognitionDropdown, partyPolicyCatalog.RecognitionOptions, option => ResolveLabel(partyPolicyStrings.TryGetRecognitionLabel(option.Value, out var ko), ko));
             recognitionDropdown.onValueChanged.RemoveAllListeners();
             recognitionDropdown.onValueChanged.AddListener(index =>
             {
                 var current = repository.GetPartySettings();
-                repository.SetPartySettings(new PartyTacticsSettings(RecognitionOptions[index].Value, current.RadiusPreset, current.Pursuit));
+                repository.SetPartySettings(new PartyTacticsSettings(partyPolicyCatalog.RecognitionOptions[index].Value, current.RadiusPreset, current.Pursuit));
             });
 
-            SetOptions(radiusDropdown, RadiusOptions);
+            SetOptions(radiusDropdown, partyPolicyCatalog.RadiusOptions, option => ResolveLabel(partyPolicyStrings.TryGetRadiusLabel(option.Value, out var ko), ko));
             radiusDropdown.onValueChanged.RemoveAllListeners();
             radiusDropdown.onValueChanged.AddListener(index =>
             {
                 var current = repository.GetPartySettings();
-                repository.SetPartySettings(new PartyTacticsSettings(current.RecognitionType, RadiusOptions[index].Value, current.Pursuit));
+                repository.SetPartySettings(new PartyTacticsSettings(current.RecognitionType, partyPolicyCatalog.RadiusOptions[index].Value, current.Pursuit));
             });
 
-            SetOptions(pursuitDropdown, PursuitOptions);
+            SetOptions(pursuitDropdown, partyPolicyCatalog.PursuitOptions, option => ResolveLabel(partyPolicyStrings.TryGetPursuitLabel(option.Value, out var ko), ko));
             pursuitDropdown.onValueChanged.RemoveAllListeners();
             pursuitDropdown.onValueChanged.AddListener(index =>
             {
                 var current = repository.GetPartySettings();
-                repository.SetPartySettings(new PartyTacticsSettings(current.RecognitionType, current.RadiusPreset, PursuitOptions[index].Value));
+                repository.SetPartySettings(new PartyTacticsSettings(current.RecognitionType, current.RadiusPreset, partyPolicyCatalog.PursuitOptions[index].Value));
             });
         }
 
@@ -264,7 +263,13 @@ namespace Game.Core
                 return;
             }
 
-            SetOptions(targetDropdown, entry.TargetPriorityOptions, option => option.DisplayLabel);
+            if (roleGroupTacticsStrings == null)
+            {
+                Debug.LogWarning($"{nameof(TacticsPanel)}: {nameof(RoleGroupTacticsStringsTableAsset)}가 연결되지 않아 '{roleGroup}' 역할군 라벨을 표시하지 못했다.");
+                return;
+            }
+
+            SetOptions(targetDropdown, entry.TargetPriorityOptions, option => ResolveLabel(roleGroupTacticsStrings.TryGetTargetPriorityLabel(option.Value, out var ko), ko));
             targetDropdown.onValueChanged.RemoveAllListeners();
             targetDropdown.onValueChanged.AddListener(index =>
             {
@@ -272,7 +277,7 @@ namespace Game.Core
                 repository.SetRoleGroupOverride(roleGroup, new RoleGroupTacticsOverride(current.IsOverridden, entry.TargetPriorityOptions[index].Value, current.Positioning, current.SelfPreservation));
             });
 
-            SetOptions(positioningDropdown, entry.PositioningOptions, option => option.DisplayLabel);
+            SetOptions(positioningDropdown, entry.PositioningOptions, option => ResolveLabel(roleGroupTacticsStrings.TryGetPositioningLabel(option.Value, out var ko), ko));
             positioningDropdown.onValueChanged.RemoveAllListeners();
             positioningDropdown.onValueChanged.AddListener(index =>
             {
@@ -280,7 +285,7 @@ namespace Game.Core
                 repository.SetRoleGroupOverride(roleGroup, new RoleGroupTacticsOverride(current.IsOverridden, current.TargetPriority, entry.PositioningOptions[index].Value, current.SelfPreservation));
             });
 
-            SetOptions(selfPreservationDropdown, entry.SelfPreservationOptions, option => option.DisplayLabel);
+            SetOptions(selfPreservationDropdown, entry.SelfPreservationOptions, option => ResolveLabel(roleGroupTacticsStrings.TryGetSelfPreservationLabel(option.Value, out var ko), ko));
             selfPreservationDropdown.onValueChanged.RemoveAllListeners();
             selfPreservationDropdown.onValueChanged.AddListener(index =>
             {
@@ -288,6 +293,11 @@ namespace Game.Core
                 repository.SetRoleGroupOverride(roleGroup, new RoleGroupTacticsOverride(current.IsOverridden, current.TargetPriority, current.Positioning, entry.SelfPreservationOptions[index].Value));
             });
         }
+
+        // 라벨 조회 실패 시 "값 없음" 자리표시자로 대체한다(CLAUDE.md Placeholder 컨벤션) - 수치
+        // Provider(TableBattleUnitStatProvider 등)와 달리 표시용 텍스트는 누락돼도 게임을 막을
+        // 이유가 없다(Docs/설계/18번 §5.3).
+        private static string ResolveLabel(bool found, string ko) => found ? ko : "값 없음";
 
         private static void SetOptions<T>(TMP_Dropdown dropdown, IReadOnlyList<T> options, System.Func<T, string> labelSelector)
         {
@@ -300,17 +310,6 @@ namespace Game.Core
             dropdown.AddOptions(optionData);
         }
 
-        private static void SetOptions<TEnum>(TMP_Dropdown dropdown, (TEnum Value, string Label)[] options)
-        {
-            var optionData = new List<TMP_Dropdown.OptionData>(options.Length);
-            foreach (var option in options)
-            {
-                optionData.Add(new TMP_Dropdown.OptionData(option.Label));
-            }
-            dropdown.ClearOptions();
-            dropdown.AddOptions(optionData);
-        }
-
         private static void SelectWithoutNotify(TMP_Dropdown dropdown, int index)
         {
             if (index < 0) return;
@@ -318,11 +317,29 @@ namespace Game.Core
             dropdown.RefreshShownValue();
         }
 
-        private static int IndexOf<TEnum>((TEnum Value, string Label)[] options, TEnum value)
+        private static int IndexOfOption(IReadOnlyList<EnemyRecognitionOption> options, EnemyRecognitionType value)
         {
-            for (var i = 0; i < options.Length; i++)
+            for (var i = 0; i < options.Count; i++)
             {
-                if (Equals(options[i].Value, value)) return i;
+                if (options[i].Value == value) return i;
+            }
+            return -1;
+        }
+
+        private static int IndexOfOption(IReadOnlyList<ActivityRadiusOption> options, ActivityRadiusPreset value)
+        {
+            for (var i = 0; i < options.Count; i++)
+            {
+                if (options[i].Value == value) return i;
+            }
+            return -1;
+        }
+
+        private static int IndexOfOption(IReadOnlyList<PursuitOption> options, PursuitPreset value)
+        {
+            for (var i = 0; i < options.Count; i++)
+            {
+                if (options[i].Value == value) return i;
             }
             return -1;
         }

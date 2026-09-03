@@ -28,6 +28,14 @@ namespace Game.Core.Editor.DebugTools
         private const string ScenePath = "Assets/Scenes/" + SceneName + ".unity";
         private const string RoleGroupMapAssetPath = "Assets/Prefabs/ScriptableObejct/MercenaryRoleGroupMap.asset";
         private const string TacticsCatalogAssetPath = "Assets/Prefabs/ScriptableObejct/RoleGroupTacticsCatalog.asset";
+        // CharacterStatsTableImporter가 만드는 에셋과 같은 경로(Docs/설계/17번 §4/§6).
+        private const string CharacterStatsTableAssetPath = "Assets/Prefabs/ScriptableObejct/CharacterStatsTable.asset";
+        private const string EnemyStatsTableAssetPath = "Assets/Prefabs/ScriptableObejct/EnemyStatsTable.asset";
+        private const string EnemyEncounterCompositionTableAssetPath = "Assets/Prefabs/ScriptableObejct/EnemyEncounterCompositionTable.asset";
+        private const string PartyPolicyCatalogAssetPath = "Assets/Prefabs/ScriptableObejct/PartyTacticsPolicyCatalog.asset";
+        // PartyPolicyTableImporter/RoleGroupTacticsTableImporter가 만드는 에셋과 같은 경로(Docs/설계/18번 §8.2).
+        private const string PartyPolicyStringsTableAssetPath = "Assets/Prefabs/ScriptableObejct/PartyTacticsPolicyStringsTable.asset";
+        private const string RoleGroupTacticsStringsTableAssetPath = "Assets/Prefabs/ScriptableObejct/RoleGroupTacticsStringsTable.asset";
 
         [MenuItem("Tools/Game/Debug/Build Battle Test Scene")]
         public static void BuildBattleTestScene()
@@ -58,9 +66,11 @@ namespace Game.Core.Editor.DebugTools
             var battleTestSimulation = EditorUIBuilder.GetOrAddComponent<BattleTestSimulationRule>(battleManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<PlaceholderDefeatConsequenceRule>(battleManager.gameObject);
             WireRoleGroupMap(battleTestSimulation);
+            WireCharacterStatsTables(battleTestSimulation);
 
             var tacticsRepository = EditorUIBuilder.GetOrCreateManager<InMemoryTacticsRepository>(managersRoot.transform, "InMemoryTacticsRepository");
             WireTacticsCatalog(tacticsRepository);
+            WirePartyPolicyCatalog(tacticsRepository);
 
             // 전투 디버그 기즈모 4종을 이 씬에서는 항상 켜둔다(요구사항 #5) - Bootstrap과 달리
             // Tools/Game/Debug/Install Battle Gizmos 토글을 거치지 않고 인스톨러가 직접 부착한다.
@@ -93,6 +103,8 @@ namespace Game.Core.Editor.DebugTools
             var panelHost = EditorUIBuilder.GetOrCreateManager<BattleTestPanelHost>(managersRoot.transform, "BattleTestUI");
             var tacticsPanel = EditorUIBuilder.GetOrAddComponent<TacticsPanel>(panelHost.gameObject);
             WireTacticsPanelCatalog(tacticsPanel);
+            WirePartyPolicyCatalog(tacticsPanel);
+            WireTacticsStringTables(tacticsPanel);
             var battleTestController = EditorUIBuilder.GetOrAddComponent<BattleTestController>(panelHost.gameObject);
             WireBattleTestController(battleTestController, startButton, pauseButton, resetButton, tacticsButton, battleWorldRoot, cameraView, paletteView, resultPopupView, unitInfoPanelView, unitPickerView, spawnPointPanelView, battleTestSimulation);
 
@@ -699,6 +711,44 @@ namespace Game.Core.Editor.DebugTools
 
             var so = new SerializedObject(rule);
             so.FindProperty("roleGroupMap").objectReferenceValue = asset;
+            so.ApplyModifiedProperties();
+        }
+
+        // roleGroupMap과 같은 배선 전례(Docs/설계/17번 §6) - 에셋이 아직 임포트 전이라 없을 수
+        // 있으므로 null 배선을 경고 없이 허용한다(TableBattleUnitStatProvider/
+        // TableEnemyTypeCompositionProvider가 조회 시점에 즉시 예외로 드러낸다).
+        private static void WireCharacterStatsTables(BattleTestSimulationRule rule)
+        {
+            var so = new SerializedObject(rule);
+            so.FindProperty("characterStatsTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<CharacterStatsTableAsset>(CharacterStatsTableAssetPath);
+            so.FindProperty("enemyStatsTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<EnemyStatsTableAsset>(EnemyStatsTableAssetPath);
+            so.FindProperty("enemyEncounterCompositionTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<EnemyEncounterCompositionTableAsset>(EnemyEncounterCompositionTableAssetPath);
+            so.ApplyModifiedProperties();
+        }
+
+        // roleGroupMap/catalog와 달리(수동 인스펙터 연결 전례) 이 에셋은 처음 생기는 것이라 두
+        // 소비자 모두 자동 배선한다(Docs/설계/17번 §10.5).
+        private static void WirePartyPolicyCatalog(TacticsPanel panel)
+        {
+            var so = new SerializedObject(panel);
+            so.FindProperty("partyPolicyCatalog").objectReferenceValue = AssetDatabase.LoadAssetAtPath<PartyTacticsPolicyCatalogAsset>(PartyPolicyCatalogAssetPath);
+            so.ApplyModifiedProperties();
+        }
+
+        private static void WirePartyPolicyCatalog(InMemoryTacticsRepository repository)
+        {
+            var so = new SerializedObject(repository);
+            so.FindProperty("partyPolicyCatalog").objectReferenceValue = AssetDatabase.LoadAssetAtPath<PartyTacticsPolicyCatalogAsset>(PartyPolicyCatalogAssetPath);
+            so.ApplyModifiedProperties();
+        }
+
+        // 라벨 조회용 String 에셋 2종 - catalog(값)와 마찬가지로 처음 생기는 에셋이라 자동 배선한다
+        // (Docs/설계/18번 §8.2). InMemoryTacticsRepository는 라벨을 다루지 않아 배선 대상이 아니다.
+        private static void WireTacticsStringTables(TacticsPanel panel)
+        {
+            var so = new SerializedObject(panel);
+            so.FindProperty("partyPolicyStrings").objectReferenceValue = AssetDatabase.LoadAssetAtPath<PartyTacticsPolicyStringsTableAsset>(PartyPolicyStringsTableAssetPath);
+            so.FindProperty("roleGroupTacticsStrings").objectReferenceValue = AssetDatabase.LoadAssetAtPath<RoleGroupTacticsStringsTableAsset>(RoleGroupTacticsStringsTableAssetPath);
             so.ApplyModifiedProperties();
         }
 

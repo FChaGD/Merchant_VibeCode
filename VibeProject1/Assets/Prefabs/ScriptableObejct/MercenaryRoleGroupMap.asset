@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: MercenaryRoleGroupMap
   m_EditorClassIdentifier: Game.Core::Game.Core.MercenaryRoleGroupMapAsset
   entries:
-  - MercenaryClass: 0
-    RoleGroup: 0
   - MercenaryClass: 1
     RoleGroup: 1
   - MercenaryClass: 2
-    RoleGroup: 0
+    RoleGroup: 2
+  - MercenaryClass: 3
+    RoleGroup: 1

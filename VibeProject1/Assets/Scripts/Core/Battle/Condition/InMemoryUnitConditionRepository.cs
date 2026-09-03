@@ -13,9 +13,14 @@ namespace Game.Core
         private readonly HashSet<string> deadUnitIds = new();
         // LiveBattleSimulationRule/BattleTestSimulationRule과 같은 기존 패턴 - 이 타입은 DI 등록
         // 대상이 아니라 필요한 곳마다 직접 new한다.
-        private readonly IBattleUnitStatProvider statProvider = new PlaceholderBattleUnitStatProvider();
+        private IBattleUnitStatProvider statProvider;
+
+        // 엑셀 임포트 결과 테이블(Docs/설계/17번 §6) - roleGroupMap과 같은 배선 전례.
+        [SerializeField] private CharacterStatsTableAsset characterStatsTable;
 
         private ICaravanRosterProvider rosterProvider;
+
+        private void Awake() => statProvider = new TableBattleUnitStatProvider(characterStatsTable);
 
         public void RegisterSelf(IDependencyRegistrar registrar) => registrar.Register<IUnitConditionRepository>(this);
 

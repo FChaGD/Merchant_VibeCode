@@ -2,19 +2,20 @@ namespace Game.Core
 {
     /// <summary>
     /// 역할군 축 - 활동 반경 안에서 전투 중 실제로 이동하는 세부 로직(Docs/기획/12번 §3.2).
+    /// 명시적 정수값 = 데이터 테이블 Id(Docs/설계/18번 §3), 0은 비워둔다.
     /// </summary>
     public enum LocalPositioning
     {
         // 전열 - 적에게 직진 접근(기존 기본 동작).
-        Charge,
+        Charge = 1,
         // 전열 - 아군과 적 사이에 위치해 전열 형성.
-        Blocking,
+        Blocking = 2,
         // 원거리딜러 - 제자리에서 사격.
-        Stationary,
+        Stationary = 3,
         // 원거리딜러 - 같은 타겟을 노리는 동료와 각도를 나눠 타겟을 감싸듯 자리잡음(Docs/설계/12번 §13.3).
         // 기존 "사거리 유지형"을 대체(자기보호 카이팅과 개념 중복으로 폐기, Docs/기획/12번 §3.2-2).
-        Surround,
+        Surround = 4,
         // 원거리딜러 - 동료 원거리딜러와 일정 거리 이상 벌어져 사격(Docs/설계/12번 §13.2).
-        Disperse,
+        Disperse = 5,
     }
 }
