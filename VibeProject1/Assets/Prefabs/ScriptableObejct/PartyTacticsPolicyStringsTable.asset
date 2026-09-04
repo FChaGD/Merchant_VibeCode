@@ -14,14 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.Core::Game.Core.PartyTacticsPolicyStringsTableAsset
   recognitionStrings:
   - Id: 1
-    Ko: "1\uCD08"
+    Ko: "\uAD11\uC5ED \uACBD\uACC4"
   - Id: 2
-    Ko: "5\uCD08 \uC9C0\uC5F0 \uB610\uB294 \uADFC\uC811"
+    Ko: "\uC740\uC2E0 \uACBD\uACC4"
   - Id: 3
-    Ko: "\uADFC\uC811 \uB610\uB294 \uD53C\uACA9"
+    Ko: "\uB300\uC5F4 \uACBD\uACC4"
   radiusStrings:
   - Id: 1
-    Ko: "\uB300\uC5F4 \uC720\uC9C0(4m)"
+    Ko: "\uB300\uC5F4 \uC720\uC9C0"
   - Id: 2
     Ko: "\uC0C1\uD589 \uC804\uCCB4"
   - Id: 3
