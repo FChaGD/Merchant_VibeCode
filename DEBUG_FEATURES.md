@@ -34,14 +34,20 @@ Play 모드에서 배치 UI 그리드의 열(X)/행(Y) 수와 타일 크기를 �
 지역 데이터 시스템이 아직 없어서, 지도 위에 도시를 수동으로 찍고 경로를 그어 출발/도착 지정
 기능(정식, 02번 기획)을 테스트할 수 있게 만든 임시 배치 도구.
 
-- **경계**: `TripOriginDestinationAssigner`/`ITripOriginDestinationReader`/`ITripOriginDestinationAssigner`
-  /`TripRole`/`ITripRouteReader`(출발/도착 지정 상태 머신, 정식 로직, `Core/UI/Trip/`)는 애초 리팩토링
-  (배치 도구 신설)에서는 전혀 손대지 않았으나, **2026-09-03 도시 지도 Id 전면 정수화(기획 15번 §8.2,
-  설계 20번 §9)로 이 경계를 예외적으로 한 번 넘었다** - 도시 Id 타입을 `string`→`int`(미배정 자리는
-  `int?`)로 바꾸면서 이 정식 코드들의 시그니처도 함께 바뀌었다(`OriginCityId`/`DestinationCityId`
-  등). 로직 자체(상태 전이 규칙)는 그대로이고 타입만 바뀐 것 - `TripOriginDestinationAssigner`가
-  `ITripRouteReader` 인터페이스에만 의존하는 구조는 유지되므로, 실제 지역/경로 데이터 시스템이
-  생기면 이 클래스 자체는 여전히 손댈 필요가 없다(구현체만 교체).
+- **경계**: `ITripDestinationReader`/`ITripDestinationAssigner`/`TripDestinationAssigner`/`TripRole`/
+  `ITripRouteReader`/`ITripCurrentLocationReader`/`ITripCurrentLocationRepository`/
+  `InMemoryTripCurrentLocationRepository`(도착지 지정 로직 + "현재 위치" 상태, 정식 로직, `Core/UI/Trip/`)는
+  애초 리팩토링(배치 도구 신설)에서는 전혀 손대지 않았으나, 두 차례 예외적으로 이 경계를 넘었다:
+  (1) **2026-09-03 도시 지도 Id 전면 정수화**(기획 15번 §8.2, 설계 20번 §9) - 도시 Id 타입을
+  `string`→`int`(미배정 자리는 `int?`)로 통일. (2) **2026-09-03 출발/도착 지정 로직 전면 재설계**
+  (기획 16번, 설계 21번) - 옛 `TripOriginDestinationAssigner`(출발/도착 두 역할 모두를 다루던 상태
+  머신)를 폐기하고 `TripDestinationAssigner`(도착지 전용)로 교체, "현재 위치" 개념을 신설했다.
+  `TripDestinationAssigner`가 `ITripRouteReader`/`ITripCurrentLocationReader` 인터페이스에만
+  의존하는 구조는 유지되므로, 실제 지역/경로 데이터 시스템이 생기면 이 클래스 자체는 여전히 손댈
+  필요가 없다(구현체만 교체). `TripDestinationAssigner`/`InMemoryTripCurrentLocationRepository`는
+  전역 DI 싱글턴(`IManagedComponent`, `ManagerHierarchyInstaller`가 생성)이라 빌드에도 항상
+  존재한다 - 다만 지금은 도시 지도 자체가 에디터 전용이라 빌드에서는 값이 바뀔 방법이 없을 뿐이다
+  (설계 21번 §6).
 - **디버그 전용 폴더**: `Assets/Scripts/Core/Debug/Trip/` (전부 `#if UNITY_EDITOR`, `Game.Core.DebugTools`
   네임스페이스). `Core/UI/Trip/`에 있던 아래 파일들을 원래 `.meta`(GUID)를 유지한 채 이 폴더로
   옮겼다 - 씬/프리팹의 컴포넌트 참조는 그대로 유지된다.
@@ -64,12 +70,16 @@ Play 모드에서 배치 UI 그리드의 열(X)/행(Y) 수와 타일 크기를 �
     TripCityMap.xlsx`)으로 내보내는 에디터 전용 로직(2026-09-03 도입, 2026-09-03 엑셀 테이블화로
     개정 - Docs/설계/19번→20번). `TripCityMapAsset`을 더 이상 직접 쓰지 않는다 - `TryLoad`로 읽기만
     한다(그 에셋은 이제 `TripCityMapTableImporter`가 채운다, 아래 "제거 방법" 참고).
-  - `TripMapInteractionCoordinator.cs` - 디버그 도시/경로 배선과 `TripOriginDestinationAssigner`
-    생성·연결을 모두 담당하는 조율자. 이 클래스 자체가 디버그 저장소(`InMemoryTripCityRepository` 등)에
-    의존하므로 이 폴더에 있다 - 실제 지역/경로 시스템이 생기면 이 파일 전체를 그 시스템에 맞는
-    코디네이터로 새로 짜야 한다(내부에서 만드는 `TripOriginDestinationAssigner`는 그대로 재사용 가능).
-    `Bind()`가 저장 버튼 배선 + `LoadSavedMap()`(씬 진입 시 저장된 지도 자동 복원)도 담당한다.
-- **정식 코드 연동 지점** (`Core/UI/Trip/TripPanel.cs`, 전부 `#if UNITY_EDITOR`로 표시돼 있음):
+  - `TripMapInteractionCoordinator.cs` - 디버그 도시/경로 배선을 담당하는 조율자. 도착지 지정
+    로직(`TripDestinationAssigner`)과 "현재 위치"(`ITripCurrentLocationReader`)는 더 이상 이 클래스가
+    만들지 않는다 - 전역 DI로 주입받는다(`Bind()` 매개변수, 기획 16번, 설계 21번). 이 클래스 자체는
+    여전히 디버그 저장소(`InMemoryTripCityRepository` 등)에 의존하므로 이 폴더에 있다 - 실제 지역/
+    경로 시스템이 생기면 이 파일 전체를 그 시스템에 맞는 코디네이터로 새로 짜야 한다(주입받는
+    `TripDestinationAssigner`는 그대로 재사용 가능).
+    `Bind()`가 저장 버튼 배선 + `EnsureSavedMapLoaded()`(씬 진입 시 저장된 지도 자동 복원)도 담당한다.
+- **정식 코드 연동 지점** (`Core/UI/Trip/TripPanel.cs`, 전부 `#if UNITY_EDITOR`로 표시돼 있음 - 단
+  `currentLocationReader`/`destinationAssigner` 필드와 그걸 채우는 `RegisterTripUI` 매개변수는
+  정식 DI 타입이라 예외):
   - `debugCityMarkerPrefab`/`debugRoadLinePrefab` 직렬화 필드
   - `debugCityPaletteView`/`debugRoadToggleView`/`debugCityBulkDeleteButton`/`debugRoadBulkDeleteButton`
     /`debugMapSaveButton`/`mapInteractionCoordinator` 필드
@@ -77,7 +87,7 @@ Play 모드에서 배치 UI 그리드의 열(X)/행(Y) 수와 타일 크기를 �
   - `RegisterTripUI` 안의 `SetupDebugMapInteraction()` 호출 한 줄
   - `SetupDebugMapInteraction` 메서드 전체
   - `RefreshStartButtonInteractable`는 `#if/#else`로 분기 - 디버그가 없으면 "상행 시작" 버튼은
-    항상 활성 상태로 대체된다.
+    항상 활성 상태로 대체된다(조회 대상은 `destinationAssigner?.IsAssigned`).
 - **상수**: `TripUIElementIds.cs`의 `DebugCityPaletteRoot` / `DebugRoadToggleButton` /
   `DebugCityBulkDeleteButton` / `DebugRoadBulkDeleteButton` / `DebugMapSaveButton` (문자열 상수라
   그대로 둬도 무해하지만, 완전히 정리하려면 함께 삭제).
@@ -90,7 +100,7 @@ Play 모드에서 배치 UI 그리드의 열(X)/행(Y) 수와 타일 크기를 �
     `DebugCityBulkDeleteButton`, `DebugRoadBulkDeleteButton`, `DebugMapSaveButton`.
 - **제거 방법**: 실제 지역/경로 데이터 시스템이 생겼을 때, `Core/Debug/Trip/` 폴더를 지우고
   `TripPanel.cs`의 `#if UNITY_EDITOR` 블록들을 지운 뒤(`RefreshStartButtonInteractable`은 `#else` 쪽만
-  남긴다), 새 데이터 소스로 `TripOriginDestinationAssigner`를 생성/주입하는 코드로 교체하고
+  남긴다), `TripMapInteractionCoordinator`를 새 데이터 소스에 맞는 코디네이터로 교체하고
   `Tools > Game > Build Hub Scene` 재실행 → Hub.unity 저장. **주의**: 다음은 **제거 대상이 아니다**
   - 데이터 테이블 임포터들(`CharacterStatsTableImporter` 등)과 같은 성격의 정식 콘텐츠 파이프라인이라
   실제 지역 시스템이 이어받는다(Docs/기획/15번 §5, 설계 20번 §7):
@@ -99,6 +109,10 @@ Play 모드에서 배치 UI 그리드의 열(X)/행(Y) 수와 타일 크기를 �
   - `Core/UI/Trip/TripCityMapCoordinateConverter.cs`(좌표 정규화 변환)
   - `Assets/Scripts/Editor/TripCityMapTableImporter.cs`(엑셀→에셋 임포터)와 그 워크북(`Assets/Table/Trip/TripCityMap.xlsx`)
   - `Assets/Plugins/Editor/ClosedXML/`(엑셀 쓰기 라이브러리)
+  - `Core/UI/Trip/`의 `ITripCurrentLocationReader.cs`/`ITripCurrentLocationRepository.cs`/
+    `InMemoryTripCurrentLocationRepository.cs`/`ITripDestinationReader.cs`/`ITripDestinationAssigner.cs`/
+    `TripDestinationAssigner.cs`(기획 16번, 설계 21번 - 정식 상태/로직, `ManagerHierarchyInstaller`의
+    해당 배선 두 줄도 함께 유지)
 
   지워야 하는 건 `TripCityMapPersistence.cs`(저장 버튼이 엑셀로 내보내는 에디터 전용 로직)와 저장
   버튼 배선뿐이다.

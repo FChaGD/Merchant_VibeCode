@@ -3776,9 +3776,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 669f45c22e664bdea27431982f0f933f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.TripMapView
-  scrollRect: {fileID: 0}
-  viewport: {fileID: 0}
-  content: {fileID: 0}
 --- !u!114 &426045554
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6783,7 +6780,6 @@ MonoBehaviour:
   rowCount: 4
   slotSize: {x: 120, y: 120}
   overscrollTileMargin: 5
-  scrollRect: {fileID: 0}
 --- !u!114 &702431924
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12244,7 +12240,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: -0.000061035156}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1212121991
 MonoBehaviour:

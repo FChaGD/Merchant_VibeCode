@@ -6,10 +6,10 @@ namespace Game.Core.DebugTools
 {
     /// <summary>
     /// 디버그로 그린 도시 간 연결선을 세션 동안 보관하는 인메모리 저장소. 경로는 무방향으로 취급해
-    /// 정렬된 (int,int) 튜플 키(A&lt;=B)로 정규화한 HashSet에 저장한다(HasRoute/Add/Remove O(1)). 도시별
-    /// 인접 목록을 함께 유지해 RemoveAllRoutesFor가 전체 스캔 없이 그 도시의 연결 개수만큼만 순회하게
-    /// 한다. Id가 int가 되면서(설계 20번 §9.3) 문자열 연결/분해("A|B") 없이 튜플로 바로 관리한다 -
-    /// 경로 추가/조회마다 문자열 생성 비용이 들던 v1보다 가볍다.
+    /// 정렬된 (int,int) 튜플 키(A&lt;=B)로 정규화한 HashSet에 저장한다(Add/Remove O(1)). 도시별
+    /// 인접 목록을 함께 유지해 RemoveAllRoutesFor가 전체 스캔 없이 그 도시의 연결 개수만큼만 순회하고,
+    /// IsReachable(BFS)도 같은 인접 목록을 그대로 순회한다. Id가 int가 되면서(설계 20번 §9.3) 문자열
+    /// 연결/분해("A|B") 없이 튜플로 바로 관리한다 - 경로 추가/조회마다 문자열 생성 비용이 들던 v1보다 가볍다.
     /// </summary>
     internal class InMemoryTripRouteRepository : ITripRouteRepository
     {
@@ -19,7 +19,38 @@ namespace Game.Core.DebugTools
         public event Action<int, int> RouteAdded;
         public event Action<int, int> RouteRemoved;
 
-        public bool HasRoute(int cityIdA, int cityIdB) => routeKeys.Contains(Key(cityIdA, cityIdB));
+        // 직접 인접이 아니어도 경로망을 거쳐 이어져 있으면 도달 가능으로 판정한다(기획 16번 §6.1) -
+        // BFS로 fromCityId가 속한 연결 성분 안에 toCityId가 있는지 확인한다. 디버그 지도 규모(도시
+        // 수십 개 이하)에서는 성능 고려가 불필요한 수준이라 추가 자료구조 없이 adjacency를 그대로 쓴다.
+        public bool IsReachable(int fromCityId, int toCityId)
+        {
+            if (fromCityId == toCityId)
+            {
+                return true;
+            }
+
+            var visited = new HashSet<int> { fromCityId };
+            var queue = new Queue<int>();
+            queue.Enqueue(fromCityId);
+
+            while (queue.Count > 0)
+            {
+                foreach (var neighbor in GetConnectedCityIds(queue.Dequeue()))
+                {
+                    if (neighbor == toCityId)
+                    {
+                        return true;
+                    }
+
+                    if (visited.Add(neighbor))
+                    {
+                        queue.Enqueue(neighbor);
+                    }
+                }
+            }
+
+            return false;
+        }
 
         public IReadOnlyCollection<int> GetConnectedCityIds(int cityId)
         {

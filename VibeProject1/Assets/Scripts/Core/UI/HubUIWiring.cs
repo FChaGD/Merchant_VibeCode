@@ -48,13 +48,18 @@ namespace Game.Core
             registrar.TryResolve<IUnitConditionRepository>(out var unitConditionRepository);
             registrar.TryResolve<ITripInfoProvider>(out var tripInfoProvider);
             registrar.TryResolve<ITacticsRepository>(out var tacticsRepository);
+            // ITripCurrentLocationReader 자체는 DI에 등록되지 않는다 - InMemoryTripCurrentLocationRepository는
+            // ITripCurrentLocationRepository로만 등록되므로(IFormationReader/IFormationRepository와
+            // 같은 판단 기준) 그 타입으로 조회해 읽기 전용 매개변수에 넘긴다.
+            registrar.TryResolve<ITripCurrentLocationRepository>(out var currentLocationRepository);
+            registrar.TryResolve<ITripDestinationAssigner>(out var destinationAssigner);
 
             hubUIController.RegisterHubUI(uiManager, sceneRevealSignal);
 
             formationPanel.RegisterFormationUI(caravanRosterProvider, formationRepository, unitConditionRepository, uiManager, SceneNames.Hub);
             panelRegistrar.RegisterPanel(formationPanel);
 
-            tripPanel.RegisterTripUI(uiManager, gameManager, formationRepository, tripInfoProvider, sceneRevealSignal);
+            tripPanel.RegisterTripUI(uiManager, gameManager, formationRepository, tripInfoProvider, sceneRevealSignal, currentLocationRepository, destinationAssigner);
             panelRegistrar.RegisterPanel(tripPanel);
 
             tacticsPanel.RegisterTacticsUI(tacticsRepository, uiManager, SceneNames.Hub);

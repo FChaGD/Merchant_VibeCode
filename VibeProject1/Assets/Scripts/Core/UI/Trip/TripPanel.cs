@@ -48,18 +48,24 @@ namespace Game.Core
         private IFormationReader formationReader;
         private ITripInfoProvider tripInfoProvider;
         private ISceneRevealSignal sceneRevealSignal;
+        // 정식 DI 타입이라 #if UNITY_EDITOR로 감싸지 않는다 - 빌드에도 등록돼 있지만, 지금은 지도
+        // 자체가 에디터 전용(03/04번 기획)이라 빌드에서는 값이 바뀔 방법이 없을 뿐이다(설계 21번 §6).
+        private ITripCurrentLocationReader currentLocationReader;
+        private ITripDestinationAssigner destinationAssigner;
 
         // 화면(Hub)이 완전히 드러나기 전까지는 "상행 시작"을 막는다(사용자 확정) - 출발/도착 배정
         // 게이팅(RefreshStartButtonInteractable)과 별개 조건이라 AND로 합친다.
         private bool sceneRevealed;
 
-        public void RegisterTripUI(IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal)
+        public void RegisterTripUI(IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner)
         {
             this.uiManager = uiManager;
             this.gameManager = gameManager;
             this.formationReader = formationReader;
             this.tripInfoProvider = tripInfoProvider;
             this.sceneRevealSignal = sceneRevealSignal;
+            this.currentLocationReader = currentLocationReader;
+            this.destinationAssigner = destinationAssigner;
 
             var hubScene = SceneManager.GetSceneByName(SceneNames.Hub);
             if (!hubScene.IsValid())
@@ -99,10 +105,9 @@ namespace Game.Core
             closeButton.onClick.AddListener(() =>
             {
                 // 배치 UI 왕복(openFormationButton) 중에는 배정을 유지하고, 상행 준비 UI를 완전히
-                // 종료할 때만 출발/도착 배정과 지도 강조를 초기화한다.
-#if UNITY_EDITOR
-                mapInteractionCoordinator?.ResetOriginDestination();
-#endif
+                // 종료할 때만 도착지 배정과 지도 강조를 초기화한다("현재 위치"는 건드리지 않음).
+                // #if UNITY_EDITOR 불필요 - destinationAssigner는 빌드에도 등록돼 있고, 없으면 no-op.
+                destinationAssigner?.Reset();
                 uiManager.Close(PanelId);
             });
 
@@ -133,7 +138,8 @@ namespace Game.Core
             if (debugCityPaletteView == null || debugRoadToggleView == null
                 || debugCityBulkDeleteButton == null || debugRoadBulkDeleteButton == null
                 || debugMapSaveButton == null
-                || debugCityMarkerPrefab == null || debugRoadLinePrefab == null)
+                || debugCityMarkerPrefab == null || debugRoadLinePrefab == null
+                || currentLocationReader == null || destinationAssigner == null)
             {
                 Debug.LogWarning($"{nameof(TripPanel)}: 지도 디버그 배치/경로 연결 요소 중 일부가 연결되지 않아 해당 기능을 건너뛴다.");
                 return;
@@ -151,10 +157,14 @@ namespace Game.Core
                 debugMapSaveButton,
                 rootCanvas != null ? rootCanvas.transform : null,
                 originInfoView,
-                destinationInfoView);
+                destinationInfoView,
+                currentLocationReader,
+                destinationAssigner);
 
-            // "상행 시작"은 출발/도착이 모두 배정돼야 활성화된다(02번 5절) - 배정이 바뀔 때마다 갱신.
-            mapInteractionCoordinator.OriginDestinationReader.Changed += RefreshStartButtonInteractable;
+            // "상행 시작"은 도착지가 배정돼야 활성화된다(02번 5절, 기획 16번 §7) - 배정이 바뀔 때마다 갱신.
+            // destinationAssigner는 Bootstrap 상주라 Hub를 반복 방문해도 구독이 누적되지 않게 먼저 해제한다.
+            destinationAssigner.Changed -= RefreshStartButtonInteractable;
+            destinationAssigner.Changed += RefreshStartButtonInteractable;
             RefreshStartButtonInteractable();
         }
 #endif
@@ -172,8 +182,20 @@ namespace Game.Core
 
         private void RefreshStartButtonInteractable()
         {
+            // destinationAssigner(Bootstrap 상주)의 Changed는 Hub가 언로드된 상태(Field 진행 중 도착
+            // 판정으로 인한 Reset() 등)에서도 발화할 수 있다 - startButton은 Hub 콘텐츠 씬 전용이라
+            // 그 시점엔 이미 파괴돼 있으므로 접근 전 반드시 확인한다.
+            if (startButton == null)
+            {
+                return;
+            }
+
+            // #if/#else 분기는 그대로 유지한다 - 빌드에는 지도 자체가 안 보여(03/04번 기획, 전부
+            // #if UNITY_EDITOR) 도착지를 고를 방법이 없다. 여기서 분기를 걷어내면 "상행 시작" 버튼이
+            // 실제 게임에서 영원히 비활성화되는 회귀가 생긴다(설계 21번 §6) - 빌드는 기존처럼 항상
+            // 활성 상태인 플레이스홀더로 남겨둔다.
 #if UNITY_EDITOR
-            var debugReady = mapInteractionCoordinator?.OriginDestinationReader.IsBothAssigned ?? true;
+            var debugReady = destinationAssigner?.IsAssigned ?? true;
 #else
             var debugReady = true;
 #endif
@@ -257,7 +279,7 @@ namespace Game.Core
             }
 
             // 출발/도착 정보 패널은 여기서 강제로 비우지 않는다 - 배치 UI를 갔다 와도 배정 상태(및
-            // 지도 강조)가 유지되므로, 정보 패널도 그 상태를 그대로 반영해야 한다(assigner.Changed가
+            // 지도 강조)가 유지되므로, 정보 패널도 그 상태를 그대로 반영해야 한다(destinationAssigner.Changed가
             // 배정 시점에 이미 채워/비워 둔 값을 그대로 둔다). 완전 초기화는 종료 버튼에서만 일어난다.
             RefreshSummary();
 

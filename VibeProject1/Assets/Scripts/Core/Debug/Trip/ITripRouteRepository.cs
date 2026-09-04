@@ -15,7 +15,7 @@ namespace Game.Core.DebugTools
         void RemoveRoute(int cityIdA, int cityIdB);
         void RemoveAllRoutesFor(int cityId);
         void Clear();
-        // 저장 기능 전용 - 정식 ITripRouteReader(TripOriginDestinationAssigner가 의존)에는 얹지 않는다
+        // 저장 기능 전용 - 정식 ITripRouteReader(TripDestinationAssigner가 의존)에는 얹지 않는다
         // (ISP, Docs/설계/19번 §2.2).
         IReadOnlyCollection<(int CityIdA, int CityIdB)> GetAllRoutes();
         event Action<int, int> RouteAdded;

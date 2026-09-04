@@ -168,6 +168,94 @@ MonoBehaviour:
   shieldBearerIcon: {fileID: 21300000, guid: 01ad68622be09844a9b452687b729d5b, type: 3}
   wagonIcon: {fileID: 21300000, guid: 3bd0a158bf0275145aea93b03c36b37d, type: 3}
   facilityIcon: {fileID: 21300000, guid: 0e23e17fb0fb5394aa5daa80c1d235d4, type: 3}
+--- !u!1 &395953567
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 395953568}
+  - component: {fileID: 395953569}
+  m_Layer: 0
+  m_Name: TripDestinationAssigner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &395953568
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 395953567}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900000001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &395953569
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 395953567}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 762a5d4b932085545bf4516049df7d93, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.TripDestinationAssigner
+--- !u!1 &440130297
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 440130298}
+  - component: {fileID: 440130299}
+  m_Layer: 0
+  m_Name: InMemoryTripCurrentLocationRepository
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &440130298
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 440130297}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900000001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &440130299
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 440130297}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 182e8c2cad5589045840a69aa98f0c01, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.InMemoryTripCurrentLocationRepository
 --- !u!1 &900000000
 GameObject:
   m_ObjectHideFlags: 0
@@ -212,6 +300,8 @@ Transform:
   - {fileID: 1891997715}
   - {fileID: 978547923}
   - {fileID: 1282644141}
+  - {fileID: 440130298}
+  - {fileID: 395953568}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &900000002
@@ -284,6 +374,8 @@ MonoBehaviour:
   - {fileID: 1282644142}
   - {fileID: 978547924}
   - {fileID: 1640227778}
+  - {fileID: 440130299}
+  - {fileID: 395953569}
 --- !u!1 &900002000
 GameObject:
   m_ObjectHideFlags: 0

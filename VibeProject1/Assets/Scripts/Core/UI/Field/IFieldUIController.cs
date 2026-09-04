@@ -10,7 +10,7 @@ namespace Game.Core
         /// 결과 처리 흐름 연결을 처리한다. 씬 전환 커튼이 완전히 걷힐 때까지는 정비창 버튼을 막고
         /// 상행 진행(Begin)도 시작하지 않는다(사용자 확정) - sceneRevealSignal이 걷힘을 알려준다.
         /// </summary>
-        void RegisterFieldUI(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository);
+        void RegisterFieldUI(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository, ITripCurrentLocationRepository currentLocationRepository, ITripDestinationAssigner destinationAssigner);
 
         /// <summary>Hub↔Field 씬 전환 연출이 슬라이드시킬 대상. RegisterFieldUI 이후에만 유효하다.</summary>
         RectTransform MovementViewRoot { get; }

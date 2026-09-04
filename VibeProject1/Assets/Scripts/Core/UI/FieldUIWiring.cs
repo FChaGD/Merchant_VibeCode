@@ -37,6 +37,8 @@ namespace Game.Core
             registrar.TryResolve<IFormationRepository>(out var formationRepository);
             registrar.TryResolve<IUnitConditionRepository>(out var unitConditionRepository);
             registrar.TryResolve<ITacticsRepository>(out var tacticsRepository);
+            registrar.TryResolve<ITripCurrentLocationRepository>(out var currentLocationRepository);
+            registrar.TryResolve<ITripDestinationAssigner>(out var destinationAssigner);
 
             var sessionState = registrar.Resolve<ISessionState>();
             var encounterManager = registrar.Resolve<IEncounterManager>();
@@ -55,7 +57,7 @@ namespace Game.Core
             tacticsPanel.RegisterTacticsUI(tacticsRepository, uiManager, SceneNames.Field);
             panelRegistrar.RegisterPanel(tacticsPanel);
 
-            fieldUIController.RegisterFieldUI(uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository);
+            fieldUIController.RegisterFieldUI(uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository, currentLocationRepository, destinationAssigner);
 
             // Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 다음 전환 때 슬라이드시킬
             // 대상을 등록한다 - Field는 전용 요소를 새로 만들지 않고 기존 이동 뷰 루트를 재사용한다

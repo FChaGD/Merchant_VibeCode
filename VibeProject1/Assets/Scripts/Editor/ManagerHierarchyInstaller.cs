@@ -114,9 +114,16 @@ namespace Game.Core.Editor
             var tacticsRepository = EditorUIBuilder.GetOrCreateManager<InMemoryTacticsRepository>(root.transform, "InMemoryTacticsRepository");
             WirePartyPolicyCatalog(tacticsRepository);
 
-            // 지역 시스템이 아직 없어, 상행 준비 UI 테스트용 임시 출발지/도착지/상행 요약 제공자를 등록한다.
+            // 지역 시스템이 아직 없어, 상행 준비 UI 테스트용 임시 상행 요약 제공자를 등록한다.
             // 실제 데이터 시스템이 생기면 이 매니저를 함께 제거한다.
             var placeholderTripInfoProvider = EditorUIBuilder.GetOrCreateManager<PlaceholderTripInfoProvider>(root.transform, "PlaceholderTripInfoProvider");
+
+            // "현재 위치"/도착지 지정(기획 16번, 설계 21번) - formationRepository와 같은 성격의
+            // 인메모리 저장소. TripDestinationAssigner가 ResolveDependencies에서
+            // ITripCurrentLocationRepository를 필수 조회하므로 tripCurrentLocationRepository보다
+            // 뒤에 둔다(가독성 목적 - 실제 순서 의존성은 없다, RegisterSelf 전부 끝난 뒤 ResolveDependencies 실행).
+            var tripCurrentLocationRepository = EditorUIBuilder.GetOrCreateManager<InMemoryTripCurrentLocationRepository>(root.transform, "InMemoryTripCurrentLocationRepository");
+            var tripDestinationAssigner = EditorUIBuilder.GetOrCreateManager<TripDestinationAssigner>(root.transform, "TripDestinationAssigner");
 
             SyncManagedComponents(dependencyManager, new MonoBehaviour[]
             {
@@ -137,6 +144,8 @@ namespace Game.Core.Editor
                 unitConditionRepository,
                 tacticsRepository,
                 placeholderTripInfoProvider,
+                tripCurrentLocationRepository,
+                tripDestinationAssigner,
             });
 
             EditorSceneManager.MarkSceneDirty(root.scene);

@@ -15,16 +15,16 @@ namespace Game.Core.DebugTools
     /// (Bootstrap 씬, 영속) 필드로 보관되므로 별도 MonoBehaviour나 전역 DI 없이도 세션 내내 유지된다.
     ///
     /// 클래스 전체가 디버그 도시/경로 저장소(InMemoryTripCityRepository/InMemoryTripRouteRepository)에
-    /// 의존하므로 이 파일도 함께 Core/Debug/Trip에 있다 - 다만 내부에서 생성하는 TripOriginDestinationAssigner
-    /// 자체는 ITripRouteReader에만 의존하는 정식 클래스라(Core/UI/Trip) 실제 지역/경로 데이터 시스템이
-    /// 생기면 이 코디네이터만 그 시스템에 맞게 다시 짜면 되고 TripOriginDestinationAssigner는 그대로 둔다.
+    /// 의존하므로 이 파일도 함께 Core/Debug/Trip에 있다 - 다만 도착지 지정 로직(TripDestinationAssigner)
+    /// 자체는 ITripRouteReader/ITripCurrentLocationReader에만 의존하는 정식 클래스라(Core/UI/Trip,
+    /// 전역 DI로 주입받는다 - 설계 21번 §2.2) 실제 지역/경로 데이터 시스템이 생기면 이 코디네이터만
+    /// 그 시스템에 맞는 새 코디네이터로 대체하면 되고 TripDestinationAssigner는 그대로 둔다.
     /// </summary>
     internal class TripMapInteractionCoordinator
     {
         private readonly ITripCityRepository cityRepository = new InMemoryTripCityRepository();
         private readonly ITripRouteRepository routeRepository = new InMemoryTripRouteRepository();
         private readonly TripDebugRoadModeController roadMode = new TripDebugRoadModeController();
-        private readonly TripOriginDestinationAssigner assigner;
 
         private readonly Dictionary<int, TripDebugCityMarkerView> markersByCityId = new();
         private readonly Dictionary<(int, int), TripDebugRoadLineView> linesByRouteKey = new();
@@ -34,6 +34,8 @@ namespace Game.Core.DebugTools
         private TripDebugRoadLineView linePrefab;
         private TripLocationInfoView originInfoView;
         private TripLocationInfoView destinationInfoView;
+        private ITripCurrentLocationReader currentLocationReader;
+        private ITripDestinationAssigner destinationAssigner;
         private Image dragGhost;
         private Sprite cityIconSprite;
         private Vector2 markerBaseSize;
@@ -42,20 +44,6 @@ namespace Game.Core.DebugTools
         private MoveCityDragBehavior moveBehavior;
         private DrawRoadDragBehavior drawRoadBehavior;
         private ICityDragBehavior activeDragBehavior;
-
-        public TripMapInteractionCoordinator()
-        {
-            assigner = new TripOriginDestinationAssigner(routeRepository);
-        }
-
-        /// <summary>TripPanel이 "상행 시작" 게이팅(둘 다 배정돼야 활성화, 02번 5절)에 쓴다.</summary>
-        public ITripOriginDestinationReader OriginDestinationReader => assigner;
-
-        /// <summary>
-        /// 상행 준비 UI "종료" 버튼 전용 초기화. 배치 UI를 왕복할 때는 배정이 유지돼야 하므로
-        /// TripPanel.Open()에서는 호출하지 않는다 - 오직 종료(닫기) 시에만 호출한다.
-        /// </summary>
-        public void ResetOriginDestination() => assigner.Reset();
 
         public void Bind(
             TripMapView mapView,
@@ -68,13 +56,17 @@ namespace Game.Core.DebugTools
             Button saveButton,
             Transform rootCanvasTransform,
             TripLocationInfoView originInfoView,
-            TripLocationInfoView destinationInfoView)
+            TripLocationInfoView destinationInfoView,
+            ITripCurrentLocationReader currentLocationReader,
+            ITripDestinationAssigner destinationAssigner)
         {
             this.mapView = mapView;
             this.markerPrefab = markerPrefab;
             this.linePrefab = linePrefab;
             this.originInfoView = originInfoView;
             this.destinationInfoView = destinationInfoView;
+            this.currentLocationReader = currentLocationReader;
+            this.destinationAssigner = destinationAssigner;
 
             moveBehavior = new MoveCityDragBehavior(cityRepository, mapView);
             moveBehavior.Moved += RefreshLinesForCity;
@@ -108,13 +100,12 @@ namespace Game.Core.DebugTools
 
             cityRepository.CityRemoved += HandleCityMarkerRemoved;
             cityRepository.CityRemoved += cityId => routeRepository.RemoveAllRoutesFor(cityId); // 도시 삭제 시 연결선 연쇄 삭제
-            cityRepository.CityRemoved += assigner.HandleCityDeleted; // 도시 삭제 시 그 역할만 해제(반대편 유지, 02번 3.1절)
+            cityRepository.CityRemoved += destinationAssigner.HandleCityDeleted; // 도시 삭제 시 도착지 배정만 해제(기획 16번 §6)
             routeRepository.RouteAdded += HandleRouteAdded;
             routeRepository.RouteRemoved += HandleRouteRemoved;
 
-            originInfoView.SetPanelClickHandler(() => assigner.HandlePanelClicked(TripRole.Origin));
-            destinationInfoView.SetPanelClickHandler(() => assigner.HandlePanelClicked(TripRole.Destination));
-            assigner.Changed += RefreshOriginDestinationDisplay;
+            destinationAssigner.Changed += RefreshDestinationDisplay;
+            currentLocationReader.Changed += RefreshDestinationDisplay; // 방어적 구독 - 지금은 패널이 열려있는 동안 바뀔 일이 없지만 비용이 거의 없다.
 
             // 불러오기는 여기서 하지 않는다 - mapView.Content/Viewport는 TripMapView.Awake 이전엔
             // null인데, 이 상행 준비 UI 패널은 씬에 비활성 상태로 배치돼 Awake가 최초 활성화
@@ -141,23 +132,24 @@ namespace Game.Core.DebugTools
 
             TripCityMapPersistence.TryLoadStrings(out cityStringsTable); // 없어도(임포트 전) null로 두고 계속 진행 - BuildLocationInfo가 폴백한다.
 
-            if (!TripCityMapPersistence.TryLoad(out var asset))
+            if (TripCityMapPersistence.TryLoad(out var asset))
             {
-                return;
+                // 도착지 배정은 저장 대상이 아니라서(기획 15번 §2) 불러온 직후에도 미배정 상태로 시작한다.
+                foreach (var city in asset.Cities)
+                {
+                    cityRepository.AddWithId(city.CityId, city.MapPosition);
+                    CreateMarker(city.CityId, city.MapPosition);
+                }
+
+                foreach (var route in asset.Routes)
+                {
+                    routeRepository.TryAddRoute(route.CityIdA, route.CityIdB);
+                }
             }
 
-            // 출발/도착 배정은 저장 대상이 아니라서(기획 15번 §2) 불러온 직후에도 아무 도시에 역할이
-            // 없는 상태로 시작한다.
-            foreach (var city in asset.Cities)
-            {
-                cityRepository.AddWithId(city.CityId, city.MapPosition);
-                CreateMarker(city.CityId, city.MapPosition);
-            }
-
-            foreach (var route in asset.Routes)
-            {
-                routeRepository.TryAddRoute(route.CityIdA, route.CityIdB);
-            }
+            // 출발지 패널은 클릭 없이도 항상 "현재 위치"를 보여줘야 한다(기획 §5) - 저장된 지도 유무와
+            // 무관하게 항상 최초 1회 직접 갱신한다.
+            RefreshDestinationDisplay();
         }
 
         private void CreateDragGhost(Sprite icon, Transform rootCanvasTransform)
@@ -242,7 +234,7 @@ namespace Game.Core.DebugTools
         }
 
         // road-mode 여부와 무관하게 항상 호출된다 - 클릭은 드래그와 별개 이벤트이기 때문이다(04번 4.2절).
-        private void HandleMarkerClicked(int cityId) => assigner.HandleCityClicked(cityId);
+        private void HandleMarkerClicked(int cityId) => destinationAssigner.HandleCityClicked(cityId, routeRepository);
 
         private void HandleMarkerBeginDrag(TripDebugCityMarkerView marker, PointerEventData eventData)
         {
@@ -340,13 +332,13 @@ namespace Game.Core.DebugTools
 
         private static (int, int) RouteKey(int a, int b) => a <= b ? (a, b) : (b, a);
 
-        // 배정이 바뀔 때마다(지정/취소/교환/삭제로 인한 해제) assigner.Changed가 이 메서드를 부른다.
-        // 상태 머신의 모든 전이가 결국 클릭에서 비롯되므로, 여기서 갱신하는 것만으로 "정보 패널은
-        // 클릭이 유일한 트리거"(02번 3.1절) 요구사항이 자연히 성립한다.
-        private void RefreshOriginDestinationDisplay()
+        // 도착지 배정이 바뀔 때마다(지정/취소/변경/삭제로 인한 해제) destinationAssigner.Changed가,
+        // "현재 위치"가 바뀔 때(상행 도착)마다 currentLocationReader.Changed가 이 메서드를 부른다.
+        private void RefreshDestinationDisplay()
         {
-            ShowOrClear(originInfoView, assigner.OriginCityId);
-            ShowOrClear(destinationInfoView, assigner.DestinationCityId);
+            // 출발지 패널은 항상 "현재 위치"를 표시한다(기획 §5) - Clear 분기 없음.
+            originInfoView.Show(BuildLocationInfo(currentLocationReader.CurrentCityId));
+            ShowOrClear(destinationInfoView, destinationAssigner.DestinationCityId);
             RefreshMarkerRoleVisuals();
         }
 
@@ -379,11 +371,11 @@ namespace Game.Core.DebugTools
             foreach (var pair in markersByCityId)
             {
                 TripRole? role = null;
-                if (pair.Key == assigner.OriginCityId)
+                if (pair.Key == currentLocationReader.CurrentCityId)
                 {
                     role = TripRole.Origin;
                 }
-                else if (pair.Key == assigner.DestinationCityId)
+                else if (pair.Key == destinationAssigner.DestinationCityId)
                 {
                     role = TripRole.Destination;
                 }

@@ -45,8 +45,12 @@ namespace Game.Core
         // 상행 시작/종료(허브 복귀) 시 보유 유닛 HP를 리셋하는 데 쓴다(설계 15번) - 없어도(TryResolve
         // 실패) 상행 진행 자체는 정상 동작한다(null-조건부 호출).
         private IUnitConditionRepository unitConditionRepository;
+        // 도착 판정 성립 시 "현재 위치"를 이번 상행의 도착지로 갱신하는 데 쓴다(기획 16번 §4, 설계
+        // 21번 §7) - 없어도(TryResolve 실패) 상행 진행 자체는 정상 동작한다(null-조건부 호출).
+        private ITripCurrentLocationRepository currentLocationRepository;
+        private ITripDestinationAssigner destinationAssigner;
 
-        public void RegisterFieldUI(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository)
+        public void RegisterFieldUI(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository, ITripCurrentLocationRepository currentLocationRepository, ITripDestinationAssigner destinationAssigner)
         {
             var fieldScene = SceneManager.GetSceneByName(SceneNames.Field);
             if (!fieldScene.IsValid())
@@ -80,6 +84,8 @@ namespace Game.Core
             this.sessionState = sessionState;
             this.uiManager = uiManager;
             this.unitConditionRepository = unitConditionRepository;
+            this.currentLocationRepository = currentLocationRepository;
+            this.destinationAssigner = destinationAssigner;
 
             formationButton.onClick.RemoveAllListeners();
             formationButton.onClick.AddListener(() => uiManager.Open(UIPanelIds.Formation));
@@ -145,6 +151,14 @@ namespace Game.Core
         private void HandleArrived()
         {
             unitConditionRepository?.ResetAllToFull(); // 상행 종료(허브 복귀) = 전원 회복(기획 13번 §4-3, 사용자 확정)
+
+            // "현재 위치"를 이번 상행의 도착지로 갱신한다(기획 16번 §4) - 빌드에서는 도착지를 고를
+            // 방법이 없어 DestinationCityId가 항상 null이므로 자연히 아무 일도 일어나지 않는다.
+            if (destinationAssigner?.DestinationCityId is { } destinationCityId)
+            {
+                currentLocationRepository?.SetCurrentCity(destinationCityId);
+                destinationAssigner.Reset(); // 다음 상행 준비 UI가 빈 도착지로 시작하도록.
+            }
 
             // 인카운터 발생 시 FieldEncounterFlowCoordinator.HandleEncounterTriggered가 배치/방향성
             // 지시를 닫는 것과 같은 이유 - 열려있는 채로 도착 팝업이 뜨면 그 위로 안 닫힌 패널이 남는다.
