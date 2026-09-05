@@ -25,14 +25,16 @@ MonoBehaviour:
     Ko: "\uAC00\uC7A5 \uC801\uC740 \uCCB4\uB825 \uC6B0\uC120"
   positioningStrings:
   - Id: 1
-    Ko: "\uB3CC\uACA9"
+    Ko: "\uC811\uADFC \uACF5\uACA9"
   - Id: 2
-    Ko: "\uBC29\uC9C4 \uD615\uC131"
+    Ko: "\uB3CC\uACA9"
   - Id: 3
-    Ko: "\uC790\uB9AC \uC0AC\uC218"
+    Ko: "\uBC29\uC9C4 \uD615\uC131"
   - Id: 4
-    Ko: "\uD3EC\uC704 \uACF5\uACA9"
+    Ko: "\uC790\uB9AC \uC0AC\uC218"
   - Id: 5
+    Ko: "\uD3EC\uC704 \uACF5\uACA9"
+  - Id: 6
     Ko: "\uC0B0\uAC1C \uACF5\uACA9"
   selfPreservationStrings:
   - Id: 1

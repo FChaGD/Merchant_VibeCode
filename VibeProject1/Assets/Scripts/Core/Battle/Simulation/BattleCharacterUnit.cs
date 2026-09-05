@@ -107,7 +107,7 @@ namespace Game.Core
         public BattleCharacterUnit(
             Vector2 startPosition, bool isAlly, BattleUnitStats stats, IDamageFormula damageFormula,
             PartyMorale partyMorale, MoraleWaveCoordinator waveCoordinator, IUnitSpatialQuery spatialQuery, float fleeTravelDistance,
-            UnitTacticsBehaviors tacticsBehaviors = null, Sprite icon = null)
+            UnitTacticsBehaviors tacticsBehaviors = null, Sprite icon = null, float? startingHp = null)
         {
             Position = startPosition;
             IsAlly = isAlly;
@@ -119,7 +119,9 @@ namespace Game.Core
             this.fleeTravelDistance = fleeTravelDistance;
             this.tacticsBehaviors = tacticsBehaviors;
             this.icon = icon;
-            currentHp = stats.MaxHp;
+            // startingHp가 만피를 넘지 않게 방어적으로 clamp - 저장된 체력과 직업 기준 만피가
+            // 항상 일치한다는 보장이 없다(설계 23번 §1, 기획 18번).
+            currentHp = Mathf.Clamp(startingHp ?? stats.MaxHp, 0f, stats.MaxHp);
         }
 
         public void Tick(float deltaTime, IReadOnlyList<IDamageable> targets, IReadOnlyList<IBattleCombatant> sameSideUnits)

@@ -193,13 +193,14 @@ namespace Game.Core
                 var position = FieldPositionLayout.ComputeAllyPosition(column, row, layout.ColumnCount);
                 var stats = statProvider.GetStats(mercenaryClass);
 
-                // 저장된 HP가 있으면(상행 중 이전 전투에서 입은 피해) 이번 전투의 MaxHp를 그 값으로
-                // 교체한다(설계 15번 §1/§3a) - 인-배틀 회복 수단이 없는 현재 범위에선 "저장된 HP"와
-                // "이번 전투에서 낼 수 있는 최대치"가 항상 같은 값이라 BattleUnitStats/BattleCharacterUnit
-                // 자체는 건드리지 않아도 된다.
-                if (unitConditionRepository != null && unitConditionRepository.TryGetCurrentHp(unitId, out var currentHp))
+                // 저장된 HP가 있으면(상행 중 이전 전투에서 입은 피해) 이번 전투의 시작 체력으로 쓴다 -
+                // 만피(stats.MaxHp)는 직업 기준 고정값 그대로 두고 건드리지 않는다(설계 23번 §1/§2,
+                // 기획 18번). 체력 게이지바가 항상 풀피로 보이던 문제(만피 자체가 저장값으로 재정의됨)의
+                // 정정.
+                float? startingHp = null;
+                if (unitConditionRepository != null && unitConditionRepository.TryGetCurrentHp(unitId, out var savedHp))
                 {
-                    stats = new BattleUnitStats(currentHp, stats.Attack, stats.Defense, stats.MoveSpeed, stats.AttackInterval, stats.Range, stats.MoraleSyncRate, stats.HpRegenPerSecond, stats.EnemyType);
+                    startingHp = savedHp;
                 }
 
                 // 배치 슬롯 좌표(position)가 곧 방향성 지시의 HomePosition이다 - "정비창 슬롯 좌표"라는
@@ -211,7 +212,7 @@ namespace Game.Core
                     tacticsBehaviors = UnitTacticsBehaviorsFactory.Build(profile, standardActivityRadius, fieldRadius, spatialQuery, frontlineCoordinator, rangedSurroundCoordinator);
                 }
 
-                var characterUnit = new BattleCharacterUnit(position, isAlly: true, stats, damageFormula, allyMorale, allyWaveCoordinator, spatialQuery, fleeTravelDistance, tacticsBehaviors);
+                var characterUnit = new BattleCharacterUnit(position, isAlly: true, stats, damageFormula, allyMorale, allyWaveCoordinator, spatialQuery, fleeTravelDistance, tacticsBehaviors, startingHp: startingHp);
                 allies.Add(characterUnit);
                 allyUnitIds.Add((unitId, characterUnit));
             }
