@@ -1,4 +1,5 @@
-namespace Game.Core.Editor
+#if UNITY_EDITOR
+namespace Game.Core
 {
     /// <summary>
     /// ScriptableObject 테이블 자산 경로의 단일 소스. 각 임포터(Tools/Game/Table/Import ...)가 만드는
@@ -6,8 +7,14 @@ namespace Game.Core.Editor
     /// 각자 같은 경로 문자열을 최대 3중으로 중복 선언하던 문제를 해소한다
     /// (Docs/Refactor/2026-09-08_공통.md 확장성 문제점 1). 폴더명의 "ScriptableObejct" 오타는 자산
     /// 리네임(GUID/씬 참조 영향)이 필요한 별도 작업이라 이번엔 그대로 옮겨왔다.
+    ///
+    /// 소비처가 전부 Editor 전용 API(AssetDatabase.LoadAssetAtPath 등)뿐이라 원래 Game.Core.Editor
+    /// 어셈블리에 있었으나, 런타임 어셈블리(Game.Core)의 TripCityMapPersistence(Core/Debug/Trip/)도
+    /// 같은 경로를 참조해야 해서 Game.Core로 내려왔다 - asmdef 참조가 Game.Core.Editor→Game.Core
+    /// 단방향이라 역방향 참조는 불가능하기 때문(Docs/Refactor/2026-08-26-리팩토링_점검_컨벤션.md 다음
+    /// 라운드 후보). #if UNITY_EDITOR로 감싸 플레이어 빌드에는 포함되지 않게 한다.
     /// </summary>
-    internal static class TableAssetPaths
+    public static class TableAssetPaths
     {
         private const string Folder = "Assets/Prefabs/ScriptableObejct";
 
@@ -25,3 +32,4 @@ namespace Game.Core.Editor
         public const string TripCityStringsTable = Folder + "/TripCityStringsTable.asset";
     }
 }
+#endif

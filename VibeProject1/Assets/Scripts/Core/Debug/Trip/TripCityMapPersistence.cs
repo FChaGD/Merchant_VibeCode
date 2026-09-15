@@ -25,10 +25,10 @@ namespace Game.Core.DebugTools
     {
         // 워크북(사람이 편집하는 원본)과 컴파일된 SO 에셋(임포터 산출물)은 다른 데이터 테이블과 같은
         // 관례로 분리한다 - Assets/Table/ = 워크북, Assets/Prefabs/ScriptableObejct/ = 컴파일된 SO
-        // (설계 20번 §4, 기획 14번 §6.3의 도메인 폴더 관례와 통일).
+        // (설계 20번 §4, 기획 14번 §6.3의 도메인 폴더 관례와 통일). SO 에셋 경로는 TableAssetPaths(단일
+        // 소스, Core/Table/)를 참조한다 - 예전엔 여기 따로 하드코딩돼 있었다(Docs/Refactor/
+        // 2026-08-26-리팩토링_점검_컨벤션.md 다음 라운드 후보).
         private const string WorkbookRelativePath = "Trip/TripCityMap.xlsx";
-        private const string AssetPath = "Assets/Prefabs/ScriptableObejct/TripCityMap.asset";
-        private const string StringsAssetPath = "Assets/Prefabs/ScriptableObejct/TripCityStringsTable.asset";
 
         public static void Save(ITripCityReader cities, ITripRouteRepository routes)
         {
@@ -146,13 +146,13 @@ namespace Game.Core.DebugTools
 
         public static bool TryLoad(out TripCityMapAsset asset)
         {
-            asset = AssetDatabase.LoadAssetAtPath<TripCityMapAsset>(AssetPath);
+            asset = AssetDatabase.LoadAssetAtPath<TripCityMapAsset>(TableAssetPaths.TripCityMap);
             return asset != null;
         }
 
         public static bool TryLoadStrings(out TripCityStringsTableAsset asset)
         {
-            asset = AssetDatabase.LoadAssetAtPath<TripCityStringsTableAsset>(StringsAssetPath);
+            asset = AssetDatabase.LoadAssetAtPath<TripCityStringsTableAsset>(TableAssetPaths.TripCityStringsTable);
             return asset != null;
         }
     }
