@@ -6,7 +6,7 @@ namespace Game.Core
     /// 배틀 테스트 씬 전용 - 고정 스폰 포인트(BattleFieldGeometry.SpawnPointCount=12) 각각에 "전투
     /// 시작 시 이 지점에서 타입별로 몇 마리가 나온다"는 예약만 저장하는 순수 데이터 홀더. 한 지점에
     /// 여러 타입을 동시에 예약할 수 있다(적 구성 편집 패널과 같은 "타입별 개수" 입력 방식, 사용자
-    /// 요청: "각 타입 옆에 숫자 입력칸"). 로스터(BattleTestEnemyRoster)와 별개다 - 여기 기록한다고
+    /// 요청: "각 타입 옆에 숫자 입력칸"). 적 로스터(BattleTestRoster)와 별개다 - 여기 기록한다고
     /// 바로 필드에 유닛이 보이지 않는다(사용자 확인: "전투 시작 전 예약" 방식).
     /// BattleTestSimulationRule.Evaluate()가 전투를 시작할 때만 이 예약을 로스터 엔트리로 변환한다.
     /// </summary>

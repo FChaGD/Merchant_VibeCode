@@ -53,7 +53,7 @@ namespace Game.Core
             battleController = registrar.Resolve<IBattleController>();
             var simulationEvents = registrar.Resolve<IBattleSimulationEvents>();
             viewPresenter.Bind(simulationEvents);
-            // 전투 중 신규 소환 유령(설계 25번 §6.3)은 이 씬 전용 SpawnAlly/OnUnitAdded 경로가
+            // 전투 중 신규 소환 유령(설계 25번 §6.3)은 이 씬 전용 Spawn/OnUnitAdded 경로가
             // 대신하므로(§1 클래스 요약 주석) null로 배선한다 - BattleViewPresenter가 null이면
             // 그 기능만 자연히 비활성화된다.
             viewPresenter.RebindViews(allyContainer, enemyContainer, characterViewPrefab, protectedViewPrefab, null, cameraView, backgroundView);

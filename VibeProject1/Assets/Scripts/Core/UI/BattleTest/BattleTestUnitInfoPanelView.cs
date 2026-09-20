@@ -64,19 +64,7 @@ namespace Game.Core
 
         private BattleUnitStats ResolveCurrentStats(BattleTestUnitClickTarget target)
         {
-            if (target.IsAlly)
-            {
-                if (simulationRule.AllyRoster.TryGet(target.EntryId, out var entry))
-                {
-                    return entry.StatsOverride ?? simulationRule.GetAllyDefaultStats(entry.Class);
-                }
-            }
-            else if (simulationRule.EnemyRoster.TryGet(target.EntryId, out var entry))
-            {
-                return entry.StatsOverride ?? simulationRule.GetEnemyDefaultStats(entry.Type);
-            }
-
-            return default;
+            return simulationRule.TryGetCurrentStats(target.IsAlly, target.EntryId, out var stats) ? stats : default;
         }
 
         private void HandleApplyClicked()
@@ -94,8 +82,7 @@ namespace Game.Core
                 hpRegenPerSecond: originalStats.HpRegenPerSecond,
                 enemyType: originalStats.EnemyType);
 
-            if (currentTarget.IsAlly) simulationRule.SetAllyStatsOverride(currentTarget.EntryId, stats);
-            else simulationRule.SetEnemyStatsOverride(currentTarget.EntryId, stats);
+            simulationRule.SetStatsOverride(currentTarget.IsAlly, currentTarget.EntryId, stats);
 
             Hide();
         }
@@ -104,8 +91,7 @@ namespace Game.Core
         {
             if (currentTarget == null) return;
 
-            if (currentTarget.IsAlly) simulationRule.RemoveAlly(currentTarget.EntryId);
-            else simulationRule.RemoveEnemy(currentTarget.EntryId);
+            simulationRule.RemoveUnit(currentTarget.IsAlly, currentTarget.EntryId);
 
             Destroy(currentTarget.gameObject);
             Hide();

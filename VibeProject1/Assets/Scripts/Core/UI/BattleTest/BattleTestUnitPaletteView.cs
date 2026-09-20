@@ -6,7 +6,7 @@ namespace Game.Core
 {
     /// <summary>
     /// 아군 3종(전사/궁수/방패병) + 적 3종(약탈자/괴수/적대자) 아이콘을 한 줄에 배치한다. 아이콘을
-    /// 전장으로 드래그하면 ILiveUnitSpawner.SpawnAlly/SpawnEnemy를 호출한다 - 세팅 단계인지 전투
+    /// 전장으로 드래그하면 ILiveUnitSpawner.Spawn을 호출한다 - 세팅 단계인지 전투
     /// 진행 중인지는 이 클래스가 몰라도 된다(ILiveUnitSpawner 구현체가 알아서 분기).
     /// FormationDragCoordinator(정비창)와 같은 "고스트를 화면 좌표로 드래그" 패턴이지만, 이 팔레트는
     /// 소비자가 하나뿐이라 별도 코디네이터 없이 이 클래스가 직접 드래그를 처리한다.
@@ -76,8 +76,7 @@ namespace Game.Core
             if (draggingSource != null && cameraView != null && spawner != null)
             {
                 var worldPos = cameraView.ScreenToWorld(eventData.position);
-                if (draggingSource.IsAlly) spawner.SpawnAlly(draggingSource.MercenaryClass, worldPos);
-                else spawner.SpawnEnemy(draggingSource.EnemyType, worldPos);
+                spawner.Spawn(draggingSource.Kind, worldPos);
             }
 
             draggingSource = null;

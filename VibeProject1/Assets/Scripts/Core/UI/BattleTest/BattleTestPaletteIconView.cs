@@ -23,9 +23,9 @@ namespace Game.Core
         [SerializeField] private MercenaryClass mercenaryClass;
         [SerializeField] private EnemyType enemyType;
 
-        public bool IsAlly => isAlly;
-        public MercenaryClass MercenaryClass => mercenaryClass;
-        public EnemyType EnemyType => enemyType;
+        // 진영별로 갈라진 직렬화 필드(씬 저장 호환)를 통일 식별자로 바꿔 주는 유일한 지점 - 소비자는
+        // 진영 분기 없이 이 값만 쓴다(Docs/설계/28번).
+        public BattleTestUnitKind Kind => isAlly ? BattleTestUnitKind.Ally(mercenaryClass) : BattleTestUnitKind.Enemy(enemyType);
         public Sprite Icon => iconImage != null ? iconImage.sprite : null;
 
         private Action<BattleTestPaletteIconView, PointerEventData> onBeginDrag;
