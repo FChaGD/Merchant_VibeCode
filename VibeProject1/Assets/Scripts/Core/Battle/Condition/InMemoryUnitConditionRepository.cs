@@ -24,7 +24,7 @@ namespace Game.Core
 
         public void RegisterSelf(IDependencyRegistrar registrar) => registrar.Register<IUnitConditionRepository>(this);
 
-        public void ResolveDependencies(IDependencyRegistrar registrar) => registrar.TryResolve(out rosterProvider);
+        public void ResolveDependencies(IDependencyResolver registrar) => registrar.TryResolve(out rosterProvider);
 
         public bool TryGetCurrentHp(string unitId, out float currentHp) => currentHpById.TryGetValue(unitId, out currentHp);
 

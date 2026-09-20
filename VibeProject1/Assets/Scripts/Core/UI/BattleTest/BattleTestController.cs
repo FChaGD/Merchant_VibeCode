@@ -42,7 +42,7 @@ namespace Game.Core
 
         private readonly BattleViewPresenter viewPresenter = new();
 
-        private IDependencyRegistrar registrar;
+        private IDependencyResolver registrar;
         private IBattleController battleController;
         private IUIManager uiManager;
 
@@ -51,7 +51,7 @@ namespace Game.Core
             // 이 씬 안에서만 쓰이는 조율자라 등록할 인터페이스가 없다.
         }
 
-        public void ResolveDependencies(IDependencyRegistrar registrar)
+        public void ResolveDependencies(IDependencyResolver registrar)
         {
             this.registrar = registrar;
 

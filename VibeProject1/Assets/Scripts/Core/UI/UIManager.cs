@@ -6,7 +6,7 @@ namespace Game.Core
 {
     public class UIManager : MonoBehaviour, IUIManager, IPanelRegistrar, IManagedComponent
     {
-        private IDependencyRegistrar registrar;
+        private IDependencyResolver registrar;
         private ISceneLoader sceneLoader;
 
         private readonly Dictionary<string, IUIPanel> panelsById = new();
@@ -18,7 +18,7 @@ namespace Game.Core
             registrar.Register<IUIManager>(this);
         }
 
-        public void ResolveDependencies(IDependencyRegistrar registrar)
+        public void ResolveDependencies(IDependencyResolver registrar)
         {
             this.registrar = registrar;
 

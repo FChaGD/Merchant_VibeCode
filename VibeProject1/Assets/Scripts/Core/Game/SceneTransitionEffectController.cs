@@ -37,7 +37,7 @@ namespace Game.Core
             registrar.Register<ISceneRevealSignal>(this);
         }
 
-        public void ResolveDependencies(IDependencyRegistrar registrar)
+        public void ResolveDependencies(IDependencyResolver registrar)
         {
             sceneLoader = registrar.Resolve<ISceneLoader>();
 

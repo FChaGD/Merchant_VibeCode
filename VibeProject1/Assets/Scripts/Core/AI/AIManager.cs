@@ -12,7 +12,7 @@ namespace Game.Core
             registrar.Register<IAIManager>(this);
         }
 
-        public void ResolveDependencies(IDependencyRegistrar registrar)
+        public void ResolveDependencies(IDependencyResolver registrar)
         {
             // TODO: AIProfileComponent 연결 - 하위 컴포넌트 설계 후 구현
         }

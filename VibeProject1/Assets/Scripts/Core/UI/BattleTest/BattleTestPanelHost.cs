@@ -20,7 +20,7 @@ namespace Game.Core
             registrar.Register<IUIManager>(this);
         }
 
-        public void ResolveDependencies(IDependencyRegistrar registrar)
+        public void ResolveDependencies(IDependencyResolver registrar)
         {
             // 이 씬은 콘텐츠 씬 전환이 없어 IContentSceneUIWiring 수집/위임이 필요 없다 -
             // BattleTestController가 FormationPanel/TacticsPanel을 직접 등록한다.

@@ -15,7 +15,7 @@ namespace Game.Core
             registrar.Register<IFormationRepository>(this);
         }
 
-        public void ResolveDependencies(IDependencyRegistrar registrar)
+        public void ResolveDependencies(IDependencyResolver registrar)
         {
             // 다른 매니저에 대한 의존성이 없다.
         }

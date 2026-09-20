@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Game.Core
 {
-    public class DependencyManager : MonoBehaviour, IDependencyRegistrar, IManagedComponent
+    public class DependencyManager : MonoBehaviour, IDependencyRegistrar, IDependencyResolver, IManagedComponent
     {
         [Tooltip("IManagedComponent를 구현한 매니저 컴포넌트만 등록한다.")]
         [SerializeField] private List<MonoBehaviour> managedComponents = new();
@@ -71,7 +71,7 @@ namespace Game.Core
             // DependencyManager 자신이 레지스트라이므로 등록할 인터페이스가 없다.
         }
 
-        public void ResolveDependencies(IDependencyRegistrar registrar)
+        public void ResolveDependencies(IDependencyResolver registrar)
         {
             // DependencyManager는 다른 매니저에 대한 의존성이 없다.
         }

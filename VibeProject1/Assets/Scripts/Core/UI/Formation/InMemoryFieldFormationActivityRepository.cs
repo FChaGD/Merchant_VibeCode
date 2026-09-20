@@ -29,7 +29,7 @@ namespace Game.Core
             registrar.Register<IFieldFormationActivityRepository>(this);
         }
 
-        public void ResolveDependencies(IDependencyRegistrar registrar)
+        public void ResolveDependencies(IDependencyResolver registrar)
         {
             registrar.TryResolve<IFormationRepository>(out formationRepository);
         }

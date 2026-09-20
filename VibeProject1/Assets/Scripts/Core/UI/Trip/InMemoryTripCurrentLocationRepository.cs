@@ -23,7 +23,7 @@ namespace Game.Core
 
         public void RegisterSelf(IDependencyRegistrar registrar) => registrar.Register<ITripCurrentLocationRepository>(this);
 
-        public void ResolveDependencies(IDependencyRegistrar registrar)
+        public void ResolveDependencies(IDependencyResolver registrar)
         {
         }
 

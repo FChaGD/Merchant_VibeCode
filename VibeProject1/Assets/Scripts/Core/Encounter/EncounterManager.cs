@@ -24,7 +24,7 @@ namespace Game.Core
             registrar.Register<IEncounterManager>(this);
         }
 
-        public void ResolveDependencies(IDependencyRegistrar registrar)
+        public void ResolveDependencies(IDependencyResolver registrar)
         {
             // Pause()만 쓰던 기존 의존성(ISessionPauseControl)을, 주기 판정에 OnProgressChanged 구독이
             // 필요해진 지금 ISessionState 전체로 확장했다(Docs/설계/05-2026-08-25-인카운터_판정_아키텍처.md §3, §6 ISP 재검토).

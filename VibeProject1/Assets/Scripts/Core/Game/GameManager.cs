@@ -23,7 +23,7 @@ namespace Game.Core
             registrar.Register<ISessionPauseControl>(sessionState);
         }
 
-        public void ResolveDependencies(IDependencyRegistrar registrar)
+        public void ResolveDependencies(IDependencyResolver registrar)
         {
             // 씬 전환 실행·연출은 SceneTransitionEffectController의 책임 — GameManager는 요청을
             // 그대로 전달만 한다(Docs/설계/10-2026-08-26-씬전환_연출_아키텍처.md §7).

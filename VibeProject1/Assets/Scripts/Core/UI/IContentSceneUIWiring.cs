@@ -10,6 +10,6 @@ namespace Game.Core
     {
         ContentSceneId SceneId { get; }
 
-        void Wire(IDependencyRegistrar registrar, IUIManager uiManager, IPanelRegistrar panelRegistrar);
+        void Wire(IDependencyResolver registrar, IUIManager uiManager, IPanelRegistrar panelRegistrar);
     }
 }

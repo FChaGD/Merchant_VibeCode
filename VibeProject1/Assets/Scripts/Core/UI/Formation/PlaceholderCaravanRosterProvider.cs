@@ -28,7 +28,7 @@ namespace Game.Core
             registrar.Register<ICaravanRosterProvider>(this);
         }
 
-        public void ResolveDependencies(IDependencyRegistrar registrar)
+        public void ResolveDependencies(IDependencyResolver registrar)
         {
             roster = new List<IFormationUnit>();
             AddMercenaryInstances(roster, "character-warrior", "전사", warriorIcon, MercenaryClass.Warrior);

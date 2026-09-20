@@ -24,7 +24,7 @@ namespace Game.Core
             registrar.Register<ISceneLoader>(this);
         }
 
-        public void ResolveDependencies(IDependencyRegistrar registrar)
+        public void ResolveDependencies(IDependencyResolver registrar)
         {
             // 매니징 컴포넌트 초기설정이 끝난 직후 지정된 콘텐츠 씬으로 최초 전환한다.
             Transition(initialScene.ToString());

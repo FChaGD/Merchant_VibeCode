@@ -23,7 +23,7 @@ namespace Game.Core
             registrar.Register<IBattleSimulationEvents>(this);
         }
 
-        public void ResolveDependencies(IDependencyRegistrar registrar)
+        public void ResolveDependencies(IDependencyResolver registrar)
         {
             // 승패 판정을 IBattleResultRule 전략에 위임한다(OCP 확장점) - 실제 전투 로직이 생겨도
             // PlaceholderBattleResultRule 교체만으로 끝나고 BattleManager는 무변경으로 유지된다.

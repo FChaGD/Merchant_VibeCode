@@ -23,7 +23,7 @@ namespace Game.Core
         // ITripCurrentLocationReader 자체는 DI에 등록되지 않는다 - InMemoryTripCurrentLocationRepository는
         // ITripCurrentLocationRepository로만 등록되므로 그 타입으로 조회해 읽기 전용 필드에 대입한다
         // (IFormationReader/IFormationRepository와 같은 판단 기준, CLAUDE.md 참고).
-        public void ResolveDependencies(IDependencyRegistrar registrar) => currentLocationReader = registrar.Resolve<ITripCurrentLocationRepository>();
+        public void ResolveDependencies(IDependencyResolver registrar) => currentLocationReader = registrar.Resolve<ITripCurrentLocationRepository>();
 
         public void HandleCityClicked(int cityId, ITripRouteReader routeReader)
         {
