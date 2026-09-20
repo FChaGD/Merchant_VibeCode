@@ -3,41 +3,32 @@ using UnityEngine;
 namespace Game.Core
 {
     /// <summary>
-    /// BattleFieldWorldCameraView 전용 커서 고정 줌+드래그팬+경계 클램프 계산(순수 C#, MonoBehaviour가
+    /// BattleFieldWorldCameraView 전용 커서 고정 줌+드래그팬 계산(순수 C#, MonoBehaviour가
     /// 아닌 이유는 ScrollRectZoomController와 같음 - 테스트 용이성, View 생명주기와 분리). 09번 설계의
-    /// ScrollRectZoomController와 같은 규칙(최소 줌=여백 없이 전장이 화면을 채우는 지점, 최대 줌=최소
-    /// 줌×2.5, 커서 고정 줌, 드래그팬, 경계 하드 클램프)을 Orthographic 카메라 좌표계로 재유도했다
-    /// (Docs/설계/13번 §7) - RectTransform.localScale은 클수록 확대지만 Camera.orthographicSize는
-    /// 작을수록 확대라 관계가 반대다. 공식을 그대로 옮기지 않고 다시 유도했으니, 이 클래스를 고칠 땐
-    /// ScrollRectZoomController를 그대로 베끼지 말 것.
+    /// ScrollRectZoomController와 같은 규칙(최소 줌=여백 없이 전장이 화면을 채우는 지점, 커서 고정 줌,
+    /// 드래그팬)을 Orthographic 카메라 좌표계로 재유도했다(Docs/설계/13번 §7) - RectTransform.localScale은
+    /// 클수록 확대지만 Camera.orthographicSize는 작을수록 확대라 관계가 반대다. 공식을 그대로 옮기지 않고
+    /// 다시 유도했으니, 이 클래스를 고칠 땐 ScrollRectZoomController를 그대로 베끼지 말 것.
+    /// 줌 한계와 이동 범위 규칙은 씬마다 달라서 CameraBehaviors(축별 정책 조합)로 주입받는다
+    /// (Docs/설계/27번) - 이 클래스는 상태 소유와 좌표 계산만 하고 씬별 분기를 갖지 않는다.
     /// </summary>
     internal class OrthographicCameraZoomController
     {
         private const float ZoomStep = 0.1f;
 
-        private readonly float zoomInRatio;
-        // 배틀 테스트 씬 전용 확장 - 기본값 1이면 기존 동작과 완전히 동일하다(베이스라인보다 더 못
-        // 넓힘). Field 씬은 이 값을 바꿀 방법 자체가 없어(BattleFieldWorldCameraView.Awake가 고정
-        // 생성자만 씀) 영향이 없다.
-        private readonly float zoomOutRatio;
-        // 배틀 테스트 씬 전용 확장 - true(기본값)면 기존 동작 그대로(전장 정사각형 밖으로 못 나감).
-        // 테스트 씬은 이 제약 자체를 없애고 싶다는 요구라 false로 구성해 ClampPosition의 X/Y 클램프를
-        // 건너뛴다. Field 씬은 이 값을 바꿀 방법이 없어 영향이 없다.
-        private readonly bool clampToField;
+        private readonly CameraBehaviors behaviors;
         private Camera targetCamera;
         private float fieldRadius;
-        // 전장 전체가 여백 없이 보이는 기준 줌(=orthographicSize). 이름을 minSize→baselineSize로
-        // 바꿨다 - zoomOutRatio 도입으로 "최소 줌(가장 넓게)"이 더 이상 이 값이 아니게 됐다.
+        // 전장 전체가 여백 없이 보이는 기준 줌(=orthographicSize). 줌 범위 정책에 따라 "가장 넓게 보이는
+        // 줌"이 이 값과 다를 수 있어 minSize가 아니라 baselineSize라 부른다.
         private float baselineSize = 1f;
         private float zoomedInLimit = 1f;
         private float zoomedOutLimit = 1f;
         private float currentSize = 1f;
 
-        public OrthographicCameraZoomController(float zoomInRatio, float zoomOutRatio = 1f, bool clampToField = true)
+        public OrthographicCameraZoomController(CameraBehaviors behaviors)
         {
-            this.zoomInRatio = zoomInRatio;
-            this.zoomOutRatio = Mathf.Max(1f, zoomOutRatio);
-            this.clampToField = clampToField;
+            this.behaviors = behaviors;
         }
 
         public void Bind(Camera camera)
@@ -45,8 +36,6 @@ namespace Game.Core
             targetCamera = camera;
         }
 
-        // 배틀 테스트 씬의 유닛 팔레트 드래그 고스트가 현재 줌 배율에 맞춰 자기 크기를 계산할 때 쓴다 -
-        // 순수 접근성 확장, 기존 팬/줌 동작에는 영향 없음.
         public float CurrentSize => currentSize;
 
         /// <summary>
@@ -60,12 +49,10 @@ namespace Game.Core
             if (targetCamera == null || fieldRadius <= 0f) return;
 
             this.fieldRadius = fieldRadius;
-            var aspect = targetCamera.aspect;
-            baselineSize = fieldRadius / Mathf.Max(1f, aspect);
-            // orthographicSize는 작을수록 확대이므로, UGUI 버전의 "minZoom*ratio"(곱하기)가 아니라
-            // 나누기로 더 작은(더 확대된) 값을 얻는다.
-            zoomedInLimit = baselineSize / zoomInRatio;
-            zoomedOutLimit = baselineSize * zoomOutRatio;
+            baselineSize = fieldRadius / Mathf.Max(1f, targetCamera.aspect);
+            var range = behaviors.ZoomRange.Compute(CaptureState());
+            zoomedInLimit = range.ZoomedIn;
+            zoomedOutLimit = range.ZoomedOut;
             currentSize = Mathf.Clamp(currentSize, zoomedInLimit, zoomedOutLimit);
             ApplySize(currentSize);
             ClampPosition();
@@ -119,8 +106,6 @@ namespace Game.Core
             ClampPosition();
         }
 
-        // 배틀 테스트 씬의 팔레트 드래그-드롭(화면 좌표 → 전장 월드 좌표 변환)이 재사용할 수 있도록
-        // BattleFieldWorldCameraView.ScreenToWorld를 통해 노출한다(순수 접근성 확장, 계산 로직 불변).
         public Vector3 ScreenToWorld(Vector2 screenPoint)
         {
             var screenPoint3 = new Vector3(screenPoint.x, screenPoint.y, -targetCamera.transform.position.z);
@@ -129,22 +114,17 @@ namespace Game.Core
 
         private void ApplySize(float size) => targetCamera.orthographicSize = size;
 
-        // 카메라가 보는 범위가 전장 정사각형(중심 원점, 한 변 fieldRadius*2) 밖으로 나가지 않게 위치를
-        // 클램프한다 - UGUI 버전의 ClampPosition과 대응되지만, 콘텐츠가 아니라 카메라 시야 자체를
-        // 경계 안에 가두는 반대 방향 계산이다.
+        private CameraViewState CaptureState()
+            => new CameraViewState(baselineSize, currentSize, fieldRadius, targetCamera.aspect);
+
+        // 위치 보정 규칙은 이동 범위 정책이 정한다. 카메라 Z는 정책이 모르므로 여기서 유지한다.
         private void ClampPosition()
         {
-            if (targetCamera == null || !clampToField) return;
-
-            var halfHeight = currentSize;
-            var halfWidth = currentSize * targetCamera.aspect;
-            var maxOffsetX = Mathf.Max(fieldRadius - halfWidth, 0f);
-            var maxOffsetY = Mathf.Max(fieldRadius - halfHeight, 0f);
+            if (targetCamera == null) return;
 
             var pos = targetCamera.transform.position;
-            pos.x = Mathf.Clamp(pos.x, -maxOffsetX, maxOffsetX);
-            pos.y = Mathf.Clamp(pos.y, -maxOffsetY, maxOffsetY);
-            targetCamera.transform.position = pos;
+            var clamped = behaviors.PanBounds.ClampPosition(new Vector2(pos.x, pos.y), CaptureState());
+            targetCamera.transform.position = new Vector3(clamped.x, clamped.y, pos.z);
         }
     }
 }

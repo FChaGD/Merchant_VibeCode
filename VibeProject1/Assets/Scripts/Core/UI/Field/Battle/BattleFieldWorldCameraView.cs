@@ -12,8 +12,6 @@ namespace Game.Core
     /// </summary>
     public class BattleFieldWorldCameraView : MonoBehaviour
     {
-        private const float MaxZoomRatio = 2.5f; // 기획 09번 §3.2 확정값 - UGUI 버전과 동일 규칙.
-
         private OrthographicCameraZoomController zoomController;
 
         private void Awake()
@@ -22,8 +20,7 @@ namespace Game.Core
             // 재사용하는 Main Camera가 이미 Orthographic이지만(§6 확인됨), 씬 설정이 실수로 바뀌어도
             // 이 뷰가 스스로 강제해 조용히 깨지지 않게 한다.
             battleCamera.orthographic = true;
-            zoomController = new OrthographicCameraZoomController(MaxZoomRatio);
-            zoomController.Bind(battleCamera);
+            BindZoomController(CameraPreset.Field);
         }
 
         /// <summary>
@@ -40,22 +37,21 @@ namespace Game.Core
 
         public void ApplyDrag(Vector2 screenDelta) => zoomController.ApplyDrag(screenDelta);
 
-        // 배틀 테스트 씬의 유닛 팔레트 드래그-드롭이 놓는 지점(화면 좌표)을 전장 월드 좌표로 바꿀 때
-        // 쓴다 - 순수 추가, 기존 팬/줌 동작에는 영향 없음.
+        // 화면 좌표를 전장 월드 좌표로 바꾼다 - 순수 조회, 카메라 상태를 바꾸지 않는다.
         public Vector2 ScreenToWorld(Vector2 screenPoint) => zoomController.ScreenToWorld(screenPoint);
 
-        // 배틀 테스트 씬의 유닛 팔레트 드래그 고스트 크기를 현재 줌 배율에 동기화할 때 쓴다 - 순수
-        // 접근성 확장, 기존 팬/줌 동작에는 영향 없음.
+        // 현재 줌 배율에 해당하는 orthographicSize - 순수 조회.
         public float CurrentOrthographicSize => zoomController.CurrentSize;
 
-        // 배틀 테스트 씬 전용 - 기준 줌보다 더 넓게 줌아웃할 수 있게 범위를 넓히고(요구사항: 기준의
-        // 3배까지 넓게, 1/2배까지 확대), 전장 밖으로 드래그팬이 막히는 제약도 없앨 수 있다
-        // (clampToField=false). Field 씬은 이 메서드를 호출하지 않으므로 Awake()가 만든 기본
-        // 컨트롤러(zoomOutRatio=1, clampToField=true, 기존 동작)를 그대로 쓴다 - 순수 추가, 실제
-        // 게임 영향 없음.
-        public void ConfigureZoomRange(float zoomInRatio, float zoomOutRatio, bool clampToField = true)
+        /// <summary>
+        /// 줌 범위/이동 범위 정책 조합을 프리셋으로 교체한다(Docs/설계/27번). 호출하지 않으면 Awake가 잡은
+        /// Field 프리셋 그대로다. 컨트롤러를 새로 만들므로 첫 ConfigureFieldBounds 이전에 호출해야 한다.
+        /// </summary>
+        public void ApplyPreset(CameraPreset preset) => BindZoomController(preset);
+
+        private void BindZoomController(CameraPreset preset)
         {
-            zoomController = new OrthographicCameraZoomController(zoomInRatio, zoomOutRatio, clampToField);
+            zoomController = new OrthographicCameraZoomController(CameraBehaviorsFactory.Build(preset));
             zoomController.Bind(GetComponent<Camera>());
         }
     }

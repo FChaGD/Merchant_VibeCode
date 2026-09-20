@@ -35,11 +35,6 @@ namespace Game.Core
         // 직접 연결한다(ManagerHierarchyInstaller의 WireFieldBattleViewPrefabs와 같은 패턴).
         [SerializeField] private BattleTestSimulationRule battleTestSimulation;
 
-        // 요구사항: 기준 줌의 3배까지 넓게, 1/2배(orthographicSize 절반)까지 확대. Field 씬은
-        // BattleFieldWorldCameraView.ConfigureZoomRange를 호출하지 않아 기존 동작 그대로다.
-        private const float CameraZoomInRatio = 2f;
-        private const float CameraZoomOutRatio = 3f;
-
         private readonly BattleViewPresenter viewPresenter = new();
 
         private IDependencyResolver registrar;
@@ -97,9 +92,9 @@ namespace Game.Core
             // 세팅 단계(전투 시작 전)에도 카메라 팬/줌이 동작해야 하므로, 첫 전투가 시작되기 전에
             // 미리 한 번 경계를 잡아둔다(안 하면 RecomputeBounds가 한 번도 안 불려 팬/줌이 원점에
             // 고정된다) - 실제 전투가 시작되면 BattleViewPresenter.Present()가 그 시점의 fieldRadius로
-            // 다시 정확하게 잡아준다. clampToField:false - 요구사항: 이 씬은 전장 정사각형 밖으로도
-            // 자유롭게 드래그팬할 수 있어야 한다(Field 씬은 이 메서드를 안 불러 기존 제약 그대로).
-            cameraView.ConfigureZoomRange(CameraZoomInRatio, CameraZoomOutRatio, clampToField: false);
+            // 다시 정확하게 잡아준다. BattleTest 프리셋 - 요구사항: 이 씬은 전장 정사각형 밖으로도
+            // 자유롭게 드래그팬할 수 있어야 한다(Field 씬은 프리셋을 안 바꿔 기존 제약 그대로).
+            cameraView.ApplyPreset(CameraPreset.BattleTest);
             var columnCount = battleTestSimulation.FieldLayout.ColumnCount;
             cameraView.ConfigureFieldBounds(battleTestSimulation.FieldLayout.ComputeFieldRadius(columnCount));
 
