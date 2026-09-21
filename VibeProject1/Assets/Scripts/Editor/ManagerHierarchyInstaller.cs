@@ -30,6 +30,7 @@ namespace Game.Core.Editor
             nameof(InMemoryTripCurrentLocationRepository),
             nameof(TripDestinationAssigner),
             nameof(InMemoryFieldFormationActivityRepository),
+            nameof(InMemoryPlayerCurrencyWallet),
         };
 
         [MenuItem("Tools/Game/Build Bootstrap Scene")]
@@ -198,6 +199,10 @@ namespace Game.Core.Editor
             // 같은 성격의 인메모리 저장소.
             var fieldFormationActivityRepository = EditorUIBuilder.GetOrCreateManager<InMemoryFieldFormationActivityRepository>(uiManager.transform, nameof(InMemoryFieldFormationActivityRepository));
 
+            // 재화 지갑(기획 23/26번, 설계 29번) - 기본 소지 재화만 관리, formationRepository와 같은
+            // 성격의 인메모리 저장소.
+            var playerCurrencyWallet = EditorUIBuilder.GetOrCreateManager<InMemoryPlayerCurrencyWallet>(uiManager.transform, nameof(InMemoryPlayerCurrencyWallet));
+
             return new MonoBehaviour[]
             {
                 placeholderRosterProvider,
@@ -208,6 +213,7 @@ namespace Game.Core.Editor
                 tripCurrentLocationRepository,
                 tripDestinationAssigner,
                 fieldFormationActivityRepository,
+                playerCurrencyWallet,
             };
         }
 
