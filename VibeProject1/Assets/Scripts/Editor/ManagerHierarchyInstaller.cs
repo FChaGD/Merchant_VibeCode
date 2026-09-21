@@ -138,6 +138,7 @@ namespace Game.Core.Editor
             GameObjectUtility.RemoveMonoBehavioursWithMissingScript(uiManager.gameObject);
 
             EditorUIBuilder.GetOrAddComponent<HubUIController>(uiManager.gameObject);
+            EditorUIBuilder.GetOrAddComponent<PlayerCurrencyHudController>(uiManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<HubFormationPanel>(uiManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<FieldFormationPanel>(uiManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<TripPanel>(uiManager.gameObject);

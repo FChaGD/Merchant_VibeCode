@@ -63,6 +63,9 @@ namespace Game.Core.Editor
             BuildFormationUI(contentRoot);
             BuildTripUI(contentRoot);
             BuildTacticsUI(contentRoot);
+            // 다른 UI들보다 마지막에 호출해야 한다 - SetAsLastSibling()이 재실행마다 정확히
+            // 최상단으로 유지되려면(설계 30번 §2/§6) 이 시점에 형제 목록이 이미 최종 상태여야 한다.
+            BuildPlayerCurrencyHud(contentRoot);
 
             EditorSceneManager.MarkSceneDirty(activeScene);
             Debug.Log("Hub Scene UI 생성/동기화 완료. 씬을 저장(Ctrl+S)해야 변경사항이 파일에 반영된다. "
@@ -112,6 +115,83 @@ namespace Game.Core.Editor
             go.transform.SetSiblingIndex(siblingLimit);
 
             TacticsUIBuilder.Build(contentRoot);
+        }
+
+        // ==================== 재화 HUD ====================
+        // 스타크래프트류 RTS 자원 바 형태(기획 27번 §3.1) - 항상 노출, 다른 패널이 열려도 가려지지
+        // 않는다(27번 §3.5). SetAsLastSibling()으로 렌더 순서상 항상 최상단에 오도록 강제한다
+        // (설계 30번 §2 - FormationDragCoordinator의 드래그 고스트와 같은 방향, TacticsButton의
+        // "항상 뒤" 강제와는 반대 방향).
+        private static void BuildPlayerCurrencyHud(Transform contentRoot)
+        {
+            // 퍼센트 앵커 박스(고정 크기)로 만들었다가, 아이콘(32px 고정)이 그 박스보다 커서 밖으로
+            // 튀어나오고 텍스트는 남은 폭이 모자라 짜부라지는 문제가 있었다(2026-09-21 실전 확인) -
+            // 한 점에 고정하고 ContentSizeFitter로 내용(아이콘+텍스트+패딩)에 맞춰 패널
+            // 크기가 스스로 결정되게 바꿨다. 이러면 아이콘 고정 크기가 항상 그대로 반영된다.
+            var root = EditorUIBuilder.GetOrCreateUIObject(contentRoot, "PlayerCurrencyHud");
+            var rootRect = root.GetComponent<RectTransform>();
+            // 우상단 한 점에 고정(사용자 확정, 2026-09-21 - 최초 좌상단에서 변경).
+            rootRect.anchorMin = new Vector2(1f, 1f);
+            rootRect.anchorMax = new Vector2(1f, 1f);
+            rootRect.pivot = new Vector2(1f, 1f);
+            rootRect.anchoredPosition = new Vector2(-16f, -16f);
+            EditorUIBuilder.EnsureMarker(root, HubUIElementIds.CurrencyPanelRoot);
+            // 패널 배경 - 이게 없으면 아이콘/텍스트만 화면에 떠 있는 것처럼 보여 "패널 형태"로 보이지
+            // 않는다(2026-09-21 실전 확인).
+            EditorUIBuilder.EnsureImage(root, new Color(0f, 0f, 0f, 0.6f));
+
+            var layout = EditorUIBuilder.GetOrAddComponent<HorizontalLayoutGroup>(root);
+            layout.childAlignment = TextAnchor.MiddleLeft;
+            layout.spacing = 8f;
+            layout.padding = new RectOffset(8, 8, 4, 4);
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = false;
+            layout.childForceExpandHeight = false;
+
+            var sizeFitter = EditorUIBuilder.GetOrAddComponent<ContentSizeFitter>(root);
+            sizeFitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            sizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var iconGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "Icon");
+            EditorUIBuilder.EnsureImage(iconGo, Color.white); // currencyIcon 미할당 시 자리표시자
+            EditorUIBuilder.EnsureMarker(iconGo, HubUIElementIds.CurrencyIcon);
+            var iconLayoutElement = EditorUIBuilder.GetOrAddComponent<LayoutElement>(iconGo);
+            iconLayoutElement.preferredWidth = 32f;
+            iconLayoutElement.preferredHeight = 32f;
+
+            var amountLabel = EditorUIBuilder.EnsureLabel(root.transform, "0");
+            EditorUIBuilder.EnsureMarker(amountLabel.gameObject, HubUIElementIds.CurrencyAmountText);
+            EditorUIBuilder.GetOrAddComponent<PointerHoverRelay>(amountLabel.gameObject);
+            // EnsureLabel은 기본적으로 raycastTarget=false로 만든다(장식용 텍스트 기준) - 이 텍스트는
+            // 호버 대상이라 포인터 이벤트를 받아야 하므로 켜야 한다.
+            amountLabel.raycastTarget = true;
+            // EnsureLabel 기본 색상은 검정이다(밝은 배경 버튼 기준) - 이 패널은 어두운 배경이라
+            // 흰색으로 바꿔야 보인다(2026-09-21 실전 확인).
+            amountLabel.color = Color.white;
+            var amountLayoutElement = EditorUIBuilder.GetOrAddComponent<LayoutElement>(amountLabel.gameObject);
+            amountLayoutElement.minWidth = 60f;
+
+            // 프레임(Image)과 텍스트(TextMeshProUGUI)를 부모/자식으로 분리한다 - 기존 버튼류와 같은
+            // 구조(EnsureImage로 배경, EnsureLabel로 자식 텍스트). 같은 오브젝트에 Image+TMP를 함께
+            // 붙이면 AddComponent가 실패해 NullReferenceException으로 이어진 적이 있어(2026-09-21
+            // 실전 확인) 이 구조로 되돌렸다. 컨트롤러는 프레임(tooltipGo)을 SetActive로 토글하고,
+            // 텍스트(tooltipLabel)는 내용만 갱신한다.
+            // 실제 원인 발견(2026-09-21): anchorMin=(0,0)/anchorMax=(1,0)은 위아래 앵커가 같은 y=0
+            // 지점이라 sizeDelta 없이는 높이가 0이다 - 알파를 1로 올려도 덮을 영역 자체가 없어 수치가
+            // 그대로 다 보였다. 부모(amountLabel)와 완전히 같은 영역을 덮도록 SetStretch로 바꾼다.
+            var tooltipGo = EditorUIBuilder.GetOrCreateUIObject(amountLabel.transform, "CapacityTooltip");
+            EditorUIBuilder.SetStretch(tooltipGo.GetComponent<RectTransform>());
+            EditorUIBuilder.EnsureImage(tooltipGo, new Color(0f, 0f, 0f, 1f));
+            EditorUIBuilder.EnsureMarker(tooltipGo, HubUIElementIds.CurrencyCapacityTooltip);
+
+            var tooltipLabel = EditorUIBuilder.EnsureLabel(tooltipGo.transform, "상한 -");
+            EditorUIBuilder.EnsureMarker(tooltipLabel.gameObject, HubUIElementIds.CurrencyCapacityTooltipText);
+            tooltipLabel.color = Color.white; // 어두운 배경(§ 위) 기준 - EnsureLabel 기본 검정이면 안 보인다.
+
+            tooltipGo.SetActive(false);
+
+            root.transform.SetAsLastSibling();
         }
 
         private static void BuildFormationUI(Transform contentRoot)

@@ -10,5 +10,10 @@ namespace Game.Core
         public const string TacticsButton = "Hub.TacticsButton";
         public const string Background = "Hub.Background";
         public const string ContentRoot = "Hub.ContentRoot";
+        public const string CurrencyPanelRoot = "Hub.CurrencyPanelRoot";
+        public const string CurrencyIcon = "Hub.CurrencyIcon";
+        public const string CurrencyAmountText = "Hub.CurrencyAmountText";
+        public const string CurrencyCapacityTooltip = "Hub.CurrencyCapacityTooltip"; // 프레임(표시/숨김 토글 대상)
+        public const string CurrencyCapacityTooltipText = "Hub.CurrencyCapacityTooltipText"; // 텍스트 내용
     }
 }

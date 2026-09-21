@@ -45,6 +45,12 @@ namespace Game.Core
                 throw new InvalidOperationException($"{nameof(HubUIWiring)}와 같은 GameObject에 {nameof(ITacticsPanel)} 구현체가 없다.");
             }
 
+            var currencyHudController = GetComponent<IPlayerCurrencyHudController>();
+            if (currencyHudController == null)
+            {
+                throw new InvalidOperationException($"{nameof(HubUIWiring)}와 같은 GameObject에 {nameof(IPlayerCurrencyHudController)} 구현체가 없다.");
+            }
+
             var gameManager = registrar.Resolve<IGameManager>();
             // "상행 시작"/"상행 준비"/"배치" 버튼을 씬 전환 커튼이 완전히 걷힐 때까지 비활성화하는 데
             // 쓴다(사용자 확정) - HubUIController/TripPanel 둘 다 필요하므로 여기서 한 번만 조회한다.
@@ -61,8 +67,12 @@ namespace Game.Core
             // 같은 판단 기준) 그 타입으로 조회해 읽기 전용 매개변수에 넘긴다.
             registrar.TryResolve<ITripCurrentLocationRepository>(out var currentLocationRepository);
             registrar.TryResolve<ITripDestinationAssigner>(out var destinationAssigner);
+            // IPlayerCurrencyWallet으로 등록되어 있다(InMemoryPlayerCurrencyWallet.RegisterSelf) - 이
+            // 컨트롤러는 조회 전용만 필요하므로 IPlayerCurrencyReader 타입으로만 넘긴다(ISP).
+            registrar.TryResolve<IPlayerCurrencyWallet>(out var currencyWallet);
 
             hubUIController.RegisterHubUI(sceneUIRoot, uiManager, sceneRevealSignal);
+            currencyHudController.RegisterCurrencyUI(sceneUIRoot, currencyWallet);
 
             formationPanel.RegisterFormationUI(sceneUIRoot, caravanRosterProvider, formationRepository, unitConditionRepository, uiManager);
             panelRegistrar.RegisterPanel(formationPanel);
