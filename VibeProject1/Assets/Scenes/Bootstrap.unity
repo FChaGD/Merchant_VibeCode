@@ -119,6 +119,139 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &230752039
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 230752040}
+  - component: {fileID: 230752041}
+  m_Layer: 0
+  m_Name: PlaceholderTradeGoodsInventoryRepository
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &230752040
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 230752039}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900004001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &230752041
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 230752039}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 82d84576d3c173c44b51c041de0ce6da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.PlaceholderTradeGoodsInventoryRepository
+  goldBoxIcon: {fileID: 0}
+--- !u!1 &255667639
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 255667640}
+  - component: {fileID: 255667641}
+  m_Layer: 0
+  m_Name: PlaceholderConsumableInventoryRepository
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &255667640
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 255667639}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900004001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &255667641
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 255667639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e0389ab7147d33d45b5bbb85a5910cf6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.PlaceholderConsumableInventoryRepository
+--- !u!1 &434087637
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 434087638}
+  - component: {fileID: 434087639}
+  m_Layer: 0
+  m_Name: PlaceholderEquipmentInventoryRepository
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &434087638
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 434087637}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900004001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &434087639
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 434087637}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8698263bd5177024dae25db6269437a8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.PlaceholderEquipmentInventoryRepository
 --- !u!1 &684925342
 GameObject:
   m_ObjectHideFlags: 0
@@ -327,6 +460,10 @@ MonoBehaviour:
   - {fileID: 1707920027}
   - {fileID: 1393312301}
   - {fileID: 1730478252}
+  - {fileID: 230752041}
+  - {fileID: 434087639}
+  - {fileID: 255667641}
+  - {fileID: 1473442128}
 --- !u!1 &900002000
 GameObject:
   m_ObjectHideFlags: 0
@@ -462,6 +599,7 @@ GameObject:
   - component: {fileID: 900004011}
   - component: {fileID: 900004010}
   - component: {fileID: 900004012}
+  - component: {fileID: 900004013}
   m_Layer: 0
   m_Name: UIManager
   m_TagString: Untagged
@@ -491,6 +629,10 @@ Transform:
   - {fileID: 1707920026}
   - {fileID: 1393312300}
   - {fileID: 1730478251}
+  - {fileID: 230752040}
+  - {fileID: 434087638}
+  - {fileID: 255667640}
+  - {fileID: 1473442127}
   m_Father: {fileID: 900000001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &900004002
@@ -627,6 +769,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.PlayerCurrencyHudController
   currencyIcon: {fileID: 0}
+--- !u!114 &900004013
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900004000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d618bc290a452d74a870cc92d598c0e7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.InventoryPopupCoordinator
 --- !u!1 &900005000
 GameObject:
   m_ObjectHideFlags: 0
@@ -1032,6 +1186,50 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 643fccc421e8ba94d91d5a60a0c972cc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.InMemoryFieldFormationActivityRepository
+--- !u!1 &1473442126
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1473442127}
+  - component: {fileID: 1473442128}
+  m_Layer: 0
+  m_Name: PlaceholderPersonalItemInventoryRepository
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1473442127
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1473442126}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900004001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1473442128
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1473442126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b4fea39363397c4da9ac7fcb8439c28, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.PlaceholderPersonalItemInventoryRepository
 --- !u!1 &1621465527
 GameObject:
   m_ObjectHideFlags: 0

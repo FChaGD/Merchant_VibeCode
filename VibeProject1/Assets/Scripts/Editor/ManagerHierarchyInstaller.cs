@@ -31,6 +31,10 @@ namespace Game.Core.Editor
             nameof(TripDestinationAssigner),
             nameof(InMemoryFieldFormationActivityRepository),
             nameof(InMemoryPlayerCurrencyWallet),
+            nameof(PlaceholderTradeGoodsInventoryRepository),
+            nameof(PlaceholderEquipmentInventoryRepository),
+            nameof(PlaceholderConsumableInventoryRepository),
+            nameof(PlaceholderPersonalItemInventoryRepository),
         };
 
         [MenuItem("Tools/Game/Build Bootstrap Scene")]
@@ -139,6 +143,10 @@ namespace Game.Core.Editor
 
             EditorUIBuilder.GetOrAddComponent<HubUIController>(uiManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<PlayerCurrencyHudController>(uiManager.gameObject);
+
+            // 인벤토리 팝업 4종의 동시 중첩 오픈을 담당하는 형제 컴포넌트(Docs/설계/32번 §5) -
+            // PanelNavigationStack과 별개로 동작해야 해서 panelsById가 아니라 이쪽에 등록된다.
+            EditorUIBuilder.GetOrAddComponent<InventoryPopupCoordinator>(uiManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<HubFormationPanel>(uiManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<FieldFormationPanel>(uiManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<TripPanel>(uiManager.gameObject);
@@ -204,6 +212,15 @@ namespace Game.Core.Editor
             // 성격의 인메모리 저장소.
             var playerCurrencyWallet = EditorUIBuilder.GetOrCreateManager<InMemoryPlayerCurrencyWallet>(uiManager.transform, nameof(InMemoryPlayerCurrencyWallet));
 
+            // 인벤토리 카테고리 4종(기획 25/31번, 설계 32번) - 장비/소모품/개인물품은 고정 크기,
+            // 교역품/전리품은 ResolveDependencies 시점에 마차 재고 수로 그리드 크기를 계산한다
+            // (placeholderRosterProvider보다 ResolveDependencies 호출이 늦어도 되므로 순서 무관 -
+            // 실제 순서 의존성은 없다는 이 메서드 상단 주석과 동일).
+            var tradeGoodsInventoryRepository = EditorUIBuilder.GetOrCreateManager<PlaceholderTradeGoodsInventoryRepository>(uiManager.transform, nameof(PlaceholderTradeGoodsInventoryRepository));
+            var equipmentInventoryRepository = EditorUIBuilder.GetOrCreateManager<PlaceholderEquipmentInventoryRepository>(uiManager.transform, nameof(PlaceholderEquipmentInventoryRepository));
+            var consumableInventoryRepository = EditorUIBuilder.GetOrCreateManager<PlaceholderConsumableInventoryRepository>(uiManager.transform, nameof(PlaceholderConsumableInventoryRepository));
+            var personalItemInventoryRepository = EditorUIBuilder.GetOrCreateManager<PlaceholderPersonalItemInventoryRepository>(uiManager.transform, nameof(PlaceholderPersonalItemInventoryRepository));
+
             return new MonoBehaviour[]
             {
                 placeholderRosterProvider,
@@ -215,6 +232,10 @@ namespace Game.Core.Editor
                 tripDestinationAssigner,
                 fieldFormationActivityRepository,
                 playerCurrencyWallet,
+                tradeGoodsInventoryRepository,
+                equipmentInventoryRepository,
+                consumableInventoryRepository,
+                personalItemInventoryRepository,
             };
         }
 

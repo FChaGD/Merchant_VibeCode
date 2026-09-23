@@ -8,6 +8,7 @@ namespace Game.Core
     {
         private IDependencyResolver registrar;
         private ISceneLoader sceneLoader;
+        private IInventoryPopupCoordinator inventoryPopupCoordinator;
 
         private readonly Dictionary<string, IUIPanel> panelsById = new();
         private readonly Dictionary<ContentSceneId, IContentSceneUIWiring> wiringBySceneId = new();
@@ -24,6 +25,12 @@ namespace Game.Core
 
             sceneLoader = registrar.Resolve<ISceneLoader>();
             sceneLoader.OnSceneLoaded += HandleSceneLoaded;
+
+            inventoryPopupCoordinator = GetComponent<IInventoryPopupCoordinator>();
+            if (inventoryPopupCoordinator == null)
+            {
+                throw new InvalidOperationException($"{nameof(UIManager)}와 같은 GameObject에 {nameof(IInventoryPopupCoordinator)} 구현체가 없다.");
+            }
 
             // 씬별 UI 배선(IContentSceneUIWiring)은 전역 DI 대상이 아니라 UIManager 산하 컴포넌트다 -
             // 같은 GameObject에서 전부 수집해 씬 id로 찾아 위임한다. 새 콘텐츠 씬이 늘어나도 이 목록
@@ -82,6 +89,8 @@ namespace Game.Core
                 OnAnyPanelOpenChanged?.Invoke(false);
             }
         }
+
+        public void ToggleInventoryPopup(string popupId) => inventoryPopupCoordinator.Toggle(popupId);
 
         private void HandleSceneLoaded(string sceneName)
         {
