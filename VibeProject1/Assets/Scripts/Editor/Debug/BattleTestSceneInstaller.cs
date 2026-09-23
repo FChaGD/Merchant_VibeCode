@@ -50,6 +50,11 @@ namespace Game.Core.Editor.DebugTools
             // ==================== 매니저(전투 로직) 먼저 조립 - 아래 UI들이 참조해야 한다 ====================
             var managersRoot = EditorUIBuilder.GetOrCreateSceneRoot(scene, "Managers");
             EditorUIBuilder.RemoveMissingScriptsRecursively(managersRoot.transform);
+            // Hub/Bootstrap 계열 UIManager 하이어라키(UIManager+HubUIController+FormationPanel(고아)+
+            // TripPanel+TacticsPanel+FieldUIController+HubUIWiring+FieldUIWiring)가 통째로 복사돼
+            // 남아있던 잔재 - 이 씬의 UI는 전부 BattleTestPanelHost/BattleTestController가 맡고
+            // SyncManagedComponents에도 등록되지 않아 DI가 연결되지 않는 죽은 오브젝트다.
+            EditorUIBuilder.DestroyChildIfExists(managersRoot.transform, "UIManager");
 
             var dependencyManager = EditorUIBuilder.GetOrCreateManager<DependencyManager>(managersRoot.transform, "DependencyManager");
 
