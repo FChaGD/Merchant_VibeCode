@@ -7,7 +7,7 @@ namespace Game.Core
     [Serializable]
     public struct CharacterStatsEntry
     {
-        public MercenaryClass MercenaryClass;
+        public string MercenaryClass;
         public float MaxHp;
         public float Attack;
         public float Defense;
@@ -28,7 +28,7 @@ namespace Game.Core
     {
         [SerializeField] private List<CharacterStatsEntry> entries = new();
 
-        public bool TryGetEntry(MercenaryClass mercenaryClass, out CharacterStatsEntry entry)
+        public bool TryGetEntry(string mercenaryClass, out CharacterStatsEntry entry)
             => TableEntryLookup.TryFind(entries, mercenaryClass, e => e.MercenaryClass, out entry);
 
         public IReadOnlyList<CharacterStatsEntry> Entries => entries;

@@ -10,6 +10,6 @@ namespace Game.Core
     /// </summary>
     public interface IUnitTacticsProfileResolver
     {
-        UnitTacticsProfile Resolve(MercenaryClass mercenaryClass, Vector2 homePosition);
+        UnitTacticsProfile Resolve(string mercenaryClass, Vector2 homePosition);
     }
 }

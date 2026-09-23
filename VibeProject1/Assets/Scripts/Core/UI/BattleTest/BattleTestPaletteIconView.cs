@@ -20,8 +20,8 @@ namespace Game.Core
         // 아니라 씬 저장/Play 진입 시 사라진다 - 실제로 이 문제 때문에 Play 모드에서 모든 아이콘이
         // 기본값(IsAlly=false, MercenaryClass/EnemyType=0번째 값)으로 리셋되는 버그가 있었다.
         [SerializeField] private bool isAlly;
-        [SerializeField] private MercenaryClass mercenaryClass;
-        [SerializeField] private EnemyType enemyType;
+        [SerializeField] private string mercenaryClass;
+        [SerializeField] private string enemyType;
 
         // 진영별로 갈라진 직렬화 필드(씬 저장 호환)를 통일 식별자로 바꿔 주는 유일한 지점 - 소비자는
         // 진영 분기 없이 이 값만 쓴다(Docs/설계/28번).
@@ -32,14 +32,14 @@ namespace Game.Core
         private Action<PointerEventData> onDrag;
         private Action<PointerEventData> onEndDrag;
 
-        public void BindAlly(MercenaryClass unitClass, Sprite icon)
+        public void BindAlly(string unitClass, Sprite icon)
         {
             isAlly = true;
             mercenaryClass = unitClass;
             if (iconImage != null) iconImage.sprite = icon;
         }
 
-        public void BindEnemy(EnemyType type, Sprite icon)
+        public void BindEnemy(string type, Sprite icon)
         {
             isAlly = false;
             enemyType = type;

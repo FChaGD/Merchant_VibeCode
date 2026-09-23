@@ -110,6 +110,23 @@ namespace Game.Core.Editor
             return (TEnum)Enum.ToObject(typeof(TEnum), id);
         }
 
+        // v2 정수 Id(ParseEnum)를 문자열 식별자로 전환하며 추가(Docs/설계/36번 §4.3) - Enum.IsDefined가
+        // 주던 "정의되지 않은 값 즉시 차단"은 잃는 대신, "빈 값/같은 시트 내 중복" 즉시 차단으로
+        // 대체한다. seenIds는 호출자(임포터)가 시트 하나를 읽을 때마다 새로 만들어 넘긴다.
+        public static string ParseSlug(IReadOnlyDictionary<string, string> row, string column, HashSet<string> seenIds)
+        {
+            var value = row[column];
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new FormatException($"컬럼 '{column}'이 비어있다.");
+            }
+            if (!seenIds.Add(value))
+            {
+                throw new FormatException($"컬럼 '{column}' 값 '{value}'이(가) 같은 시트에 중복됐다.");
+            }
+            return value;
+        }
+
         public static bool ParseBool(IReadOnlyDictionary<string, string> row, string column)
         {
             if (!bool.TryParse(row[column], out var value))

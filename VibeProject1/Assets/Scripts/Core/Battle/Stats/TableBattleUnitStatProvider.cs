@@ -16,7 +16,7 @@ namespace Game.Core
             this.table = table;
         }
 
-        public BattleUnitStats GetStats(MercenaryClass mercenaryClass)
+        public BattleUnitStats GetStats(string mercenaryClass)
         {
             if (table == null || !table.TryGetEntry(mercenaryClass, out var entry))
             {

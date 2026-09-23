@@ -14,11 +14,11 @@ namespace Game.Core
     /// </summary>
     public class TableEnemyTypeCompositionProvider : IEnemyCompositionProvider
     {
-        // EnemyType enum 값을 그대로 반영한다(Enum.GetValues) - 하드코딩 배열로 따로 나열하면 enum에
-        // 새 값이 추가돼도 여기 반영을 잊을 수 있어 조용히 그 타입이 인카운터 후보에서 빠진다
-        // (Docs/Refactor/2026-09-08_전투도메인.md ① 수정 P). Random.Range의 max는 배타적 - 기획 14번
+        // enum이 사라져 Enum.GetValues를 못 쓴다 - 대신 statsTable에 실제로 존재하는 Id 전부를
+        // 후보로 삼는다(Docs/설계/36번). "엑셀이 단일 진실 소스"라는 기존 원칙의 연장 - 테이블에 새
+        // 행이 추가되면 자동으로 인카운터 후보에 반영된다. Random.Range의 max는 배타적 - 기획 14번
         // §2가 CountMax를 포함 상한으로 정했으므로 +1 보정.
-        private static readonly EnemyType[] AllTypes = (EnemyType[])Enum.GetValues(typeof(EnemyType));
+        private readonly string[] allTypes;
 
         private readonly EnemyStatsTableAsset statsTable;
         private readonly EnemyEncounterCompositionTableAsset compositionTable;
@@ -27,11 +27,16 @@ namespace Game.Core
         {
             this.statsTable = statsTable;
             this.compositionTable = compositionTable;
+            allTypes = new string[statsTable.Entries.Count];
+            for (var i = 0; i < allTypes.Length; i++)
+            {
+                allTypes[i] = statsTable.Entries[i].EnemyType;
+            }
         }
 
         public IReadOnlyList<BattleUnitStats> GetEncounterComposition()
         {
-            var type = AllTypes[UnityEngine.Random.Range(0, AllTypes.Length)]; // 3개 타입 균등 무작위 - 기획 08번 §13.1 확정
+            var type = allTypes[UnityEngine.Random.Range(0, allTypes.Length)]; // 3개 타입 균등 무작위 - 기획 08번 §13.1 확정
             var stats = GetStatsForType(type);
 
             if (!compositionTable.TryGetEntry(type, out var composition))
@@ -49,7 +54,7 @@ namespace Game.Core
             return result;
         }
 
-        public BattleUnitStats GetStatsForType(EnemyType type)
+        public BattleUnitStats GetStatsForType(string type)
         {
             if (statsTable == null || !statsTable.TryGetEntry(type, out var entry))
             {

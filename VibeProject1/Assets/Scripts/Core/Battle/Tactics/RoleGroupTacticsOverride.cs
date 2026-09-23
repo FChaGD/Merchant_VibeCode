@@ -11,11 +11,11 @@ namespace Game.Core
     public readonly struct RoleGroupTacticsOverride
     {
         public bool IsOverridden { get; }
-        public TargetPriority TargetPriority { get; }
-        public LocalPositioning Positioning { get; }
-        public SelfPreservation SelfPreservation { get; }
+        public string TargetPriority { get; }
+        public string Positioning { get; }
+        public string SelfPreservation { get; }
 
-        public RoleGroupTacticsOverride(bool isOverridden, TargetPriority targetPriority, LocalPositioning positioning, SelfPreservation selfPreservation)
+        public RoleGroupTacticsOverride(bool isOverridden, string targetPriority, string positioning, string selfPreservation)
         {
             IsOverridden = isOverridden;
             TargetPriority = targetPriority;

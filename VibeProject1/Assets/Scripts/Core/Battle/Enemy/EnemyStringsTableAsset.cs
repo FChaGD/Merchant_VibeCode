@@ -11,11 +11,11 @@ namespace Game.Core
     [CreateAssetMenu(fileName = "EnemyStringsTable", menuName = "Game/Table/Enemy Strings Table")]
     public class EnemyStringsTableAsset : ScriptableObject
     {
-        [SerializeField] private List<LocalizedStringEntry> strings = new();
+        [SerializeField] private List<SlugLocalizedStringEntry> strings = new();
 
-        public bool TryGetLabel(EnemyType enemyType, out string ko)
+        public bool TryGetLabel(string enemyType, out string ko)
         {
-            if (TableEntryLookup.TryFind(strings, (int)enemyType, e => e.Id, out var entry))
+            if (TableEntryLookup.TryFind(strings, enemyType, e => e.Id, out var entry))
             {
                 ko = entry.Ko;
                 return true;

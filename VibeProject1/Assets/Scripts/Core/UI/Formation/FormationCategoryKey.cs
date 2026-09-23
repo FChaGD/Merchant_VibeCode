@@ -13,9 +13,9 @@ namespace Game.Core
         public FormationUnitKind Kind { get; }
 
         /// <summary>Kind가 Character일 때만 값이 있다 - 그 외엔 null(N/A).</summary>
-        public MercenaryClass? MercenaryClass { get; }
+        public string MercenaryClass { get; }
 
-        private FormationCategoryKey(FormationUnitKind kind, MercenaryClass? mercenaryClass)
+        private FormationCategoryKey(FormationUnitKind kind, string mercenaryClass)
         {
             Kind = kind;
             MercenaryClass = mercenaryClass;

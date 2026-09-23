@@ -280,9 +280,9 @@ namespace Game.Core.Editor.DebugTools
                 BuildPaletteIcon(allyRoot.transform, "AllyArcher", 1, new Color(0.75f, 0.87f, 1f, 1f)),
                 BuildPaletteIcon(allyRoot.transform, "AllyShieldBearer", 2, new Color(0.75f, 0.87f, 1f, 1f)),
             };
-            allyIcons[0].BindAlly(MercenaryClass.Warrior, FormationPlaceholderIcons.GetOrCreateSquare());
-            allyIcons[1].BindAlly(MercenaryClass.Archer, FormationPlaceholderIcons.GetOrCreatePentagon());
-            allyIcons[2].BindAlly(MercenaryClass.ShieldBearer, FormationPlaceholderIcons.GetOrCreateHexagon());
+            allyIcons[0].BindAlly("Warrior", FormationPlaceholderIcons.GetOrCreateSquare());
+            allyIcons[1].BindAlly("Archer", FormationPlaceholderIcons.GetOrCreatePentagon());
+            allyIcons[2].BindAlly("ShieldBearer", FormationPlaceholderIcons.GetOrCreateHexagon());
 
             // 적 3종(약탈자=사각형/괴수=삼각형/적대자=원) - BattlePlaceholderSprite.ForEnemyType과 같은
             // 도형 매핑이지만, 그 클래스는 런타임 전용(internal, Core.asmdef)이라 에디터 어셈블리에서
@@ -294,9 +294,9 @@ namespace Game.Core.Editor.DebugTools
                 BuildPaletteIcon(enemyRoot.transform, "EnemyMonster", 1, new Color(1f, 0.8f, 0.8f, 1f)),
                 BuildPaletteIcon(enemyRoot.transform, "EnemyAdversary", 2, new Color(1f, 0.8f, 0.8f, 1f)),
             };
-            enemyIcons[0].BindEnemy(EnemyType.Marauder, FormationPlaceholderIcons.GetOrCreateSquare());
-            enemyIcons[1].BindEnemy(EnemyType.Monster, FormationPlaceholderIcons.GetOrCreateTriangle());
-            enemyIcons[2].BindEnemy(EnemyType.Adversary, FormationPlaceholderIcons.GetOrCreateCircle());
+            enemyIcons[0].BindEnemy("Marauder", FormationPlaceholderIcons.GetOrCreateSquare());
+            enemyIcons[1].BindEnemy("Monster", FormationPlaceholderIcons.GetOrCreateTriangle());
+            enemyIcons[2].BindEnemy("Adversary", FormationPlaceholderIcons.GetOrCreateCircle());
 
             // 드래그 고스트 - 매번 Instantiate/Destroy하지 않고 하나만 만들어 켜고 끈다.
             var ghostGo = EditorUIBuilder.GetOrCreateUIObject(parent, "UnitPaletteDragGhost");

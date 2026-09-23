@@ -12,15 +12,15 @@ namespace Game.Core
     [CreateAssetMenu(fileName = "RoleGroupTacticsStringsTable", menuName = "Game/Tactics/Role Group Tactics Strings Table")]
     public class RoleGroupTacticsStringsTableAsset : ScriptableObject
     {
-        [SerializeField] private List<LocalizedStringEntry> targetPriorityStrings = new();
-        [SerializeField] private List<LocalizedStringEntry> positioningStrings = new();
-        [SerializeField] private List<LocalizedStringEntry> selfPreservationStrings = new();
+        [SerializeField] private List<SlugLocalizedStringEntry> targetPriorityStrings = new();
+        [SerializeField] private List<SlugLocalizedStringEntry> positioningStrings = new();
+        [SerializeField] private List<SlugLocalizedStringEntry> selfPreservationStrings = new();
 
-        public bool TryGetTargetPriorityLabel(TargetPriority value, out string ko) => TryGetLabel(targetPriorityStrings, (int)value, out ko);
-        public bool TryGetPositioningLabel(LocalPositioning value, out string ko) => TryGetLabel(positioningStrings, (int)value, out ko);
-        public bool TryGetSelfPreservationLabel(SelfPreservation value, out string ko) => TryGetLabel(selfPreservationStrings, (int)value, out ko);
+        public bool TryGetTargetPriorityLabel(string value, out string ko) => TryGetLabel(targetPriorityStrings, value, out ko);
+        public bool TryGetPositioningLabel(string value, out string ko) => TryGetLabel(positioningStrings, value, out ko);
+        public bool TryGetSelfPreservationLabel(string value, out string ko) => TryGetLabel(selfPreservationStrings, value, out ko);
 
-        private static bool TryGetLabel(List<LocalizedStringEntry> strings, int id, out string ko)
+        private static bool TryGetLabel(List<SlugLocalizedStringEntry> strings, string id, out string ko)
         {
             if (TableEntryLookup.TryFind(strings, id, e => e.Id, out var entry))
             {

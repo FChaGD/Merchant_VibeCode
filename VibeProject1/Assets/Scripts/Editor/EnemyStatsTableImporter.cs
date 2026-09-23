@@ -38,11 +38,12 @@ namespace Game.Core.Editor
         {
             var rows = EditorTableReader.ReadSheet(workbookPath, "EnemyStats");
             var entries = new List<EnemyStatsEntry>(rows.Count);
+            var seenIds = new HashSet<string>();
             foreach (var row in rows)
             {
                 entries.Add(new EnemyStatsEntry
                 {
-                    EnemyType = EditorTableReader.ParseEnum<EnemyType>(row, "Id"),
+                    EnemyType = EditorTableReader.ParseSlug(row, "Id", seenIds),
                     MaxHp = EditorTableReader.ParseFloat(row, "MaxHp"),
                     Attack = EditorTableReader.ParseFloat(row, "Attack"),
                     Defense = EditorTableReader.ParseFloat(row, "Defense"),
@@ -62,7 +63,7 @@ namespace Game.Core.Editor
             {
                 var element = entriesProp.GetArrayElementAtIndex(i);
                 var entry = entries[i];
-                EditorTableReader.SetEnumValue(element.FindPropertyRelative("EnemyType"), entry.EnemyType);
+                element.FindPropertyRelative("EnemyType").stringValue = entry.EnemyType;
                 element.FindPropertyRelative("MaxHp").floatValue = entry.MaxHp;
                 element.FindPropertyRelative("Attack").floatValue = entry.Attack;
                 element.FindPropertyRelative("Defense").floatValue = entry.Defense;
@@ -80,11 +81,12 @@ namespace Game.Core.Editor
         {
             var rows = EditorTableReader.ReadSheet(workbookPath, "EnemyEncounterComposition");
             var entries = new List<EnemyEncounterCompositionEntry>(rows.Count);
+            var seenIds = new HashSet<string>();
             foreach (var row in rows)
             {
                 entries.Add(new EnemyEncounterCompositionEntry
                 {
-                    EnemyType = EditorTableReader.ParseEnum<EnemyType>(row, "Id"),
+                    EnemyType = EditorTableReader.ParseSlug(row, "Id", seenIds),
                     CountMin = EditorTableReader.ParseInt(row, "CountMin"),
                     CountMax = EditorTableReader.ParseInt(row, "CountMax"),
                 });
@@ -98,7 +100,7 @@ namespace Game.Core.Editor
             {
                 var element = entriesProp.GetArrayElementAtIndex(i);
                 var entry = entries[i];
-                EditorTableReader.SetEnumValue(element.FindPropertyRelative("EnemyType"), entry.EnemyType);
+                element.FindPropertyRelative("EnemyType").stringValue = entry.EnemyType;
                 element.FindPropertyRelative("CountMin").intValue = entry.CountMin;
                 element.FindPropertyRelative("CountMax").intValue = entry.CountMax;
             }
@@ -113,10 +115,11 @@ namespace Game.Core.Editor
             var so = new SerializedObject(asset);
             var stringsProp = so.FindProperty("strings");
             stringsProp.arraySize = rows.Count;
+            var seenIds = new HashSet<string>();
             for (var i = 0; i < rows.Count; i++)
             {
                 var element = stringsProp.GetArrayElementAtIndex(i);
-                element.FindPropertyRelative("Id").intValue = EditorTableReader.ParseInt(rows[i], "Id");
+                element.FindPropertyRelative("Id").stringValue = EditorTableReader.ParseSlug(rows[i], "Id", seenIds);
                 element.FindPropertyRelative("Ko").stringValue = rows[i]["Ko"];
             }
             so.ApplyModifiedProperties();

@@ -238,7 +238,7 @@ namespace Game.Core
             // 이때는 어차피 Blocking 전열 후보가 하나도 없어(모든 RoleGroup이 null) 어떤 프리셋을
             // 넘기든 무해하다(기본값 OffensiveJudgment로 대체). BuildAllies보다 먼저 만들어야
             // BlockingPositioningStrategy(Docs/설계/12번 §12.12 7단계)에 주입할 수 있다.
-            var partyPursuitPreset = tacticsReader?.GetPartySettings().Pursuit ?? PursuitPreset.OffensiveJudgment;
+            var partyPursuitPreset = tacticsReader?.GetPartySettings().Pursuit ?? "OffensiveJudgment";
             midBattleFrontlineCoordinator = new FrontlineFormationCoordinator(midBattleStandardActivityRadius, partyPursuitPreset);
             // 포위(Surround) 조율자(Docs/설계/12번 §13.3′) - frontlineCoordinator와 같은 이유로
             // BuildAllies보다 먼저 생성해야 SurroundPositioningStrategy에 주입할 수 있다. 군집화
@@ -282,7 +282,7 @@ namespace Game.Core
             // 직업 정보가 없는 Character(로스터 구현체가 IMercenaryUnit이 아닌 경우)는 예외적
             // 상황이라 Warrior를 기본값으로 둔다 - 정식 로스터 시스템이 생기면 모든 Character가
             // IMercenaryUnit을 구현하게 되어 이 분기 자체가 필요 없어질 것으로 예상된다.
-            var mercenaryClass = rosterUnit is IMercenaryUnit mercenaryUnit ? mercenaryUnit.Class : MercenaryClass.Warrior;
+            var mercenaryClass = rosterUnit is IMercenaryUnit mercenaryUnit ? mercenaryUnit.Class : "Warrior";
 
             var column = slotIndex % layout.ColumnCount;
             var row = slotIndex / layout.ColumnCount;

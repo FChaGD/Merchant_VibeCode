@@ -8,7 +8,7 @@ namespace Game.Core
     [Serializable]
     public struct EnemyRecognitionOption
     {
-        public EnemyRecognitionType Value;
+        public string Value;
         public int SortOrder;
         public bool IsDefault;
     }
@@ -16,7 +16,7 @@ namespace Game.Core
     [Serializable]
     public struct ActivityRadiusOption
     {
-        public ActivityRadiusPreset Value;
+        public string Value;
         public int SortOrder;
         public bool IsDefault;
     }
@@ -24,7 +24,7 @@ namespace Game.Core
     [Serializable]
     public struct PursuitOption
     {
-        public PursuitPreset Value;
+        public string Value;
         public int SortOrder;
         public bool IsDefault;
     }

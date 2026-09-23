@@ -13,27 +13,27 @@ MonoBehaviour:
   m_Name: RoleGroupTacticsCatalog
   m_EditorClassIdentifier: Game.Core::Game.Core.RoleGroupTacticsCatalogAsset
   entries:
-  - RoleGroup: 1
+  - RoleGroup: Frontline
     TargetPriorityOptions:
-    - Value: 1
-    - Value: 2
-    - Value: 3
+    - Value: Nearest
+    - Value: DeepestPenetration
+    - Value: HighestHpRatio
     PositioningOptions:
-    - Value: 2
-    - Value: 3
+    - Value: Charge
+    - Value: Blocking
     SelfPreservationOptions:
-    - Value: 1
-    - Value: 2
-  - RoleGroup: 2
+    - Value: Resilient
+    - Value: FallBackOnHeavyDamage
+  - RoleGroup: RangedDealer
     TargetPriorityOptions:
-    - Value: 1
-    - Value: 4
-    - Value: 5
+    - Value: Nearest
+    - Value: HighestAttack
+    - Value: LowestHp
     PositioningOptions:
-    - Value: 1
-    - Value: 4
-    - Value: 5
-    - Value: 6
+    - Value: ApproachAttack
+    - Value: Stationary
+    - Value: Surround
+    - Value: Disperse
     SelfPreservationOptions:
-    - Value: 3
-    - Value: 4
+    - Value: Kiting
+    - Value: RetreatOnHit

@@ -11,25 +11,25 @@ namespace Game.Core
     [Serializable]
     public struct TargetPriorityOption
     {
-        public TargetPriority Value;
+        public string Value;
     }
 
     [Serializable]
     public struct LocalPositioningOption
     {
-        public LocalPositioning Value;
+        public string Value;
     }
 
     [Serializable]
     public struct SelfPreservationOption
     {
-        public SelfPreservation Value;
+        public string Value;
     }
 
     [Serializable]
     public struct RoleGroupCatalogEntry
     {
-        public RoleGroup RoleGroup;
+        public string RoleGroup;
         // 목록 순서 = 드롭다운 표시 순서 = override 초기값(첫 항목, Docs/설계/11번 §2.1).
         public List<TargetPriorityOption> TargetPriorityOptions;
         public List<LocalPositioningOption> PositioningOptions;
@@ -47,7 +47,7 @@ namespace Game.Core
     {
         [SerializeField] private List<RoleGroupCatalogEntry> entries = new();
 
-        public bool TryGetEntry(RoleGroup roleGroup, out RoleGroupCatalogEntry entry)
+        public bool TryGetEntry(string roleGroup, out RoleGroupCatalogEntry entry)
             => TableEntryLookup.TryFind(entries, roleGroup, e => e.RoleGroup, out entry);
 
         public IReadOnlyList<RoleGroupCatalogEntry> Entries => entries;

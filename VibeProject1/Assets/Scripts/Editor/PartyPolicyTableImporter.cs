@@ -47,9 +47,9 @@ namespace Game.Core.Editor
         {
             var asset = EditorTableReader.GetOrCreateAsset<PartyTacticsPolicyCatalogAsset>(TableAssetPaths.PartyPolicyCatalog);
 
-            var recognitionOptions = ReadOptionsSortedBySortOrder<EnemyRecognitionType>(EditorTableReader.ReadSheet(workbookPath, "PartyRecognitionOptions"));
-            var radiusOptions = ReadOptionsSortedBySortOrder<ActivityRadiusPreset>(EditorTableReader.ReadSheet(workbookPath, "PartyRadiusOptions"));
-            var pursuitOptions = ReadOptionsSortedBySortOrder<PursuitPreset>(EditorTableReader.ReadSheet(workbookPath, "PartyPursuitOptions"));
+            var recognitionOptions = ReadOptionsSortedBySortOrder(EditorTableReader.ReadSheet(workbookPath, "PartyRecognitionOptions"));
+            var radiusOptions = ReadOptionsSortedBySortOrder(EditorTableReader.ReadSheet(workbookPath, "PartyRadiusOptions"));
+            var pursuitOptions = ReadOptionsSortedBySortOrder(EditorTableReader.ReadSheet(workbookPath, "PartyPursuitOptions"));
 
             if (!HasExactlyOneDefault(recognitionOptions, "PartyRecognitionOptions")
                 || !HasExactlyOneDefault(radiusOptions, "PartyRadiusOptions")
@@ -67,7 +67,7 @@ namespace Game.Core.Editor
             return true;
         }
 
-        private static bool HasExactlyOneDefault<TEnum>(List<(TEnum Value, int SortOrder, bool IsDefault)> options, string sheetName) where TEnum : struct, System.Enum
+        private static bool HasExactlyOneDefault(List<(string Value, int SortOrder, bool IsDefault)> options, string sheetName)
         {
             var defaultCount = options.Count(o => o.IsDefault);
             if (defaultCount == 1) return true;
@@ -76,14 +76,15 @@ namespace Game.Core.Editor
             return false;
         }
 
-        private static List<(TEnum Value, int SortOrder, bool IsDefault)> ReadOptionsSortedBySortOrder<TEnum>(
-            IReadOnlyList<IReadOnlyDictionary<string, string>> rows) where TEnum : struct, System.Enum
+        private static List<(string Value, int SortOrder, bool IsDefault)> ReadOptionsSortedBySortOrder(
+            IReadOnlyList<IReadOnlyDictionary<string, string>> rows)
         {
-            var options = new List<(TEnum Value, int SortOrder, bool IsDefault)>(rows.Count);
+            var options = new List<(string Value, int SortOrder, bool IsDefault)>(rows.Count);
+            var seenIds = new HashSet<string>();
             foreach (var row in rows)
             {
                 options.Add((
-                    EditorTableReader.ParseEnum<TEnum>(row, "Id"),
+                    EditorTableReader.ParseSlug(row, "Id", seenIds),
                     EditorTableReader.ParseInt(row, "SortOrder"),
                     EditorTableReader.ParseBool(row, "IsDefault")));
             }
@@ -91,13 +92,13 @@ namespace Game.Core.Editor
             return options;
         }
 
-        private static void WriteOptionList<TEnum>(SerializedProperty listProp, List<(TEnum Value, int SortOrder, bool IsDefault)> options) where TEnum : struct, System.Enum
+        private static void WriteOptionList(SerializedProperty listProp, List<(string Value, int SortOrder, bool IsDefault)> options)
         {
             listProp.arraySize = options.Count;
             for (var i = 0; i < options.Count; i++)
             {
                 var element = listProp.GetArrayElementAtIndex(i);
-                EditorTableReader.SetEnumValue(element.FindPropertyRelative("Value"), options[i].Value);
+                element.FindPropertyRelative("Value").stringValue = options[i].Value;
                 element.FindPropertyRelative("SortOrder").intValue = options[i].SortOrder;
                 element.FindPropertyRelative("IsDefault").boolValue = options[i].IsDefault;
             }
@@ -117,10 +118,11 @@ namespace Game.Core.Editor
         private static void WriteStringList(SerializedProperty listProp, IReadOnlyList<IReadOnlyDictionary<string, string>> rows)
         {
             listProp.arraySize = rows.Count;
+            var seenIds = new HashSet<string>();
             for (var i = 0; i < rows.Count; i++)
             {
                 var element = listProp.GetArrayElementAtIndex(i);
-                element.FindPropertyRelative("Id").intValue = EditorTableReader.ParseInt(rows[i], "Id");
+                element.FindPropertyRelative("Id").stringValue = EditorTableReader.ParseSlug(rows[i], "Id", seenIds);
                 element.FindPropertyRelative("Ko").stringValue = rows[i]["Ko"];
             }
         }

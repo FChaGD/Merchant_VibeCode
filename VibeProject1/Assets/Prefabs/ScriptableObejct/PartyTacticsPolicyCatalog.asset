@@ -13,38 +13,38 @@ MonoBehaviour:
   m_Name: PartyTacticsPolicyCatalog
   m_EditorClassIdentifier: Game.Core::Game.Core.PartyTacticsPolicyCatalogAsset
   recognitionOptions:
-  - Value: 1
+  - Value: OneSecondDelay
     SortOrder: 0
     IsDefault: 1
-  - Value: 2
+  - Value: FiveSecondOrProximity
     SortOrder: 1
     IsDefault: 0
-  - Value: 3
+  - Value: ProximityOrHit
     SortOrder: 2
     IsDefault: 0
   radiusOptions:
-  - Value: 1
+  - Value: FormationHold
     SortOrder: 0
     IsDefault: 0
-  - Value: 2
+  - Value: TripWide
     SortOrder: 1
     IsDefault: 1
-  - Value: 3
+  - Value: FieldWide
     SortOrder: 2
     IsDefault: 0
   pursuitOptions:
-  - Value: 1
+  - Value: Autonomous
     SortOrder: 0
     IsDefault: 0
-  - Value: 2
+  - Value: HuntToKill
     SortOrder: 1
     IsDefault: 0
-  - Value: 3
+  - Value: OffensiveJudgment
     SortOrder: 2
     IsDefault: 1
-  - Value: 4
+  - Value: NoPursuit
     SortOrder: 3
     IsDefault: 0
-  - Value: 5
+  - Value: HoldPosition
     SortOrder: 4
     IsDefault: 0

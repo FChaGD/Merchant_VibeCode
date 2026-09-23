@@ -10,22 +10,22 @@ namespace Game.Core
     /// </summary>
     public readonly struct UnitTacticsProfile
     {
-        public EnemyRecognitionType RecognitionType { get; }
-        public ActivityRadiusPreset RadiusPreset { get; }
-        public PursuitPreset Pursuit { get; }
-        public TargetPriority TargetPriority { get; }
-        public LocalPositioning Positioning { get; }
-        public SelfPreservation SelfPreservation { get; }
+        public string RecognitionType { get; }
+        public string RadiusPreset { get; }
+        public string Pursuit { get; }
+        public string TargetPriority { get; }
+        public string Positioning { get; }
+        public string SelfPreservation { get; }
         public Vector2 HomePosition { get; }
         // 방진 형성 로직(Docs/설계/12번 §12.3)이 "이 아군이 보호대상 후보군(RangedDealer/Supporter)에
         // 속하는지" 판정해야 해서 추가 - 역할군 자체는 이미 override 조회에 쓰였지만 결과 값이
         // 프로필 밖으로 나가지 않았었다.
-        public RoleGroup RoleGroup { get; }
+        public string RoleGroup { get; }
 
         public UnitTacticsProfile(
-            EnemyRecognitionType recognitionType, ActivityRadiusPreset radiusPreset, PursuitPreset pursuit,
-            TargetPriority targetPriority, LocalPositioning positioning, SelfPreservation selfPreservation,
-            Vector2 homePosition, RoleGroup roleGroup)
+            string recognitionType, string radiusPreset, string pursuit,
+            string targetPriority, string positioning, string selfPreservation,
+            Vector2 homePosition, string roleGroup)
         {
             RecognitionType = recognitionType;
             RadiusPreset = radiusPreset;

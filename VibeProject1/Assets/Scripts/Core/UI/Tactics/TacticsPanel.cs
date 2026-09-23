@@ -89,8 +89,8 @@ namespace Game.Core
             tabIndividualButton.onClick.AddListener(() => SwitchTab(TacticsTab.Individual));
 
             BindPartyDropdowns();
-            BindRoleGroupDropdowns(RoleGroup.Frontline, frontlineOverrideToggle, frontlineTargetDropdown, frontlinePositioningDropdown, frontlineSelfPreservationDropdown);
-            BindRoleGroupDropdowns(RoleGroup.RangedDealer, rangedOverrideToggle, rangedTargetDropdown, rangedPositioningDropdown, rangedSelfPreservationDropdown);
+            BindRoleGroupDropdowns("Frontline", frontlineOverrideToggle, frontlineTargetDropdown, frontlinePositioningDropdown, frontlineSelfPreservationDropdown);
+            BindRoleGroupDropdowns("RangedDealer", rangedOverrideToggle, rangedTargetDropdown, rangedPositioningDropdown, rangedSelfPreservationDropdown);
 
             isBound = true;
             panelRoot.SetActive(false);
@@ -176,11 +176,11 @@ namespace Game.Core
                 SelectWithoutNotify(pursuitDropdown, IndexOfOption(partyPolicyCatalog.PursuitOptions, o => o.Value, party.Pursuit));
             }
 
-            RefreshRoleGroupSelection(RoleGroup.Frontline, frontlineTargetDropdown, frontlinePositioningDropdown, frontlineSelfPreservationDropdown);
-            RefreshRoleGroupSelection(RoleGroup.RangedDealer, rangedTargetDropdown, rangedPositioningDropdown, rangedSelfPreservationDropdown);
+            RefreshRoleGroupSelection("Frontline", frontlineTargetDropdown, frontlinePositioningDropdown, frontlineSelfPreservationDropdown);
+            RefreshRoleGroupSelection("RangedDealer", rangedTargetDropdown, rangedPositioningDropdown, rangedSelfPreservationDropdown);
         }
 
-        private void RefreshRoleGroupSelection(RoleGroup roleGroup, TMP_Dropdown targetDropdown, TMP_Dropdown positioningDropdown, TMP_Dropdown selfPreservationDropdown)
+        private void RefreshRoleGroupSelection(string roleGroup, TMP_Dropdown targetDropdown, TMP_Dropdown positioningDropdown, TMP_Dropdown selfPreservationDropdown)
         {
             if (catalog == null || !catalog.TryGetEntry(roleGroup, out var entry)) return;
 
@@ -230,7 +230,7 @@ namespace Game.Core
         }
 
         private void BindRoleGroupDropdowns(
-            RoleGroup roleGroup, Toggle overrideToggle,
+            string roleGroup, Toggle overrideToggle,
             TMP_Dropdown targetDropdown, TMP_Dropdown positioningDropdown, TMP_Dropdown selfPreservationDropdown)
         {
             if (catalog == null || !catalog.TryGetEntry(roleGroup, out var entry))

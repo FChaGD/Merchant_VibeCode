@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: EnemyStringsTable
   m_EditorClassIdentifier: Game.Core::Game.Core.EnemyStringsTableAsset
   strings:
-  - Id: 1
+  - Id: Marauder
     Ko: "\uC57D\uD0C8\uC790"
-  - Id: 2
+  - Id: Monster
     Ko: "\uAD34\uC218"
-  - Id: 3
+  - Id: Adversary
     Ko: "\uC801\uB300\uC790"

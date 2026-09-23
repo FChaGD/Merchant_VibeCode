@@ -18,12 +18,12 @@ namespace Game.Core
         // 전투 내내 고정 - standardActivityRadius(대형 크기 기반)와 파티 추적 설정 둘 다 전투 시작
         // 시점에 확정되는 값이라(Docs/설계/12번 §2, §12.3-1), 매 틱 인자로 받을 이유가 없다.
         private readonly StandardActivityRadiusZone standardRadiusZone;
-        private readonly PursuitPreset partyPursuitPreset;
+        private readonly string partyPursuitPreset;
 
         private readonly List<FrontlineFormationLine> activeLines = new();
         public IReadOnlyList<FrontlineFormationLine> ActiveLines => activeLines;
 
-        public FrontlineFormationCoordinator(float standardActivityRadius, PursuitPreset partyPursuitPreset)
+        public FrontlineFormationCoordinator(float standardActivityRadius, string partyPursuitPreset)
         {
             standardRadiusZone = new StandardActivityRadiusZone(standardActivityRadius);
             this.partyPursuitPreset = partyPursuitPreset;
@@ -112,7 +112,7 @@ namespace Game.Core
             }
             foreach (var ally in allies)
             {
-                if (ally.IsAlive && ally.RoleGroup is RoleGroup.RangedDealer or RoleGroup.Supporter)
+                if (ally.IsAlive && ally.RoleGroup is "RangedDealer" or "Supporter")
                 {
                     protectionCandidateBuffer.Add(ally);
                 }
@@ -222,8 +222,8 @@ namespace Game.Core
             unassignedPoolBuffer.Clear();
             foreach (var ally in allies)
             {
-                if (ally.IsAlive && !ally.IsFleeing && ally.RoleGroup == RoleGroup.Frontline
-                    && ally.Positioning == LocalPositioning.Blocking && !IsInAnyActiveLine(ally))
+                if (ally.IsAlive && !ally.IsFleeing && ally.RoleGroup == "Frontline"
+                    && ally.Positioning == "Blocking" && !IsInAnyActiveLine(ally))
                 {
                     unassignedPoolBuffer.Add(ally);
                 }

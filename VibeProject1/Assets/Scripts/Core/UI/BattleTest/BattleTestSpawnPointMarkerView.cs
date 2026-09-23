@@ -33,15 +33,15 @@ namespace Game.Core
         public void SetReservation(BattleTestSpawnPointReservations.Composition composition)
         {
             var primaryType = ResolvePrimaryType(composition);
-            bodyRenderer.sprite = primaryType.HasValue ? BattlePlaceholderSprite.ForEnemyType(primaryType.Value) : BattlePlaceholderSprite.WhiteCircle;
-            bodyRenderer.color = primaryType.HasValue ? ReservedColor : UnassignedColor;
+            bodyRenderer.sprite = primaryType != null ? BattlePlaceholderSprite.ForEnemyType(primaryType) : BattlePlaceholderSprite.WhiteCircle;
+            bodyRenderer.color = primaryType != null ? ReservedColor : UnassignedColor;
         }
 
-        private static EnemyType? ResolvePrimaryType(BattleTestSpawnPointReservations.Composition composition)
+        private static string ResolvePrimaryType(BattleTestSpawnPointReservations.Composition composition)
         {
-            if (composition.Marauder > 0) return EnemyType.Marauder;
-            if (composition.Monster > 0) return EnemyType.Monster;
-            if (composition.Adversary > 0) return EnemyType.Adversary;
+            if (composition.Marauder > 0) return "Marauder";
+            if (composition.Monster > 0) return "Monster";
+            if (composition.Adversary > 0) return "Adversary";
             return null;
         }
     }

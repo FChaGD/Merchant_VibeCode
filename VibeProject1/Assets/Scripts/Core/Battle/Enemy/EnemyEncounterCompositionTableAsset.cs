@@ -7,7 +7,7 @@ namespace Game.Core
     [Serializable]
     public struct EnemyEncounterCompositionEntry
     {
-        public EnemyType EnemyType;
+        public string EnemyType;
         // 기획 14번 §2 확정 - 포함 상한(Min~Max 둘 다 실제 등장 가능한 값). Random.Range(min, max)는
         // max가 배타적이라, 호출부(TableEnemyTypeCompositionProvider)가 CountMax+1로 보정해서 넘긴다.
         public int CountMin;
@@ -25,7 +25,7 @@ namespace Game.Core
     {
         [SerializeField] private List<EnemyEncounterCompositionEntry> entries = new();
 
-        public bool TryGetEntry(EnemyType enemyType, out EnemyEncounterCompositionEntry entry)
+        public bool TryGetEntry(string enemyType, out EnemyEncounterCompositionEntry entry)
             => TableEntryLookup.TryFind(entries, enemyType, e => e.EnemyType, out entry);
 
         public IReadOnlyList<EnemyEncounterCompositionEntry> Entries => entries;

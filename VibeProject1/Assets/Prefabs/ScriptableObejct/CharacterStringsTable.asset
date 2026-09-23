@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: CharacterStringsTable
   m_EditorClassIdentifier: Game.Core::Game.Core.CharacterStringsTableAsset
   strings:
-  - Id: 1
+  - Id: Warrior
     Ko: "\uC804\uC0AC"
-  - Id: 2
+  - Id: Archer
     Ko: "\uAD81\uC218"
-  - Id: 3
+  - Id: ShieldBearer
     Ko: "\uBC29\uD328\uBCD1"

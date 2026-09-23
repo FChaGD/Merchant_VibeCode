@@ -7,6 +7,6 @@ namespace Game.Core
     public interface ITacticsRepository : ITacticsReader
     {
         void SetPartySettings(PartyTacticsSettings settings);
-        void SetRoleGroupOverride(RoleGroup roleGroup, RoleGroupTacticsOverride value);
+        void SetRoleGroupOverride(string roleGroup, RoleGroupTacticsOverride value);
     }
 }

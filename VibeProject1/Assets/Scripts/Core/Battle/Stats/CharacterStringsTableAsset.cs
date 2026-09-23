@@ -11,11 +11,11 @@ namespace Game.Core
     [CreateAssetMenu(fileName = "CharacterStringsTable", menuName = "Game/Table/Character Strings Table")]
     public class CharacterStringsTableAsset : ScriptableObject
     {
-        [SerializeField] private List<LocalizedStringEntry> strings = new();
+        [SerializeField] private List<SlugLocalizedStringEntry> strings = new();
 
-        public bool TryGetLabel(MercenaryClass mercenaryClass, out string ko)
+        public bool TryGetLabel(string mercenaryClass, out string ko)
         {
-            if (TableEntryLookup.TryFind(strings, (int)mercenaryClass, e => e.Id, out var entry))
+            if (TableEntryLookup.TryFind(strings, mercenaryClass, e => e.Id, out var entry))
             {
                 ko = entry.Ko;
                 return true;

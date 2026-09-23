@@ -160,7 +160,7 @@ namespace Game.Core
             foreach (var ally in allies)
             {
                 if (!ally.IsAlive || ally.IsFleeing) continue;
-                if (ally.Positioning != LocalPositioning.Surround) continue;
+                if (ally.Positioning != "Surround") continue;
                 surroundAlliesBuffer.Add(ally);
                 if (ally.CurrentTarget != null && !IsAssigned(ally)) hasUnassignedCandidate = true;
                 foreach (var enemy in ally.RecognizedEnemies)

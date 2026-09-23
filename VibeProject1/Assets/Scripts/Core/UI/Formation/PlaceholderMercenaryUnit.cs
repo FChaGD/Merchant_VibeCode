@@ -14,9 +14,9 @@ namespace Game.Core
         public string DisplayName { get; }
         public Sprite Icon { get; }
         public FormationUnitKind Kind => FormationUnitKind.Character;
-        public MercenaryClass Class { get; }
+        public string Class { get; }
 
-        public PlaceholderMercenaryUnit(string id, string displayName, Sprite icon, MercenaryClass mercenaryClass)
+        public PlaceholderMercenaryUnit(string id, string displayName, Sprite icon, string mercenaryClass)
         {
             Id = id;
             DisplayName = displayName;

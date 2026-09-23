@@ -31,7 +31,7 @@ namespace Game.Core
             rangedAllyBuffer.Clear();
             foreach (var unit in sameSideUnits)
             {
-                if (unit.RoleGroup == RoleGroup.RangedDealer) rangedAllyBuffer.Add(unit);
+                if (unit.RoleGroup == "RangedDealer") rangedAllyBuffer.Add(unit);
             }
 
             var pushOut = spatialQuery.ComputeSeparationPush(self, selfPosition, TacticsTuning.DisperseRadiusMeters, rangedAllyBuffer);

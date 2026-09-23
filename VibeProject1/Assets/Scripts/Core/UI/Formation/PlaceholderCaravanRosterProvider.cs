@@ -31,16 +31,16 @@ namespace Game.Core
         public void ResolveDependencies(IDependencyResolver registrar)
         {
             roster = new List<IFormationUnit>();
-            AddMercenaryInstances(roster, "character-warrior", "전사", warriorIcon, MercenaryClass.Warrior);
-            AddMercenaryInstances(roster, "character-archer", "궁수", archerIcon, MercenaryClass.Archer);
-            AddMercenaryInstances(roster, "character-shieldbearer", "방패병", shieldBearerIcon, MercenaryClass.ShieldBearer);
+            AddMercenaryInstances(roster, "character-warrior", "전사", warriorIcon, "Warrior");
+            AddMercenaryInstances(roster, "character-archer", "궁수", archerIcon, "Archer");
+            AddMercenaryInstances(roster, "character-shieldbearer", "방패병", shieldBearerIcon, "ShieldBearer");
             AddFormationInstances(roster, "wagon", "마차", wagonIcon, FormationUnitKind.Wagon);
             AddFormationInstances(roster, "facility", "시설", facilityIcon, FormationUnitKind.Facility);
         }
 
         public IReadOnlyList<IFormationUnit> GetRoster() => roster;
 
-        private static void AddMercenaryInstances(List<IFormationUnit> roster, string idPrefix, string displayName, Sprite icon, MercenaryClass mercenaryClass)
+        private static void AddMercenaryInstances(List<IFormationUnit> roster, string idPrefix, string displayName, Sprite icon, string mercenaryClass)
         {
             for (var i = 1; i <= InstancesPerCategory; i++)
             {

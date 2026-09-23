@@ -9,13 +9,13 @@ namespace Game.Core
     /// </summary>
     public static class ActivityRadiusZoneFactory
     {
-        public static IActivityRadiusZone Create(ActivityRadiusPreset preset, Vector2 homePosition, float standardRadius)
+        public static IActivityRadiusZone Create(string preset, Vector2 homePosition, float standardRadius)
         {
             return preset switch
             {
-                ActivityRadiusPreset.FormationHold => new FixedActivityRadiusZone(homePosition),
-                ActivityRadiusPreset.TripWide => new StandardActivityRadiusZone(standardRadius),
-                ActivityRadiusPreset.FieldWide => new WideActivityRadiusZone(),
+                "FormationHold" => new FixedActivityRadiusZone(homePosition),
+                "TripWide" => new StandardActivityRadiusZone(standardRadius),
+                "FieldWide" => new WideActivityRadiusZone(),
                 _ => throw new ArgumentOutOfRangeException(nameof(preset), preset, null),
             };
         }

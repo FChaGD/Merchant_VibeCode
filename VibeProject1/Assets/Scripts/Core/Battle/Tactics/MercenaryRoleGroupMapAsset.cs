@@ -7,8 +7,8 @@ namespace Game.Core
     [Serializable]
     public struct MercenaryRoleGroupEntry
     {
-        public MercenaryClass MercenaryClass;
-        public RoleGroup RoleGroup;
+        public string MercenaryClass;
+        public string RoleGroup;
     }
 
     /// <summary>
@@ -22,7 +22,7 @@ namespace Game.Core
     {
         [SerializeField] private List<MercenaryRoleGroupEntry> entries = new();
 
-        public bool TryGetRoleGroup(MercenaryClass mercenaryClass, out RoleGroup roleGroup)
+        public bool TryGetRoleGroup(string mercenaryClass, out string roleGroup)
         {
             foreach (var entry in entries)
             {

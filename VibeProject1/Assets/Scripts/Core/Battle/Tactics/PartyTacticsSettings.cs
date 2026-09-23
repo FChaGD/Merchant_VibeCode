@@ -5,11 +5,11 @@ namespace Game.Core
     /// </summary>
     public readonly struct PartyTacticsSettings
     {
-        public EnemyRecognitionType RecognitionType { get; }
-        public ActivityRadiusPreset RadiusPreset { get; }
-        public PursuitPreset Pursuit { get; }
+        public string RecognitionType { get; }
+        public string RadiusPreset { get; }
+        public string Pursuit { get; }
 
-        public PartyTacticsSettings(EnemyRecognitionType recognitionType, ActivityRadiusPreset radiusPreset, PursuitPreset pursuit)
+        public PartyTacticsSettings(string recognitionType, string radiusPreset, string pursuit)
         {
             RecognitionType = recognitionType;
             RadiusPreset = radiusPreset;

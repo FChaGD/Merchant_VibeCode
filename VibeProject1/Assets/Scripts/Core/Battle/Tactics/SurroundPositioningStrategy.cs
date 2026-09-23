@@ -50,7 +50,7 @@ namespace Game.Core
             sameSideSurroundBuffer.Clear();
             foreach (var unit in sameSideUnits)
             {
-                if (unit != self && unit.Positioning == LocalPositioning.Surround) sameSideSurroundBuffer.Add(unit);
+                if (unit != self && unit.Positioning == "Surround") sameSideSurroundBuffer.Add(unit);
             }
             var separationPush = spatialQuery.ComputeSeparationPush(self, selfPosition, TacticsTuning.SurroundAllySpacingMeters, sameSideSurroundBuffer);
 

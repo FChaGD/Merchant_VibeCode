@@ -8,6 +8,6 @@ namespace Game.Core
     public interface ITacticsReader
     {
         PartyTacticsSettings GetPartySettings();
-        RoleGroupTacticsOverride GetRoleGroupOverride(RoleGroup roleGroup);
+        RoleGroupTacticsOverride GetRoleGroupOverride(string roleGroup);
     }
 }

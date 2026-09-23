@@ -57,11 +57,16 @@ namespace Game.Core.Editor
             var so = new SerializedObject(asset);
             var entriesProp = so.FindProperty("entries");
             entriesProp.arraySize = rows.Count;
+            // 캐릭터 하나는 정확히 한 역할군에만 매핑돼야 하므로 CharacterId는 이 시트 안에서
+            // 유일해야 한다(seenCharacterIds로 검증). RoleGroupId는 여러 캐릭터가 같은 역할군을
+            // 공유하는 게 정상이라 중복 검증 대상이 아니다(빈 값 검증만 필요해 매 행 새 HashSet으로
+            // ParseSlug의 중복 체크를 우회).
+            var seenCharacterIds = new HashSet<string>();
             for (var i = 0; i < rows.Count; i++)
             {
                 var element = entriesProp.GetArrayElementAtIndex(i);
-                EditorTableReader.SetEnumValue(element.FindPropertyRelative("MercenaryClass"), EditorTableReader.ParseEnum<MercenaryClass>(rows[i], "CharacterId"));
-                EditorTableReader.SetEnumValue(element.FindPropertyRelative("RoleGroup"), EditorTableReader.ParseEnum<RoleGroup>(rows[i], "RoleGroupId"));
+                element.FindPropertyRelative("MercenaryClass").stringValue = EditorTableReader.ParseSlug(rows[i], "CharacterId", seenCharacterIds);
+                element.FindPropertyRelative("RoleGroup").stringValue = EditorTableReader.ParseSlug(rows[i], "RoleGroupId", new HashSet<string>());
             }
             so.ApplyModifiedProperties();
             EditorUtility.SetDirty(asset);
@@ -77,18 +82,20 @@ namespace Game.Core.Editor
                 return false;
             }
 
-            var targetPriorityByRole = GroupByRoleGroup<TargetPriority>(EditorTableReader.ReadSheet(workbookPath, "RoleGroupTargetPriorityOptions"));
-            var positioningByRole = GroupByRoleGroup<LocalPositioning>(EditorTableReader.ReadSheet(workbookPath, "RoleGroupPositioningOptions"));
+            var targetPriorityByRole = GroupByRoleGroup(EditorTableReader.ReadSheet(workbookPath, "RoleGroupTargetPriorityOptions"));
+            var positioningByRole = GroupByRoleGroup(EditorTableReader.ReadSheet(workbookPath, "RoleGroupPositioningOptions"));
             // 시트명 "RoleGroupSelfPreservationOptions"(기획 14번 §6.3 표기)는 32자라 Excel의 시트명
             // 31자 제한을 넘는다 - 실제 워크북 생성 중 발견(v1의 코드페이지 이슈와 같은 성격의
             // 구현 단계 보정). "RoleGroupSelfPreserveOptions"로 축약.
-            var selfPreservationByRole = GroupByRoleGroup<SelfPreservation>(EditorTableReader.ReadSheet(workbookPath, "RoleGroupSelfPreserveOptions"));
+            var selfPreservationByRole = GroupByRoleGroup(EditorTableReader.ReadSheet(workbookPath, "RoleGroupSelfPreserveOptions"));
 
-            var roleGroups = new HashSet<RoleGroup>();
+            var roleGroups = new HashSet<string>();
             roleGroups.UnionWith(targetPriorityByRole.Keys);
             roleGroups.UnionWith(positioningByRole.Keys);
             roleGroups.UnionWith(selfPreservationByRole.Keys);
-            var orderedRoleGroups = roleGroups.OrderBy(rg => (int)rg).ToList();
+            // 정수 Id가 사라져 (int)rg 정렬을 못 쓴다 - 문자열 순서 정렬로 대체(표시 순서 자체는
+            // 이미 SortOrder로 축마다 확정되므로, 역할군 나열 순서는 임의로 안정적이기만 하면 된다).
+            var orderedRoleGroups = roleGroups.OrderBy(rg => rg, System.StringComparer.Ordinal).ToList();
 
             var so = new SerializedObject(asset);
             var entriesProp = so.FindProperty("entries");
@@ -97,7 +104,7 @@ namespace Game.Core.Editor
             {
                 var roleGroup = orderedRoleGroups[i];
                 var element = entriesProp.GetArrayElementAtIndex(i);
-                EditorTableReader.SetEnumValue(element.FindPropertyRelative("RoleGroup"), roleGroup);
+                element.FindPropertyRelative("RoleGroup").stringValue = roleGroup;
                 WriteOptionList(element.FindPropertyRelative("TargetPriorityOptions"), GetOrEmpty(targetPriorityByRole, roleGroup));
                 WriteOptionList(element.FindPropertyRelative("PositioningOptions"), GetOrEmpty(positioningByRole, roleGroup));
                 WriteOptionList(element.FindPropertyRelative("SelfPreservationOptions"), GetOrEmpty(selfPreservationByRole, roleGroup));
@@ -110,25 +117,30 @@ namespace Game.Core.Editor
         // RoleGroup별로 묶고 SortOrder로 정렬한다 - 목록 순서 = 드롭다운 표시 순서 = override 초기값
         // (기획 12번 §2.1, 기획 14번 §3.5). 시트에 나열된 SortOrder를 그대로 신뢰한다(물리적 행 순서
         // 의존 금지). v2부터 DisplayLabel 컬럼이 없다 - 값(Id)만 읽는다.
-        private static Dictionary<RoleGroup, List<TEnum>> GroupByRoleGroup<TEnum>(
-            IReadOnlyList<IReadOnlyDictionary<string, string>> rows) where TEnum : struct, System.Enum
+        private static Dictionary<string, List<string>> GroupByRoleGroup(
+            IReadOnlyList<IReadOnlyDictionary<string, string>> rows)
         {
-            var grouped = new Dictionary<RoleGroup, List<(int SortOrder, TEnum Value)>>();
+            var grouped = new Dictionary<string, List<(int SortOrder, string Value)>>();
+            // RoleGroupId는 역할군마다 여러 행이 반복되는 그룹 키라 중복 검증 대상이 아니고,
+            // OptionId도 같은 역할군 안에서만 유일하면 되는데(TargetPriority/Positioning/
+            // SelfPreservation 각 축의 옵션 문자열) 이 시트 전체를 대상으로 한 ParseSlug 유일성
+            // 검증은 과하다 - 둘 다 매 행 새 HashSet으로 ParseSlug의 중복 체크를 우회하고 빈 값
+            // 검증만 받는다.
             foreach (var row in rows)
             {
-                var roleGroup = EditorTableReader.ParseEnum<RoleGroup>(row, "RoleGroupId");
-                var value = EditorTableReader.ParseEnum<TEnum>(row, "OptionId");
+                var roleGroup = EditorTableReader.ParseSlug(row, "RoleGroupId", new HashSet<string>());
+                var value = EditorTableReader.ParseSlug(row, "OptionId", new HashSet<string>());
                 var sortOrder = EditorTableReader.ParseInt(row, "SortOrder");
 
                 if (!grouped.TryGetValue(roleGroup, out var list))
                 {
-                    list = new List<(int, TEnum)>();
+                    list = new List<(int, string)>();
                     grouped[roleGroup] = list;
                 }
                 list.Add((sortOrder, value));
             }
 
-            var result = new Dictionary<RoleGroup, List<TEnum>>();
+            var result = new Dictionary<string, List<string>>();
             foreach (var pair in grouped)
             {
                 pair.Value.Sort((a, b) => a.SortOrder.CompareTo(b.SortOrder));
@@ -137,17 +149,17 @@ namespace Game.Core.Editor
             return result;
         }
 
-        private static List<TEnum> GetOrEmpty<TEnum>(Dictionary<RoleGroup, List<TEnum>> byRole, RoleGroup roleGroup) where TEnum : struct, System.Enum
+        private static List<string> GetOrEmpty(Dictionary<string, List<string>> byRole, string roleGroup)
         {
-            return byRole.TryGetValue(roleGroup, out var list) ? list : new List<TEnum>();
+            return byRole.TryGetValue(roleGroup, out var list) ? list : new List<string>();
         }
 
-        private static void WriteOptionList<TEnum>(SerializedProperty listProp, List<TEnum> options) where TEnum : struct, System.Enum
+        private static void WriteOptionList(SerializedProperty listProp, List<string> options)
         {
             listProp.arraySize = options.Count;
             for (var i = 0; i < options.Count; i++)
             {
-                EditorTableReader.SetEnumValue(listProp.GetArrayElementAtIndex(i).FindPropertyRelative("Value"), options[i]);
+                listProp.GetArrayElementAtIndex(i).FindPropertyRelative("Value").stringValue = options[i];
             }
         }
 
@@ -165,10 +177,11 @@ namespace Game.Core.Editor
         private static void WriteStringList(SerializedProperty listProp, IReadOnlyList<IReadOnlyDictionary<string, string>> rows)
         {
             listProp.arraySize = rows.Count;
+            var seenIds = new HashSet<string>();
             for (var i = 0; i < rows.Count; i++)
             {
                 var element = listProp.GetArrayElementAtIndex(i);
-                element.FindPropertyRelative("Id").intValue = EditorTableReader.ParseInt(rows[i], "Id");
+                element.FindPropertyRelative("Id").stringValue = EditorTableReader.ParseSlug(rows[i], "Id", seenIds);
                 element.FindPropertyRelative("Ko").stringValue = rows[i]["Ko"];
             }
         }

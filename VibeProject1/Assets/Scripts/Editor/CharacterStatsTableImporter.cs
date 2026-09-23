@@ -38,11 +38,12 @@ namespace Game.Core.Editor
         {
             var rows = EditorTableReader.ReadSheet(workbookPath, "CharacterStats");
             var entries = new List<CharacterStatsEntry>(rows.Count);
+            var seenIds = new HashSet<string>();
             foreach (var row in rows)
             {
                 entries.Add(new CharacterStatsEntry
                 {
-                    MercenaryClass = EditorTableReader.ParseEnum<MercenaryClass>(row, "Id"),
+                    MercenaryClass = EditorTableReader.ParseSlug(row, "Id", seenIds),
                     MaxHp = EditorTableReader.ParseFloat(row, "MaxHp"),
                     Attack = EditorTableReader.ParseFloat(row, "Attack"),
                     Defense = EditorTableReader.ParseFloat(row, "Defense"),
@@ -61,7 +62,7 @@ namespace Game.Core.Editor
             {
                 var element = entriesProp.GetArrayElementAtIndex(i);
                 var entry = entries[i];
-                EditorTableReader.SetEnumValue(element.FindPropertyRelative("MercenaryClass"), entry.MercenaryClass);
+                element.FindPropertyRelative("MercenaryClass").stringValue = entry.MercenaryClass;
                 element.FindPropertyRelative("MaxHp").floatValue = entry.MaxHp;
                 element.FindPropertyRelative("Attack").floatValue = entry.Attack;
                 element.FindPropertyRelative("Defense").floatValue = entry.Defense;
@@ -81,10 +82,11 @@ namespace Game.Core.Editor
             var so = new SerializedObject(asset);
             var stringsProp = so.FindProperty("strings");
             stringsProp.arraySize = rows.Count;
+            var seenIds = new HashSet<string>();
             for (var i = 0; i < rows.Count; i++)
             {
                 var element = stringsProp.GetArrayElementAtIndex(i);
-                element.FindPropertyRelative("Id").intValue = EditorTableReader.ParseInt(rows[i], "Id");
+                element.FindPropertyRelative("Id").stringValue = EditorTableReader.ParseSlug(rows[i], "Id", seenIds);
                 element.FindPropertyRelative("Ko").stringValue = rows[i]["Ko"];
             }
             so.ApplyModifiedProperties();

@@ -7,6 +7,6 @@ namespace Game.Core
     /// </summary>
     public interface IMercenaryUnit : IFormationUnit
     {
-        MercenaryClass Class { get; }
+        string Class { get; }
     }
 }

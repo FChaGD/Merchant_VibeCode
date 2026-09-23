@@ -18,7 +18,7 @@ namespace Game.Core
         [SerializeField] private PartyTacticsPolicyCatalogAsset partyPolicyCatalog;
 
         private PartyTacticsSettings? partySettings;
-        private readonly Dictionary<RoleGroup, RoleGroupTacticsOverride> roleGroupOverrides = new();
+        private readonly Dictionary<string, RoleGroupTacticsOverride> roleGroupOverrides = new();
 
         public void RegisterSelf(IDependencyRegistrar registrar)
         {
@@ -51,39 +51,39 @@ namespace Game.Core
 
         // 3개 축 구조체(EnemyRecognitionOption/ActivityRadiusOption/PursuitOption)가 서로 다른 타입이라
         // 제네릭 하나로 묶을 수 없다 - TacticsPanel.IndexOfOption과 같은 이유로 타입별 반복을 택했다.
-        private EnemyRecognitionType ResolveRecognitionDefault(IReadOnlyList<EnemyRecognitionOption> options)
+        private string ResolveRecognitionDefault(IReadOnlyList<EnemyRecognitionOption> options)
         {
             foreach (var option in options)
             {
                 if (option.IsDefault) return option.Value;
             }
-            Debug.LogWarning($"{nameof(InMemoryTacticsRepository)}: '{nameof(EnemyRecognitionType)}' 축에 IsDefault 항목이 없어 기본값을 계산할 수 없다.");
+            Debug.LogWarning($"{nameof(InMemoryTacticsRepository)}: 'EnemyRecognitionType' 축에 IsDefault 항목이 없어 기본값을 계산할 수 없다.");
             return default;
         }
 
-        private ActivityRadiusPreset ResolveRadiusDefault(IReadOnlyList<ActivityRadiusOption> options)
+        private string ResolveRadiusDefault(IReadOnlyList<ActivityRadiusOption> options)
         {
             foreach (var option in options)
             {
                 if (option.IsDefault) return option.Value;
             }
-            Debug.LogWarning($"{nameof(InMemoryTacticsRepository)}: '{nameof(ActivityRadiusPreset)}' 축에 IsDefault 항목이 없어 기본값을 계산할 수 없다.");
+            Debug.LogWarning($"{nameof(InMemoryTacticsRepository)}: 'ActivityRadiusPreset' 축에 IsDefault 항목이 없어 기본값을 계산할 수 없다.");
             return default;
         }
 
-        private PursuitPreset ResolvePursuitDefault(IReadOnlyList<PursuitOption> options)
+        private string ResolvePursuitDefault(IReadOnlyList<PursuitOption> options)
         {
             foreach (var option in options)
             {
                 if (option.IsDefault) return option.Value;
             }
-            Debug.LogWarning($"{nameof(InMemoryTacticsRepository)}: '{nameof(PursuitPreset)}' 축에 IsDefault 항목이 없어 기본값을 계산할 수 없다.");
+            Debug.LogWarning($"{nameof(InMemoryTacticsRepository)}: 'PursuitPreset' 축에 IsDefault 항목이 없어 기본값을 계산할 수 없다.");
             return default;
         }
 
         public void SetPartySettings(PartyTacticsSettings settings) => partySettings = settings;
 
-        public RoleGroupTacticsOverride GetRoleGroupOverride(RoleGroup roleGroup)
+        public RoleGroupTacticsOverride GetRoleGroupOverride(string roleGroup)
         {
             if (roleGroupOverrides.TryGetValue(roleGroup, out var stored))
             {
@@ -93,12 +93,12 @@ namespace Game.Core
             return ResolveCatalogDefault(roleGroup);
         }
 
-        public void SetRoleGroupOverride(RoleGroup roleGroup, RoleGroupTacticsOverride value)
+        public void SetRoleGroupOverride(string roleGroup, RoleGroupTacticsOverride value)
         {
             roleGroupOverrides[roleGroup] = value;
         }
 
-        private RoleGroupTacticsOverride ResolveCatalogDefault(RoleGroup roleGroup)
+        private RoleGroupTacticsOverride ResolveCatalogDefault(string roleGroup)
         {
             if (catalog == null)
             {

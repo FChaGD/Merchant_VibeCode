@@ -13,27 +13,27 @@ MonoBehaviour:
   m_Name: PartyTacticsPolicyStringsTable
   m_EditorClassIdentifier: Game.Core::Game.Core.PartyTacticsPolicyStringsTableAsset
   recognitionStrings:
-  - Id: 1
+  - Id: OneSecondDelay
     Ko: "\uAD11\uC5ED \uACBD\uACC4"
-  - Id: 2
+  - Id: FiveSecondOrProximity
     Ko: "\uC740\uC2E0 \uACBD\uACC4"
-  - Id: 3
+  - Id: ProximityOrHit
     Ko: "\uB300\uC5F4 \uACBD\uACC4"
   radiusStrings:
-  - Id: 1
+  - Id: FormationHold
     Ko: "\uB300\uC5F4 \uC720\uC9C0"
-  - Id: 2
+  - Id: TripWide
     Ko: "\uC0C1\uD589 \uC804\uCCB4"
-  - Id: 3
+  - Id: FieldWide
     Ko: "\uC804\uC7A5 \uC804\uCCB4"
   pursuitStrings:
-  - Id: 1
+  - Id: Autonomous
     Ko: "\uC790\uC728\uD589\uB3D9"
-  - Id: 2
+  - Id: HuntToKill
     Ko: "\uCD94\uC0B4"
-  - Id: 3
+  - Id: OffensiveJudgment
     Ko: "\uACF5\uC138\uD310\uB2E8"
-  - Id: 4
+  - Id: NoPursuit
     Ko: "\uCD94\uC801\uAE08\uC9C0"
-  - Id: 5
+  - Id: HoldPosition
     Ko: "\uC704\uCE58\uC0AC\uC218"

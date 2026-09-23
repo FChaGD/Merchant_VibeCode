@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: CharacterStatsTable
   m_EditorClassIdentifier: Game.Core::Game.Core.CharacterStatsTableAsset
   entries:
-  - MercenaryClass: 1
+  - MercenaryClass: Warrior
     MaxHp: 100
     Attack: 20
     Defense: 10
@@ -21,7 +21,7 @@ MonoBehaviour:
     AttackInterval: 1
     Range: 1.5
     MoraleSyncRate: 5
-  - MercenaryClass: 2
+  - MercenaryClass: Archer
     MaxHp: 70
     Attack: 15
     Defense: 5
@@ -29,7 +29,7 @@ MonoBehaviour:
     AttackInterval: 1.2
     Range: 6
     MoraleSyncRate: 5
-  - MercenaryClass: 3
+  - MercenaryClass: ShieldBearer
     MaxHp: 150
     Attack: 8
     Defense: 20

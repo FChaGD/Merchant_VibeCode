@@ -12,15 +12,15 @@ namespace Game.Core
     [CreateAssetMenu(fileName = "PartyTacticsPolicyStringsTable", menuName = "Game/Tactics/Party Tactics Policy Strings Table")]
     public class PartyTacticsPolicyStringsTableAsset : ScriptableObject
     {
-        [SerializeField] private List<LocalizedStringEntry> recognitionStrings = new();
-        [SerializeField] private List<LocalizedStringEntry> radiusStrings = new();
-        [SerializeField] private List<LocalizedStringEntry> pursuitStrings = new();
+        [SerializeField] private List<SlugLocalizedStringEntry> recognitionStrings = new();
+        [SerializeField] private List<SlugLocalizedStringEntry> radiusStrings = new();
+        [SerializeField] private List<SlugLocalizedStringEntry> pursuitStrings = new();
 
-        public bool TryGetRecognitionLabel(EnemyRecognitionType value, out string ko) => TryGetLabel(recognitionStrings, (int)value, out ko);
-        public bool TryGetRadiusLabel(ActivityRadiusPreset value, out string ko) => TryGetLabel(radiusStrings, (int)value, out ko);
-        public bool TryGetPursuitLabel(PursuitPreset value, out string ko) => TryGetLabel(pursuitStrings, (int)value, out ko);
+        public bool TryGetRecognitionLabel(string value, out string ko) => TryGetLabel(recognitionStrings, value, out ko);
+        public bool TryGetRadiusLabel(string value, out string ko) => TryGetLabel(radiusStrings, value, out ko);
+        public bool TryGetPursuitLabel(string value, out string ko) => TryGetLabel(pursuitStrings, value, out ko);
 
-        private static bool TryGetLabel(List<LocalizedStringEntry> strings, int id, out string ko)
+        private static bool TryGetLabel(List<SlugLocalizedStringEntry> strings, string id, out string ko)
         {
             if (TableEntryLookup.TryFind(strings, id, e => e.Id, out var entry))
             {

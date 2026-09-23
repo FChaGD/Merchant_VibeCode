@@ -32,11 +32,11 @@ namespace Game.Core
 
         // 적 진영 구분(기획 08번 §13.1) - 약탈자/괴수/적대자를 사각형/삼각형/원으로 구분해 실전투에서
         // 육안 식별이 가능하게 한다. 아군/사망 등 SpriteRenderer 틴트는 뷰가 그대로 곱해 적용한다.
-        public static Sprite ForEnemyType(EnemyType? type) => type switch
+        public static Sprite ForEnemyType(string type) => type switch
         {
-            EnemyType.Marauder => WhiteSquare,
-            EnemyType.Monster => WhiteTriangle,
-            EnemyType.Adversary => WhiteCircle,
+            "Marauder" => WhiteSquare,
+            "Monster" => WhiteTriangle,
+            "Adversary" => WhiteCircle,
             _ => WhiteSquare,
         };
 

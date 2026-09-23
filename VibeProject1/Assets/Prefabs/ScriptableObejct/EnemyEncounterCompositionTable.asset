@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: EnemyEncounterCompositionTable
   m_EditorClassIdentifier: Game.Core::Game.Core.EnemyEncounterCompositionTableAsset
   entries:
-  - EnemyType: 1
+  - EnemyType: Marauder
     CountMin: 3
     CountMax: 5
-  - EnemyType: 2
+  - EnemyType: Monster
     CountMin: 2
     CountMax: 4
-  - EnemyType: 3
+  - EnemyType: Adversary
     CountMin: 1
     CountMax: 2

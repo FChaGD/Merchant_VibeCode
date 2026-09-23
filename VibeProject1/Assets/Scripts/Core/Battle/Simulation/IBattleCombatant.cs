@@ -19,10 +19,10 @@ namespace Game.Core
         // 방진 형성 로직(Docs/설계/12번 §12.3)이 "이 아군이 보호대상 후보군(RangedDealer/Supporter)에
         // 속하는지" 판정해야 해서 추가 - 방향성 지시 미적용 유닛(적, 또는 아군이라도 tacticsBehaviors
         // 없음)은 역할군 개념이 없어 null(N/A)을 반환한다.
-        RoleGroup? RoleGroup { get; }
+        string RoleGroup { get; }
         // 방진 형성 로직(Docs/설계/12번 §12.4)이 "LocalPositioning.Blocking을 고른 전열 유닛"을
         // 식별해야 해서 추가 - RoleGroup과 같은 이유로 null 가능(적, 또는 방향성 지시 미적용 유닛).
-        LocalPositioning? Positioning { get; }
+        string Positioning { get; }
         // 방진 형성 로직(Docs/설계/12번 §12.4)이 각 유닛 Tick 이전(코디네이터 Update 시점)에 이미
         // 인식된 적 목록을 읽어야 해서 추가 - IEnemyRecognitionTracker.RecognizedSnapshot을 그대로
         // 전달한다. 방향성 지시 미적용 유닛(적)은 빈 컬렉션(N/A) - Attack/Range와 같은 패턴.

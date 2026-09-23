@@ -27,11 +27,11 @@ namespace Game.Core
 
             public bool IsEmpty => Marauder <= 0 && Monster <= 0 && Adversary <= 0;
 
-            public int GetCount(EnemyType type) => type switch
+            public int GetCount(string type) => type switch
             {
-                EnemyType.Marauder => Marauder,
-                EnemyType.Monster => Monster,
-                EnemyType.Adversary => Adversary,
+                "Marauder" => Marauder,
+                "Monster" => Monster,
+                "Adversary" => Adversary,
                 _ => 0,
             };
         }

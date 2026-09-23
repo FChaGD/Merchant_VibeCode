@@ -123,13 +123,13 @@ namespace Game.Core
             {
                 var position = fieldLayout.ComputeSpawnPoint(reservation.Key, fieldLayout.ColumnCount);
                 var composition = reservation.Value;
-                AddReservedBatch(EnemyType.Marauder, composition.Marauder, position);
-                AddReservedBatch(EnemyType.Monster, composition.Monster, position);
-                AddReservedBatch(EnemyType.Adversary, composition.Adversary, position);
+                AddReservedBatch("Marauder", composition.Marauder, position);
+                AddReservedBatch("Monster", composition.Monster, position);
+                AddReservedBatch("Adversary", composition.Adversary, position);
             }
         }
 
-        private void AddReservedBatch(EnemyType type, int count, Vector2 position)
+        private void AddReservedBatch(string type, int count, Vector2 position)
         {
             for (var i = 0; i < count; i++)
             {
@@ -201,12 +201,12 @@ namespace Game.Core
             enemySide.Roster.Clear();
             OnEnemyRosterCleared?.Invoke();
 
-            AddEnemyBatch(EnemyType.Marauder, marauderCount);
-            AddEnemyBatch(EnemyType.Monster, monsterCount);
-            AddEnemyBatch(EnemyType.Adversary, adversaryCount);
+            AddEnemyBatch("Marauder", marauderCount);
+            AddEnemyBatch("Monster", monsterCount);
+            AddEnemyBatch("Adversary", adversaryCount);
         }
 
-        private void AddEnemyBatch(EnemyType type, int count)
+        private void AddEnemyBatch(string type, int count)
         {
             for (var i = 0; i < count; i++)
             {
@@ -272,7 +272,7 @@ namespace Game.Core
             var tacticsProfileResolver = tacticsReader != null
                 ? new UnitTacticsProfileResolver(tacticsReader, roleGroupMap)
                 : null;
-            var partyPursuitPreset = tacticsReader?.GetPartySettings().Pursuit ?? PursuitPreset.OffensiveJudgment;
+            var partyPursuitPreset = tacticsReader?.GetPartySettings().Pursuit ?? "OffensiveJudgment";
             var frontlineCoordinator = new FrontlineFormationCoordinator(standardActivityRadius, partyPursuitPreset);
             var rangedSurroundCoordinator = new RangedSurroundCoordinator(standardActivityRadius, frontlineCoordinator);
 

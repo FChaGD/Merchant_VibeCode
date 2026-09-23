@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: EnemyStatsTable
   m_EditorClassIdentifier: Game.Core::Game.Core.EnemyStatsTableAsset
   entries:
-  - EnemyType: 1
+  - EnemyType: Marauder
     MaxHp: 60
     Attack: 12
     Defense: 5
@@ -22,7 +22,7 @@ MonoBehaviour:
     Range: 1.5
     MoraleSyncRate: 7.5
     HpRegenPerSecond: 0
-  - EnemyType: 2
+  - EnemyType: Monster
     MaxHp: 90
     Attack: 12
     Defense: 6
@@ -31,7 +31,7 @@ MonoBehaviour:
     Range: 1.5
     MoraleSyncRate: 5
     HpRegenPerSecond: 3
-  - EnemyType: 3
+  - EnemyType: Adversary
     MaxHp: 50
     Attack: 20
     Defense: 4

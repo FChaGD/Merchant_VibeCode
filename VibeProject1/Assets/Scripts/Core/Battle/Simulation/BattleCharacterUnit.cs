@@ -46,9 +46,9 @@ namespace Game.Core
         public IDamageable CurrentTarget => target;
         // 방진 형성 로직(Docs/설계/12번 §12.3)이 보호대상 후보군 판정에 써야 해서 노출 - 방향성
         // 지시 미적용 유닛(적)은 tacticsBehaviors가 null이라 자연히 null(N/A)이 된다.
-        public RoleGroup? RoleGroup => tacticsBehaviors?.RoleGroup;
+        public string RoleGroup => tacticsBehaviors?.RoleGroup;
         // 방진 형성 로직(Docs/설계/12번 §12.4)이 "Blocking 전열 유닛"을 식별해야 해서 노출.
-        public LocalPositioning? Positioning => tacticsBehaviors?.Positioning;
+        public string Positioning => tacticsBehaviors?.Positioning;
         // 방진 형성 로직(Docs/설계/12번 §12.4)이 코디네이터 Update 시점(이 유닛의 이번 틱 Tick 전)에
         // 읽어야 해서 노출 - TickAndGetRecognized를 또 호출하지 않도록 스냅샷만 전달한다.
         public IReadOnlyCollection<IDamageable> RecognizedEnemies => tacticsBehaviors?.RecognitionTracker.RecognizedSnapshot ?? Array.Empty<IDamageable>();

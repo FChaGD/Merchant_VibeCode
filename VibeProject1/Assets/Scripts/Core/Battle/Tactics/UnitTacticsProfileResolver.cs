@@ -22,7 +22,7 @@ namespace Game.Core
             this.roleGroupMap = roleGroupMap;
         }
 
-        public UnitTacticsProfile Resolve(MercenaryClass mercenaryClass, Vector2 homePosition)
+        public UnitTacticsProfile Resolve(string mercenaryClass, Vector2 homePosition)
         {
             var party = tacticsReader.GetPartySettings();
             var roleGroupOverride = ResolveRoleGroupOverride(mercenaryClass, out var roleGroup);
@@ -33,16 +33,16 @@ namespace Game.Core
                 homePosition, roleGroup);
         }
 
-        private RoleGroupTacticsOverride ResolveRoleGroupOverride(MercenaryClass mercenaryClass, out RoleGroup roleGroup)
+        private RoleGroupTacticsOverride ResolveRoleGroupOverride(string mercenaryClass, out string roleGroup)
         {
             if (roleGroupMap != null && roleGroupMap.TryGetRoleGroup(mercenaryClass, out roleGroup))
             {
                 return tacticsReader.GetRoleGroupOverride(roleGroup);
             }
 
-            Debug.LogWarning($"{nameof(UnitTacticsProfileResolver)}: 직업 '{mercenaryClass}'에 매핑된 역할군을 찾을 수 없어 '{RoleGroup.Frontline}' 카탈로그 기본값으로 대체한다.");
-            roleGroup = RoleGroup.Frontline;
-            return tacticsReader.GetRoleGroupOverride(RoleGroup.Frontline);
+            Debug.LogWarning($"{nameof(UnitTacticsProfileResolver)}: 직업 '{mercenaryClass}'에 매핑된 역할군을 찾을 수 없어 'Frontline' 카탈로그 기본값으로 대체한다.");
+            roleGroup = "Frontline";
+            return tacticsReader.GetRoleGroupOverride("Frontline");
         }
     }
 }
