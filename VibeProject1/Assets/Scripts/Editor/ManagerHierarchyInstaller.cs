@@ -221,6 +221,13 @@ namespace Game.Core.Editor
             var consumableInventoryRepository = EditorUIBuilder.GetOrCreateManager<PlaceholderConsumableInventoryRepository>(uiManager.transform, nameof(PlaceholderConsumableInventoryRepository));
             var personalItemInventoryRepository = EditorUIBuilder.GetOrCreateManager<PlaceholderPersonalItemInventoryRepository>(uiManager.transform, nameof(PlaceholderPersonalItemInventoryRepository));
 
+            // 아이템 카테고리 4종의 테이블 자산 배선(Docs/설계/35번 §8) - characterStatsTable 배선과
+            // 같은 패턴(SerializedObject로 [SerializeField] 참조를 채움).
+            WireItemCatalog(tradeGoodsInventoryRepository, TableAssetPaths.TradeGoodsItemTable, TableAssetPaths.TradeGoodsItemStrings);
+            WireItemCatalog(equipmentInventoryRepository, TableAssetPaths.EquipmentItemTable, TableAssetPaths.EquipmentItemStrings);
+            WireItemCatalog(consumableInventoryRepository, TableAssetPaths.ConsumableItemTable, TableAssetPaths.ConsumableItemStrings);
+            WireItemCatalog(personalItemInventoryRepository, TableAssetPaths.PersonalItemItemTable, TableAssetPaths.PersonalItemItemStrings);
+
             return new MonoBehaviour[]
             {
                 placeholderRosterProvider,
@@ -355,6 +362,16 @@ namespace Game.Core.Editor
         {
             var so = new SerializedObject(panel);
             so.FindProperty("catalog").objectReferenceValue = AssetDatabase.LoadAssetAtPath<RoleGroupTacticsCatalogAsset>(TableAssetPaths.RoleGroupTacticsCatalog);
+            so.ApplyModifiedProperties();
+        }
+
+        // 아이템 카테고리 4종이 전부 같은 필드 이름(itemTable/itemStrings)을 쓰므로 경로만 받는 공용
+        // 배선 헬퍼 하나로 처리한다(Docs/설계/35번 §8 - 클래스 공유 결정과 같은 DRY 이유).
+        private static void WireItemCatalog(Component repository, string dataAssetPath, string stringAssetPath)
+        {
+            var so = new SerializedObject(repository);
+            so.FindProperty("itemTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<ItemDefinitionTableAsset>(dataAssetPath);
+            so.FindProperty("itemStrings").objectReferenceValue = AssetDatabase.LoadAssetAtPath<ItemStringTableAsset>(stringAssetPath);
             so.ApplyModifiedProperties();
         }
 

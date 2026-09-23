@@ -13,16 +13,27 @@ namespace Game.Core
         private const int Width = 5;
         private const int Height = 4;
 
+        [SerializeField] private ItemDefinitionTableAsset itemTable;
+        [SerializeField] private ItemStringTableAsset itemStrings;
+
         private InventoryGrid grid;
+        private TableItemCatalog catalog;
 
         public int GridWidth => grid.Width;
         public int GridHeight => grid.Height;
         public IReadOnlyCollection<InventoryItemInstance> Items => grid.Items;
         public event Action OnChanged;
 
+        public IReadOnlyList<IInventoryItemDefinition> CatalogItems => catalog.CatalogItems;
+        public bool TryGetDefinition(string id, out IInventoryItemDefinition definition) => catalog.TryGetDefinition(id, out definition);
+
         public void RegisterSelf(IDependencyRegistrar registrar) => registrar.Register<IConsumableInventoryRepository>(this);
 
-        public void ResolveDependencies(IDependencyResolver registrar) => grid = new InventoryGrid(Width, Height);
+        public void ResolveDependencies(IDependencyResolver registrar)
+        {
+            grid = new InventoryGrid(Width, Height);
+            catalog = new TableItemCatalog(itemTable, itemStrings);
+        }
 
         public bool TryGetItemAt(GridPosition position, out InventoryItemInstance item) => grid.TryGetAt(position, out item);
 

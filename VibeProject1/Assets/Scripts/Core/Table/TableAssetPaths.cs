@@ -30,6 +30,17 @@ namespace Game.Core
         public const string MercenaryRoleGroupMap = Folder + "/MercenaryRoleGroupMap.asset";
         public const string TripCityMap = Folder + "/TripCityMap.asset";
         public const string TripCityStringsTable = Folder + "/TripCityStringsTable.asset";
+
+        // 아이템 카테고리 4종(Docs/설계/35번 §4/§8) - ItemDefinitionTableAsset/ItemStringTableAsset
+        // 클래스는 카테고리 4개가 공유하고 경로만 따로 둔다.
+        public const string TradeGoodsItemTable = Folder + "/TradeGoodsItemTable.asset";
+        public const string TradeGoodsItemStrings = Folder + "/TradeGoodsItemStrings.asset";
+        public const string EquipmentItemTable = Folder + "/EquipmentItemTable.asset";
+        public const string EquipmentItemStrings = Folder + "/EquipmentItemStrings.asset";
+        public const string ConsumableItemTable = Folder + "/ConsumableItemTable.asset";
+        public const string ConsumableItemStrings = Folder + "/ConsumableItemStrings.asset";
+        public const string PersonalItemItemTable = Folder + "/PersonalItemItemTable.asset";
+        public const string PersonalItemItemStrings = Folder + "/PersonalItemItemStrings.asset";
     }
 }
 #endif

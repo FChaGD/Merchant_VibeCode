@@ -163,7 +163,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 82d84576d3c173c44b51c041de0ce6da, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.PlaceholderTradeGoodsInventoryRepository
-  goldBoxIcon: {fileID: 0}
+  itemTable: {fileID: 11400000, guid: 67d1af2ccb325c34a83f9e49a7c70b88, type: 2}
+  itemStrings: {fileID: 11400000, guid: a3aee783c5ec85c41883b3da464ca087, type: 2}
 --- !u!1 &255667639
 GameObject:
   m_ObjectHideFlags: 0
@@ -208,6 +209,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e0389ab7147d33d45b5bbb85a5910cf6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.PlaceholderConsumableInventoryRepository
+  itemTable: {fileID: 11400000, guid: 322250c53f654b94aac4ba8d0dd75f3a, type: 2}
+  itemStrings: {fileID: 11400000, guid: 75b87f7c8b8860a438841f8d35f0a313, type: 2}
 --- !u!1 &434087637
 GameObject:
   m_ObjectHideFlags: 0
@@ -252,6 +255,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8698263bd5177024dae25db6269437a8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.PlaceholderEquipmentInventoryRepository
+  itemTable: {fileID: 11400000, guid: 77db161ca7ec0b440aef6c8e63a2d244, type: 2}
+  itemStrings: {fileID: 11400000, guid: 8c80d1f9928193b43a93c80e2bfaab76, type: 2}
 --- !u!1 &684925342
 GameObject:
   m_ObjectHideFlags: 0
@@ -1230,6 +1235,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b4fea39363397c4da9ac7fcb8439c28, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.PlaceholderPersonalItemInventoryRepository
+  itemTable: {fileID: 11400000, guid: a69029e63f827284ab18135e91c57119, type: 2}
+  itemStrings: {fileID: 11400000, guid: e311982d3b1512c4686620d846310500, type: 2}
 --- !u!1 &1621465527
 GameObject:
   m_ObjectHideFlags: 0

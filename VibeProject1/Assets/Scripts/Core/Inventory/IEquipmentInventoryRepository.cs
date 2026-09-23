@@ -1,6 +1,6 @@
 namespace Game.Core
 {
-    public interface IEquipmentInventoryRepository : IInventoryRepository
+    public interface IEquipmentInventoryRepository : IInventoryRepository, IItemCatalogReader
     {
     }
 }
