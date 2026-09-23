@@ -124,17 +124,21 @@ namespace Game.Core.Editor
         // "항상 뒤" 강제와는 반대 방향).
         private static void BuildPlayerCurrencyHud(Transform contentRoot)
         {
-            // 퍼센트 앵커 박스(고정 크기)로 만들었다가, 아이콘(32px 고정)이 그 박스보다 커서 밖으로
-            // 튀어나오고 텍스트는 남은 폭이 모자라 짜부라지는 문제가 있었다(2026-09-21 실전 확인) -
-            // 한 점에 고정하고 ContentSizeFitter로 내용(아이콘+텍스트+패딩)에 맞춰 패널
-            // 크기가 스스로 결정되게 바꿨다. 이러면 아이콘 고정 크기가 항상 그대로 반영된다.
+            // 가로폭은 화면의 30%로 고정 요구사항(사용자 확정, 2026-09-23)이 생겨 X축만 스트레치
+            // 앵커(anchorMin.x=0.7~anchorMax.x=1)로 바꿨다 - width가 화면 비율로 결정되므로
+            // 2026-09-21에 겪은 "고정 픽셀 박스가 콘텐츠보다 작아서 아이콘이 밖으로 튀어나오는"
+            // 문제는 재발하지 않는다(30%가 아이콘+텍스트+패딩보다 항상 크다). 세로축은 기존과
+            // 동일하게 한 점 고정 + ContentSizeFitter로 콘텐츠 높이에 맞춘다.
             var root = EditorUIBuilder.GetOrCreateUIObject(contentRoot, "PlayerCurrencyHud");
             var rootRect = root.GetComponent<RectTransform>();
-            // 우상단 한 점에 고정(사용자 확정, 2026-09-21 - 최초 좌상단에서 변경).
-            rootRect.anchorMin = new Vector2(1f, 1f);
+            // 우상단 기준(사용자 확정, 2026-09-21). pivot.x=1/anchorMax.x=1이 겹쳐 anchoredPosition.x는
+            // 화면 우측 모서리로부터의 오프셋으로 동작한다(스트레치 축이어도 점 앵커와 동일하게 계산됨).
+            rootRect.anchorMin = new Vector2(0.7f, 1f);
             rootRect.anchorMax = new Vector2(1f, 1f);
             rootRect.pivot = new Vector2(1f, 1f);
-            rootRect.anchoredPosition = new Vector2(-16f, -16f);
+            // 화면 우상단 모서리로부터의 마진 2배 확대(사용자 확정, 2026-09-23: -16 -> -32).
+            rootRect.anchoredPosition = new Vector2(-32f, -32f);
+            rootRect.sizeDelta = new Vector2(0f, rootRect.sizeDelta.y);
             EditorUIBuilder.EnsureMarker(root, HubUIElementIds.CurrencyPanelRoot);
             // 패널 배경 - 이게 없으면 아이콘/텍스트만 화면에 떠 있는 것처럼 보여 "패널 형태"로 보이지
             // 않는다(2026-09-21 실전 확인).
@@ -150,7 +154,9 @@ namespace Game.Core.Editor
             layout.childForceExpandHeight = false;
 
             var sizeFitter = EditorUIBuilder.GetOrAddComponent<ContentSizeFitter>(root);
-            sizeFitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            // 가로는 위에서 anchorMin/Max.x(0.7~1)로 화면의 30%를 직접 지정했으므로 ContentSizeFitter가
+            // 다시 콘텐츠 크기로 덮어쓰면 안 된다(Unconstrained) - 세로만 콘텐츠 높이에 맞춘다.
+            sizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             sizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             var iconGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "Icon");
