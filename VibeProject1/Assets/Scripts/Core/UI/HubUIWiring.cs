@@ -77,6 +77,7 @@ namespace Game.Core
 
             hubUIController.RegisterHubUI(sceneUIRoot, uiManager, sceneRevealSignal, townFacilityFilter);
             currencyHudController.RegisterCurrencyUI(sceneUIRoot, currencyWallet);
+            HubInventoryShortcutBinder.Bind(sceneUIRoot, uiManager);
 
             formationPanel.RegisterFormationUI(sceneUIRoot, caravanRosterProvider, formationRepository, unitConditionRepository, uiManager);
             panelRegistrar.RegisterPanel(formationPanel);

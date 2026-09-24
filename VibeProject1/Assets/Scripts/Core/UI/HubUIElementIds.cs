@@ -20,6 +20,10 @@ namespace Game.Core
         public const string TownCategoryColumn = "Hub.TownCategoryColumn";
         public static string TownCategoryButton(string categoryId) => $"Hub.TownCategory.{categoryId}";
 
+        // 인벤토리 상시 호출 버튼(PersistentLayer) - 팝업 Id(InventoryPopupIds)로 조립한다.
+        public const string InventoryShortcutRoot = "Hub.InventoryShortcuts";
+        public static string InventoryShortcutButton(string popupId) => $"Hub.InventoryShortcut.{popupId}";
+
         public const string CurrencyPanelRoot = "Hub.CurrencyPanelRoot";
         public const string CurrencyIcon = "Hub.CurrencyIcon";
         public const string CurrencyAmountText = "Hub.CurrencyAmountText";

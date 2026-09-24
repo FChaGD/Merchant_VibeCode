@@ -71,6 +71,7 @@ namespace Game.Core.Editor
             BuildTownCategoryColumn(rootDepth);
             BuildTownCategoryDepth(depthLayer);
             BuildPlayerCurrencyHud(persistentLayer);
+            BuildInventoryShortcuts(sceneUIRoot, persistentLayer);
 
             EditorSceneManager.MarkSceneDirty(activeScene);
             Debug.Log("Hub Scene UI 생성/동기화 완료. 씬을 저장(Ctrl+S)해야 변경사항이 파일에 반영된다. "
@@ -632,13 +633,16 @@ namespace Game.Core.Editor
             return contentRootGo.transform;
         }
 
-        // 상행 준비 버튼 위로 상단 배치 → 방향성 지시 순서로 쌓고, 세 버튼의 오른쪽 변을 상행 준비
-        // 버튼에 맞춘다(사용자 확정, 2026-09-24). 상행 준비/상단 배치 버튼은 코드가 아니라 씬에 원래
-        // 있던 요소라 좌표를 상수로 박지 않고, 매 실행마다 상행 준비 버튼의 현재 앵커에서 계산한다 -
-        // 인스펙터에서 상행 준비 버튼을 옮겨도 재실행하면 나머지 둘이 따라온다. 크기는 두 버튼의 기존
-        // 크기(Hub.unity 실측), 간격은 Hub 버튼 간 기존 관례(0.02)를 그대로 쓴다.
-        private const float HubActionButtonWidth = 0.1354f;
-        private const float HubActionButtonHeight = 0.1154f;
+        // 상행 준비 버튼 바로 위 한 줄에 상단 배치(왼쪽) · 방향성 지시(오른쪽)를 나란히 두고, 두 버튼의
+        // 좌우 끝을 상행 준비 버튼의 좌우 끝에 맞춘다(사용자 확정, 2026-09-24 - 이전엔 세로로 쌓고 오른쪽만
+        // 맞췄다). 상행 준비/상단 배치 버튼은 코드가 아니라 씬에 원래 있던 요소라 좌표를 상수로 박지 않고,
+        // 매 실행마다 상행 준비 버튼의 현재 앵커에서 계산한다 - 인스펙터에서 상행 준비 버튼을 옮겨도
+        // 재실행하면 나머지 둘이 따라온다.
+        // 폭은 (상행 준비 폭 − 간격) / 2로 정해지고, 높이는 기존 버튼(Hub.unity 실측 0.1354×0.1154)과
+        // 같은 비율로 함께 줄인다 - 폭만 줄이면 버튼 가로세로 비율이 깨진다(사용자 요구). 간격은 Hub 버튼
+        // 간 기존 관례(0.02)를 가로/세로 모두 그대로 쓴다.
+        private const float HubActionButtonBaseWidth = 0.1354f;
+        private const float HubActionButtonBaseHeight = 0.1154f;
         private const float HubActionButtonGap = 0.02f;
 
         private static void StackActionButtonsAboveDeparture(SceneUIRoot sceneUIRoot)
@@ -651,8 +655,10 @@ namespace Game.Core.Editor
             }
 
             var departureRect = (RectTransform)departure.transform;
-            var rightX = departureRect.anchorMax.x;
+            var width = (departureRect.anchorMax.x - departureRect.anchorMin.x - HubActionButtonGap) / 2f;
+            var height = HubActionButtonBaseHeight * (width / HubActionButtonBaseWidth);
             var bottomY = departureRect.anchorMax.y + HubActionButtonGap;
+            var leftX = departureRect.anchorMin.x;
 
             foreach (var id in new[] { HubUIElementIds.FormationButton, HubUIElementIds.TacticsButton })
             {
@@ -660,14 +666,72 @@ namespace Game.Core.Editor
                 if (marker == null)
                 {
                     Debug.LogWarning($"Hub UI에서 '{id}' 요소를 찾을 수 없어 정렬을 건너뛴다.");
-                    continue;
+                }
+                else
+                {
+                    EditorUIBuilder.SetAnchors((RectTransform)marker.transform,
+                        new Vector2(leftX, bottomY),
+                        new Vector2(leftX + width, bottomY + height));
                 }
 
-                EditorUIBuilder.SetAnchors((RectTransform)marker.transform,
-                    new Vector2(rightX - HubActionButtonWidth, bottomY),
-                    new Vector2(rightX, bottomY + HubActionButtonHeight));
-                bottomY += HubActionButtonHeight + HubActionButtonGap;
+                // 한쪽이 없어도 다른 쪽 자리는 고정 - 오른쪽 버튼이 왼쪽으로 당겨지지 않게 한다.
+                leftX += width + HubActionButtonGap;
             }
+        }
+
+        // ==================== 인벤토리 상시 호출 버튼 ====================
+        // 상행 준비 버튼(우하단)과 대칭 위치(우상단에서 같은 비율 거리)에 큰 버튼 1개(상단 물류품) + 그 아래
+        // 작은 버튼 3개를 좌우로 둔다(사용자 확정, 2026-09-24). 큰 버튼은 상행 준비 버튼과 같은 크기,
+        // 작은 버튼은 폭을 3등분하고 높이는 상단 배치/방향성 지시와 같은 가로세로 비율로 맞춘다 - 묶음 전체가
+        // 상행 준비 버튼의 좌우 폭을 넘지 않는다. 상행 준비 버튼 앵커에서 매번 계산하므로 그 버튼을 옮기고
+        // 재실행하면 따라온다. 재화 HUD와 같은 PersistentLayer라 depth 전환과 무관하게 항상 보인다.
+        private static readonly Color InventoryShortcutButtonColor = new(0.8f, 0.85f, 0.95f, 1f);
+
+        private static void BuildInventoryShortcuts(SceneUIRoot sceneUIRoot, Transform persistentLayer)
+        {
+            var root = EnsureStretchLayer(persistentLayer, "InventoryShortcuts", HubUIElementIds.InventoryShortcutRoot);
+
+            var departure = FindMarker(sceneUIRoot, HubUIElementIds.DepartureButton);
+            if (departure == null)
+            {
+                Debug.LogWarning($"Hub UI에서 '{HubUIElementIds.DepartureButton}' 요소를 찾을 수 없어 인벤토리 버튼 배치를 건너뛴다.");
+                return;
+            }
+
+            var departureRect = (RectTransform)departure.transform;
+            var leftX = departureRect.anchorMin.x;
+            var width = departureRect.anchorMax.x - leftX;
+            var bigHeight = departureRect.anchorMax.y - departureRect.anchorMin.y;
+            // 상행 준비 버튼의 아래쪽 여백(anchorMin.y)을 위쪽 여백으로 그대로 쓴다.
+            var bigTop = 1f - departureRect.anchorMin.y;
+            var bigBottom = bigTop - bigHeight;
+
+            var smallWidth = (width - HubActionButtonGap * 2f) / 3f;
+            var smallHeight = HubActionButtonBaseHeight * (smallWidth / HubActionButtonBaseWidth);
+            var smallTop = bigBottom - HubActionButtonGap;
+
+            var popupIds = HubInventoryShortcutBinder.PopupIds;
+            var big = BuildInventoryShortcutButton(root, popupIds[0], "상단 물류품", minFontSize: 18f);
+            EditorUIBuilder.SetAnchors(big, new Vector2(leftX, bigBottom), new Vector2(leftX + width, bigTop));
+
+            var smallLabels = new[] { "전투 장비", "소모품", "개인 물품" };
+            for (var i = 0; i < smallLabels.Length; i++)
+            {
+                // 작은 버튼은 1080p 기준 약 100x48px라 기본 최소 글자 크기(18)로는 라벨이 넘친다 - 최소치만 낮춘다.
+                var small = BuildInventoryShortcutButton(root, popupIds[i + 1], smallLabels[i], minFontSize: 10f);
+                var x = leftX + i * (smallWidth + HubActionButtonGap);
+                EditorUIBuilder.SetAnchors(small, new Vector2(x, smallTop - smallHeight), new Vector2(x + smallWidth, smallTop));
+            }
+        }
+
+        private static RectTransform BuildInventoryShortcutButton(Transform parent, string popupId, string label, float minFontSize)
+        {
+            var go = EditorUIBuilder.GetOrCreateUIObject(parent, $"Inventory_{popupId}");
+            EditorUIBuilder.EnsureImage(go, InventoryShortcutButtonColor);
+            EditorUIBuilder.EnsureButton(go);
+            EditorUIBuilder.EnsureLabel(go.transform, label, autoSize: true, minFontSize: minFontSize, maxFontSize: 30f);
+            EditorUIBuilder.EnsureMarker(go, HubUIElementIds.InventoryShortcutButton(popupId));
+            return go.GetComponent<RectTransform>();
         }
 
         private static void DestroyAllDirectChildrenNamed(Transform parent, string name)
