@@ -144,6 +144,8 @@ namespace Game.Core.Editor
 
             EditorUIBuilder.GetOrAddComponent<HubUIController>(uiManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<PlayerCurrencyHudController>(uiManager.gameObject);
+            // 모달 팝업 동안 depth/상시 레이어를 숨기는 팝업 축 게이트(Docs/설계/38번 §6).
+            EditorUIBuilder.GetOrAddComponent<PopupLayerGate>(uiManager.gameObject);
 
             // 인벤토리 팝업 4종의 동시 중첩 오픈을 담당하는 형제 컴포넌트(Docs/설계/32번 §5) -
             // PanelNavigationStack과 별개로 동작해야 해서 panelsById가 아니라 이쪽에 등록된다.

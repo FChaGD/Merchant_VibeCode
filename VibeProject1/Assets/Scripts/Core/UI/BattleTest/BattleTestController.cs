@@ -74,7 +74,7 @@ namespace Game.Core
             if (SceneUIRootLocator.TryFind(gameObject.scene.name, out var sceneUIRoot))
             {
                 tacticsPanel.RegisterTacticsUI(sceneUIRoot, tacticsRepository, uiManager);
-                panelRegistrar.RegisterPanel(tacticsPanel);
+                panelRegistrar.RegisterPopupPanel(tacticsPanel);
             }
 
             tacticsButton.onClick.AddListener(() => uiManager.Open(UIPanelIds.Tactics));

@@ -42,7 +42,13 @@ namespace Game.Core.Editor
 
             var sceneUIRoot = EditorUIBuilder.GetOrAddComponent<SceneUIRoot>(canvas.gameObject);
 
-            var movementViewRoot = EditorUIBuilder.GetOrCreateUIObject(sceneUIRoot.transform, "MovementView");
+            // 씬 전환 루트(Docs/설계/38번 §10) - 씬 전환 연출은 등록된 루트 하나만 밀어내므로 Field의 모든 UI를
+            // 이 아래에 둔다. 예전엔 이동 뷰만 등록돼 있어 전투 뷰/패널/결과 팝업이 전환 중 제자리에 남았다.
+            // 기존 Canvas 직계 자식을 형제 순서(렌더 순서) 그대로 옮긴 "뒤"에 빌드한다 - 빌드가 먼저면 옛 위치를
+            // 못 찾고 새 루트 안에 중복 생성한다.
+            var contentRoot = EnsureTransitionRoot(sceneUIRoot);
+
+            var movementViewRoot = EditorUIBuilder.GetOrCreateUIObject(contentRoot, "MovementView");
             EditorUIBuilder.SetStretch(movementViewRoot.GetComponent<RectTransform>());
             EditorUIBuilder.EnsureMarker(movementViewRoot, FieldUIElementIds.MovementViewRoot);
 
@@ -52,19 +58,19 @@ namespace Game.Core.Editor
             BuildTacticsButton(movementViewRoot.transform);
             BuildEncounterWarning(movementViewRoot.transform);
 
-            // BattleView/ResultPopup은 MovementView와 형제로 SceneUIRoot 바로 아래 둔다 - 결과 팝업은
+            // BattleView/ResultPopup은 MovementView와 형제로 ContentRoot 바로 아래 둔다 - 결과 팝업은
             // 이동 뷰(도착)/전투 뷰(승패) 양쪽에서 모두 떠야 해서 어느 한쪽 하위에 종속시키지 않는다.
-            BuildBattleView(sceneUIRoot.transform);
+            BuildBattleView(contentRoot);
             // 전투 유닛 스프라이트 루트/카메라는 Canvas 밖 별도 하이어라키다(Docs/설계/13번 §2). 조립
             // 로직 자체는 EditorUIBuilder 공용 유틸리티에 있다(BattleTestSceneInstaller와 공유).
             EditorUIBuilder.EnsureBattleWorldRoot().gameObject.SetActive(false); // 평소에는 숨김 - FieldCameraController가 전환 시 활성화.
             EditorUIBuilder.ConfigureBattleCamera();
-            BuildResultPopup(sceneUIRoot.transform);
-            BuildTransitionCurtain(sceneUIRoot.transform);
+            BuildResultPopup(contentRoot);
+            BuildTransitionCurtain(contentRoot);
 
-            // 방향성 지시 UI(정비창 Formation UI와 같은 자리 - MovementView 하위가 아니라 SceneUIRoot
+            // 방향성 지시 UI(정비창 Formation UI와 같은 자리 - MovementView 하위가 아니라 ContentRoot
             // 바로 아래, 이동/전투 뷰 어느 쪽 위에서도 떠야 하므로).
-            TacticsUIBuilder.Build(sceneUIRoot.transform);
+            TacticsUIBuilder.Build(contentRoot);
 
             FormationUIBuilder.EnsurePrefabFolder();
             var slotPrefab = FormationUIBuilder.GetOrCreateSlotPrefab();
@@ -73,7 +79,7 @@ namespace Game.Core.Editor
             var pathLinePrefab = FormationUIBuilder.GetOrCreatePathLinePrefab();
             var travelerIconPrefab = FormationUIBuilder.GetOrCreateTravelerIconPrefab();
             var activityOverlayPrefab = FormationUIBuilder.GetOrCreateActivityOverlayPrefab();
-            FormationUIBuilder.Build(sceneUIRoot.transform, slotPrefab, iconPrefab, rowPrefab, pathLinePrefab, travelerIconPrefab, activityOverlayPrefab, includeApplyButton: false);
+            FormationUIBuilder.Build(contentRoot, slotPrefab, iconPrefab, rowPrefab, pathLinePrefab, travelerIconPrefab, activityOverlayPrefab, includeApplyButton: false);
 
             // 전투 뷰 유닛 프리팹도 여기서 함께 최신화한다 - ManagerHierarchyInstaller(Bootstrap)가
             // FieldUIController에 이 프리팹들을 연결할 때 재사용한다(EditorUIBuilder 공용 조립 로직).
@@ -81,8 +87,36 @@ namespace Game.Core.Editor
             EditorUIBuilder.GetOrCreateBattleProtectedViewPrefab();
             EditorUIBuilder.GetOrCreateBattlePendingReinforcementViewPrefab();
 
+            EditorUIBuilder.WarnIfOutsideTransitionRoot(sceneUIRoot.transform, contentRoot, "Field");
+
             EditorSceneManager.MarkSceneDirty(activeScene);
             Debug.Log("Field UI(이동 뷰/전투 뷰/결과 팝업) 하이어라키 생성/동기화 완료. 씬을 저장(Ctrl+S)해야 변경사항이 파일에 반영된다.");
+        }
+
+        private static Transform EnsureTransitionRoot(SceneUIRoot sceneUIRoot)
+        {
+            var contentRootGo = EditorUIBuilder.GetOrCreateUIObject(sceneUIRoot.transform, "ContentRoot");
+            EditorUIBuilder.SetStretch(contentRootGo.GetComponent<RectTransform>());
+            EditorUIBuilder.EnsureMarker(contentRootGo, FieldUIElementIds.ContentRoot);
+            var contentRoot = contentRootGo.transform;
+
+            // 자기 자신을 제외한 Canvas 직계 자식을 원래 순서대로 옮긴다(역순 순회 중 이동하면 인덱스가 어긋나므로
+            // 먼저 목록을 만든다). 이동 후에도 같은 상대 순서를 유지해 렌더 순서가 바뀌지 않는다.
+            var others = new System.Collections.Generic.List<Transform>();
+            foreach (Transform child in sceneUIRoot.transform)
+            {
+                if (child != contentRoot)
+                {
+                    others.Add(child);
+                }
+            }
+            foreach (var child in others)
+            {
+                Undo.SetTransformParent(child, contentRoot, $"Move {child.name} into ContentRoot");
+                child.SetAsLastSibling();
+            }
+
+            return contentRoot;
         }
 
         private static void BuildBackground(Transform parent)

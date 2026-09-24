@@ -65,11 +65,12 @@ namespace Game.Core
             sceneRevealSignal.SceneRevealed -= HandleSceneRevealed;
             sceneRevealSignal.SceneRevealed += HandleSceneRevealed;
 
-            // 패널(depth)이 하나라도 열려있는 동안은 루트 depth를 완전히 숨긴다(사용자 확정, 2026-09-07).
-            // 패널끼리 중첩 전환되는 동안(상행 준비→배치→복귀)에는 계속 숨김 상태가 유지되고, 최상위
-            // 패널까지 완전히 닫혀야 다시 나타난다(IUIManager.OnAnyPanelOpenChanged 참고).
-            uiManager.OnAnyPanelOpenChanged -= HandleAnyPanelOpenChanged;
-            uiManager.OnAnyPanelOpenChanged += HandleAnyPanelOpenChanged;
+            // depth 패널(마을 카테고리 등)이 열려 있는 동안 루트 depth를 숨긴다 - depth 축(Docs/설계/38번 §6).
+            // 모달 팝업(상행 준비/배치/방향성 지시)에 의한 숨김은 이 클래스가 아니라 PopupLayerGate가
+            // DepthLayer 전체에 대해 처리한다(팝업 축). 두 축이 서로 다른 속성(SetActive/CanvasGroup)을 쓴다.
+            uiManager.RootDepthChanged -= HandleRootDepthChanged;
+            uiManager.RootDepthChanged += HandleRootDepthChanged;
+            HandleRootDepthChanged(uiManager.IsAtRootDepth);
 
             ApplyBackground(sceneUIRoot);
         }
@@ -137,11 +138,11 @@ namespace Game.Core
             SetRootDepthInteractable(true);
         }
 
-        private void HandleAnyPanelOpenChanged(bool isAnyPanelOpen)
+        private void HandleRootDepthChanged(bool isAtRootDepth)
         {
             if (rootDepth != null)
             {
-                rootDepth.SetActive(!isAnyPanelOpen);
+                rootDepth.SetActive(isAtRootDepth);
             }
         }
 

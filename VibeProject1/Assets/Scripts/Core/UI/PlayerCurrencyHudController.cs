@@ -6,8 +6,8 @@ namespace Game.Core
 {
     /// <summary>
     /// Hub 재화 HUD - 현재값만 상시 표기하고 상한은 호버 시 툴팁으로 보여준다(기획 27번 §3.2).
-    /// 다른 패널이 열려도 가려지지 않아야 하므로(27번 §3.5) HubUIController의 OnAnyPanelOpenChanged
-    /// 숨김 로직을 따르지 않는다 - 렌더 순서로만 항상 위에 오도록 인스톨러가 보장한다(설계 30번 §2).
+    /// 다른 패널/팝업이 열려도 가려지지 않아야 하므로(27번 §3.5) depth 축·팝업 축 어느 숨김 로직도 따르지
+    /// 않는다 - PopupExemptLayer(ContentRoot의 마지막 레이어)에 두는 것으로 인스톨러가 보장한다(설계 38번 §5).
     /// </summary>
     public class PlayerCurrencyHudController : MonoBehaviour, IPlayerCurrencyHudController
     {

@@ -11,11 +11,17 @@ namespace Game.Core
         public const string Background = "Hub.Background";
         public const string ContentRoot = "Hub.ContentRoot";
 
-        // ContentRoot 하위 레이어(Docs/설계/37번 §3). DepthLayer = 화면 depth에 따라 바뀌는 UI,
-        // RootDepth = 루트 depth 그룹(CanvasGroup), PersistentLayer = depth와 무관하게 항상 활성인 UI.
+        // ContentRoot 하위 레이어(Docs/설계/37번 §3, 38번 §5). 두 관리 축:
+        //   depth 축  - DepthLayer(depth 의존) / PersistentLayer·PopupExemptLayer(depth 무관)
+        //   팝업 축   - DepthLayer·PersistentLayer(모달 팝업 시 숨김) / PopupExemptLayer(유지)
+        // RootDepth = 루트 depth 그룹, PopupLayer = 팝업 자체(ModalPopups → ModelessPopups 순).
         public const string DepthLayer = "Hub.DepthLayer";
         public const string RootDepth = "Hub.RootDepth";
         public const string PersistentLayer = "Hub.PersistentLayer";
+        public const string PopupLayer = "Hub.PopupLayer";
+        public const string ModalPopups = "Hub.ModalPopups";
+        public const string ModelessPopups = "Hub.ModelessPopups";
+        public const string PopupExemptLayer = "Hub.PopupExemptLayer";
 
         public const string TownCategoryColumn = "Hub.TownCategoryColumn";
         public static string TownCategoryButton(string categoryId) => $"Hub.TownCategory.{categoryId}";

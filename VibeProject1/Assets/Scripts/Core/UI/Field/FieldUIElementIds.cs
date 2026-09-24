@@ -5,6 +5,8 @@ namespace Game.Core
     /// </summary>
     public static class FieldUIElementIds
     {
+        // 씬 전환 루트(Docs/설계/38번 §10) - Canvas의 유일한 직계 자식, 씬 전환 연출이 밀어내는 대상.
+        public const string ContentRoot = "Field.ContentRoot";
         public const string MovementViewRoot = "Field.MovementViewRoot";
         public const string Background = "Field.Background";
         public const string ProgressGauge = "Field.ProgressGauge";

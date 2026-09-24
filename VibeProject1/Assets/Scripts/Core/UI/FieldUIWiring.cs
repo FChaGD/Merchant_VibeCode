@@ -61,17 +61,23 @@ namespace Game.Core
             // Formation UI(정비창)는 Hub 전용이 아니다 - Field도 자신만의 화면 요소를 갖고 있어
             // (FieldUIInstaller 참고) 여기서도 다시 등록해야 "정비창 재호출"이 동작한다.
             formationPanel.RegisterFieldFormationUI(sceneUIRoot, caravanRosterProvider, formationRepository, unitConditionRepository, fieldActivityRepository, uiManager);
-            panelRegistrar.RegisterPanel(formationPanel);
+            panelRegistrar.RegisterPopupPanel(formationPanel);
 
             tacticsPanel.RegisterTacticsUI(sceneUIRoot, tacticsRepository, uiManager);
-            panelRegistrar.RegisterPanel(tacticsPanel);
+            panelRegistrar.RegisterPopupPanel(tacticsPanel);
 
             fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository, currentLocationRepository, destinationAssigner, fieldActivityRepository);
 
-            // Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 다음 전환 때 슬라이드시킬
-            // 대상을 등록한다 - Field는 전용 요소를 새로 만들지 않고 기존 이동 뷰 루트를 재사용한다
-            // (Docs/설계/10-2026-08-26-씬전환_연출_아키텍처.md §8).
-            registrar.Resolve<ISceneTransitionContentRootRegistry>().RegisterContentRoot(ContentSceneId.Field, fieldUIController.MovementViewRoot);
+            // Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 다음 전환 때 슬라이드시킬 대상을
+            // 등록한다. 예전엔 이동 뷰 루트만 등록해 전투 뷰/패널/결과 팝업이 전환 중 제자리에 남았다 - 이제
+            // Field UI 전체를 감싸는 전환 루트를 등록한다(Docs/설계/38번 §10). 인스톨러 미실행으로 전환 루트가
+            // 없으면 예전 동작(이동 뷰만)으로 물러난다.
+            if (!sceneUIRoot.TryGetElement<RectTransform>(FieldUIElementIds.ContentRoot, out var transitionRoot))
+            {
+                Debug.LogWarning($"Field UI에서 '{FieldUIElementIds.ContentRoot}' 요소를 찾을 수 없어 이동 뷰만 씬 전환 대상으로 등록한다(Tools > Game > Build Field Scene 실행 필요).");
+                transitionRoot = fieldUIController.MovementViewRoot;
+            }
+            registrar.Resolve<ISceneTransitionContentRootRegistry>().RegisterContentRoot(ContentSceneId.Field, transitionRoot);
         }
     }
 }

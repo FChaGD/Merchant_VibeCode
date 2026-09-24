@@ -5,8 +5,8 @@ namespace Game.Core
 {
     /// <summary>
     /// Hub 우상단 인벤토리 상시 호출 버튼 4개를 인벤토리 팝업 토글에 연결한다(Docs/기획/31번 §3.5 상시 호출).
-    /// 버튼은 PersistentLayer에 있어 depth 전환과 무관하게 항상 보이므로, 루트 depth만 다루는
-    /// HubUIController와 분리했다. 연결 후 들고 있을 상태가 없어 컴포넌트가 아니라 정적 바인더로 둔다.
+    /// 버튼은 PersistentLayer에 있어 depth 전환과 무관하게 보이므로(모달 팝업 동안에는 PopupLayerGate가 숨김),
+    /// 루트 depth만 다루는 HubUIController와 분리했다. 연결 후 들고 있을 상태가 없어 컴포넌트가 아니라 정적 바인더로 둔다.
     /// </summary>
     public static class HubInventoryShortcutBinder
     {

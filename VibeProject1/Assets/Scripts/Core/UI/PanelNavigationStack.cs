@@ -11,6 +11,9 @@ namespace Game.Core
         private string activePanelId;
         private readonly Dictionary<string, string> returnToPanelId = new();
 
+        /// <summary>현재 활성 패널이 있는지 - PanelChannel이 활성 여부 변화 신호를 계산하는 데 쓴다.</summary>
+        public bool HasActive => activePanelId != null;
+
         /// <summary>
         /// 패널을 열기 직전에 호출한다. 숨겨야 할 이전 패널의 id를 반환한다(없으면 null).
         /// </summary>

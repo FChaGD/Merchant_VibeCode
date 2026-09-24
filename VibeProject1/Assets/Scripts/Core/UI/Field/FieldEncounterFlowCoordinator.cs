@@ -195,8 +195,13 @@ namespace Game.Core
                     // 진행 중이던 배치/이동을 Hub 귀환 전에 즉시 완료 처리한다(기획 20번 §3.2/§3.3,
                     // 설계 25번 §8.4 - 도주를 제외한 패배는 전부 이 경로).
                     fieldActivityRepository?.ForceCompleteAll();
+                    // 먼저 전투 뷰 → 이동 뷰 슬라이드를 끝낸 뒤 씬 전환한다(Docs/설계/38번 §10.4 A안). 전투 유닛은
+                    // UI가 아닌 월드 오브젝트(전투 카메라 렌더링)라 씬 전환 슬라이드로 함께 밀어낼 수 없다 - 이동 뷰로
+                    // 돌아온 뒤 전환하면 "씬 전환은 항상 이동 뷰에서 시작한다"는 전제가 다시 성립한다. 승리/도주와 달리
+                    // 상행을 재개하지 않으므로 상단 버튼 활성화/세션 재개는 하지 않는다.
                     resultPopupView.Show("패배 - 궤주", "귀환", onConfirm: () =>
-                        gameManager.RequestSceneTransition(ContentSceneId.Hub));
+                        cameraController.TransitionToMovement(onComplete: () =>
+                            gameManager.RequestSceneTransition(ContentSceneId.Hub)));
                     break;
                 case DefeatConsequence.Captured:
                 default:

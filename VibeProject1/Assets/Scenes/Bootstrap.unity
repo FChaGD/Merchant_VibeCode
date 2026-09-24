@@ -606,6 +606,7 @@ GameObject:
   - component: {fileID: 900004010}
   - component: {fileID: 900004012}
   - component: {fileID: 900004013}
+  - component: {fileID: 900004014}
   m_Layer: 0
   m_Name: UIManager
   m_TagString: Untagged
@@ -788,6 +789,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d618bc290a452d74a870cc92d598c0e7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.InventoryPopupCoordinator
+--- !u!114 &900004014
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900004000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa406de870447e84997b84ddbe2169ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.PopupLayerGate
 --- !u!1 &900005000
 GameObject:
   m_ObjectHideFlags: 0

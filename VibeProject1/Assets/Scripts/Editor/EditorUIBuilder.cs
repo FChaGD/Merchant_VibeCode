@@ -145,6 +145,22 @@ namespace Game.Core.Editor
             }
         }
 
+        /// <summary>
+        /// 씬 전환 연출은 콘텐츠 씬이 등록한 전환 루트 하나만 밀어낸다 - 그 밖에 만든 UI는 전환 중 제자리에
+        /// 남는다(Docs/설계/38번 §10). Canvas 직계 자식이 전환 루트뿐인지 검사해 새 UI를 루트 밖에 만드는
+        /// 실수를 조기에 드러낸다. Hub/Field 인스톨러가 공유한다.
+        /// </summary>
+        public static void WarnIfOutsideTransitionRoot(Transform canvasRoot, Transform transitionRoot, string sceneLabel)
+        {
+            foreach (Transform child in canvasRoot)
+            {
+                if (child != transitionRoot)
+                {
+                    Debug.LogWarning($"{sceneLabel} Canvas 바로 아래에 전환 루트({transitionRoot.name}) 밖 UI '{child.name}'가 있다 - 씬 전환 시 화면과 함께 이동하지 않는다.", child);
+                }
+            }
+        }
+
         public static void SetAnchors(RectTransform rect, Vector2 min, Vector2 max)
         {
             rect.anchorMin = min;

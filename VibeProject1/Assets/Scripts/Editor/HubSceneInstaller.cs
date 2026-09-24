@@ -60,18 +60,20 @@ namespace Game.Core.Editor
             DestroyAllDirectChildrenNamed(sceneUIRoot.transform, "FormationPanel");
             DestroyAllDirectChildrenNamed(sceneUIRoot.transform, "TripPanel");
 
-            // 레이어를 먼저 만들고 기존 요소를 옮긴 "뒤"에 빌드한다 - 빌드가 먼저면 옛 위치(ContentRoot 직계)를
-            // 못 찾고 새 레이어 안에 중복 생성한다(위 ContentRoot 주석과 같은 이유).
-            var (depthLayer, rootDepth, persistentLayer) = EnsureLayers(sceneUIRoot, contentRoot);
+            // 레이어를 먼저 만들고 기존 요소를 옮긴 "뒤"에 빌드한다 - 빌드가 먼저면 옛 위치를 못 찾고 새 레이어
+            // 안에 중복 생성한다(위 ContentRoot 주석과 같은 이유).
+            var layers = EnsureLayers(sceneUIRoot, contentRoot);
 
-            BuildFormationUI(depthLayer);
-            BuildTripUI(depthLayer);
-            BuildTacticsUI(rootDepth, depthLayer);
+            BuildFormationUI(layers.ModalPopups);
+            BuildTripUI(layers.ModalPopups);
+            BuildTacticsUI(layers.RootDepth, layers.ModalPopups);
             StackActionButtonsAboveDeparture(sceneUIRoot);
-            BuildTownCategoryColumn(rootDepth);
-            BuildTownCategoryDepth(depthLayer);
-            BuildPlayerCurrencyHud(persistentLayer);
-            BuildInventoryShortcuts(sceneUIRoot, persistentLayer);
+            BuildTownCategoryColumn(layers.RootDepth);
+            BuildTownCategoryDepth(layers.DepthLayer);
+            BuildPlayerCurrencyHud(layers.PopupExemptLayer);
+            BuildInventoryShortcuts(sceneUIRoot, layers.PersistentLayer);
+
+            EditorUIBuilder.WarnIfOutsideTransitionRoot(sceneUIRoot.transform, contentRoot, "Hub");
 
             EditorSceneManager.MarkSceneDirty(activeScene);
             Debug.Log("Hub Scene UI 생성/동기화 완료. 씬을 저장(Ctrl+S)해야 변경사항이 파일에 반영된다. "
@@ -81,35 +83,72 @@ namespace Game.Core.Editor
                 + "수동으로 연결하라(HubFormationPanel/FieldFormationPanel/TripPanel은 Bootstrap 씬에 있어 이 도구가 직접 연결할 수 없다).");
         }
 
-        // ==================== 레이어 (Docs/설계/37번 §3) ====================
-        // ContentRoot = Background + DepthLayer(화면 depth에 따라 바뀌는 UI) + PersistentLayer(항상 활성인 UI).
-        // 레이어 순서가 곧 렌더 순서라, 여기서 레이어 2개와 RootDepth의 형제 순서만 고정하면 요소별 형제
-        // 순서 강제(예전 TacticsButton 이동 로직, 재화 HUD SetAsLastSibling)가 필요 없다.
-        private static (Transform depthLayer, Transform rootDepth, Transform persistentLayer) EnsureLayers(SceneUIRoot sceneUIRoot, Transform contentRoot)
+        // ==================== 레이어 (Docs/설계/37번 §3, 38번 §5) ====================
+        // ContentRoot(씬 전환 루트) 아래를 두 관리 축으로 나눈다. 아래→위 렌더 순서:
+        //   Background
+        //   DepthLayer        depth 의존 · 모달 팝업 시 숨김(CanvasGroup)
+        //   PersistentLayer   depth 무관 · 모달 팝업 시 숨김(CanvasGroup) - 인벤토리 버튼, 새 상시 UI의 기본 자리
+        //   PopupLayer        ModalPopups(상행 준비/배치/방향성 지시) → ModelessPopups(인벤토리 팝업, 후속)
+        //   PopupExemptLayer  depth 무관 · 모달 팝업 시 유지(재화 HUD)
+        // 레이어 순서가 곧 렌더 순서라 여기서 레이어 형제 순서만 고정하면 요소별 형제 순서 강제가 필요 없다.
+        private readonly struct HubLayers
         {
+            public readonly Transform DepthLayer;
+            public readonly Transform RootDepth;
+            public readonly Transform PersistentLayer;
+            public readonly Transform ModalPopups;
+            public readonly Transform PopupExemptLayer;
+
+            public HubLayers(Transform depthLayer, Transform rootDepth, Transform persistentLayer, Transform modalPopups, Transform popupExemptLayer)
+            {
+                DepthLayer = depthLayer;
+                RootDepth = rootDepth;
+                PersistentLayer = persistentLayer;
+                ModalPopups = modalPopups;
+                PopupExemptLayer = popupExemptLayer;
+            }
+        }
+
+        private static HubLayers EnsureLayers(SceneUIRoot sceneUIRoot, Transform contentRoot)
+        {
+            // CanvasGroup은 PopupLayerGate가 모달 팝업 동안 숨기는 대상이다(팝업 축).
             var depthLayer = EnsureStretchLayer(contentRoot, "DepthLayer", HubUIElementIds.DepthLayer);
+            EditorUIBuilder.GetOrAddComponent<CanvasGroup>(depthLayer.gameObject);
             var persistentLayer = EnsureStretchLayer(contentRoot, "PersistentLayer", HubUIElementIds.PersistentLayer);
-            // Background는 EnsureContentRoot가 첫 자식으로 둔다 - 두 레이어는 그 뒤, PersistentLayer가 맨 뒤(최상단).
+            EditorUIBuilder.GetOrAddComponent<CanvasGroup>(persistentLayer.gameObject);
+            var popupLayer = EnsureStretchLayer(contentRoot, "PopupLayer", HubUIElementIds.PopupLayer);
+            var popupExemptLayer = EnsureStretchLayer(contentRoot, "PopupExemptLayer", HubUIElementIds.PopupExemptLayer);
+
+            // Background는 EnsureContentRoot가 첫 자식으로 둔다 - 나머지 레이어는 그 뒤에 아래 순서로.
             depthLayer.SetAsLastSibling();
             persistentLayer.SetAsLastSibling();
+            popupLayer.SetAsLastSibling();
+            popupExemptLayer.SetAsLastSibling();
 
-            // RootDepth는 모달 패널/카테고리 depth보다 아래에 그려져야 한다 - DepthLayer의 첫 자식으로 고정.
-            // CanvasGroup은 씬 전환 커튼 중 루트 depth 버튼 전체를 한 번에 비활성화하는 데 쓴다(HubUIController).
+            var modalPopups = EnsureStretchLayer(popupLayer, "ModalPopups", HubUIElementIds.ModalPopups);
+            var modelessPopups = EnsureStretchLayer(popupLayer, "ModelessPopups", HubUIElementIds.ModelessPopups);
+            modalPopups.SetAsFirstSibling();
+            modelessPopups.SetAsLastSibling(); // 인벤토리 팝업은 모달 팝업 위에 뜬다(38번 §3).
+
+            // RootDepth는 카테고리 depth보다 아래에 그려져야 한다 - DepthLayer의 첫 자식으로 고정.
+            // RootDepth 자신의 CanvasGroup은 씬 전환 커튼 중 루트 depth 버튼 전체를 비활성화하는 용도다
+            // (HubUIController) - DepthLayer의 CanvasGroup과 중첩되면 상호작용 차단이 AND로 합쳐져 서로 간섭하지 않는다.
             var rootDepth = EnsureStretchLayer(depthLayer, "RootDepth", HubUIElementIds.RootDepth);
             EditorUIBuilder.GetOrAddComponent<CanvasGroup>(rootDepth.gameObject);
             rootDepth.SetAsFirstSibling();
 
-            // 기존 요소를 새 부모로 옮긴다(마커 기준이라 어디에 있든 찾는다) - 상행 준비/상단 배치 버튼은
-            // 코드가 아니라 씬에 원래 있던 요소라 get-or-create 대상이 아니고 이동만 한다.
+            // 기존 요소를 새 부모로 옮긴다(마커 기준이라 이전 버전 어디에 있든 찾는다) - 상행 준비/상단 배치
+            // 버튼은 코드가 아니라 씬에 원래 있던 요소라 get-or-create 대상이 아니고 이동만 한다.
             ReparentIfFound(sceneUIRoot, HubUIElementIds.DepartureButton, rootDepth);
             ReparentIfFound(sceneUIRoot, HubUIElementIds.FormationButton, rootDepth);
             ReparentIfFound(sceneUIRoot, HubUIElementIds.TacticsButton, rootDepth);
-            ReparentIfFound(sceneUIRoot, FormationUIElementIds.PanelRoot, depthLayer);
-            ReparentIfFound(sceneUIRoot, TripUIElementIds.PanelRoot, depthLayer);
-            ReparentIfFound(sceneUIRoot, TacticsUIElementIds.PanelRoot, depthLayer);
-            ReparentIfFound(sceneUIRoot, HubUIElementIds.CurrencyPanelRoot, persistentLayer);
+            ReparentIfFound(sceneUIRoot, FormationUIElementIds.PanelRoot, modalPopups);
+            ReparentIfFound(sceneUIRoot, TripUIElementIds.PanelRoot, modalPopups);
+            ReparentIfFound(sceneUIRoot, TacticsUIElementIds.PanelRoot, modalPopups);
+            ReparentIfFound(sceneUIRoot, HubUIElementIds.CurrencyPanelRoot, popupExemptLayer);
+            ReparentIfFound(sceneUIRoot, HubUIElementIds.InventoryShortcutRoot, persistentLayer);
 
-            return (depthLayer, rootDepth, persistentLayer);
+            return new HubLayers(depthLayer, rootDepth, persistentLayer, modalPopups, popupExemptLayer);
         }
 
         private static Transform EnsureStretchLayer(Transform parent, string name, string markerId)
@@ -124,9 +163,9 @@ namespace Game.Core.Editor
         // 버튼 위치는 여기서 정하지 않는다 - StackActionButtonsAboveDeparture가 상행 준비 버튼 기준으로
         // 계산한다. 이 버튼은 예전부터 씬에 있던 게 아니라 새로 생긴 것이라, DepartureButton/
         // FormationButton과 달리 처음부터 최종 부모(RootDepth) 안에 직접 만든다(사후 재배치로 인한 중복
-        // 생성 버그를 피하기 위함 - BuildHubScene 요약 주석 참고). 모달 패널보다 아래에 그려지는 것은
-        // RootDepth가 DepthLayer의 첫 자식이라 구조적으로 보장된다(예전의 형제 순서 강제 로직 제거).
-        private static void BuildTacticsUI(Transform rootDepth, Transform depthLayer)
+        // 생성 버그를 피하기 위함 - BuildHubScene 요약 주석 참고). 모달 팝업보다 아래에 그려지는 것은
+        // DepthLayer가 PopupLayer보다 앞 형제라 구조적으로 보장된다(예전의 형제 순서 강제 로직 제거).
+        private static void BuildTacticsUI(Transform rootDepth, Transform modalPopups)
         {
             var go = EditorUIBuilder.GetOrCreateUIObject(rootDepth, "TacticsButton");
             EditorUIBuilder.EnsureImage(go, new Color(0.85f, 0.75f, 0.95f, 1f));
@@ -134,7 +173,7 @@ namespace Game.Core.Editor
             EditorUIBuilder.EnsureLabel(go.transform, "방향성 지시", autoSize: true, minFontSize: 18f, maxFontSize: 30f);
             EditorUIBuilder.EnsureMarker(go, HubUIElementIds.TacticsButton);
 
-            TacticsUIBuilder.Build(depthLayer);
+            TacticsUIBuilder.Build(modalPopups);
         }
 
         // ==================== 마을 시설 카테고리 (Docs/설계/37번 §4~5) ====================
@@ -185,16 +224,16 @@ namespace Game.Core.Editor
 
         // ==================== 재화 HUD ====================
         // 스타크래프트류 RTS 자원 바 형태(기획 27번 §3.1) - 항상 노출, 다른 패널이 열려도 가려지지
-        // 않는다(27번 §3.5). 예전엔 SetAsLastSibling()으로 최상단을 강제했지만, 이제 PersistentLayer(항상
-        // ContentRoot의 마지막 자식) 안에 두는 것으로 구조적으로 보장된다(Docs/설계/37번 §3.2).
-        private static void BuildPlayerCurrencyHud(Transform persistentLayer)
+        // 않는다(27번 §3.5). 예전엔 SetAsLastSibling()으로 최상단을 강제했지만, 이제 PopupExemptLayer(항상
+        // ContentRoot의 마지막 자식, 모달 팝업 시에도 유지) 안에 두는 것으로 구조적으로 보장된다(Docs/설계/38번 §5).
+        private static void BuildPlayerCurrencyHud(Transform popupExemptLayer)
         {
             // 가로폭은 화면의 30%로 고정 요구사항(사용자 확정, 2026-09-23)이 생겨 X축만 스트레치
             // 앵커(anchorMin.x=0.7~anchorMax.x=1)로 바꿨다 - width가 화면 비율로 결정되므로
             // 2026-09-21에 겪은 "고정 픽셀 박스가 콘텐츠보다 작아서 아이콘이 밖으로 튀어나오는"
             // 문제는 재발하지 않는다(30%가 아이콘+텍스트+패딩보다 항상 크다). 세로축은 기존과
             // 동일하게 한 점 고정 + ContentSizeFitter로 콘텐츠 높이에 맞춘다.
-            var root = EditorUIBuilder.GetOrCreateUIObject(persistentLayer, "PlayerCurrencyHud");
+            var root = EditorUIBuilder.GetOrCreateUIObject(popupExemptLayer, "PlayerCurrencyHud");
             var rootRect = root.GetComponent<RectTransform>();
             // 우상단 기준(사용자 확정, 2026-09-21). pivot.x=1/anchorMax.x=1이 겹쳐 anchoredPosition.x는
             // 화면 우측 모서리로부터의 오프셋으로 동작한다(스트레치 축이어도 점 앵커와 동일하게 계산됨).
@@ -266,7 +305,7 @@ namespace Game.Core.Editor
         // ==================== 배치(Formation) UI ====================
         // 실제 조립 로직은 FormationUIBuilder(Hub/Field 공용)에 있다 - Field 씬에서도 "정비창 재호출"이
         // 동작하려면 같은 화면이 필요해서 공용화되어 있다(FieldUIInstaller 참고).
-        private static void BuildFormationUI(Transform depthLayer)
+        private static void BuildFormationUI(Transform modalPopups)
         {
             FormationUIBuilder.EnsurePrefabFolder();
             var slotPrefab = FormationUIBuilder.GetOrCreateSlotPrefab();
@@ -275,17 +314,17 @@ namespace Game.Core.Editor
             var pathLinePrefab = FormationUIBuilder.GetOrCreatePathLinePrefab();
             var travelerIconPrefab = FormationUIBuilder.GetOrCreateTravelerIconPrefab();
             var activityOverlayPrefab = FormationUIBuilder.GetOrCreateActivityOverlayPrefab();
-            FormationUIBuilder.Build(depthLayer, slotPrefab, iconPrefab, rowPrefab, pathLinePrefab, travelerIconPrefab, activityOverlayPrefab, includeApplyButton: true);
+            FormationUIBuilder.Build(modalPopups, slotPrefab, iconPrefab, rowPrefab, pathLinePrefab, travelerIconPrefab, activityOverlayPrefab, includeApplyButton: true);
         }
 
         // ==================== 상행 준비(Trip) UI ====================
-        private static void BuildTripUI(Transform depthLayer)
+        private static void BuildTripUI(Transform modalPopups)
         {
             EnsureTripPrefabFolder();
             GetOrCreateCityMarkerPrefab(); // TripPanel.debugCityMarkerPrefab에 수동 연결 대상(에셋만 미리 생성)
             GetOrCreateRoadLinePrefab();   // TripPanel.debugRoadLinePrefab에 수동 연결 대상(에셋만 미리 생성)
 
-            var panelRoot = EditorUIBuilder.GetOrCreateUIObject(depthLayer, "TripPanel");
+            var panelRoot = EditorUIBuilder.GetOrCreateUIObject(modalPopups, "TripPanel");
             EditorUIBuilder.SetStretch(panelRoot.GetComponent<RectTransform>());
             EditorUIBuilder.EnsureMarker(panelRoot, TripUIElementIds.PanelRoot);
 
@@ -684,7 +723,8 @@ namespace Game.Core.Editor
         // 작은 버튼 3개를 좌우로 둔다(사용자 확정, 2026-09-24). 큰 버튼은 상행 준비 버튼과 같은 크기,
         // 작은 버튼은 폭을 3등분하고 높이는 상단 배치/방향성 지시와 같은 가로세로 비율로 맞춘다 - 묶음 전체가
         // 상행 준비 버튼의 좌우 폭을 넘지 않는다. 상행 준비 버튼 앵커에서 매번 계산하므로 그 버튼을 옮기고
-        // 재실행하면 따라온다. 재화 HUD와 같은 PersistentLayer라 depth 전환과 무관하게 항상 보인다.
+        // 재실행하면 따라온다. PersistentLayer라 depth 전환과 무관하게 보이지만, 모달 팝업(상행 준비/상단 배치/
+        // 방향성 지시)이 열려 있는 동안은 숨는다(사용자 확정, 2026-09-24 - Docs/설계/38번 §1-3).
         private static readonly Color InventoryShortcutButtonColor = new(0.8f, 0.85f, 0.95f, 1f);
 
         private static void BuildInventoryShortcuts(SceneUIRoot sceneUIRoot, Transform persistentLayer)
