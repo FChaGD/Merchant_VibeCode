@@ -29,17 +29,19 @@ namespace Game.Core
         private readonly RectTransform movementViewRoot;
         private readonly RectTransform battleViewRoot;
         private readonly GameObject battleWorldRoot;
+        private readonly BattleFieldWorldCameraView battleCameraView; // null 가능 - 없으면 월드 동행 없이 UI만 슬라이드
         private readonly FieldTransitionCurtainView transitionCurtain;
         private readonly RectTransform transitionCurtainRoot;
 
         public FieldCameraController(
             MonoBehaviour coroutineRunner, RectTransform movementViewRoot, RectTransform battleViewRoot,
-            GameObject battleWorldRoot, FieldTransitionCurtainView transitionCurtain)
+            GameObject battleWorldRoot, BattleFieldWorldCameraView battleCameraView, FieldTransitionCurtainView transitionCurtain)
         {
             this.coroutineRunner = coroutineRunner;
             this.movementViewRoot = movementViewRoot;
             this.battleViewRoot = battleViewRoot;
             this.battleWorldRoot = battleWorldRoot;
+            this.battleCameraView = battleCameraView;
             this.transitionCurtain = transitionCurtain;
             transitionCurtainRoot = (RectTransform)transitionCurtain.transform;
         }
@@ -85,6 +87,12 @@ namespace Game.Core
                 transitionCurtainRoot.anchoredPosition = new Vector2(enterStartX, 0f);
             }
 
+            // 전투 뷰에서 나올 때는 전투 월드(유닛/시설/마차)도 전투 뷰 UI와 함께 밀려나게 한다(사용자 확정,
+            // 2026-09-24). 전투로 들어갈 때는 커튼이 전투 뷰를 덮고 들어오고 전투 시작 시 카메라가 다시 중앙으로
+            // 리셋되므로(BattleFieldWorldCameraView.ConfigureFieldBounds) 적용하지 않는다.
+            var slideBattleWorld = !toBattle && battleCameraView != null;
+            if (slideBattleWorld) battleCameraView.BeginViewSlide();
+
             SlideTransitionTimeline.Run(coroutineRunner, SlideTransitionTimeline.DefaultDurationSeconds,
                 onStep: t =>
                 {
@@ -94,11 +102,13 @@ namespace Game.Core
                     {
                         transitionCurtainRoot.anchoredPosition = new Vector2(enterStartX * (1f - t), 0f);
                     }
+                    if (slideBattleWorld) battleCameraView.ApplyViewSlide(exitEndX * t);
                 },
                 onComplete: () =>
                 {
                     exitingView.gameObject.SetActive(false);
                     if (!toBattle) battleWorldRoot.SetActive(false);
+                    if (slideBattleWorld) battleCameraView.EndViewSlide();
 
                     // 커튼은 여기서 걷지 않는다 - 화면을 완전히 덮은 채로 유지되다가, 전투 상태가
                     // 실제로 재구성된 뒤(onComplete 안에서 StartBattle() 호출 후) FieldEncounterFlowCoordinator가 걷는다.

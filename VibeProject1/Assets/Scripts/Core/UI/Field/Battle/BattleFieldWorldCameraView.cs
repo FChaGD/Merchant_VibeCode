@@ -13,10 +13,12 @@ namespace Game.Core
     public class BattleFieldWorldCameraView : MonoBehaviour
     {
         private OrthographicCameraZoomController zoomController;
+        private Camera battleCamera;
+        private Vector3 viewSlideBasePosition;
 
         private void Awake()
         {
-            var battleCamera = GetComponent<Camera>();
+            battleCamera = GetComponent<Camera>();
             // 재사용하는 Main Camera가 이미 Orthographic이지만(§6 확인됨), 씬 설정이 실수로 바뀌어도
             // 이 뷰가 스스로 강제해 조용히 깨지지 않게 한다.
             battleCamera.orthographic = true;
@@ -48,6 +50,26 @@ namespace Game.Core
         /// Field 프리셋 그대로다. 컨트롤러를 새로 만들므로 첫 ConfigureFieldBounds 이전에 호출해야 한다.
         /// </summary>
         public void ApplyPreset(CameraPreset preset) => BindZoomController(preset);
+
+        // 전투 뷰 → 이동 뷰 슬라이드 동안 전투 월드(유닛/시설/마차/격자 배경)를 전투 뷰 UI와 함께 밀어낸다
+        // (사용자 확정, 2026-09-24). 월드 오브젝트는 UI 슬라이드(anchoredPosition)로는 움직이지 않아 예전엔
+        // 제자리에 남았다가 슬라이드가 끝나는 순간 꺼졌다. 월드 루트가 아니라 카메라를 움직이는 이유: 유닛
+        // 위치는 전투 로직이 월드 좌표로 다루므로 건드리지 않는다. Field 캔버스는 Screen Space Overlay라
+        // 카메라를 움직여도 UI는 영향이 없다.
+        public void BeginViewSlide() => viewSlideBasePosition = transform.position;
+
+        /// <param name="screenOffsetPixels">전투 뷰 UI가 화면에서 이동한 거리(픽셀, +는 오른쪽).
+        /// Field 캔버스가 ConstantPixelSize·scaleFactor 1이라 anchoredPosition 값이 곧 화면 픽셀이다.</param>
+        public void ApplyViewSlide(float screenOffsetPixels)
+        {
+            var worldUnitsPerPixel = battleCamera.orthographicSize * 2f / battleCamera.pixelHeight;
+            // 화면 속 월드가 오른쪽으로 가려면 카메라는 왼쪽으로 간다.
+            transform.position = viewSlideBasePosition - new Vector3(screenOffsetPixels * worldUnitsPerPixel, 0f, 0f);
+        }
+
+        // 슬라이드가 끝나면 원래 위치로 되돌린다 - 다음 전투는 ConfigureFieldBounds가 다시 중앙으로 잡지만,
+        // 그 전에 카메라가 어긋난 채 남지 않게 한다.
+        public void EndViewSlide() => transform.position = viewSlideBasePosition;
 
         private void BindZoomController(CameraPreset preset)
         {

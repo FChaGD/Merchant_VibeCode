@@ -95,7 +95,7 @@ namespace Game.Core
             // 담고 있어 매번 새로 만든다.
             flowCoordinator ??= new FieldEncounterFlowCoordinator();
             flowCoordinator.Bind(uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, gameManager, fieldActivityRepository);
-            var cameraController = new FieldCameraController(this, movementViewRoot, battleViewRoot, battleWorldRoot.gameObject, transitionCurtain);
+            var cameraController = new FieldCameraController(this, movementViewRoot, battleViewRoot, battleWorldRoot.gameObject, battleCameraView, transitionCurtain);
             flowCoordinator.RebindViews(this, this, cameraController, warningView, resultPopupView, transitionCurtain);
 
             // battleSimulationEvents도 Bootstrap 상주 영속 객체(BattleManager)라 같은 이유로
