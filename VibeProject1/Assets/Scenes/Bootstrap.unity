@@ -465,6 +465,7 @@ MonoBehaviour:
   - {fileID: 1707920027}
   - {fileID: 1393312301}
   - {fileID: 1730478252}
+  - {fileID: 1098981620}
   - {fileID: 230752041}
   - {fileID: 434087639}
   - {fileID: 255667641}
@@ -638,6 +639,7 @@ Transform:
   - {fileID: 434087638}
   - {fileID: 255667640}
   - {fileID: 1473442127}
+  - {fileID: 1098981619}
   m_Father: {fileID: 900000001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &900004002
@@ -1001,6 +1003,73 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   checkIntervalSeconds: 5
+--- !u!1 &1098981618
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1098981619}
+  - component: {fileID: 1098981620}
+  m_Layer: 0
+  m_Name: PlaceholderTownFacilityAvailabilityProvider
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1098981619
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1098981618}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900004001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1098981620
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1098981618}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2e2f497109be4ed40838ce7cf95d74d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.PlaceholderTownFacilityAvailabilityProvider
+  facilities:
+  - facilityId: TradeGoodsMarket
+    available: 1
+  - facilityId: SpecialtyMarket
+    available: 1
+  - facilityId: Pawnshop
+    available: 1
+  - facilityId: Inn
+    available: 1
+  - facilityId: MercenaryContact
+    available: 1
+  - facilityId: Tavern
+    available: 1
+  - facilityId: Blacksmith
+    available: 1
+  - facilityId: Stable
+    available: 1
+  - facilityId: GeneralStore
+    available: 1
+  - facilityId: CityHall
+    available: 1
+  - facilityId: MerchantGuild
+    available: 1
 --- !u!1 &1213019814
 GameObject:
   m_ObjectHideFlags: 0

@@ -70,8 +70,12 @@ namespace Game.Core
             // IPlayerCurrencyWallet으로 등록되어 있다(InMemoryPlayerCurrencyWallet.RegisterSelf) - 이
             // 컨트롤러는 조회 전용만 필요하므로 IPlayerCurrencyReader 타입으로만 넘긴다(ISP).
             registrar.TryResolve<IPlayerCurrencyWallet>(out var currencyWallet);
+            // 마을별 시설 데이터 시스템이 아직 없어(Placeholder) 선택적으로 조회한다 - 없으면 전부 제공으로
+            // 간주한다(CurrentTownFacilityFilter 참고).
+            registrar.TryResolve<ITownFacilityAvailabilityReader>(out var townFacilityAvailability);
+            var townFacilityFilter = new CurrentTownFacilityFilter(townFacilityAvailability, currentLocationRepository);
 
-            hubUIController.RegisterHubUI(sceneUIRoot, uiManager, sceneRevealSignal);
+            hubUIController.RegisterHubUI(sceneUIRoot, uiManager, sceneRevealSignal, townFacilityFilter);
             currencyHudController.RegisterCurrencyUI(sceneUIRoot, currencyWallet);
 
             formationPanel.RegisterFormationUI(sceneUIRoot, caravanRosterProvider, formationRepository, unitConditionRepository, uiManager);
@@ -82,6 +86,16 @@ namespace Game.Core
 
             tacticsPanel.RegisterTacticsUI(sceneUIRoot, tacticsRepository, uiManager);
             panelRegistrar.RegisterPanel(tacticsPanel);
+
+            // 마을 카테고리 depth - 카테고리마다 패널 인스턴스가 따로지만 화면 요소는 하나를 공유한다
+            // (Docs/설계/37번 §4.2). 요소가 없으면(인스톨러 미실행) 카테고리 depth만 빠지고 나머지는 정상 동작한다.
+            if (TownCategoryDepthElements.TryBind(sceneUIRoot, out var townCategoryDepth))
+            {
+                foreach (var categoryId in TownFacilityCatalog.CategoryIds)
+                {
+                    panelRegistrar.RegisterPanel(new TownCategoryPanel(categoryId, townCategoryDepth, uiManager, townFacilityFilter));
+                }
+            }
 
             // Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 다음 전환 때 슬라이드시킬
             // 대상을 등록한다 - 씬을 다시 로드할 때마다 최신 참조로 갱신된다(Docs/설계/10-2026-08-26-씬전환_연출_아키텍처.md §8).

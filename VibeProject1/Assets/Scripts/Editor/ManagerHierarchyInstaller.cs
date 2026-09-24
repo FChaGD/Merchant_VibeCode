@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using Game.Core;
 using UnityEditor;
@@ -212,6 +213,11 @@ namespace Game.Core.Editor
             // 성격의 인메모리 저장소.
             var playerCurrencyWallet = EditorUIBuilder.GetOrCreateManager<InMemoryPlayerCurrencyWallet>(uiManager.transform, nameof(InMemoryPlayerCurrencyWallet));
 
+            // 마을별 시설 제공 여부(Docs/설계/37번 §5.1) - 마을별 시설 데이터 시스템이 생기면 이 저장소를
+            // 함께 제거한다.
+            var townFacilityAvailabilityProvider = EditorUIBuilder.GetOrCreateManager<PlaceholderTownFacilityAvailabilityProvider>(uiManager.transform, nameof(PlaceholderTownFacilityAvailabilityProvider));
+            SyncTownFacilityToggles(townFacilityAvailabilityProvider);
+
             // 인벤토리 카테고리 4종(기획 25/31번, 설계 32번) - 장비/소모품/개인물품은 고정 크기,
             // 교역품/전리품은 ResolveDependencies 시점에 마차 재고 수로 그리드 크기를 계산한다
             // (placeholderRosterProvider보다 ResolveDependencies 호출이 늦어도 되므로 순서 무관 -
@@ -239,11 +245,38 @@ namespace Game.Core.Editor
                 tripDestinationAssigner,
                 fieldFormationActivityRepository,
                 playerCurrencyWallet,
+                townFacilityAvailabilityProvider,
                 tradeGoodsInventoryRepository,
                 equipmentInventoryRepository,
                 consumableInventoryRepository,
                 personalItemInventoryRepository,
             };
+        }
+
+        // 인스펙터 체크 목록을 TownFacilityCatalog의 시설 목록과 맞춘다. 사용자가 끈 값은 유지하고(재실행
+        // 안전성), 카탈로그에 새로 생긴 시설만 "제공"으로 추가하며, 카탈로그에서 사라진 시설은 걷어낸다.
+        private static void SyncTownFacilityToggles(PlaceholderTownFacilityAvailabilityProvider provider)
+        {
+            var so = new SerializedObject(provider);
+            var list = so.FindProperty("facilities");
+
+            var existing = new Dictionary<string, bool>();
+            for (var i = 0; i < list.arraySize; i++)
+            {
+                var element = list.GetArrayElementAtIndex(i);
+                existing[element.FindPropertyRelative("facilityId").stringValue] = element.FindPropertyRelative("available").boolValue;
+            }
+
+            var facilityIds = TownFacilityCatalog.AllFacilityIds;
+            list.arraySize = facilityIds.Count;
+            for (var i = 0; i < facilityIds.Count; i++)
+            {
+                var element = list.GetArrayElementAtIndex(i);
+                element.FindPropertyRelative("facilityId").stringValue = facilityIds[i];
+                element.FindPropertyRelative("available").boolValue = !existing.TryGetValue(facilityIds[i], out var available) || available;
+            }
+
+            so.ApplyModifiedProperties();
         }
 
         // Hub↔Field 씬 전환 연출용 커튼은 Bootstrap(영속) 스코프여야 한다 - 콘텐츠 씬 스코프 오브젝트는
