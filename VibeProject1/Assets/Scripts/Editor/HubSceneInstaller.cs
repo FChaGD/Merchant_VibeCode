@@ -225,8 +225,8 @@ namespace Game.Core.Editor
 
             BuildTripTopButtons(panelRoot.transform);
             BuildTripMap(panelRoot.transform);
-            BuildTripLocationInfo(panelRoot.transform, "OriginInfo", TripUIElementIds.OriginInfoRoot, new Vector2(0.64f, 0.64f), new Vector2(0.94f, 0.88f));
-            BuildTripLocationInfo(panelRoot.transform, "DestinationInfo", TripUIElementIds.DestinationInfoRoot, new Vector2(0.64f, 0.40f), new Vector2(0.94f, 0.63f));
+            BuildTripLocationInfo(panelRoot.transform, "OriginInfo", TripUIElementIds.OriginInfoRoot, new Vector2(0.64f, 0.58f), new Vector2(0.94f, TripContentTopY));
+            BuildTripLocationInfo(panelRoot.transform, "DestinationInfo", TripUIElementIds.DestinationInfoRoot, new Vector2(0.64f, 0.37f), new Vector2(0.94f, 0.57f));
             BuildTripSummary(panelRoot.transform);
             BuildTripStartButton(panelRoot.transform);
             BuildTripDebugMapControls(panelRoot.transform);
@@ -234,17 +234,33 @@ namespace Game.Core.Editor
             panelRoot.SetActive(false);
         }
 
+        // 지도 저장(디버그)과 닫기 버튼은 상단 줄의 같은 구간(0.64~0.79)을 좌/우로 양분한다 - 예전엔
+        // 두 버튼이 0.70~0.78에서 겹쳐 저장 버튼이 닫기 버튼을 가렸다. 간격은 지도(~0.62)와 정보
+        // 패널(0.64~) 사이 간격(0.02)을 그대로 따른다.
+        private const float TripTopSharedMinX = 0.64f;
+        private const float TripTopSharedMaxX = 0.79f;
+        private const float TripTopSharedGap = 0.02f;
+        private const float TripTopSharedButtonWidth = (TripTopSharedMaxX - TripTopSharedMinX - TripTopSharedGap) / 2f;
+
+        // 상단 버튼 줄(디버그 지도 컨트롤/닫기/배치)의 세로 범위. 우상단 재화 HUD(상단 마진 32px +
+        // 높이 약 40px = 화면 위 72px까지, ConstantPixelSize)가 예전 0.90~0.97 줄을 가려서 아래로
+        // 내렸다 - 1080p 기준 줄 윗변은 화면 위에서 약 130px로 HUD 하단과 여유가 있다. 본문(지도/
+        // 정보 패널) 윗변은 이 줄에서 기존 간격 0.02를 둔 TripContentTopY로 함께 압축했다.
+        private const float TripTopRowMinY = 0.81f;
+        private const float TripTopRowMaxY = 0.88f;
+        private const float TripContentTopY = 0.79f;
+
         private static void BuildTripTopButtons(Transform parent)
         {
             var closeGo = EditorUIBuilder.GetOrCreateUIObject(parent, "CloseButton");
-            EditorUIBuilder.SetAnchors(closeGo.GetComponent<RectTransform>(), new Vector2(0.70f, 0.90f), new Vector2(0.79f, 0.97f));
+            EditorUIBuilder.SetAnchors(closeGo.GetComponent<RectTransform>(), new Vector2(TripTopSharedMaxX - TripTopSharedButtonWidth, TripTopRowMinY), new Vector2(TripTopSharedMaxX, TripTopRowMaxY));
             EditorUIBuilder.EnsureImage(closeGo, new Color(0.85f, 0.85f, 0.85f, 1f));
             EditorUIBuilder.EnsureButton(closeGo);
             EditorUIBuilder.EnsureLabel(closeGo.transform, "닫기");
             EditorUIBuilder.EnsureMarker(closeGo, TripUIElementIds.CloseButton);
 
             var formationGo = EditorUIBuilder.GetOrCreateUIObject(parent, "OpenFormationButton");
-            EditorUIBuilder.SetAnchors(formationGo.GetComponent<RectTransform>(), new Vector2(0.80f, 0.90f), new Vector2(0.89f, 0.97f));
+            EditorUIBuilder.SetAnchors(formationGo.GetComponent<RectTransform>(), new Vector2(0.80f, TripTopRowMinY), new Vector2(0.89f, TripTopRowMaxY));
             EditorUIBuilder.EnsureImage(formationGo, new Color(0.75f, 0.87f, 1f, 1f));
             EditorUIBuilder.EnsureButton(formationGo);
             EditorUIBuilder.EnsureLabel(formationGo.transform, "배치");
@@ -254,7 +270,7 @@ namespace Game.Core.Editor
         private static void BuildTripMap(Transform parent)
         {
             var root = EditorUIBuilder.GetOrCreateUIObject(parent, "Map");
-            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.06f, 0.16f), new Vector2(0.62f, 0.88f));
+            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.06f, 0.16f), new Vector2(0.62f, TripContentTopY));
             EditorUIBuilder.EnsureImage(root, new Color(0.85f, 0.9f, 0.85f, 1f));
             EditorUIBuilder.EnsureMarker(root, TripUIElementIds.MapRoot);
 
@@ -325,7 +341,7 @@ namespace Game.Core.Editor
         private static void BuildTripSummary(Transform parent)
         {
             var root = EditorUIBuilder.GetOrCreateUIObject(parent, "Summary");
-            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.64f, 0.16f), new Vector2(0.94f, 0.39f));
+            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.64f, 0.16f), new Vector2(0.94f, 0.36f));
             EditorUIBuilder.EnsureImage(root, new Color(0.9f, 0.9f, 0.96f, 1f));
             EditorUIBuilder.EnsureMarker(root, TripUIElementIds.SummaryRoot);
 
@@ -381,8 +397,8 @@ namespace Game.Core.Editor
         /// </summary>
         private static void BuildTripDebugMapControls(Transform parent)
         {
-            const float top = 0.90f;
-            const float bottom = 0.97f;
+            const float top = TripTopRowMinY;
+            const float bottom = TripTopRowMaxY;
 
             var paletteGo = EditorUIBuilder.GetOrCreateUIObject(parent, "DebugCityPalette");
             EditorUIBuilder.SetAnchors(paletteGo.GetComponent<RectTransform>(), new Vector2(0.06f, top), new Vector2(0.12f, bottom));
@@ -426,10 +442,10 @@ namespace Game.Core.Editor
             roadDeleteLabel.fontSize = 10;
             EditorUIBuilder.EnsureMarker(roadDeleteGo, TripUIElementIds.DebugRoadBulkDeleteButton);
 
-            // 기존 4개 버튼(0.06~0.62) 뒤 빈 구간에 이어 붙여 겹치지 않게 배치(Docs/기획/15번 §3.1,
-            // 설계 19번 §8). 저장=긍정 동작이라 기존 빨강(삭제)/황토(토글)와 구분되는 녹색 계열.
+            // 닫기 버튼과 구간을 양분해 왼쪽 절반에 둔다(TripTopShared* 상수 참고). 저장=긍정 동작이라
+            // 기존 빨강(삭제)/황토(토글)와 구분되는 녹색 계열(Docs/기획/15번 §3.1, 설계 19번 §8).
             var saveGo = EditorUIBuilder.GetOrCreateUIObject(parent, "DebugMapSaveButton");
-            EditorUIBuilder.SetAnchors(saveGo.GetComponent<RectTransform>(), new Vector2(0.64f, top), new Vector2(0.78f, bottom));
+            EditorUIBuilder.SetAnchors(saveGo.GetComponent<RectTransform>(), new Vector2(TripTopSharedMinX, top), new Vector2(TripTopSharedMinX + TripTopSharedButtonWidth, bottom));
             EditorUIBuilder.EnsureImage(saveGo, new Color(0.6f, 0.85f, 0.6f, 1f));
             EditorUIBuilder.EnsureButton(saveGo);
             var saveLabel = EditorUIBuilder.EnsureLabel(saveGo.transform, "지도 저장");
