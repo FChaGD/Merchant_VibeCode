@@ -1,56 +1,26 @@
-using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace Game.Core
 {
     /// <summary>
-    /// 상단주 개인 물품 인벤토리 - 그리드 크기 3×3(9칸)는 잠정치다(Docs/기획/31번 §3.2, 밸런싱
-    /// 재검토 대상). 실제 아이템 데이터 시스템이 생기면 대체/제거 대상.
+    /// 상단주 개인 물품 인벤토리 - 공통 동작은 PlaceholderFixedGridInventoryRepository(Docs/설계/44번 §4.2). 실제 아이템 데이터
+    /// 시스템이 생기면 대체/제거 대상.
     /// </summary>
-    public class PlaceholderPersonalItemInventoryRepository : MonoBehaviour, IPersonalItemInventoryRepository, IManagedComponent
+    public sealed class PlaceholderPersonalItemInventoryRepository : PlaceholderFixedGridInventoryRepository, IPersonalItemInventoryRepository
     {
-        private const int Width = 3;
-        private const int Height = 3;
-
-        [SerializeField] private ItemDefinitionTableAsset itemTable;
-        [SerializeField] private ItemStringTableAsset itemStrings;
-
-        private InventoryGrid grid;
-        private TableItemCatalog catalog;
-
-        public int GridWidth => grid.Width;
-        public int GridHeight => grid.Height;
-        public IReadOnlyCollection<InventoryItemInstance> Items => grid.Items;
-        public event Action OnChanged;
-
-        public IReadOnlyList<IInventoryItemDefinition> CatalogItems => catalog.CatalogItems;
-        public bool TryGetDefinition(string id, out IInventoryItemDefinition definition) => catalog.TryGetDefinition(id, out definition);
-
-        public void RegisterSelf(IDependencyRegistrar registrar) => registrar.Register<IPersonalItemInventoryRepository>(this);
-
-        public void ResolveDependencies(IDependencyResolver registrar)
+        // 초기 배치 품목은 실제 테이블(PersonalItem.xlsx)의 "placeholder-personal-*" 행.
+        private static readonly (string itemId, int x, int y)[] PlaceholderInitialItems =
         {
-            grid = new InventoryGrid(Width, Height);
-            catalog = new TableItemCatalog(itemTable, itemStrings);
-        }
+            ("placeholder-personal-1", 0, 0),
+            ("placeholder-personal-2", 2, 0),
+            ("placeholder-personal-3", 1, 1),
+            ("placeholder-personal-4", 2, 2),
+        };
 
-        public bool TryGetItemAt(GridPosition position, out InventoryItemInstance item) => grid.TryGetAt(position, out item);
+        protected override int Width => 3;
+        protected override int Height => 3;
+        protected override IReadOnlyList<(string itemId, int x, int y)> InitialItems => PlaceholderInitialItems;
 
-        public bool TryPlaceItem(IInventoryItemDefinition definition, GridPosition position, out InventoryItemInstance placed)
-        {
-            if (!grid.TryPlace(definition, position, out placed)) return false;
-
-            OnChanged?.Invoke();
-            return true;
-        }
-
-        public bool RemoveItem(string instanceId)
-        {
-            if (!grid.Remove(instanceId)) return false;
-
-            OnChanged?.Invoke();
-            return true;
-        }
+        public override void RegisterSelf(IDependencyRegistrar registrar) => registrar.Register<IPersonalItemInventoryRepository>(this);
     }
 }

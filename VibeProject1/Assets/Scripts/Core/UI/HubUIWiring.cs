@@ -86,13 +86,17 @@ namespace Game.Core
             // 간주한다(CurrentTownFacilityFilter 참고).
             registrar.TryResolve<ITownFacilityAvailabilityReader>(out var townFacilityAvailability);
             var townFacilityFilter = new CurrentTownFacilityFilter(townFacilityAvailability, currentLocationRepository);
-            // 인벤토리 데이터 시스템이 아직 Placeholder라 선택적으로 조회한다(Docs/설계/42번 §4.5). 나머지 카테고리
+            // 인벤토리 데이터 시스템이 아직 Placeholder라 선택적으로 조회한다(Docs/설계/42번 §4.5, 44번 §3). 새 인벤토리
             // 팝업이 생기면 스펙과 저장소 쌍을 이 목록에 추가만 한다.
             registrar.TryResolve<ITradeGoodsInventoryRepository>(out var tradeGoodsInventory);
             registrar.TryResolve<IEquipmentInventoryRepository>(out var equipmentInventory);
+            registrar.TryResolve<IConsumableInventoryRepository>(out var consumableInventory);
+            registrar.TryResolve<IPersonalItemInventoryRepository>(out var personalItemInventory);
             var inventoryPopupSources = new List<InventoryPopupSource>();
             AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.TradeGoods, tradeGoodsInventory, tradeGoodsInventory, nameof(ITradeGoodsInventoryRepository));
             AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.Equipment, equipmentInventory, equipmentInventory, nameof(IEquipmentInventoryRepository));
+            AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.Consumable, consumableInventory, consumableInventory, nameof(IConsumableInventoryRepository));
+            AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.PersonalItem, personalItemInventory, personalItemInventory, nameof(IPersonalItemInventoryRepository));
 
             // 임시 보관이 켜진 팝업의 저장소만 "상행 시작" 활성 조건에 넣는다(설계 40번 §5.5) - 스펙이 조건을 결정하므로
             // 팝업의 임시 보관 여부가 바뀌어도 여기를 고칠 필요가 없다.

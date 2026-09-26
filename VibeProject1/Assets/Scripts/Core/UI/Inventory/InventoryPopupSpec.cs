@@ -40,5 +40,15 @@ namespace Game.Core
         public static readonly InventoryPopupSpec Equipment = new(
             InventoryPopupIds.Equipment, "전투 장비", allowsRotation: false, hasStaging: false,
             new Vector2(0.06f, 0.1f), new Vector2(0.42f, 0.72f));
+
+        // 기획 43번 - 전투 장비와 같은 기능 구성. 창 제목은 버튼 라벨("소모품"/"개인 물품")이 아닌 정식 명칭(사용자 확정).
+        // 네 팝업을 모두 열어도 완전히 가리지 않도록 계단식으로 어긋나게, 그리드 크기에 맞춰 작게 둔다(잠정 수치).
+        public static readonly InventoryPopupSpec Consumable = new(
+            InventoryPopupIds.Consumable, "전투 소모품", allowsRotation: false, hasStaging: false,
+            new Vector2(0.1f, 0.06f), new Vector2(0.42f, 0.66f));
+
+        public static readonly InventoryPopupSpec PersonalItem = new(
+            InventoryPopupIds.PersonalItem, "상단주 개인 물품", allowsRotation: false, hasStaging: false,
+            new Vector2(0.14f, 0.04f), new Vector2(0.36f, 0.56f));
     }
 }

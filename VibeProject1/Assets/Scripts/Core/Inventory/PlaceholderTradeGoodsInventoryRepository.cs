@@ -69,21 +69,7 @@ namespace Game.Core
             var width = Mathf.Min(totalCells, MaxGridColumns);
             var height = width == 0 ? 0 : Mathf.CeilToInt(totalCells / (float)width);
             grid = new InventoryGrid(width, height);
-            PlaceInitialItems();
-        }
-
-        // 테이블에 행이 없거나(임포트 전) 그리드가 작아 못 놓는 항목은 건너뛴다 - 검증용 데이터라 실패해도
-        // 저장소 자체는 정상 동작해야 한다. 초기화 중이라 OnChanged는 발행하지 않는다.
-        private void PlaceInitialItems()
-        {
-            foreach (var (itemId, x, y) in PlaceholderInitialItems)
-            {
-                if (!catalog.TryGetDefinition(itemId, out var definition)) continue;
-                if (!grid.TryPlace(definition, new GridPosition(x, y), out _))
-                {
-                    Debug.LogWarning($"{nameof(PlaceholderTradeGoodsInventoryRepository)}: 초기 아이템 '{itemId}'을(를) ({x}, {y})에 배치하지 못했다.");
-                }
-            }
+            PlaceholderInventorySeeder.PlaceAll(grid, catalog, PlaceholderInitialItems, nameof(PlaceholderTradeGoodsInventoryRepository));
         }
 
         public bool TryGetItemAt(GridPosition position, out InventoryItemInstance item) => grid.TryGetAt(position, out item);

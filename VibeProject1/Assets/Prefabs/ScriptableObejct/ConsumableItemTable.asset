@@ -12,4 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e3297360563a87f44a2f2c9c7d925350, type: 3}
   m_Name: ConsumableItemTable
   m_EditorClassIdentifier: Game.Core::Game.Core.ItemDefinitionTableAsset
-  entries: []
+  entries:
+  - Id: placeholder-consumable-1
+    FootprintWidth: 1
+    FootprintHeight: 1
+    Icon: {fileID: 0}
+  - Id: placeholder-consumable-2
+    FootprintWidth: 1
+    FootprintHeight: 1
+    Icon: {fileID: 0}
+  - Id: placeholder-consumable-3
+    FootprintWidth: 1
+    FootprintHeight: 1
+    Icon: {fileID: 0}
+  - Id: placeholder-consumable-4
+    FootprintWidth: 1
+    FootprintHeight: 1
+    Icon: {fileID: 0}

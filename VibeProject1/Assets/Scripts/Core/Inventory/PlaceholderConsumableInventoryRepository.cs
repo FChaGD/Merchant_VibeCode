@@ -1,56 +1,26 @@
-using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace Game.Core
 {
     /// <summary>
-    /// 전투 소모품 인벤토리 - 그리드 크기 5×4(20칸)는 잠정치다(Docs/기획/31번 §3.2, 밸런싱 재검토
-    /// 대상). 실제 아이템 데이터 시스템이 생기면 대체/제거 대상.
+    /// 전투 소모품 인벤토리 - 공통 동작은 PlaceholderFixedGridInventoryRepository(Docs/설계/44번 §4.2). 실제 아이템 데이터
+    /// 시스템이 생기면 대체/제거 대상.
     /// </summary>
-    public class PlaceholderConsumableInventoryRepository : MonoBehaviour, IConsumableInventoryRepository, IManagedComponent
+    public sealed class PlaceholderConsumableInventoryRepository : PlaceholderFixedGridInventoryRepository, IConsumableInventoryRepository
     {
-        private const int Width = 5;
-        private const int Height = 4;
-
-        [SerializeField] private ItemDefinitionTableAsset itemTable;
-        [SerializeField] private ItemStringTableAsset itemStrings;
-
-        private InventoryGrid grid;
-        private TableItemCatalog catalog;
-
-        public int GridWidth => grid.Width;
-        public int GridHeight => grid.Height;
-        public IReadOnlyCollection<InventoryItemInstance> Items => grid.Items;
-        public event Action OnChanged;
-
-        public IReadOnlyList<IInventoryItemDefinition> CatalogItems => catalog.CatalogItems;
-        public bool TryGetDefinition(string id, out IInventoryItemDefinition definition) => catalog.TryGetDefinition(id, out definition);
-
-        public void RegisterSelf(IDependencyRegistrar registrar) => registrar.Register<IConsumableInventoryRepository>(this);
-
-        public void ResolveDependencies(IDependencyResolver registrar)
+        // 초기 배치 품목은 실제 테이블(Consumable.xlsx)의 "placeholder-consumable-*" 행.
+        private static readonly (string itemId, int x, int y)[] PlaceholderInitialItems =
         {
-            grid = new InventoryGrid(Width, Height);
-            catalog = new TableItemCatalog(itemTable, itemStrings);
-        }
+            ("placeholder-consumable-1", 0, 0),
+            ("placeholder-consumable-2", 2, 1),
+            ("placeholder-consumable-3", 4, 3),
+            ("placeholder-consumable-4", 1, 3),
+        };
 
-        public bool TryGetItemAt(GridPosition position, out InventoryItemInstance item) => grid.TryGetAt(position, out item);
+        protected override int Width => 5;
+        protected override int Height => 4;
+        protected override IReadOnlyList<(string itemId, int x, int y)> InitialItems => PlaceholderInitialItems;
 
-        public bool TryPlaceItem(IInventoryItemDefinition definition, GridPosition position, out InventoryItemInstance placed)
-        {
-            if (!grid.TryPlace(definition, position, out placed)) return false;
-
-            OnChanged?.Invoke();
-            return true;
-        }
-
-        public bool RemoveItem(string instanceId)
-        {
-            if (!grid.Remove(instanceId)) return false;
-
-            OnChanged?.Invoke();
-            return true;
-        }
+        public override void RegisterSelf(IDependencyRegistrar registrar) => registrar.Register<IConsumableInventoryRepository>(this);
     }
 }
