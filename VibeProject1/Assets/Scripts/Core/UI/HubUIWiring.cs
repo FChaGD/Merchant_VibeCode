@@ -16,6 +16,8 @@ namespace Game.Core
         // 소유해 게임 실행 중 유지하고(Docs/설계/40번 §5.1), 이전 패널은 저장소 구독 해제를 위해 Dispose한다.
         private readonly PopupWindowPositionStore inventoryWindowPositions = new();
         private readonly List<IDisposable> inventoryPopups = new();
+        // 누른 인벤토리 팝업을 맨 위로 올린다(Docs/설계/46번) - 입력 액션을 한 번만 만들고 Hub 로드마다 창 목록만 교체한다.
+        private PopupFocusOnPress inventoryPopupFocus;
 
         public void Wire(IDependencyResolver registrar, IUIManager uiManager, IPanelRegistrar panelRegistrar)
         {
@@ -175,6 +177,7 @@ namespace Game.Core
         {
             foreach (var previous in inventoryPopups) previous.Dispose();
             inventoryPopups.Clear();
+            var windowRoots = new List<RectTransform>();
 
             foreach (var source in sources)
             {
@@ -182,8 +185,19 @@ namespace Game.Core
 
                 var popup = new InventoryPopupPanel(source.Spec, elements, source.Reader, source.Arrangement, uiManager, inventoryWindowPositions);
                 inventoryPopups.Add(popup);
+                windowRoots.Add(popup.WindowRoot);
                 panelRegistrar.RegisterInventoryPopup(popup);
             }
+
+            inventoryPopupFocus ??= new PopupFocusOnPress();
+            inventoryPopupFocus.Rebind(windowRoots);
+        }
+
+        private void OnDestroy()
+        {
+            foreach (var popup in inventoryPopups) popup.Dispose();
+            inventoryPopups.Clear();
+            inventoryPopupFocus?.Dispose();
         }
 
         private static List<CanvasGroup> CollectLayers(SceneUIRoot sceneUIRoot, params string[] layerIds)
