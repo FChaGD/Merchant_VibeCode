@@ -7,6 +7,8 @@ namespace Game.Core
     /// 같은 타입 컴포넌트 4개를 GetComponent로 구분할 수 없어 MonoBehaviour가 아닌 plain C#으로 둔다
     /// (TownCategoryPanel과 같은 선택). Hub 로드마다 새로 만들어지므로 영속 상태(창 위치)는 외부
     /// PopupWindowPositionStore에 둔다. 저장소(Bootstrap 상주)의 OnChanged를 구독하므로 교체 시 반드시 Dispose한다.
+    /// 회전·임시 보관은 InventoryPopupSpec으로 켜고 끈다(설계 42번 §4.2). 임시 보관이 꺼진 팝업도 IPanelCloseGuard는
+    /// 그대로 구현한다 - 저장소의 임시 보관이 항상 비어 있어 TryPrepareClose가 즉시 true라 분기가 필요 없다.
     /// </summary>
     public sealed class InventoryPopupPanel : IUIPanel, IPanelCloseGuard, IDisposable
     {
@@ -18,7 +20,7 @@ namespace Game.Core
         private readonly IInventoryArrangement arrangement;
         private readonly PopupWindowPositionStore windowPositions;
         private readonly InventoryGridView gridView;
-        private readonly InventoryStagingView stagingView;
+        private readonly InventoryStagingView stagingView; // 임시 보관이 꺼진 팝업은 null
         private readonly InventoryItemDragController dragController;
 
         private bool isOpen;
@@ -27,9 +29,9 @@ namespace Game.Core
 
         public string PanelId { get; }
 
-        public InventoryPopupPanel(string popupId, InventoryPopupElements elements, IInventoryReader reader, IInventoryArrangement arrangement, IUIManager uiManager, PopupWindowPositionStore windowPositions)
+        public InventoryPopupPanel(InventoryPopupSpec spec, InventoryPopupElements elements, IInventoryReader reader, IInventoryArrangement arrangement, IUIManager uiManager, PopupWindowPositionStore windowPositions)
         {
-            PanelId = popupId;
+            PanelId = spec.PopupId;
             this.elements = elements;
             this.reader = reader;
             this.arrangement = arrangement;
@@ -38,8 +40,8 @@ namespace Game.Core
             elements.ItemTemplate.gameObject.SetActive(false);
             elements.CellTemplate.gameObject.SetActive(false);
             gridView = new InventoryGridView(elements.GridArea, elements.GridCells, elements.GridItems, elements.CellTemplate, elements.ItemTemplate);
-            stagingView = new InventoryStagingView(elements.StagingArea, elements.StagingContent, elements.ItemTemplate);
-            dragController = new InventoryItemDragController(reader, arrangement, gridView, stagingView, elements.DragLayer, elements.ItemTemplate);
+            stagingView = spec.HasStaging ? new InventoryStagingView(elements.StagingArea, elements.StagingContent, elements.ItemTemplate) : null;
+            dragController = new InventoryItemDragController(reader, arrangement, gridView, stagingView, elements.DragLayer, elements.ItemTemplate, spec.AllowsRotation);
 
             // 닫기 버튼도 상시 호출 버튼과 같은 토글 경로를 탄다 - 닫기 차단(IPanelCloseGuard)이 코디네이터 한 곳에서만 확인된다.
             elements.CloseButton.onClick.RemoveAllListeners();
@@ -122,7 +124,7 @@ namespace Game.Core
             if (selectedInstanceId != null && !Contains(selectedInstanceId)) selectedInstanceId = null;
 
             gridView.Render(reader, ConfigureItemView);
-            stagingView.Render(arrangement.StagedItems, gridView.CellSize, ConfigureItemView);
+            stagingView?.Render(arrangement.StagedItems, gridView.CellSize, ConfigureItemView);
             UpdateInfoLabel();
         }
 
@@ -160,7 +162,10 @@ namespace Game.Core
         private void ApplySelection()
         {
             foreach (var view in gridView.ItemViews) view.SetSelected(view.gameObject.activeSelf && view.Item.InstanceId == selectedInstanceId);
-            foreach (var view in stagingView.ItemViews) view.SetSelected(view.gameObject.activeSelf && view.Item.InstanceId == selectedInstanceId);
+            if (stagingView != null)
+            {
+                foreach (var view in stagingView.ItemViews) view.SetSelected(view.gameObject.activeSelf && view.Item.InstanceId == selectedInstanceId);
+            }
             UpdateInfoLabel();
         }
 

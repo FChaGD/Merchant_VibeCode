@@ -17,6 +17,8 @@ namespace Game.Core
     /// Q 입력은 드래그 중에만 켜지는 InputAction으로 받는다 - 프로젝트가 Input System 전용 설정이라 구식
     /// Input.GetKey는 쓸 수 없고, Update 폴링 대신 performed 콜백으로 처리한다. IInputManager는 아직 뼈대뿐이라
     /// 경유하지 않는다 - 입력 매니저가 설계되면 이 바인딩을 옮긴다(설계 40번 §10).
+    /// 회전을 허용하지 않는 팝업은 입력 액션 자체를 만들지 않고, 임시 보관 뷰가 없으면 그리드 밖 드롭은
+    /// 전부 원위치다(설계 42번 §4.3).
     /// </summary>
     internal sealed class InventoryItemDragController : IDisposable
     {
@@ -25,10 +27,10 @@ namespace Game.Core
         private readonly IInventoryReader reader;
         private readonly IInventoryArrangement arrangement;
         private readonly InventoryGridView gridView;
-        private readonly InventoryStagingView stagingView;
+        private readonly InventoryStagingView stagingView; // 임시 보관이 꺼진 팝업은 null
         private readonly RectTransform dragLayer;
         private readonly InventoryItemView ghost;
-        private readonly InputAction rotateAction;
+        private readonly InputAction rotateAction; // 회전을 허용하지 않는 팝업은 null
 
         private InventoryItemView sourceView;
         private InventoryItemInstance dragged;
@@ -39,7 +41,7 @@ namespace Game.Core
 
         public bool IsDragging { get; private set; }
 
-        public InventoryItemDragController(IInventoryReader reader, IInventoryArrangement arrangement, InventoryGridView gridView, InventoryStagingView stagingView, RectTransform dragLayer, InventoryItemView itemTemplate)
+        public InventoryItemDragController(IInventoryReader reader, IInventoryArrangement arrangement, InventoryGridView gridView, InventoryStagingView stagingView, RectTransform dragLayer, InventoryItemView itemTemplate, bool allowsRotation)
         {
             this.reader = reader;
             this.arrangement = arrangement;
@@ -51,8 +53,11 @@ namespace Game.Core
             ghost.SetRaycastTarget(false);
             ghost.gameObject.SetActive(false);
 
-            rotateAction = new InputAction("RotateHeldInventoryItem", InputActionType.Button, RotateBinding);
-            rotateAction.performed += _ => Rotate();
+            if (allowsRotation)
+            {
+                rotateAction = new InputAction("RotateHeldInventoryItem", InputActionType.Button, RotateBinding);
+                rotateAction.performed += _ => Rotate();
+            }
         }
 
         public void Begin(InventoryItemView view, PointerEventData eventData)
@@ -71,7 +76,7 @@ namespace Game.Core
             ghost.Bind(dragged, InventoryItemColorPalette.ColorFor(dragged.Definition.Id));
             ghost.gameObject.SetActive(true);
             ghost.transform.SetAsLastSibling();
-            rotateAction.Enable();
+            rotateAction?.Enable();
             Refresh();
         }
 
@@ -110,7 +115,7 @@ namespace Game.Core
 
         public void Cancel()
         {
-            rotateAction.Disable();
+            rotateAction?.Disable();
             if (ghost != null) ghost.gameObject.SetActive(false);
             gridView.ClearPreview();
             if (sourceView != null) sourceView.SetDimmed(false);
@@ -121,7 +126,7 @@ namespace Game.Core
         public void Dispose()
         {
             Cancel();
-            rotateAction.Dispose();
+            rotateAction?.Dispose();
         }
 
         private void Rotate()
@@ -186,7 +191,7 @@ namespace Game.Core
                 return DropTarget.Grid;
             }
 
-            return stagingView.ContainsScreenPoint(pointerPosition, eventCamera) ? DropTarget.Staging : DropTarget.None;
+            return stagingView != null && stagingView.ContainsScreenPoint(pointerPosition, eventCamera) ? DropTarget.Staging : DropTarget.None;
         }
 
         // 드롭 시점의 저장소 상태로 다시 조회한다 - 드래그 중 다른 경로로 상태가 바뀌었어도 최신 값으로 판정한다.

@@ -12,4 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd62bb2412624d843ad008a1a5389657, type: 3}
   m_Name: EquipmentItemStrings
   m_EditorClassIdentifier: Game.Core::Game.Core.ItemStringTableAsset
-  strings: []
+  strings:
+  - Id: placeholder-equipment-1
+    Ko: "Placeholder \uC7A5\uBE44 1"
+  - Id: placeholder-equipment-2
+    Ko: "Placeholder \uC7A5\uBE44 2"
+  - Id: placeholder-equipment-3
+    Ko: "Placeholder \uC7A5\uBE44 3"
+  - Id: placeholder-equipment-4
+    Ko: "Placeholder \uC7A5\uBE44 4"

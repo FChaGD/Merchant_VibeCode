@@ -86,11 +86,21 @@ namespace Game.Core
             // 간주한다(CurrentTownFacilityFilter 참고).
             registrar.TryResolve<ITownFacilityAvailabilityReader>(out var townFacilityAvailability);
             var townFacilityFilter = new CurrentTownFacilityFilter(townFacilityAvailability, currentLocationRepository);
-            // 인벤토리 데이터 시스템이 아직 Placeholder라 선택적으로 조회한다. 임시 보관 조회는 "상행 시작"
-            // 활성 조건(Docs/설계/40번 §5.5)에도 쓰인다 - 나머지 카테고리 팝업이 생기면 이 목록에 추가한다.
+            // 인벤토리 데이터 시스템이 아직 Placeholder라 선택적으로 조회한다(Docs/설계/42번 §4.5). 나머지 카테고리
+            // 팝업이 생기면 스펙과 저장소 쌍을 이 목록에 추가만 한다.
             registrar.TryResolve<ITradeGoodsInventoryRepository>(out var tradeGoodsInventory);
+            registrar.TryResolve<IEquipmentInventoryRepository>(out var equipmentInventory);
+            var inventoryPopupSources = new List<InventoryPopupSource>();
+            AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.TradeGoods, tradeGoodsInventory, tradeGoodsInventory, nameof(ITradeGoodsInventoryRepository));
+            AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.Equipment, equipmentInventory, equipmentInventory, nameof(IEquipmentInventoryRepository));
+
+            // 임시 보관이 켜진 팝업의 저장소만 "상행 시작" 활성 조건에 넣는다(설계 40번 §5.5) - 스펙이 조건을 결정하므로
+            // 팝업의 임시 보관 여부가 바뀌어도 여기를 고칠 필요가 없다.
             var inventoryStagingReaders = new List<IInventoryStagingReader>();
-            if (tradeGoodsInventory != null) inventoryStagingReaders.Add(tradeGoodsInventory);
+            foreach (var source in inventoryPopupSources)
+            {
+                if (source.Spec.HasStaging) inventoryStagingReaders.Add(source.Arrangement);
+            }
 
             hubUIController.RegisterHubUI(sceneUIRoot, uiManager, sceneRevealSignal, townFacilityFilter);
             currencyHudController.RegisterCurrencyUI(sceneUIRoot, currencyWallet);
@@ -115,7 +125,7 @@ namespace Game.Core
                 }
             }
 
-            RegisterInventoryPopups(sceneUIRoot, uiManager, panelRegistrar, tradeGoodsInventory);
+            RegisterInventoryPopups(sceneUIRoot, uiManager, panelRegistrar, inventoryPopupSources);
 
             // 팝업 축(Docs/설계/38번 §5·§6) - 모달 팝업이 열리면 DepthLayer/PersistentLayer를 숨긴다.
             // PersistentLayer에는 인벤토리 버튼이 있다. PopupExemptLayer(재화 HUD)와 PopupLayer는 대상이 아니다.
@@ -128,27 +138,48 @@ namespace Game.Core
             registrar.Resolve<ISceneTransitionContentRootRegistry>().RegisterContentRoot(ContentSceneId.Hub, hubUIController.ContentRoot);
         }
 
-        // 비모달 인벤토리 팝업(Docs/설계/40번 §6). 저장소나 화면 요소가 없으면(인스톨러 미실행) 경고 후 건너뛴다 -
-        // 인벤토리 버튼은 기존처럼 "팝업 미등록" 경고만 낸다.
-        private void RegisterInventoryPopups(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, ITradeGoodsInventoryRepository tradeGoodsInventory)
+        // 인벤토리 팝업 1종을 만드는 데 필요한 것 - 저장소는 조회(IInventoryReader)와 정리 조작(IInventoryArrangement)을
+        // 같은 객체가 구현하지만, 패널이 요구하는 계약만 드러나도록 따로 담는다.
+        private readonly struct InventoryPopupSource
+        {
+            public readonly InventoryPopupSpec Spec;
+            public readonly IInventoryReader Reader;
+            public readonly IInventoryArrangement Arrangement;
+
+            public InventoryPopupSource(InventoryPopupSpec spec, IInventoryReader reader, IInventoryArrangement arrangement)
+            {
+                Spec = spec;
+                Reader = reader;
+                Arrangement = arrangement;
+            }
+        }
+
+        private static void AddInventoryPopupSource(List<InventoryPopupSource> sources, InventoryPopupSpec spec, IInventoryReader reader, IInventoryArrangement arrangement, string repositoryName)
+        {
+            if (reader == null || arrangement == null)
+            {
+                Debug.LogWarning($"{repositoryName}가 연결되어 있지 않아 '{spec.Title}' 팝업을 등록하지 못했다.");
+                return;
+            }
+
+            sources.Add(new InventoryPopupSource(spec, reader, arrangement));
+        }
+
+        // 비모달 인벤토리 팝업(Docs/설계/40번 §6, 42번 §4.5). 화면 요소가 없으면(인스톨러 미실행) 그 팝업만 건너뛴다 -
+        // 해당 인벤토리 버튼은 기존처럼 "팝업 미등록" 경고만 낸다.
+        private void RegisterInventoryPopups(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, List<InventoryPopupSource> sources)
         {
             foreach (var previous in inventoryPopups) previous.Dispose();
             inventoryPopups.Clear();
 
-            if (tradeGoodsInventory == null)
+            foreach (var source in sources)
             {
-                Debug.LogWarning($"{nameof(ITradeGoodsInventoryRepository)}가 연결되어 있지 않아 상단 물류품 팝업을 등록하지 못했다.");
-                return;
-            }
+                if (!InventoryPopupElements.TryBind(sceneUIRoot, source.Spec, out var elements)) continue;
 
-            if (!InventoryPopupElements.TryBind(sceneUIRoot, InventoryPopupIds.TradeGoods, out var elements))
-            {
-                return;
+                var popup = new InventoryPopupPanel(source.Spec, elements, source.Reader, source.Arrangement, uiManager, inventoryWindowPositions);
+                inventoryPopups.Add(popup);
+                panelRegistrar.RegisterInventoryPopup(popup);
             }
-
-            var popup = new InventoryPopupPanel(InventoryPopupIds.TradeGoods, elements, tradeGoodsInventory, tradeGoodsInventory, uiManager, inventoryWindowPositions);
-            inventoryPopups.Add(popup);
-            panelRegistrar.RegisterInventoryPopup(popup);
         }
 
         private static List<CanvasGroup> CollectLayers(SceneUIRoot sceneUIRoot, params string[] layerIds)

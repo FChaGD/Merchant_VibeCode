@@ -72,8 +72,9 @@ namespace Game.Core.Editor
             BuildTownCategoryDepth(layers.DepthLayer);
             BuildPlayerCurrencyHud(layers.PopupExemptLayer);
             BuildInventoryShortcuts(sceneUIRoot, layers.PersistentLayer);
-            // 비모달 인벤토리 팝업(Docs/설계/40번 §7) - 나머지 3종은 해당 팝업 제작 시 여기 추가한다.
-            InventoryPopupUIBuilder.Build(layers.ModelessPopups, InventoryPopupIds.TradeGoods, "상단 물류품");
+            // 비모달 인벤토리 팝업(Docs/설계/40번 §7, 42번 §4.4) - 나머지 2종은 해당 팝업 제작 시 스펙을 추가하고 여기 한 줄 추가한다.
+            InventoryPopupUIBuilder.Build(layers.ModelessPopups, InventoryPopupSpecs.TradeGoods);
+            InventoryPopupUIBuilder.Build(layers.ModelessPopups, InventoryPopupSpecs.Equipment);
 
             EditorUIBuilder.WarnIfOutsideTransitionRoot(sceneUIRoot.transform, contentRoot, "Hub");
 

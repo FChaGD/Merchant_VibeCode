@@ -10,7 +10,8 @@ namespace Game.Core.Editor
     /// 인벤토리 팝업 1개의 화면 요소를 get-or-create로 조립한다(Docs/설계/40번 §7). 팝업 4종이 같은 구조를
     /// 공유하므로 특정 인스톨러(HubSceneInstaller) 내부 메서드로 두지 않고 별도 유틸리티로 뽑았다 - 다른 씬의
     /// 인스톨러가 쓰게 되더라도 인스톨러끼리 서로의 내부에 의존하지 않는다. 저수준 조립은 EditorUIBuilder에 위임한다.
-    /// 요소 ID는 InventoryPopupUIElementIds(런타임 바인더 InventoryPopupElements와 공유)를 쓴다.
+    /// 요소 ID는 InventoryPopupUIElementIds(런타임 바인더 InventoryPopupElements와 공유)를 쓴다. 제목·기본 위치·임시 보관
+    /// 여부는 런타임 배선과 같은 InventoryPopupSpec에서 읽는다(Docs/설계/42번 §4.4).
     /// </summary>
     internal static class InventoryPopupUIBuilder
     {
@@ -20,23 +21,34 @@ namespace Game.Core.Editor
         private static readonly Color ButtonColor = new(0.85f, 0.85f, 0.85f, 1f);
         private static readonly Color SelectionOutlineColor = new(0.1f, 0.1f, 0.1f, 1f);
 
-        // 기본 위치: 화면 좌측(Docs/기획/39번 §4.4). 이후 위치는 창 드래그로 바뀌고 런타임에만 기억한다.
-        private static readonly Vector2 DefaultAnchorMin = new(0.02f, 0.16f);
-        private static readonly Vector2 DefaultAnchorMax = new(0.55f, 0.8f);
+        // 임시 보관이 있으면 그리드 오른쪽을 임시 보관 영역에 내주고, 없으면 그리드가 창 폭 전체를 쓴다.
+        private const float GridRightWithStaging = 0.72f;
+        private const float GridRightWithoutStaging = 0.98f;
 
-        public static void Build(Transform parent, string popupId, string title)
+        public static void Build(Transform parent, InventoryPopupSpec spec)
         {
+            var popupId = spec.PopupId;
             var root = EditorUIBuilder.GetOrCreateUIObject(parent, $"InventoryPopup_{popupId}");
             var rootRect = root.GetComponent<RectTransform>();
-            EditorUIBuilder.SetAnchors(rootRect, DefaultAnchorMin, DefaultAnchorMax);
+            // 기본 위치(기획 39번 §4.4, 41번 §4.1). 이후 위치는 창 드래그로 바뀌고 런타임에만 기억한다.
+            EditorUIBuilder.SetAnchors(rootRect, spec.DefaultAnchorMin, spec.DefaultAnchorMax);
             EditorUIBuilder.EnsureImage(root, WindowColor);
             EditorUIBuilder.GetOrAddComponent<PointerClickRelay>(root);
             EditorUIBuilder.EnsureMarker(root, InventoryPopupUIElementIds.Root(popupId));
 
-            BuildTitleBar(rootRect, popupId, title);
+            BuildTitleBar(rootRect, popupId, spec.Title);
             BuildCloseButton(rootRect, popupId);
-            BuildGridArea(rootRect, popupId);
-            BuildStagingArea(rootRect, popupId);
+            BuildGridArea(rootRect, popupId, spec.HasStaging ? GridRightWithStaging : GridRightWithoutStaging);
+            if (spec.HasStaging)
+            {
+                BuildStagingArea(rootRect, popupId);
+            }
+            else
+            {
+                // 스펙에서 임시 보관을 끈 뒤 재실행하면 이전 실행이 만든 요소가 남는다 - 재실행 안전성을 위해 정리한다.
+                EditorUIBuilder.DestroyChildIfExists(rootRect, "StagingHeader");
+                EditorUIBuilder.DestroyChildIfExists(rootRect, "StagingArea");
+            }
             BuildBottomRow(rootRect, popupId);
             BuildTemplates(rootRect, popupId);
 
@@ -73,10 +85,10 @@ namespace Game.Core.Editor
             EditorUIBuilder.EnsureMarker(go, InventoryPopupUIElementIds.CloseButton(popupId));
         }
 
-        private static void BuildGridArea(RectTransform root, string popupId)
+        private static void BuildGridArea(RectTransform root, string popupId, float right)
         {
             var area = EditorUIBuilder.GetOrCreateUIObject(root, "GridArea");
-            EditorUIBuilder.SetAnchors(area.GetComponent<RectTransform>(), new Vector2(0.02f, 0.13f), new Vector2(0.72f, 0.88f));
+            EditorUIBuilder.SetAnchors(area.GetComponent<RectTransform>(), new Vector2(0.02f, 0.13f), new Vector2(right, 0.88f));
             EditorUIBuilder.EnsureMarker(area, InventoryPopupUIElementIds.GridArea(popupId));
 
             var cells = EditorUIBuilder.GetOrCreateUIObject(area.transform, "Cells");

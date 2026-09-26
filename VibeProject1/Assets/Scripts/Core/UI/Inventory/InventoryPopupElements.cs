@@ -7,7 +7,7 @@ namespace Game.Core
     /// <summary>
     /// 인벤토리 팝업 1개의 화면 요소 묶음(TownCategoryDepthElements와 같은 방식). 인스톨러(InventoryPopupUIBuilder)가
     /// 만든 요소를 씬 로드 시 한 번만 찾아 둔다. 하나라도 없으면 팝업 전체를 등록하지 않는다 - 요소가 빠진 팝업은
-    /// 열 수는 있어도 조작이 깨지기 때문이다.
+    /// 열 수는 있어도 조작이 깨지기 때문이다. 임시 보관 요소는 스펙이 켠 팝업에서만 찾고, 아니면 null이다(설계 42번 §4.1).
     /// </summary>
     public sealed class InventoryPopupElements
     {
@@ -26,9 +26,10 @@ namespace Game.Core
         public InventoryItemView ItemTemplate { get; private set; }
         public Image CellTemplate { get; private set; }
 
-        public static bool TryBind(SceneUIRoot sceneUIRoot, string popupId, out InventoryPopupElements elements)
+        public static bool TryBind(SceneUIRoot sceneUIRoot, InventoryPopupSpec spec, out InventoryPopupElements elements)
         {
             elements = null;
+            var popupId = spec.PopupId;
             var bound = new InventoryPopupElements();
             var ok = TryGet(sceneUIRoot, InventoryPopupUIElementIds.Root(popupId), out RectTransform root)
                 & TryGet(sceneUIRoot, InventoryPopupUIElementIds.Root(popupId), out PointerClickRelay rootClick)
@@ -37,13 +38,19 @@ namespace Game.Core
                 & TryGet(sceneUIRoot, InventoryPopupUIElementIds.GridArea(popupId), out RectTransform gridArea)
                 & TryGet(sceneUIRoot, InventoryPopupUIElementIds.GridCells(popupId), out RectTransform gridCells)
                 & TryGet(sceneUIRoot, InventoryPopupUIElementIds.GridItems(popupId), out RectTransform gridItems)
-                & TryGet(sceneUIRoot, InventoryPopupUIElementIds.StagingArea(popupId), out RectTransform stagingArea)
-                & TryGet(sceneUIRoot, InventoryPopupUIElementIds.StagingContent(popupId), out RectTransform stagingContent)
                 & TryGet(sceneUIRoot, InventoryPopupUIElementIds.SortButton(popupId), out Button sortButton)
                 & TryGet(sceneUIRoot, InventoryPopupUIElementIds.InfoLabel(popupId), out TMP_Text infoLabel)
                 & TryGet(sceneUIRoot, InventoryPopupUIElementIds.DragLayer(popupId), out RectTransform dragLayer)
                 & TryGet(sceneUIRoot, InventoryPopupUIElementIds.ItemTemplate(popupId), out InventoryItemView itemTemplate)
                 & TryGet(sceneUIRoot, InventoryPopupUIElementIds.CellTemplate(popupId), out Image cellTemplate);
+
+            RectTransform stagingArea = null;
+            RectTransform stagingContent = null;
+            if (spec.HasStaging)
+            {
+                ok &= TryGet(sceneUIRoot, InventoryPopupUIElementIds.StagingArea(popupId), out stagingArea)
+                    & TryGet(sceneUIRoot, InventoryPopupUIElementIds.StagingContent(popupId), out stagingContent);
+            }
 
             if (!ok) return false;
 
