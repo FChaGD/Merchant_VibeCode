@@ -118,5 +118,61 @@ namespace Game.Core.Tests
             Assert.IsTrue(removed);
             Assert.AreEqual(amountAfterPlacing + 500, wallet.CurrentAmount);
         }
+
+        [Test]
+        public void ResolveDependencies_WithoutPlaceholderRows_StartsEmpty()
+        {
+            // SetUp 테이블엔 gold-box만 있다 - placeholder 행이 없으면 초기 배치를 건너뛴다(기획 39번 §4.4).
+            Assert.AreEqual(0, repository.Items.Count);
+        }
+
+        [Test]
+        public void ResolveDependencies_WithPlaceholderRows_PlacesInitialItems_WithoutTouchingWallet()
+        {
+            var startingAmount = wallet.CurrentAmount;
+            SetPrivateField(itemTable, "entries", new List<ItemDefinitionEntry>
+            {
+                new() { Id = "gold-box", FootprintWidth = 1, FootprintHeight = 1, Icon = null },
+                new() { Id = "placeholder-1x1", FootprintWidth = 1, FootprintHeight = 1, Icon = null },
+                new() { Id = "placeholder-2x1", FootprintWidth = 2, FootprintHeight = 1, Icon = null },
+                new() { Id = "placeholder-1x2", FootprintWidth = 1, FootprintHeight = 2, Icon = null },
+                new() { Id = "placeholder-2x2", FootprintWidth = 2, FootprintHeight = 2, Icon = null },
+            });
+
+            repository.ResolveDependencies(dependencyManager);
+
+            Assert.AreEqual(5, repository.Items.Count);
+            Assert.IsTrue(repository.TryGetItemAt(new GridPosition(5, 1), out var bottomRightOf2x2));
+            Assert.AreEqual("placeholder-2x2", bottomRightOf2x2.Definition.Id);
+            Assert.AreEqual(startingAmount, wallet.CurrentAmount);
+        }
+
+        [Test]
+        public void TryApplyPlacements_GoldBoxToStagingAndBack_DoesNotTouchWallet()
+        {
+            repository.TryPlaceItem(GoldBoxDefinition, new GridPosition(0, 0), out var goldBox);
+            var amountAfterPlacing = wallet.CurrentAmount;
+
+            // 재배치는 인벤토리 유입/유출이 아니다 - 임시 보관 왕복에 재화 환급/차감이 일어나면 안 된다(설계 40번 §3.2).
+            Assert.IsTrue(repository.TryApplyPlacements(new[] { ItemPlacement.ToStaging(goldBox.InstanceId, 0) }));
+            Assert.AreEqual(amountAfterPlacing, wallet.CurrentAmount);
+            Assert.AreEqual(1, repository.StagedItems.Count);
+
+            Assert.IsTrue(repository.TryApplyPlacements(new[] { new ItemPlacement(goldBox.InstanceId, new GridPosition(3, 2), 0) }));
+            Assert.AreEqual(amountAfterPlacing, wallet.CurrentAmount);
+            Assert.AreEqual(0, repository.StagedItems.Count);
+        }
+
+        [Test]
+        public void TryApplyPlacements_Success_RaisesOnChanged()
+        {
+            repository.TryPlaceItem(GoldBoxDefinition, new GridPosition(0, 0), out var goldBox);
+            var raised = 0;
+            repository.OnChanged += () => raised++;
+
+            repository.TryApplyPlacements(new[] { new ItemPlacement(goldBox.InstanceId, new GridPosition(1, 0), 0) });
+
+            Assert.AreEqual(1, raised);
+        }
     }
 }

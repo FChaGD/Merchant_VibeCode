@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 #if UNITY_EDITOR
 using Game.Core.DebugTools;
 #endif
@@ -56,7 +57,11 @@ namespace Game.Core
         // 게이팅(RefreshStartButtonInteractable)과 별개 조건이라 AND로 합친다.
         private bool sceneRevealed;
 
-        public void RegisterTripUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner)
+        // 임시 보관 영역에 아이템이 있으면 "상행 시작"을 막는다(Docs/설계/40번 §5.5) - Hub를 떠나는 경로가
+        // 이 버튼뿐이라, 인벤토리 팝업의 닫기 차단이 개입할 수 없는 씬 전환에서도 정리를 끝내도록 강제한다.
+        private IReadOnlyList<IInventoryStagingReader> inventoryStagingReaders = System.Array.Empty<IInventoryStagingReader>();
+
+        public void RegisterTripUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingReader> inventoryStagingReaders)
         {
             this.uiManager = uiManager;
             this.gameManager = gameManager;
@@ -65,6 +70,11 @@ namespace Game.Core
             this.sceneRevealSignal = sceneRevealSignal;
             this.currentLocationReader = currentLocationReader;
             this.destinationAssigner = destinationAssigner;
+
+            // 저장소는 Bootstrap 상주라 Hub를 반복 방문해도 구독이 누적되지 않게 이전 구독부터 해제한다.
+            foreach (var reader in this.inventoryStagingReaders) reader.OnChanged -= RefreshStartButtonInteractable;
+            this.inventoryStagingReaders = inventoryStagingReaders ?? System.Array.Empty<IInventoryStagingReader>();
+            foreach (var reader in this.inventoryStagingReaders) reader.OnChanged += RefreshStartButtonInteractable;
 
             if (!TryBind(sceneUIRoot))
             {
@@ -175,7 +185,16 @@ namespace Game.Core
 #else
             var debugReady = true;
 #endif
-            startButton.interactable = sceneRevealed && debugReady;
+            startButton.interactable = sceneRevealed && debugReady && !HasStagedInventoryItems();
+        }
+
+        private bool HasStagedInventoryItems()
+        {
+            foreach (var reader in inventoryStagingReaders)
+            {
+                if (reader.StagedItems.Count > 0) return true;
+            }
+            return false;
         }
 
         private bool TryBind(SceneUIRoot sceneUIRoot)

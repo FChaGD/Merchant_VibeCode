@@ -15,3 +15,11 @@ MonoBehaviour:
   strings:
   - Id: gold-box
     Ko: 
+  - Id: placeholder-1x1
+    Ko: Placeholder 1x1
+  - Id: placeholder-2x1
+    Ko: Placeholder 2x1
+  - Id: placeholder-1x2
+    Ko: Placeholder 1x2
+  - Id: placeholder-2x2
+    Ko: Placeholder 2x2

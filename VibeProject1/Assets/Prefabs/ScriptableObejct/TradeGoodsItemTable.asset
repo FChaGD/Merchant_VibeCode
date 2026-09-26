@@ -17,3 +17,19 @@ MonoBehaviour:
     FootprintWidth: 1
     FootprintHeight: 1
     Icon: {fileID: 0}
+  - Id: placeholder-1x1
+    FootprintWidth: 1
+    FootprintHeight: 1
+    Icon: {fileID: 0}
+  - Id: placeholder-2x1
+    FootprintWidth: 2
+    FootprintHeight: 1
+    Icon: {fileID: 0}
+  - Id: placeholder-1x2
+    FootprintWidth: 1
+    FootprintHeight: 2
+    Icon: {fileID: 0}
+  - Id: placeholder-2x2
+    FootprintWidth: 2
+    FootprintHeight: 2
+    Icon: {fileID: 0}

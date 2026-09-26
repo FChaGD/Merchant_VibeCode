@@ -12,6 +12,11 @@ namespace Game.Core
     {
         public ContentSceneId SceneId => ContentSceneId.Hub;
 
+        // 인벤토리 팝업 패널(plain C#)은 Hub 로드마다 새로 만들어진다 - 창 위치는 영속 컴포넌트인 이 배선이
+        // 소유해 게임 실행 중 유지하고(Docs/설계/40번 §5.1), 이전 패널은 저장소 구독 해제를 위해 Dispose한다.
+        private readonly PopupWindowPositionStore inventoryWindowPositions = new();
+        private readonly List<IDisposable> inventoryPopups = new();
+
         public void Wire(IDependencyResolver registrar, IUIManager uiManager, IPanelRegistrar panelRegistrar)
         {
             // 이 씬의 SceneUIRoot를 여기서 한 번만 찾아 아래 4개 컴포넌트 전부에 넘긴다 - 예전엔
@@ -81,6 +86,11 @@ namespace Game.Core
             // 간주한다(CurrentTownFacilityFilter 참고).
             registrar.TryResolve<ITownFacilityAvailabilityReader>(out var townFacilityAvailability);
             var townFacilityFilter = new CurrentTownFacilityFilter(townFacilityAvailability, currentLocationRepository);
+            // 인벤토리 데이터 시스템이 아직 Placeholder라 선택적으로 조회한다. 임시 보관 조회는 "상행 시작"
+            // 활성 조건(Docs/설계/40번 §5.5)에도 쓰인다 - 나머지 카테고리 팝업이 생기면 이 목록에 추가한다.
+            registrar.TryResolve<ITradeGoodsInventoryRepository>(out var tradeGoodsInventory);
+            var inventoryStagingReaders = new List<IInventoryStagingReader>();
+            if (tradeGoodsInventory != null) inventoryStagingReaders.Add(tradeGoodsInventory);
 
             hubUIController.RegisterHubUI(sceneUIRoot, uiManager, sceneRevealSignal, townFacilityFilter);
             currencyHudController.RegisterCurrencyUI(sceneUIRoot, currencyWallet);
@@ -89,7 +99,7 @@ namespace Game.Core
             formationPanel.RegisterFormationUI(sceneUIRoot, caravanRosterProvider, formationRepository, unitConditionRepository, uiManager);
             panelRegistrar.RegisterPopupPanel(formationPanel);
 
-            tripPanel.RegisterTripUI(sceneUIRoot, uiManager, gameManager, formationRepository, tripInfoProvider, sceneRevealSignal, currentLocationRepository, destinationAssigner);
+            tripPanel.RegisterTripUI(sceneUIRoot, uiManager, gameManager, formationRepository, tripInfoProvider, sceneRevealSignal, currentLocationRepository, destinationAssigner, inventoryStagingReaders);
             panelRegistrar.RegisterPopupPanel(tripPanel);
 
             tacticsPanel.RegisterTacticsUI(sceneUIRoot, tacticsRepository, uiManager);
@@ -105,6 +115,8 @@ namespace Game.Core
                 }
             }
 
+            RegisterInventoryPopups(sceneUIRoot, uiManager, panelRegistrar, tradeGoodsInventory);
+
             // 팝업 축(Docs/설계/38번 §5·§6) - 모달 팝업이 열리면 DepthLayer/PersistentLayer를 숨긴다.
             // PersistentLayer에는 인벤토리 버튼이 있다. PopupExemptLayer(재화 HUD)와 PopupLayer는 대상이 아니다.
             popupLayerGate.Register(uiManager, CollectLayers(sceneUIRoot, HubUIElementIds.DepthLayer, HubUIElementIds.PersistentLayer));
@@ -114,6 +126,29 @@ namespace Game.Core
             // 반드시 맨 마지막에 둔다 - 여기서 예외가 나도(예: 설치 도구 미실행) 위 핵심 패널 등록은
             // 이미 끝난 뒤라 Hub UI 자체는 정상 동작한다.
             registrar.Resolve<ISceneTransitionContentRootRegistry>().RegisterContentRoot(ContentSceneId.Hub, hubUIController.ContentRoot);
+        }
+
+        // 비모달 인벤토리 팝업(Docs/설계/40번 §6). 저장소나 화면 요소가 없으면(인스톨러 미실행) 경고 후 건너뛴다 -
+        // 인벤토리 버튼은 기존처럼 "팝업 미등록" 경고만 낸다.
+        private void RegisterInventoryPopups(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, ITradeGoodsInventoryRepository tradeGoodsInventory)
+        {
+            foreach (var previous in inventoryPopups) previous.Dispose();
+            inventoryPopups.Clear();
+
+            if (tradeGoodsInventory == null)
+            {
+                Debug.LogWarning($"{nameof(ITradeGoodsInventoryRepository)}가 연결되어 있지 않아 상단 물류품 팝업을 등록하지 못했다.");
+                return;
+            }
+
+            if (!InventoryPopupElements.TryBind(sceneUIRoot, InventoryPopupIds.TradeGoods, out var elements))
+            {
+                return;
+            }
+
+            var popup = new InventoryPopupPanel(InventoryPopupIds.TradeGoods, elements, tradeGoodsInventory, tradeGoodsInventory, uiManager, inventoryWindowPositions);
+            inventoryPopups.Add(popup);
+            panelRegistrar.RegisterInventoryPopup(popup);
         }
 
         private static List<CanvasGroup> CollectLayers(SceneUIRoot sceneUIRoot, params string[] layerIds)

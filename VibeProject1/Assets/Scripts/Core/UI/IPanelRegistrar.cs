@@ -13,5 +13,8 @@ namespace Game.Core
 
         /// <summary>모달 팝업(상행 준비/상단 배치/방향성 지시, 후속 범용 팝업) - 열리면 유지 대상 외 UI가 숨는다.</summary>
         void RegisterPopupPanel(IUIPanel panel);
+
+        /// <summary>비모달 인벤토리 팝업 - 동시 중첩 오픈, UIManager.ToggleInventoryPopup으로만 연다(Docs/설계/40번 §6).</summary>
+        void RegisterInventoryPopup(IUIPanel popup);
     }
 }

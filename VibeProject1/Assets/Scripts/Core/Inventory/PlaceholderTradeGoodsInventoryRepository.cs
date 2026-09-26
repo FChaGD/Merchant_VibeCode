@@ -23,6 +23,18 @@ namespace Game.Core
         private const int GoldBoxCurrencyValue = 500;
         private const string GoldBoxItemId = "gold-box";
 
+        // 상단 물류품 팝업의 드래그/교환/회전 검증용 초기 배치(Docs/기획/39번 §3.5/§4.4). 품목은 실제
+        // 아이템 테이블(TradeGoods.xlsx)의 "placeholder-*" 행 - 실제 아이템 획득 시스템이 생기면 이 목록과
+        // 테이블의 placeholder 행을 함께 제거한다. 골드 상자는 지갑 차감이 걸려 있어 넣지 않는다.
+        private static readonly (string itemId, int x, int y)[] PlaceholderInitialItems =
+        {
+            ("placeholder-1x1", 0, 0),
+            ("placeholder-1x1", 0, 1),
+            ("placeholder-2x1", 1, 0),
+            ("placeholder-1x2", 3, 0),
+            ("placeholder-2x2", 4, 0),
+        };
+
         [SerializeField] private ItemDefinitionTableAsset itemTable;
         [SerializeField] private ItemStringTableAsset itemStrings;
 
@@ -34,6 +46,7 @@ namespace Game.Core
         public int GridWidth => grid.Width;
         public int GridHeight => grid.Height;
         public IReadOnlyCollection<InventoryItemInstance> Items => grid.Items;
+        public IReadOnlyList<InventoryItemInstance> StagedItems => grid.StagedItems;
         public event Action OnChanged;
 
         public IReadOnlyList<IInventoryItemDefinition> CatalogItems => catalog.CatalogItems;
@@ -56,6 +69,21 @@ namespace Game.Core
             var width = Mathf.Min(totalCells, MaxGridColumns);
             var height = width == 0 ? 0 : Mathf.CeilToInt(totalCells / (float)width);
             grid = new InventoryGrid(width, height);
+            PlaceInitialItems();
+        }
+
+        // 테이블에 행이 없거나(임포트 전) 그리드가 작아 못 놓는 항목은 건너뛴다 - 검증용 데이터라 실패해도
+        // 저장소 자체는 정상 동작해야 한다. 초기화 중이라 OnChanged는 발행하지 않는다.
+        private void PlaceInitialItems()
+        {
+            foreach (var (itemId, x, y) in PlaceholderInitialItems)
+            {
+                if (!catalog.TryGetDefinition(itemId, out var definition)) continue;
+                if (!grid.TryPlace(definition, new GridPosition(x, y), out _))
+                {
+                    Debug.LogWarning($"{nameof(PlaceholderTradeGoodsInventoryRepository)}: 초기 아이템 '{itemId}'을(를) ({x}, {y})에 배치하지 못했다.");
+                }
+            }
         }
 
         public bool TryGetItemAt(GridPosition position, out InventoryItemInstance item) => grid.TryGetAt(position, out item);
@@ -81,6 +109,17 @@ namespace Game.Core
             OnChanged?.Invoke();
             return true;
         }
+
+        // 재배치는 인벤토리 유입/유출이 아니므로 골드 상자도 지갑을 건드리지 않는다(Docs/설계/40번 §3.2).
+        public bool TryApplyPlacements(IReadOnlyList<ItemPlacement> placements)
+        {
+            if (!grid.TryApplyPlacements(placements)) return false;
+
+            OnChanged?.Invoke();
+            return true;
+        }
+
+        public bool CanApplyPlacements(IReadOnlyList<ItemPlacement> placements) => grid.CanApplyPlacements(placements);
 
         public bool RemoveItem(string instanceId)
         {

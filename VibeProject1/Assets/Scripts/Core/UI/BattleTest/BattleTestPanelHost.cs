@@ -55,6 +55,12 @@ namespace Game.Core
             else Debug.LogWarning($"'{panelId}'에 해당하는 UI 패널이 등록되어 있지 않다.");
         }
 
+        // 배틀 테스트 씬에는 인벤토리 팝업이 없다 - IPanelRegistrar 계약을 만족시키기 위한 빈 구현.
+        public void RegisterInventoryPopup(IUIPanel popup)
+        {
+            Debug.LogWarning($"배틀 테스트 씬은 인벤토리 팝업을 지원하지 않는다: '{popup?.PanelId}'.");
+        }
+
         // 배틀 테스트 씬(Hub/상행 없이 전투만 반복 검증)에는 인벤토리 팝업 자체가 없다 - IUIManager
         // 계약을 만족시키기 위한 빈 구현(Docs/설계/32번 §5).
         public void ToggleInventoryPopup(string popupId)

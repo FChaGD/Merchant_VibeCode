@@ -23,6 +23,11 @@ namespace Game.Core
 
             if (openPopupIds.Contains(popupId))
             {
+                if (popup is IPanelCloseGuard guard && !guard.TryPrepareClose())
+                {
+                    return;
+                }
+
                 popup.Close();
                 openPopupIds.Remove(popupId);
             }
@@ -34,5 +39,11 @@ namespace Game.Core
         }
 
         public bool IsOpen(string popupId) => openPopupIds.Contains(popupId);
+
+        public void Reset()
+        {
+            popupsById.Clear();
+            openPopupIds.Clear();
+        }
     }
 }

@@ -72,6 +72,8 @@ namespace Game.Core.Editor
             BuildTownCategoryDepth(layers.DepthLayer);
             BuildPlayerCurrencyHud(layers.PopupExemptLayer);
             BuildInventoryShortcuts(sceneUIRoot, layers.PersistentLayer);
+            // 비모달 인벤토리 팝업(Docs/설계/40번 §7) - 나머지 3종은 해당 팝업 제작 시 여기 추가한다.
+            InventoryPopupUIBuilder.Build(layers.ModelessPopups, InventoryPopupIds.TradeGoods, "상단 물류품");
 
             EditorUIBuilder.WarnIfOutsideTransitionRoot(sceneUIRoot.transform, contentRoot, "Hub");
 
@@ -88,7 +90,7 @@ namespace Game.Core.Editor
         //   Background
         //   DepthLayer        depth 의존 · 모달 팝업 시 숨김(CanvasGroup)
         //   PersistentLayer   depth 무관 · 모달 팝업 시 숨김(CanvasGroup) - 인벤토리 버튼, 새 상시 UI의 기본 자리
-        //   PopupLayer        ModalPopups(상행 준비/배치/방향성 지시) → ModelessPopups(인벤토리 팝업, 후속)
+        //   PopupLayer        ModalPopups(상행 준비/배치/방향성 지시) → ModelessPopups(인벤토리 팝업)
         //   PopupExemptLayer  depth 무관 · 모달 팝업 시 유지(재화 HUD)
         // 레이어 순서가 곧 렌더 순서라 여기서 레이어 형제 순서만 고정하면 요소별 형제 순서 강제가 필요 없다.
         private readonly struct HubLayers
@@ -97,14 +99,16 @@ namespace Game.Core.Editor
             public readonly Transform RootDepth;
             public readonly Transform PersistentLayer;
             public readonly Transform ModalPopups;
+            public readonly Transform ModelessPopups;
             public readonly Transform PopupExemptLayer;
 
-            public HubLayers(Transform depthLayer, Transform rootDepth, Transform persistentLayer, Transform modalPopups, Transform popupExemptLayer)
+            public HubLayers(Transform depthLayer, Transform rootDepth, Transform persistentLayer, Transform modalPopups, Transform modelessPopups, Transform popupExemptLayer)
             {
                 DepthLayer = depthLayer;
                 RootDepth = rootDepth;
                 PersistentLayer = persistentLayer;
                 ModalPopups = modalPopups;
+                ModelessPopups = modelessPopups;
                 PopupExemptLayer = popupExemptLayer;
             }
         }
@@ -148,7 +152,7 @@ namespace Game.Core.Editor
             ReparentIfFound(sceneUIRoot, HubUIElementIds.CurrencyPanelRoot, popupExemptLayer);
             ReparentIfFound(sceneUIRoot, HubUIElementIds.InventoryShortcutRoot, persistentLayer);
 
-            return new HubLayers(depthLayer, rootDepth, persistentLayer, modalPopups, popupExemptLayer);
+            return new HubLayers(depthLayer, rootDepth, persistentLayer, modalPopups, modelessPopups, popupExemptLayer);
         }
 
         private static Transform EnsureStretchLayer(Transform parent, string name, string markerId)

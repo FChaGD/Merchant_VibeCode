@@ -60,6 +60,7 @@ namespace Game.Core
 
         public void RegisterDepthPanel(IUIPanel panel) => depthChannel.Register(panel);
         public void RegisterPopupPanel(IUIPanel panel) => popupChannel.Register(panel);
+        public void RegisterInventoryPopup(IUIPanel popup) => inventoryPopupCoordinator.RegisterPopup(popup);
 
         public void Open(string panelId)
         {
@@ -104,6 +105,7 @@ namespace Game.Core
             // (예: "상행 시작"으로 인한 Hub→Field 전환) 여기서 매번 명시적으로 지운다.
             depthChannel.Reset();
             popupChannel.Reset();
+            inventoryPopupCoordinator.Reset();
 
             wiring.Wire(registrar, this, this);
         }

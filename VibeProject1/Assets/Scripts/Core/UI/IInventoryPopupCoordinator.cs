@@ -10,5 +10,9 @@ namespace Game.Core
         void RegisterPopup(IUIPanel popup);
         void Toggle(string popupId);
         bool IsOpen(string popupId);
+
+        // 씬 로드 시 호출 - 이전 씬의 팝업 시각 요소는 이미 파괴됐으므로 등록·열림 기록을 모두 지운다.
+        // 지우지 않으면 Hub 재방문 시 열림 기록이 남아 첫 토글이 "닫기"로 처리된다(Docs/설계/40번 §2).
+        void Reset();
     }
 }
