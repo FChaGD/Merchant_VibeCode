@@ -40,6 +40,16 @@ namespace Game.Core
 
         public bool IsOpen(string popupId) => openPopupIds.Contains(popupId);
 
+        public void CloseAll()
+        {
+            foreach (var popupId in openPopupIds)
+            {
+                if (popupsById.TryGetValue(popupId, out var popup)) popup.Close();
+            }
+
+            openPopupIds.Clear();
+        }
+
         public void Reset()
         {
             popupsById.Clear();

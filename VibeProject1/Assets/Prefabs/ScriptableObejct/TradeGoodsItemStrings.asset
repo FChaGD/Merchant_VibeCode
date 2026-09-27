@@ -13,13 +13,15 @@ MonoBehaviour:
   m_Name: TradeGoodsItemStrings
   m_EditorClassIdentifier: Game.Core::Game.Core.ItemStringTableAsset
   strings:
-  - Id: gold-box
-    Ko: 
   - Id: placeholder-1x1
     Ko: Placeholder 1x1
+    DescKo: "\uC544\uC774\uD15C \uC124\uBA85 \uD14D\uC2A4\uD2B8"
   - Id: placeholder-2x1
     Ko: Placeholder 2x1
+    DescKo: "\uC544\uC774\uD15C \uC124\uBA85 \uD14D\uC2A4\uD2B8"
   - Id: placeholder-1x2
     Ko: Placeholder 1x2
+    DescKo: "\uC544\uC774\uD15C \uC124\uBA85 \uD14D\uC2A4\uD2B8"
   - Id: placeholder-2x2
     Ko: Placeholder 2x2
+    DescKo: "\uC544\uC774\uD15C \uC124\uBA85 \uD14D\uC2A4\uD2B8"

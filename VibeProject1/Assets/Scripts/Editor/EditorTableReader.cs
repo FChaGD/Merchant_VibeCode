@@ -127,6 +127,17 @@ namespace Game.Core.Editor
             return value;
         }
 
+        // 필수 문자열 열(기획 49번 §3.1 "모든 열은 값이 반드시 있다"). 숫자·enum·슬러그 파서는 빈칸을 이미 예외로 처리한다.
+        public static string ParseRequiredString(IReadOnlyDictionary<string, string> row, string column)
+        {
+            var value = row[column];
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new FormatException($"컬럼 '{column}'이 비어있다.");
+            }
+            return value;
+        }
+
         public static bool ParseBool(IReadOnlyDictionary<string, string> row, string column)
         {
             if (!bool.TryParse(row[column], out var value))

@@ -36,6 +36,7 @@ namespace Game.Core.Editor
             nameof(PlaceholderEquipmentInventoryRepository),
             nameof(PlaceholderConsumableInventoryRepository),
             nameof(PlaceholderPersonalItemInventoryRepository),
+            nameof(PlaceholderTownShopStockProvider),
         };
 
         [MenuItem("Tools/Game/Build Bootstrap Scene")]
@@ -235,6 +236,12 @@ namespace Game.Core.Editor
             WireItemCatalog(equipmentInventoryRepository, TableAssetPaths.EquipmentItemTable, TableAssetPaths.EquipmentItemStrings);
             WireItemCatalog(consumableInventoryRepository, TableAssetPaths.ConsumableItemTable, TableAssetPaths.ConsumableItemStrings);
             WireItemCatalog(personalItemInventoryRepository, TableAssetPaths.PersonalItemItemTable, TableAssetPaths.PersonalItemItemStrings);
+            // 골드 상자는 기타 카테고리지만 교역품 그리드에 놓인다(Docs/설계/50번 §5.2).
+            WireMiscItemCatalog(tradeGoodsInventoryRepository);
+
+            // 시설 판매 목록(설계 50번 §5.3) - 마을별 판매 차별화 시스템이 생기면 이 제공자를 함께 제거한다.
+            var townShopStockProvider = EditorUIBuilder.GetOrCreateManager<PlaceholderTownShopStockProvider>(uiManager.transform, nameof(PlaceholderTownShopStockProvider));
+            WireTownShopStockTables(townShopStockProvider);
 
             return new MonoBehaviour[]
             {
@@ -252,6 +259,7 @@ namespace Game.Core.Editor
                 equipmentInventoryRepository,
                 consumableInventoryRepository,
                 personalItemInventoryRepository,
+                townShopStockProvider,
             };
         }
 
@@ -408,6 +416,35 @@ namespace Game.Core.Editor
             so.FindProperty("itemTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<ItemDefinitionTableAsset>(dataAssetPath);
             so.FindProperty("itemStrings").objectReferenceValue = AssetDatabase.LoadAssetAtPath<ItemStringTableAsset>(stringAssetPath);
             so.ApplyModifiedProperties();
+        }
+
+        private static void WireMiscItemCatalog(PlaceholderTradeGoodsInventoryRepository repository)
+        {
+            var so = new SerializedObject(repository);
+            so.FindProperty("miscItemTable").objectReferenceValue = LoadImportedTable<ItemDefinitionTableAsset>(TableAssetPaths.MiscItemTable);
+            so.FindProperty("miscItemStrings").objectReferenceValue = LoadImportedTable<ItemStringTableAsset>(TableAssetPaths.MiscItemStrings);
+            so.ApplyModifiedProperties();
+        }
+
+        private static void WireTownShopStockTables(PlaceholderTownShopStockProvider provider)
+        {
+            var so = new SerializedObject(provider);
+            so.FindProperty("tradeGoodsItemTable").objectReferenceValue = LoadImportedTable<ItemDefinitionTableAsset>(TableAssetPaths.TradeGoodsItemTable);
+            so.FindProperty("tradeGoodsItemStrings").objectReferenceValue = LoadImportedTable<ItemStringTableAsset>(TableAssetPaths.TradeGoodsItemStrings);
+            so.FindProperty("tradeGoodsKindTable").objectReferenceValue = LoadImportedTable<TradeGoodsKindTableAsset>(TableAssetPaths.TradeGoodsKindTable);
+            so.ApplyModifiedProperties();
+        }
+
+        // 테이블 자산은 임포트(Play 진입 시 자동, 또는 Import Items)가 처음 만든다. 자산이 생기기 전에 이 인스톨러를 돌리면
+        // 참조가 빈 채로 저장돼 판매 목록이 조용히 비는 문제가 있었다(설계 50번 제작 검증) - 빠진 자산을 경고로 드러낸다.
+        private static T LoadImportedTable<T>(string assetPath) where T : Object
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<T>(assetPath);
+            if (asset == null)
+            {
+                Debug.LogWarning($"'{assetPath}' 테이블 자산이 아직 없다 - Tools > Game > Table > Import Items(또는 Play 1회) 후 Build Bootstrap Scene을 다시 실행하라.");
+            }
+            return asset;
         }
 
         // 라벨 조회용 String 에셋 2종 - catalog(값)와 마찬가지로 처음 생기는 에셋이라 자동 배선한다

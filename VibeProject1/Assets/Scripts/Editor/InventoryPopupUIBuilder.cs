@@ -33,33 +33,44 @@ namespace Game.Core.Editor
             // 기본 위치(기획 39번 §4.4, 41번 §4.1). 이후 위치는 창 드래그로 바뀌고 런타임에만 기억한다.
             EditorUIBuilder.SetAnchors(rootRect, spec.DefaultAnchorMin, spec.DefaultAnchorMax);
             EditorUIBuilder.EnsureImage(root, WindowColor);
-            EditorUIBuilder.GetOrAddComponent<PointerClickRelay>(root);
-            EditorUIBuilder.EnsureMarker(root, InventoryPopupUIElementIds.Root(popupId));
 
             BuildTitleBar(rootRect, popupId, spec.Title);
             BuildCloseButton(rootRect, popupId);
-            BuildGridArea(rootRect, popupId, spec.HasStaging ? GridRightWithStaging : GridRightWithoutStaging);
-            if (spec.HasStaging)
-            {
-                BuildStagingArea(rootRect, popupId);
-            }
-            else
-            {
-                // 스펙에서 임시 보관을 끈 뒤 재실행하면 이전 실행이 만든 요소가 남는다 - 재실행 안전성을 위해 정리한다.
-                EditorUIBuilder.DestroyChildIfExists(rootRect, "StagingHeader");
-                EditorUIBuilder.DestroyChildIfExists(rootRect, "StagingArea");
-            }
-            BuildBottomRow(rootRect, popupId);
-            BuildTemplates(rootRect, popupId);
-
-            // 드래그 고스트는 창 안의 다른 요소(임시 보관 목록 마스크 포함) 위에 그려져야 한다 - 항상 마지막 자식.
-            var dragLayer = EditorUIBuilder.GetOrCreateUIObject(rootRect, "DragLayer");
-            EditorUIBuilder.SetStretch(dragLayer.GetComponent<RectTransform>());
-            EditorUIBuilder.EnsureMarker(dragLayer, InventoryPopupUIElementIds.DragLayer(popupId));
-            dragLayer.transform.SetAsLastSibling();
+            BuildArrangementBody(rootRect, popupId, spec.HasStaging);
 
             // 런타임 패널이 등록될 때 숨기지만, 씬 편집 화면에서 다른 UI를 가리지 않도록 저장 상태도 비활성.
             root.SetActive(false);
+        }
+
+        /// <summary>
+        /// 그리드 편집 본문(그리드·임시 보관·자동 정렬·안내 줄·템플릿·드래그 레이어)을 root 안에 조립한다(Docs/설계/50번 §6.4).
+        /// 인벤토리 팝업과 무역품 구매 화면의 고정 패널이 함께 쓴다. root 윗부분(0.9 이상)은 호출자의 제목 줄 자리로 비워 둔다.
+        /// root 자체에 편집 화면 루트 마커와 빈 곳 클릭(선택 해제) 릴레이를 붙인다.
+        /// </summary>
+        public static void BuildArrangementBody(RectTransform root, string prefix, bool hasStaging)
+        {
+            EditorUIBuilder.GetOrAddComponent<PointerClickRelay>(root.gameObject);
+            EditorUIBuilder.EnsureMarker(root.gameObject, InventoryPopupUIElementIds.Root(prefix));
+
+            BuildGridArea(root, prefix, hasStaging ? GridRightWithStaging : GridRightWithoutStaging);
+            if (hasStaging)
+            {
+                BuildStagingArea(root, prefix);
+            }
+            else
+            {
+                // 임시 보관을 끈 뒤 재실행하면 이전 실행이 만든 요소가 남는다 - 재실행 안전성을 위해 정리한다.
+                EditorUIBuilder.DestroyChildIfExists(root, "StagingHeader");
+                EditorUIBuilder.DestroyChildIfExists(root, "StagingArea");
+            }
+            BuildBottomRow(root, prefix);
+            BuildTemplates(root, prefix);
+
+            // 드래그 고스트는 다른 요소(임시 보관 목록 마스크 포함) 위에 그려져야 한다 - 항상 마지막 자식.
+            var dragLayer = EditorUIBuilder.GetOrCreateUIObject(root, "DragLayer");
+            EditorUIBuilder.SetStretch(dragLayer.GetComponent<RectTransform>());
+            EditorUIBuilder.EnsureMarker(dragLayer, InventoryPopupUIElementIds.DragLayer(prefix));
+            dragLayer.transform.SetAsLastSibling();
         }
 
         private static void BuildTitleBar(RectTransform root, string popupId, string title)

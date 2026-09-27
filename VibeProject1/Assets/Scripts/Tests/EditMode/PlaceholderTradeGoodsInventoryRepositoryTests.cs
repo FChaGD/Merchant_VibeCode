@@ -14,6 +14,7 @@ namespace Game.Core.Tests
         private InMemoryPlayerCurrencyWallet wallet;
         private PlaceholderTradeGoodsInventoryRepository repository;
         private ItemDefinitionTableAsset itemTable;
+        private ItemDefinitionTableAsset miscItemTable;
 
         [SetUp]
         public void SetUp()
@@ -29,16 +30,19 @@ namespace Game.Core.Tests
             wallet.ResolveDependencies(null);
             dependencyManager.Register<IPlayerCurrencyWallet>(wallet);
 
-            // 골드 상자가 이제 테이블 행이라(33번 §3.4), 테스트용 1행짜리 테이블을 만들어 [SerializeField]에
-            // 리플렉션으로 주입한다 - 인스펙터/임포터를 거치지 않는 EditMode 테스트 전용 배선.
+            // 골드 상자는 기타 카테고리 테이블의 행이다(33번 §3.4, 설계 50번 §5.2). 테스트용 테이블을 만들어
+            // [SerializeField]에 리플렉션으로 주입한다 - 인스펙터/임포터를 거치지 않는 EditMode 테스트 전용 배선.
             itemTable = ScriptableObject.CreateInstance<ItemDefinitionTableAsset>();
-            SetPrivateField(itemTable, "entries", new List<ItemDefinitionEntry>
+            SetPrivateField(itemTable, "entries", new List<ItemDefinitionEntry>());
+            miscItemTable = ScriptableObject.CreateInstance<ItemDefinitionTableAsset>();
+            SetPrivateField(miscItemTable, "entries", new List<ItemDefinitionEntry>
             {
                 new() { Id = "gold-box", FootprintWidth = 1, FootprintHeight = 1, Icon = null },
             });
 
             repository = gameObject.AddComponent<PlaceholderTradeGoodsInventoryRepository>();
             SetPrivateField(repository, "itemTable", itemTable);
+            SetPrivateField(repository, "miscItemTable", miscItemTable);
             repository.ResolveDependencies(dependencyManager);
         }
 
@@ -47,6 +51,7 @@ namespace Game.Core.Tests
         {
             Object.DestroyImmediate(gameObject);
             Object.DestroyImmediate(itemTable);
+            Object.DestroyImmediate(miscItemTable);
         }
 
         private static void SetPrivateField(object target, string fieldName, object value)
@@ -122,7 +127,7 @@ namespace Game.Core.Tests
         [Test]
         public void ResolveDependencies_WithoutPlaceholderRows_StartsEmpty()
         {
-            // SetUp 테이블엔 gold-box만 있다 - placeholder 행이 없으면 초기 배치를 건너뛴다(기획 39번 §4.4).
+            // SetUp 교역품 테이블은 비어 있다 - placeholder 행이 없으면 초기 배치를 건너뛴다(기획 39번 §4.4).
             Assert.AreEqual(0, repository.Items.Count);
         }
 
@@ -132,7 +137,6 @@ namespace Game.Core.Tests
             var startingAmount = wallet.CurrentAmount;
             SetPrivateField(itemTable, "entries", new List<ItemDefinitionEntry>
             {
-                new() { Id = "gold-box", FootprintWidth = 1, FootprintHeight = 1, Icon = null },
                 new() { Id = "placeholder-1x1", FootprintWidth = 1, FootprintHeight = 1, Icon = null },
                 new() { Id = "placeholder-2x1", FootprintWidth = 2, FootprintHeight = 1, Icon = null },
                 new() { Id = "placeholder-1x2", FootprintWidth = 1, FootprintHeight = 2, Icon = null },
@@ -161,6 +165,37 @@ namespace Game.Core.Tests
             Assert.IsTrue(repository.TryApplyPlacements(new[] { new ItemPlacement(goldBox.InstanceId, new GridPosition(3, 2), 0) }));
             Assert.AreEqual(amountAfterPlacing, wallet.CurrentAmount);
             Assert.AreEqual(0, repository.StagedItems.Count);
+        }
+
+        [Test]
+        public void TryGetDefinition_FindsTradeGoodsAndMiscItems()
+        {
+            SetPrivateField(itemTable, "entries", new List<ItemDefinitionEntry>
+            {
+                new() { Id = "placeholder-1x1", FootprintWidth = 1, FootprintHeight = 1, Icon = null },
+            });
+            repository.ResolveDependencies(dependencyManager);
+
+            Assert.IsTrue(repository.TryGetDefinition("placeholder-1x1", out _));
+            Assert.IsTrue(repository.TryGetDefinition("gold-box", out _));
+            Assert.AreEqual(2, repository.CatalogItems.Count);
+        }
+
+        [Test]
+        public void TryPlaceItem_WithQuarterTurn_OccupiesRotatedCells()
+        {
+            SetPrivateField(itemTable, "entries", new List<ItemDefinitionEntry>
+            {
+                new() { Id = "long", FootprintWidth = 2, FootprintHeight = 1, Icon = null },
+            });
+            repository.ResolveDependencies(dependencyManager);
+            repository.TryGetDefinition("long", out var definition);
+
+            Assert.IsTrue(repository.TryPlaceItem(definition, new GridPosition(0, 0), out var placed, quarterTurns: 1));
+            Assert.AreEqual(1, placed.Width);
+            Assert.AreEqual(2, placed.Height);
+            Assert.IsTrue(repository.TryGetItemAt(new GridPosition(0, 1), out _));
+            Assert.IsFalse(repository.TryGetItemAt(new GridPosition(1, 0), out _));
         }
 
         [Test]

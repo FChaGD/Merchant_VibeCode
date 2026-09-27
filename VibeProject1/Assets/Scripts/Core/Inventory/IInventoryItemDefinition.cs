@@ -10,6 +10,8 @@ namespace Game.Core
     {
         string Id { get; }
         string DisplayName { get; }
+        // 공용 스트링 테이블의 설명(Docs/기획/49번 §3.5). 이름과 같은 표시용 정보라 정의에 둔다.
+        string Description { get; }
         Sprite Icon { get; }
         int FootprintWidth { get; }
         int FootprintHeight { get; }

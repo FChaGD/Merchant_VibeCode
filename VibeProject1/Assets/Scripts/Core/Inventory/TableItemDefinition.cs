@@ -11,14 +11,16 @@ namespace Game.Core
     {
         public string Id { get; }
         public string DisplayName { get; }
+        public string Description { get; }
         public Sprite Icon { get; }
         public int FootprintWidth { get; }
         public int FootprintHeight { get; }
 
-        public TableItemDefinition(ItemDefinitionEntry entry, string displayName)
+        public TableItemDefinition(ItemDefinitionEntry entry, string displayName, string description)
         {
             Id = entry.Id;
             DisplayName = displayName;
+            Description = description;
             Icon = entry.Icon;
             FootprintWidth = entry.FootprintWidth;
             FootprintHeight = entry.FootprintHeight;

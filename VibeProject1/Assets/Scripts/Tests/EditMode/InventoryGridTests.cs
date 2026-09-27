@@ -9,6 +9,7 @@ namespace Game.Core.Tests
         {
             public string Id { get; }
             public string DisplayName => Id;
+            public string Description => string.Empty;
             public UnityEngine.Sprite Icon => null;
             public int FootprintWidth { get; }
             public int FootprintHeight { get; }

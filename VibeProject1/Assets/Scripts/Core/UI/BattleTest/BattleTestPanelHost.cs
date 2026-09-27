@@ -67,5 +67,10 @@ namespace Game.Core
         {
             Debug.LogWarning($"배틀 테스트 씬은 인벤토리 팝업을 지원하지 않는다: '{popupId}'.");
         }
+
+        public void CloseAllInventoryPopups()
+        {
+            // 인벤토리 팝업이 없으므로 닫을 것도 없다.
+        }
     }
 }

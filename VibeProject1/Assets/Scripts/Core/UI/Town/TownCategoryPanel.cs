@@ -39,9 +39,15 @@ namespace Game.Core
                 }
 
                 // 시설 버튼/뒤로 가기는 카테고리 4개가 공유하는 요소라, 열 때마다 이 카테고리 기준으로 다시 연결한다.
-                var capturedId = facilityId;
+                // 시설 화면에 들어갈 때 열린 인벤토리 팝업을 모두 닫는다(Docs/설계/50번 §6.2, 모든 시설 공통). 화면이 없는
+                // 시설은 UIManager가 "등록되지 않은 패널" 경고를 낸다.
+                var panelId = UIPanelIds.Facility(facilityId);
                 button.onClick.RemoveAllListeners();
-                button.onClick.AddListener(() => Debug.LogWarning($"'{capturedId}' 시설 화면은 아직 구현되지 않았다."));
+                button.onClick.AddListener(() =>
+                {
+                    uiManager.CloseAllInventoryPopups();
+                    uiManager.Open(panelId);
+                });
                 visibleBuffer.Add(button.gameObject);
             }
 

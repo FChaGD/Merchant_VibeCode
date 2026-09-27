@@ -12,9 +12,11 @@ namespace Game.Core
     /// Placeholder로 쓴다 - 새 마차 데이터 소스를 따로 만들지 않는다. PlaceholderCellsPerWagon도
     /// 마차 스탯 기획 전까지의 잠정 상수 - 실제 마차 스탯 시스템이 생기면 이 클래스를 통째로 대체한다.
     ///
-    /// 골드 상자(재화 500=1×1칸, 기획 31번 §3.4)는 이제 아이템 테이블의 평범한 한 행("gold-box" Id)이다
+    /// 골드 상자(재화 500=1×1칸, 기획 31번 §3.4)는 아이템 테이블의 평범한 한 행("gold-box" Id)이다
     /// (Docs/기획/33번 §3.4, 설계 35번 §7.1) - 데이터(아이콘/크기/표시명)는 다른 아이템과 동일하게
     /// 테이블에서 오고, 지갑 연동이라는 행동만 이 저장소가 Id 문자열로 식별해 특수 처리한다.
+    /// 골드 상자는 판매 대상이 아니라 기타 카테고리에 있지만 교역품 그리드에 놓이므로, 카탈로그를 교역품 + 기타로
+    /// 합쳐 조회한다(Docs/설계/50번 §5.2).
     /// </summary>
     public class PlaceholderTradeGoodsInventoryRepository : MonoBehaviour, ITradeGoodsInventoryRepository, IManagedComponent
     {
@@ -37,11 +39,13 @@ namespace Game.Core
 
         [SerializeField] private ItemDefinitionTableAsset itemTable;
         [SerializeField] private ItemStringTableAsset itemStrings;
+        [SerializeField] private ItemDefinitionTableAsset miscItemTable;
+        [SerializeField] private ItemStringTableAsset miscItemStrings;
 
         private ICaravanRosterProvider caravanRosterProvider;
         private IPlayerCurrencyWallet currencyWallet;
         private InventoryGrid grid;
-        private TableItemCatalog catalog;
+        private IItemCatalogReader catalog;
 
         public int GridWidth => grid.Width;
         public int GridHeight => grid.Height;
@@ -62,7 +66,7 @@ namespace Game.Core
         {
             caravanRosterProvider = registrar.Resolve<ICaravanRosterProvider>();
             registrar.TryResolve(out currencyWallet); // 선택적 의존성 - 없으면 골드 상자 배치만 불가.
-            catalog = new TableItemCatalog(itemTable, itemStrings);
+            catalog = new CompositeItemCatalog(new TableItemCatalog(itemTable, itemStrings), new TableItemCatalog(miscItemTable, miscItemStrings));
 
             var wagonCount = caravanRosterProvider.GetRoster().Count(unit => unit.Kind == FormationUnitKind.Wagon);
             var totalCells = wagonCount * PlaceholderCellsPerWagon;
@@ -74,7 +78,7 @@ namespace Game.Core
 
         public bool TryGetItemAt(GridPosition position, out InventoryItemInstance item) => grid.TryGetAt(position, out item);
 
-        public bool TryPlaceItem(IInventoryItemDefinition definition, GridPosition position, out InventoryItemInstance placed)
+        public bool TryPlaceItem(IInventoryItemDefinition definition, GridPosition position, out InventoryItemInstance placed, int quarterTurns = 0)
         {
             placed = default;
             var isGoldBox = definition != null && definition.Id == GoldBoxItemId;
@@ -86,7 +90,7 @@ namespace Game.Core
                 return false;
             }
 
-            if (!grid.TryPlace(definition, position, out placed))
+            if (!grid.TryPlace(definition, position, out placed, quarterTurns))
             {
                 if (isGoldBox) currencyWallet.Add(GoldBoxCurrencyValue); // 배치 실패 롤백
                 return false;

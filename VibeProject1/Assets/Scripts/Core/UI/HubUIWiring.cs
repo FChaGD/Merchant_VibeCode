@@ -18,6 +18,8 @@ namespace Game.Core
         private readonly List<IDisposable> inventoryPopups = new();
         // 누른 인벤토리 팝업을 맨 위로 올린다(Docs/설계/46번) - 입력 액션을 한 번만 만들고 Hub 로드마다 창 목록만 교체한다.
         private PopupFocusOnPress inventoryPopupFocus;
+        // 무역품 구매 화면(Docs/설계/50번 §6.5) - 인벤토리 팝업과 같은 이유로 Hub 로드마다 새로 만들고 이전 것은 Dispose한다.
+        private TradeGoodsMarketPanel tradeGoodsMarketPanel;
 
         public void Wire(IDependencyResolver registrar, IUIManager uiManager, IPanelRegistrar panelRegistrar)
         {
@@ -94,6 +96,8 @@ namespace Game.Core
             registrar.TryResolve<IEquipmentInventoryRepository>(out var equipmentInventory);
             registrar.TryResolve<IConsumableInventoryRepository>(out var consumableInventory);
             registrar.TryResolve<IPersonalItemInventoryRepository>(out var personalItemInventory);
+            // 시설 판매 목록(설계 50번 §5.3) - 마을별 판매 시스템이 아직 Placeholder라 선택적으로 조회한다.
+            registrar.TryResolve<ITownShopStockReader>(out var townShopStockReader);
             var inventoryPopupSources = new List<InventoryPopupSource>();
             AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.TradeGoods, tradeGoodsInventory, tradeGoodsInventory, nameof(ITradeGoodsInventoryRepository));
             AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.Equipment, equipmentInventory, equipmentInventory, nameof(IEquipmentInventoryRepository));
@@ -132,6 +136,7 @@ namespace Game.Core
             }
 
             RegisterInventoryPopups(sceneUIRoot, uiManager, panelRegistrar, inventoryPopupSources);
+            RegisterTradeGoodsMarket(sceneUIRoot, uiManager, panelRegistrar, tradeGoodsInventory, currencyWallet, townShopStockReader, currentLocationRepository);
 
             // 팝업 축(Docs/설계/38번 §5·§6) - 모달 팝업이 열리면 DepthLayer/PersistentLayer를 숨긴다.
             // PersistentLayer에는 인벤토리 버튼이 있다. PopupExemptLayer(재화 HUD)와 PopupLayer는 대상이 아니다.
@@ -193,8 +198,28 @@ namespace Game.Core
             inventoryPopupFocus.Rebind(windowRoots);
         }
 
+        // 시설 화면은 모달 팝업으로 등록한다 - 재화 패널 외 UI 숨김과 카테고리 depth 복귀를 기존 채널이 처리한다(설계 50번 §6.1).
+        // 의존성이나 화면 요소가 없으면(인스톨러 미실행) 등록하지 않는다 - 시설 버튼은 "등록되지 않은 패널" 경고만 낸다.
+        private void RegisterTradeGoodsMarket(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, ITradeGoodsInventoryRepository inventory, IPlayerCurrencyWallet wallet, ITownShopStockReader stockReader, ITripCurrentLocationReader currentLocation)
+        {
+            tradeGoodsMarketPanel?.Dispose();
+            tradeGoodsMarketPanel = null;
+
+            if (inventory == null || wallet == null || stockReader == null)
+            {
+                Debug.LogWarning($"무역품 구매 화면에 필요한 {nameof(ITradeGoodsInventoryRepository)}/{nameof(IPlayerCurrencyWallet)}/{nameof(ITownShopStockReader)}가 연결되어 있지 않아 등록하지 못했다(Tools > Game > Build Bootstrap Scene).");
+                return;
+            }
+
+            if (!TradeGoodsMarketElements.TryBind(sceneUIRoot, InventoryPopupSpecs.TradeGoods.HasStaging, out var elements)) return;
+
+            tradeGoodsMarketPanel = new TradeGoodsMarketPanel(elements, inventory, wallet, stockReader, currentLocation, uiManager);
+            panelRegistrar.RegisterPopupPanel(tradeGoodsMarketPanel);
+        }
+
         private void OnDestroy()
         {
+            tradeGoodsMarketPanel?.Dispose();
             foreach (var popup in inventoryPopups) popup.Dispose();
             inventoryPopups.Clear();
             inventoryPopupFocus?.Dispose();

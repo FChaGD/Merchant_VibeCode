@@ -12,6 +12,8 @@ namespace Game.Core
     /// </summary>
     public class TableItemCatalog : IItemCatalogReader
     {
+        private const string MissingText = "값 없음";
+
         private readonly ItemDefinitionTableAsset dataTable;
         private readonly ItemStringTableAsset stringTable;
 
@@ -54,8 +56,11 @@ namespace Game.Core
 
             foreach (var entry in dataTable.Entries)
             {
-                var displayName = stringTable != null && stringTable.TryGetLabel(entry.Id, out var ko) ? ko : "값 없음";
-                var definition = new TableItemDefinition(entry, displayName);
+                var strings = default(ItemStringEntry);
+                var hasStrings = stringTable != null && stringTable.TryGetStrings(entry.Id, out strings);
+                var displayName = hasStrings && !string.IsNullOrEmpty(strings.Ko) ? strings.Ko : MissingText;
+                var description = hasStrings && !string.IsNullOrEmpty(strings.DescKo) ? strings.DescKo : MissingText;
+                var definition = new TableItemDefinition(entry, displayName, description);
                 definitionsById[entry.Id] = definition;
                 catalogItems.Add(definition);
             }

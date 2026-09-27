@@ -11,6 +11,9 @@ namespace Game.Core
         void Toggle(string popupId);
         bool IsOpen(string popupId);
 
+        // 닫기 차단(IPanelCloseGuard)을 거치지 않고 열린 팝업을 모두 닫는다(Docs/설계/50번 §6.2).
+        void CloseAll();
+
         // 씬 로드 시 호출 - 이전 씬의 팝업 시각 요소는 이미 파괴됐으므로 등록·열림 기록을 모두 지운다.
         // 지우지 않으면 Hub 재방문 시 열림 기록이 남아 첫 토글이 "닫기"로 처리된다(Docs/설계/40번 §2).
         void Reset();

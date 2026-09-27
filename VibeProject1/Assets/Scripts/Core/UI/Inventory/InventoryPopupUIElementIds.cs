@@ -1,8 +1,9 @@
 namespace Game.Core
 {
     /// <summary>
-    /// 인벤토리 팝업 화면 요소 ID. 팝업 4종이 같은 구조를 쓰므로 popupId(InventoryPopupIds)를 접두사로 붙여
-    /// 구분한다 - 인스톨러(InventoryPopupUIBuilder)와 런타임 바인더(InventoryPopupElements)가 공유한다.
+    /// 인벤토리 편집 화면 요소 ID. 같은 구조를 여러 곳이 쓰므로 접두사로 구분한다 - 접두사는 팝업 Id(InventoryPopupIds)
+    /// 또는 고정 패널 Id(무역품 구매 화면의 상단 물류품 패널 등, Docs/설계/50번 §6.4)다. 인스톨러(InventoryPopupUIBuilder)와
+    /// 런타임 바인더(InventoryArrangementElements/InventoryPopupElements)가 공유한다.
     /// </summary>
     public static class InventoryPopupUIElementIds
     {

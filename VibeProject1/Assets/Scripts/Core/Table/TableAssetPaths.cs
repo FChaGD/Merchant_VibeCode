@@ -41,6 +41,11 @@ namespace Game.Core
         public const string ConsumableItemStrings = Folder + "/ConsumableItemStrings.asset";
         public const string PersonalItemItemTable = Folder + "/PersonalItemItemTable.asset";
         public const string PersonalItemItemStrings = Folder + "/PersonalItemItemStrings.asset";
+
+        // 기타 카테고리(골드 상자)와 교역품 일반/특산 구분(Docs/설계/50번 §4.1).
+        public const string MiscItemTable = Folder + "/MiscItemTable.asset";
+        public const string MiscItemStrings = Folder + "/MiscItemStrings.asset";
+        public const string TradeGoodsKindTable = Folder + "/TradeGoodsKindTable.asset";
     }
 }
 #endif

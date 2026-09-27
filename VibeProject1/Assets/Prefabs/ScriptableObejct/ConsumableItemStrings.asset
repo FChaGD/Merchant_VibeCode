@@ -15,9 +15,13 @@ MonoBehaviour:
   strings:
   - Id: placeholder-consumable-1
     Ko: "Placeholder \uC18C\uBAA8\uD488 1"
+    DescKo: "\uC544\uC774\uD15C \uC124\uBA85 \uD14D\uC2A4\uD2B8"
   - Id: placeholder-consumable-2
     Ko: "Placeholder \uC18C\uBAA8\uD488 2"
+    DescKo: "\uC544\uC774\uD15C \uC124\uBA85 \uD14D\uC2A4\uD2B8"
   - Id: placeholder-consumable-3
     Ko: "Placeholder \uC18C\uBAA8\uD488 3"
+    DescKo: "\uC544\uC774\uD15C \uC124\uBA85 \uD14D\uC2A4\uD2B8"
   - Id: placeholder-consumable-4
     Ko: "Placeholder \uC18C\uBAA8\uD488 4"
+    DescKo: "\uC544\uC774\uD15C \uC124\uBA85 \uD14D\uC2A4\uD2B8"

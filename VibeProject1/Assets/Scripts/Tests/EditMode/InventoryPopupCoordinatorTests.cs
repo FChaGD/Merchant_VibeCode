@@ -48,6 +48,27 @@ namespace Game.Core.Tests
         }
 
         [Test]
+        public void CloseAll_IgnoresGuard_ClosesEveryOpenPopup()
+        {
+            var guarded = new GuardedPanel("A") { AllowClose = false };
+            var plain = new FakePanel("B");
+            var closedOne = new FakePanel("C");
+            coordinator.RegisterPopup(guarded);
+            coordinator.RegisterPopup(plain);
+            coordinator.RegisterPopup(closedOne);
+            coordinator.Toggle("A");
+            coordinator.Toggle("B");
+
+            coordinator.CloseAll();
+
+            Assert.AreEqual(1, guarded.CloseCount);
+            Assert.AreEqual(1, plain.CloseCount);
+            Assert.AreEqual(0, closedOne.CloseCount);
+            Assert.IsFalse(coordinator.IsOpen("A"));
+            Assert.IsFalse(coordinator.IsOpen("B"));
+        }
+
+        [Test]
         public void Toggle_FirstCall_OpensPopup()
         {
             var panel = new FakePanel("A");

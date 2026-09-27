@@ -15,6 +15,7 @@ namespace Game.Core.Tests
         {
             public string Id => "fake";
             public string DisplayName => Id;
+            public string Description => string.Empty;
             public Sprite Icon => null;
             public int FootprintWidth => 1;
             public int FootprintHeight => 1;

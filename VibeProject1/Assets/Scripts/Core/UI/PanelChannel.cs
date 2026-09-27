@@ -42,6 +42,12 @@ namespace Game.Core
                 return;
             }
 
+            // 닫기 전에 정리가 필요한 패널(무역품 구매 화면의 임시 보관 비우기 등, Docs/설계/50번 §6.3)은 실패하면 닫지 않는다.
+            if (panel is IPanelCloseGuard guard && !guard.TryPrepareClose())
+            {
+                return;
+            }
+
             panel.Close();
             var returnTarget = navigation.ResolveReturnTarget(panelId);
             if (returnTarget != null)

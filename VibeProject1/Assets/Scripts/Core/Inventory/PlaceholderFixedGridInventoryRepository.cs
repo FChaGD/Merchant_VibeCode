@@ -47,9 +47,9 @@ namespace Game.Core
 
         public bool TryGetItemAt(GridPosition position, out InventoryItemInstance item) => grid.TryGetAt(position, out item);
 
-        public bool TryPlaceItem(IInventoryItemDefinition definition, GridPosition position, out InventoryItemInstance placed)
+        public bool TryPlaceItem(IInventoryItemDefinition definition, GridPosition position, out InventoryItemInstance placed, int quarterTurns = 0)
         {
-            if (!grid.TryPlace(definition, position, out placed)) return false;
+            if (!grid.TryPlace(definition, position, out placed, quarterTurns)) return false;
 
             OnChanged?.Invoke();
             return true;

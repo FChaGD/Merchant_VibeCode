@@ -92,6 +92,8 @@ namespace Game.Core
 
         public void ToggleInventoryPopup(string popupId) => inventoryPopupCoordinator.Toggle(popupId);
 
+        public void CloseAllInventoryPopups() => inventoryPopupCoordinator.CloseAll();
+
         private void HandleSceneLoaded(string sceneName)
         {
             // ContentSceneId 밖의 씬(예: SampleScene)은 UI 배선 대상이 아니다 - 조용히 건너뛴다.

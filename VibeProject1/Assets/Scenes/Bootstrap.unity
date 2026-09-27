@@ -165,6 +165,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.Core::Game.Core.PlaceholderTradeGoodsInventoryRepository
   itemTable: {fileID: 11400000, guid: 67d1af2ccb325c34a83f9e49a7c70b88, type: 2}
   itemStrings: {fileID: 11400000, guid: a3aee783c5ec85c41883b3da464ca087, type: 2}
+  miscItemTable: {fileID: 11400000, guid: 7bb3917c5aa341a4ebcb26710003a86e, type: 2}
+  miscItemStrings: {fileID: 11400000, guid: 9449b9bf5cf27fc4c90e924155a59fa0, type: 2}
 --- !u!1 &255667639
 GameObject:
   m_ObjectHideFlags: 0
@@ -470,6 +472,7 @@ MonoBehaviour:
   - {fileID: 434087639}
   - {fileID: 255667641}
   - {fileID: 1473442128}
+  - {fileID: 2031334301}
 --- !u!1 &900002000
 GameObject:
   m_ObjectHideFlags: 0
@@ -641,6 +644,7 @@ Transform:
   - {fileID: 255667640}
   - {fileID: 1473442127}
   - {fileID: 1098981619}
+  - {fileID: 2031334300}
   m_Father: {fileID: 900000001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &900004002
@@ -1496,7 +1500,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b9af8122029025f4b9c53ebaf7f395f5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.InMemoryPlayerCurrencyWallet
-  basicCapacity: 1000
+  basicCapacity: 10000
 --- !u!1 &1891997714
 GameObject:
   m_ObjectHideFlags: 0
@@ -1599,6 +1603,53 @@ Canvas:
   m_SortingLayerID: 0
   m_SortingOrder: 100
   m_TargetDisplay: 0
+--- !u!1 &2031334299
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2031334300}
+  - component: {fileID: 2031334301}
+  m_Layer: 0
+  m_Name: PlaceholderTownShopStockProvider
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2031334300
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2031334299}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900004001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2031334301
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2031334299}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d1db23b29f1cb54eb089510b5b38898, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.PlaceholderTownShopStockProvider
+  tradeGoodsItemTable: {fileID: 11400000, guid: 67d1af2ccb325c34a83f9e49a7c70b88, type: 2}
+  tradeGoodsItemStrings: {fileID: 11400000, guid: a3aee783c5ec85c41883b3da464ca087, type: 2}
+  tradeGoodsKindTable: {fileID: 11400000, guid: 9556c7f29f9708441a293ccdbe8f9081, type: 2}
 --- !u!1 &2085441670
 GameObject:
   m_ObjectHideFlags: 0

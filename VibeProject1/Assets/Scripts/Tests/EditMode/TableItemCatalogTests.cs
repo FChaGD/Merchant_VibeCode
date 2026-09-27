@@ -33,9 +33,9 @@ namespace Game.Core.Tests
                 new() { Id = "iron-sword", FootprintWidth = 2, FootprintHeight = 1, Icon = null },
             });
             stringTable = ScriptableObject.CreateInstance<ItemStringTableAsset>();
-            SetPrivateField(stringTable, "strings", new List<SlugLocalizedStringEntry>
+            SetPrivateField(stringTable, "strings", new List<ItemStringEntry>
             {
-                new() { Id = "iron-sword", Ko = "철검" },
+                new() { Id = "iron-sword", Ko = "철검", DescKo = "무딘 철검" },
             });
 
             var catalog = new TableItemCatalog(dataTable, stringTable);
@@ -45,6 +45,7 @@ namespace Game.Core.Tests
             Assert.IsTrue(found);
             Assert.AreEqual("iron-sword", definition.Id);
             Assert.AreEqual("철검", definition.DisplayName);
+            Assert.AreEqual("무딘 철검", definition.Description);
             Assert.AreEqual(2, definition.FootprintWidth);
             Assert.AreEqual(1, definition.FootprintHeight);
         }
@@ -74,6 +75,7 @@ namespace Game.Core.Tests
             catalog.TryGetDefinition("gold-box", out var definition);
 
             Assert.AreEqual("값 없음", definition.DisplayName);
+            Assert.AreEqual("값 없음", definition.Description);
         }
 
         [Test]

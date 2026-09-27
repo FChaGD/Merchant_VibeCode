@@ -29,15 +29,24 @@ namespace Game.Core
             Resize(width, height);
         }
 
-        public bool TryPlace(IInventoryItemDefinition definition, GridPosition position, out InventoryItemInstance placed)
+        // quarterTurns: 구매 자동 배치가 회전한 자리를 쓸 수 있도록 받는다(Docs/설계/50번 §5.1).
+        public bool TryPlace(IInventoryItemDefinition definition, GridPosition position, out InventoryItemInstance placed, int quarterTurns = 0)
         {
             placed = default;
-            if (definition == null || !FitsAndFree(position, definition.FootprintWidth, definition.FootprintHeight))
+            if (definition == null)
             {
                 return false;
             }
 
-            placed = new InventoryItemInstance(Guid.NewGuid().ToString("N"), definition, position);
+            var turns = InventoryRotation.Normalize(quarterTurns);
+            var width = turns % 2 == 1 ? definition.FootprintHeight : definition.FootprintWidth;
+            var height = turns % 2 == 1 ? definition.FootprintWidth : definition.FootprintHeight;
+            if (!FitsAndFree(position, width, height))
+            {
+                return false;
+            }
+
+            placed = new InventoryItemInstance(Guid.NewGuid().ToString("N"), definition, position, turns, isStaged: false);
             placedById[placed.InstanceId] = placed;
             Mark(placed, placed.InstanceId);
             return true;

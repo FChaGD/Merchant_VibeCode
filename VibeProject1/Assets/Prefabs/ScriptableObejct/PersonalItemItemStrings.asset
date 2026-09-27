@@ -15,9 +15,13 @@ MonoBehaviour:
   strings:
   - Id: placeholder-personal-1
     Ko: "Placeholder \uAC1C\uC778 \uBB3C\uD488 1"
+    DescKo: "\uC544\uC774\uD15C \uC124\uBA85 \uD14D\uC2A4\uD2B8"
   - Id: placeholder-personal-2
     Ko: "Placeholder \uAC1C\uC778 \uBB3C\uD488 2"
+    DescKo: "\uC544\uC774\uD15C \uC124\uBA85 \uD14D\uC2A4\uD2B8"
   - Id: placeholder-personal-3
     Ko: "Placeholder \uAC1C\uC778 \uBB3C\uD488 3"
+    DescKo: "\uC544\uC774\uD15C \uC124\uBA85 \uD14D\uC2A4\uD2B8"
   - Id: placeholder-personal-4
     Ko: "Placeholder \uAC1C\uC778 \uBB3C\uD488 4"
+    DescKo: "\uC544\uC774\uD15C \uC124\uBA85 \uD14D\uC2A4\uD2B8"

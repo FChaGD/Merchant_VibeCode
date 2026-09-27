@@ -9,8 +9,9 @@ namespace Game.Core
     /// </summary>
     public class InMemoryPlayerCurrencyWallet : MonoBehaviour, IPlayerCurrencyWallet, IManagedComponent
     {
-        // 23번 §3.1 기본 수치(잠정) - 가격 체계 정의 후 재검토 대상.
-        [SerializeField] private int basicCapacity = 1000;
+        // 23번 §3.1 기본 수치(잠정 1,000)를 무역품 구매 검증용으로 10,000으로 올렸다(사용자 지시, 2026-09-27) - 상한이자
+        // 시작 금액이다. 가격 체계 정의 후 재검토 대상.
+        [SerializeField] private int basicCapacity = 10000;
 
         private int currentAmount;
 
