@@ -1466,6 +1466,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1730478251}
   - component: {fileID: 1730478252}
+  - component: {fileID: 1730478253}
   m_Layer: 0
   m_Name: InMemoryPlayerCurrencyWallet
   m_TagString: Untagged
@@ -1501,6 +1502,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.InMemoryPlayerCurrencyWallet
   basicCapacity: 10000
+--- !u!114 &1730478253
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1730478250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0755c6258eed866479901d9c2ed935cb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.DebugTools.PlayerCurrencyDebugSpinView
 --- !u!1 &1891997714
 GameObject:
   m_ObjectHideFlags: 0

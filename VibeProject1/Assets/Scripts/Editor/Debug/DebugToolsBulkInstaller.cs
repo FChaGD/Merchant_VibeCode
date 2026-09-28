@@ -21,6 +21,7 @@ namespace Game.Core.Editor.DebugTools
             DebugBootstrapReentryGuardInstaller.InstallGuards();
             BattleGizmoInstaller.InstallGizmos();
             BattleDebugResultInstaller.InstallResultButtons();
+            PlayerCurrencyDebugInstaller.InstallSpinButtons();
 
             Debug.Log("디버그 도구 전체 설치/동기화 완료.");
         }
@@ -31,6 +32,7 @@ namespace Game.Core.Editor.DebugTools
             DebugBootstrapReentryGuardInstaller.RemoveGuards();
             BattleGizmoInstaller.RemoveGizmos();
             BattleDebugResultInstaller.RemoveResultButtons();
+            PlayerCurrencyDebugInstaller.RemoveSpinButtons();
 
             Debug.Log("디버그 도구 전체 제거 완료.");
         }
