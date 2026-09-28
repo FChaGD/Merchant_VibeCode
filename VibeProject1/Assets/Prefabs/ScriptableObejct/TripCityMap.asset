@@ -15,24 +15,34 @@ MonoBehaviour:
   cities:
   - CityId: 1
     MapPosition: {x: 715.3938, y: 357.71008}
+    Scale: Village
   - CityId: 2
     MapPosition: {x: 343.411, y: 698.03455}
+    Scale: City
   - CityId: 3
     MapPosition: {x: -499.48572, y: 678.2483}
+    Scale: Village
   - CityId: 4
     MapPosition: {x: -238.30646, y: 183.59058}
+    Scale: Metropolis
   - CityId: 5
     MapPosition: {x: -780.45123, y: 318.13745}
+    Scale: Village
   - CityId: 6
     MapPosition: {x: 109.93262, y: -18.229736}
+    Scale: City
   - CityId: 7
     MapPosition: {x: -657.7762, y: -477.2721}
+    Scale: City
   - CityId: 8
     MapPosition: {x: 446.2998, y: -346.68237}
+    Scale: Village
   - CityId: 9
     MapPosition: {x: 588.76135, y: 9.471069}
+    Scale: Village
   - CityId: 10
     MapPosition: {x: -119.58862, y: -560.3745}
+    Scale: City
   routes:
   - CityIdA: 1
     CityIdB: 3

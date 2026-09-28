@@ -41,7 +41,11 @@ namespace Game.Core.Editor
             nameof(PlaceholderMercenaryCandidateProvider),
             nameof(CaravanAssetCatalogProvider),
             nameof(PlaceholderCaravanAssetCandidateProvider),
+            nameof(TownScaleFacilityAvailabilityProvider),
         };
+
+        // 마을 규모 제공자로 교체되며 삭제된 임시 제공자(Docs/설계/58번 §5.4). 클래스가 없어 nameof를 못 쓴다.
+        private const string RemovedPlaceholderTownFacilityProviderName = "PlaceholderTownFacilityAvailabilityProvider";
 
         [MenuItem("Tools/Game/Build Bootstrap Scene")]
         public static void BuildManagerHierarchy()
@@ -220,10 +224,11 @@ namespace Game.Core.Editor
             // 성격의 인메모리 저장소.
             var playerCurrencyWallet = EditorUIBuilder.GetOrCreateManager<InMemoryPlayerCurrencyWallet>(uiManager.transform, nameof(InMemoryPlayerCurrencyWallet));
 
-            // 마을별 시설 제공 여부(Docs/설계/37번 §5.1) - 마을별 시설 데이터 시스템이 생기면 이 저장소를
-            // 함께 제거한다.
-            var townFacilityAvailabilityProvider = EditorUIBuilder.GetOrCreateManager<PlaceholderTownFacilityAvailabilityProvider>(uiManager.transform, nameof(PlaceholderTownFacilityAvailabilityProvider));
-            SyncTownFacilityToggles(townFacilityAvailabilityProvider);
+            // 마을별 시설 제공 여부(Docs/설계/37번 §5.1)를 마을 규모로 판정한다(기획 57번, 설계 58번 §5). 규모 목록·시설 최소 규모는
+            // 인스펙터 값이고, 마을별 규모는 도시 테이블에서 온다.
+            EditorUIBuilder.DestroyChildIfExists(uiManager.transform, RemovedPlaceholderTownFacilityProviderName);
+            var townFacilityAvailabilityProvider = EditorUIBuilder.GetOrCreateManager<TownScaleFacilityAvailabilityProvider>(uiManager.transform, nameof(TownScaleFacilityAvailabilityProvider));
+            SyncTownScaleSettings(townFacilityAvailabilityProvider);
 
             // 인벤토리 카테고리 4종(기획 25/31번, 설계 32번) - 장비/소모품/개인물품은 고정 크기,
             // 교역품/전리품은 ResolveDependencies 시점에 마차 재고 수로 그리드 크기를 계산한다
@@ -282,29 +287,46 @@ namespace Game.Core.Editor
             };
         }
 
-        // 인스펙터 체크 목록을 TownFacilityCatalog의 시설 목록과 맞춘다. 사용자가 끈 값은 유지하고(재실행
-        // 안전성), 카탈로그에 새로 생긴 시설만 "제공"으로 추가하며, 카탈로그에서 사라진 시설은 걷어낸다.
-        private static void SyncTownFacilityToggles(PlaceholderTownFacilityAvailabilityProvider provider)
+        // 규모 목록·시설 최소 규모를 기본값(TownScaleDefaults)과 맞춘다(설계 58번 §5.2). 사용자가 인스펙터에서 바꾼 값은 유지한다(재실행
+        // 안전성). 규모 목록은 비어 있을 때만 기본값으로 채운다 - 사용자가 추가·재정렬한 규모(순서 = 등급)를 덮어쓰지 않기 위해서다.
+        // 시설 목록은 카탈로그 기준으로 새 시설만 기본 최소 규모로 추가하고, 카탈로그에서 사라진 시설은 걷어낸다.
+        private static void SyncTownScaleSettings(TownScaleFacilityAvailabilityProvider provider)
         {
             var so = new SerializedObject(provider);
-            var list = so.FindProperty("facilities");
 
-            var existing = new Dictionary<string, bool>();
-            for (var i = 0; i < list.arraySize; i++)
+            var scales = so.FindProperty("scales");
+            if (scales.arraySize == 0)
             {
-                var element = list.GetArrayElementAtIndex(i);
-                existing[element.FindPropertyRelative("facilityId").stringValue] = element.FindPropertyRelative("available").boolValue;
+                scales.arraySize = TownScaleDefaults.Scales.Length;
+                for (var i = 0; i < TownScaleDefaults.Scales.Length; i++)
+                {
+                    var element = scales.GetArrayElementAtIndex(i);
+                    element.FindPropertyRelative("id").stringValue = TownScaleDefaults.Scales[i].Id;
+                    element.FindPropertyRelative("label").stringValue = TownScaleDefaults.Scales[i].Label;
+                }
+            }
+
+            var minScales = so.FindProperty("facilityMinScales");
+            var existing = new Dictionary<string, string>();
+            for (var i = 0; i < minScales.arraySize; i++)
+            {
+                var element = minScales.GetArrayElementAtIndex(i);
+                existing[element.FindPropertyRelative("facilityId").stringValue] = element.FindPropertyRelative("minScaleId").stringValue;
             }
 
             var facilityIds = TownFacilityCatalog.AllFacilityIds;
-            list.arraySize = facilityIds.Count;
+            minScales.arraySize = facilityIds.Count;
             for (var i = 0; i < facilityIds.Count; i++)
             {
-                var element = list.GetArrayElementAtIndex(i);
-                element.FindPropertyRelative("facilityId").stringValue = facilityIds[i];
-                element.FindPropertyRelative("available").boolValue = !existing.TryGetValue(facilityIds[i], out var available) || available;
+                var facilityId = facilityIds[i];
+                var element = minScales.GetArrayElementAtIndex(i);
+                element.FindPropertyRelative("facilityId").stringValue = facilityId;
+                element.FindPropertyRelative("minScaleId").stringValue = existing.TryGetValue(facilityId, out var kept)
+                    ? kept
+                    : TownScaleDefaults.FacilityMinScale.TryGetValue(facilityId, out var fallback) ? fallback : TownScaleDefaults.Village;
             }
 
+            so.FindProperty("cityMap").objectReferenceValue = LoadImportedTable<TripCityMapAsset>(TableAssetPaths.TripCityMap);
             so.ApplyModifiedProperties();
         }
 

@@ -16,7 +16,7 @@ namespace Game.Core.Editor
             EnemyStatsTableImporter.Import();
             PartyPolicyTableImporter.Import();
             RoleGroupTacticsTableImporter.Import();
-            TripCityMapTableImporter.Import();
+            CityTableImporter.Import();
             ItemTableImporter.Import();
             CaravanAssetTableImporter.Import();
         }
