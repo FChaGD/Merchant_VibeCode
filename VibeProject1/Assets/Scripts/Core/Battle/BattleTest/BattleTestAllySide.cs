@@ -1,9 +1,9 @@
 namespace Game.Core
 {
-    /// <summary>아군 진영 정의 - 직업 스탯 공급자로 기본 스탯을 조회하고, 전투 유닛에는 방향성 지시 전술 행동을 부여한다.</summary>
+    /// <summary>아군 진영 정의 - 직업 대표 캐릭터 스탯(테이블 첫 행, 설계 54번 §6.3)을 기본 스탯으로 쓰고, 전투 유닛에는 방향성 지시 전술 행동을 부여한다.</summary>
     public class BattleTestAllySide : IBattleTestSide
     {
-        private readonly IBattleUnitStatProvider statProvider;
+        private readonly IClassRepresentativeStatProvider statProvider;
         private readonly IDamageFormula damageFormula;
         private readonly IUnitSpatialQuery spatialQuery;
 
@@ -12,7 +12,7 @@ namespace Game.Core
         public PartyMorale Morale { get; private set; }
         public MoraleWaveCoordinator WaveCoordinator { get; private set; }
 
-        public BattleTestAllySide(IBattleUnitStatProvider statProvider, IDamageFormula damageFormula, IUnitSpatialQuery spatialQuery)
+        public BattleTestAllySide(IClassRepresentativeStatProvider statProvider, IDamageFormula damageFormula, IUnitSpatialQuery spatialQuery)
         {
             this.statProvider = statProvider;
             this.damageFormula = damageFormula;
@@ -25,7 +25,7 @@ namespace Game.Core
             WaveCoordinator = new MoraleWaveCoordinator(fieldRadius);
         }
 
-        public BattleUnitStats GetDefaultStats(BattleTestUnitKind kind) => statProvider.GetStats(kind.ToMercenaryClass());
+        public BattleUnitStats GetDefaultStats(BattleTestUnitKind kind) => statProvider.GetRepresentativeStats(kind.ToMercenaryClass());
 
         public BattleCharacterUnit CreatePreviewUnit(BattleTestRoster.Entry entry)
         {

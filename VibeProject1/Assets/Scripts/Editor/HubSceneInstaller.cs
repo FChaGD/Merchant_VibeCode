@@ -80,6 +80,7 @@ namespace Game.Core.Editor
             InventoryPopupUIBuilder.Build(layers.ModelessPopups, InventoryPopupSpecs.PersonalItem);
             // 시설 화면은 모달 팝업(Docs/설계/50번 §6.1) - 재화 패널 외 UI 숨김·카테고리 depth 복귀를 기존 팝업 축이 처리한다.
             TradeGoodsMarketUIBuilder.Build(layers.ModalPopups);
+            MercenaryContactUIBuilder.Build(layers.ModalPopups);
 
             EditorUIBuilder.WarnIfOutsideTransitionRoot(sceneUIRoot.transform, contentRoot, "Hub");
 

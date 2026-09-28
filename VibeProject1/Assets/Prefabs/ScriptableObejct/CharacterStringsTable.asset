@@ -13,9 +13,33 @@ MonoBehaviour:
   m_Name: CharacterStringsTable
   m_EditorClassIdentifier: Game.Core::Game.Core.CharacterStringsTableAsset
   strings:
-  - Id: Warrior
-    Ko: "\uC804\uC0AC"
-  - Id: Archer
-    Ko: "\uAD81\uC218"
-  - Id: ShieldBearer
-    Ko: "\uBC29\uD328\uBCD1"
+  - Id: Warrior01
+    Ko: "\uC804\uC0AC\uC774\uB9841"
+  - Id: Warrior02
+    Ko: "\uC804\uC0AC\uC774\uB9842"
+  - Id: Warrior03
+    Ko: "\uC804\uC0AC\uC774\uB9843"
+  - Id: Warrior04
+    Ko: "\uC804\uC0AC\uC774\uB9844"
+  - Id: Warrior05
+    Ko: "\uC804\uC0AC\uC774\uB9845"
+  - Id: Archer01
+    Ko: "\uAD81\uC218\uC774\uB9841"
+  - Id: Archer02
+    Ko: "\uAD81\uC218\uC774\uB9842"
+  - Id: Archer03
+    Ko: "\uAD81\uC218\uC774\uB9843"
+  - Id: Archer04
+    Ko: "\uAD81\uC218\uC774\uB9844"
+  - Id: Archer05
+    Ko: "\uAD81\uC218\uC774\uB9845"
+  - Id: ShieldBearer01
+    Ko: "\uBC29\uD328\uBCD1\uC774\uB9841"
+  - Id: ShieldBearer02
+    Ko: "\uBC29\uD328\uBCD1\uC774\uB9842"
+  - Id: ShieldBearer03
+    Ko: "\uBC29\uD328\uBCD1\uC774\uB9843"
+  - Id: ShieldBearer04
+    Ko: "\uBC29\uD328\uBCD1\uC774\uB9844"
+  - Id: ShieldBearer05
+    Ko: "\uBC29\uD328\uBCD1\uC774\uB9845"

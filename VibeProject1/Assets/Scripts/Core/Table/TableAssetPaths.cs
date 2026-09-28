@@ -20,6 +20,7 @@ namespace Game.Core
 
         public const string CharacterStatsTable = Folder + "/CharacterStatsTable.asset";
         public const string CharacterStringsTable = Folder + "/CharacterStringsTable.asset";
+        public const string MercenaryClassStringsTable = Folder + "/MercenaryClassStringsTable.asset";
         public const string EnemyStatsTable = Folder + "/EnemyStatsTable.asset";
         public const string EnemyEncounterCompositionTable = Folder + "/EnemyEncounterCompositionTable.asset";
         public const string EnemyStringsTable = Folder + "/EnemyStringsTable.asset";

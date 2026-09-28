@@ -3,10 +3,9 @@ using UnityEngine;
 namespace Game.Core
 {
     /// <summary>
-    /// 상행 관리 데이터 시스템이 아직 없어, 배치 UI 팔레트의 직업별 용병 테스트 데이터로 쓴다.
-    /// PlaceholderFormationUnit과 달리 MercenaryClass를 갖는다(IMercenaryUnit) - 정비창에서 아이콘
-    /// 모양(사각형/오각형/육각형)으로 직업을 구분해 배치할 수 있게 한다. 실제 캐릭터 데이터 모델이
-    /// 생기면 대체된다.
+    /// 상행 관리 데이터 시스템이 아직 없어, 배치 UI 팔레트와 전투에 쓰는 임시 용병 개체. 캐릭터 테이블의 한 행(CharacterId)을
+    /// 가리키고, 표시명(DisplayName)은 캐릭터 이름이 아니라 직업명이다 - 정비창 팔레트·정보 패널은 이름을 표시하지 않는다
+    /// (Docs/기획/53번 §3.2). 실제 캐릭터 데이터 모델이 생기면 대체된다.
     /// </summary>
     public class PlaceholderMercenaryUnit : IMercenaryUnit
     {
@@ -15,10 +14,13 @@ namespace Game.Core
         public Sprite Icon { get; }
         public FormationUnitKind Kind => FormationUnitKind.Character;
         public string Class { get; }
+        public string CharacterId { get; }
 
-        public PlaceholderMercenaryUnit(string id, string displayName, Sprite icon, string mercenaryClass)
+        public PlaceholderMercenaryUnit(string characterId, string displayName, Sprite icon, string mercenaryClass)
         {
-            Id = id;
+            // 인스턴스 Id = 캐릭터 Id(설계 54번 §11) - 캐릭터는 테이블에서 유일하고 한 번만 고용되므로 충돌하지 않는다.
+            Id = characterId;
+            CharacterId = characterId;
             DisplayName = displayName;
             Icon = icon;
             Class = mercenaryClass;

@@ -20,6 +20,8 @@ namespace Game.Core
         private PopupFocusOnPress inventoryPopupFocus;
         // 무역품 구매 화면(Docs/설계/50번 §6.5) - 인벤토리 팝업과 같은 이유로 Hub 로드마다 새로 만들고 이전 것은 Dispose한다.
         private TradeGoodsMarketPanel tradeGoodsMarketPanel;
+        // 용병단 접촉 화면(Docs/설계/54번 §8.4) - 무역품 구매 화면과 같은 이유로 Hub 로드마다 새로 만들고 이전 것은 Dispose한다.
+        private MercenaryContactPanel mercenaryContactPanel;
 
         public void Wire(IDependencyResolver registrar, IUIManager uiManager, IPanelRegistrar panelRegistrar)
         {
@@ -98,6 +100,11 @@ namespace Game.Core
             registrar.TryResolve<IPersonalItemInventoryRepository>(out var personalItemInventory);
             // 시설 판매 목록(설계 50번 §5.3) - 마을별 판매 시스템이 아직 Placeholder라 선택적으로 조회한다.
             registrar.TryResolve<ITownShopStockReader>(out var townShopStockReader);
+            // 캐릭터 고용(설계 54번 §8.4) - 로스터·후보 시스템이 아직 Placeholder라 선택적으로 조회한다.
+            registrar.TryResolve<IMercenaryCandidateReader>(out var mercenaryCandidateReader);
+            registrar.TryResolve<IHiredCharacterRoster>(out var hiredCharacterRoster);
+            registrar.TryResolve<ICharacterCatalogReader>(out var characterCatalog);
+            registrar.TryResolve<IMercenaryClassIconReader>(out var mercenaryClassIconReader);
             var inventoryPopupSources = new List<InventoryPopupSource>();
             AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.TradeGoods, tradeGoodsInventory, tradeGoodsInventory, nameof(ITradeGoodsInventoryRepository));
             AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.Equipment, equipmentInventory, equipmentInventory, nameof(IEquipmentInventoryRepository));
@@ -137,6 +144,7 @@ namespace Game.Core
 
             RegisterInventoryPopups(sceneUIRoot, uiManager, panelRegistrar, inventoryPopupSources);
             RegisterTradeGoodsMarket(sceneUIRoot, uiManager, panelRegistrar, tradeGoodsInventory, currencyWallet, townShopStockReader, currentLocationRepository);
+            RegisterMercenaryContact(sceneUIRoot, uiManager, panelRegistrar, currencyWallet, mercenaryCandidateReader, hiredCharacterRoster, characterCatalog, mercenaryClassIconReader, currentLocationRepository);
 
             // 팝업 축(Docs/설계/38번 §5·§6) - 모달 팝업이 열리면 DepthLayer/PersistentLayer를 숨긴다.
             // PersistentLayer에는 인벤토리 버튼이 있다. PopupExemptLayer(재화 HUD)와 PopupLayer는 대상이 아니다.
@@ -217,9 +225,28 @@ namespace Game.Core
             panelRegistrar.RegisterPopupPanel(tradeGoodsMarketPanel);
         }
 
+        // 무역품 구매 화면과 같은 등록 방식(모달 팝업 채널). 직업 아이콘 제공자는 없어도 된다(아이콘 없이 표시).
+        private void RegisterMercenaryContact(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IPlayerCurrencyWallet wallet, IMercenaryCandidateReader candidateReader, IHiredCharacterRoster roster, ICharacterCatalogReader catalog, IMercenaryClassIconReader iconReader, ITripCurrentLocationReader currentLocation)
+        {
+            mercenaryContactPanel?.Dispose();
+            mercenaryContactPanel = null;
+
+            if (wallet == null || candidateReader == null || roster == null || catalog == null)
+            {
+                Debug.LogWarning($"용병단 접촉 화면에 필요한 {nameof(IPlayerCurrencyWallet)}/{nameof(IMercenaryCandidateReader)}/{nameof(IHiredCharacterRoster)}/{nameof(ICharacterCatalogReader)}가 연결되어 있지 않아 등록하지 못했다(Tools > Game > Build Bootstrap Scene).");
+                return;
+            }
+
+            if (!MercenaryContactElements.TryBind(sceneUIRoot, out var elements)) return;
+
+            mercenaryContactPanel = new MercenaryContactPanel(elements, wallet, candidateReader, roster, catalog, iconReader, currentLocation, uiManager);
+            panelRegistrar.RegisterPopupPanel(mercenaryContactPanel);
+        }
+
         private void OnDestroy()
         {
             tradeGoodsMarketPanel?.Dispose();
+            mercenaryContactPanel?.Dispose();
             foreach (var popup in inventoryPopups) popup.Dispose();
             inventoryPopups.Clear();
             inventoryPopupFocus?.Dispose();

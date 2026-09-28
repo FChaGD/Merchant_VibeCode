@@ -279,18 +279,22 @@ namespace Game.Core
             // (기획 13번 §6, 설계 16번), 방어적으로 한 번 더 확인한다.
             if (unitConditionRepository != null && unitConditionRepository.IsDead(unitId)) return null;
 
-            // 직업 정보가 없는 Character(로스터 구현체가 IMercenaryUnit이 아닌 경우)는 예외적
-            // 상황이라 Warrior를 기본값으로 둔다 - 정식 로스터 시스템이 생기면 모든 Character가
-            // IMercenaryUnit을 구현하게 되어 이 분기 자체가 필요 없어질 것으로 예상된다.
-            var mercenaryClass = rosterUnit is IMercenaryUnit mercenaryUnit ? mercenaryUnit.Class : "Warrior";
+            // 스탯은 캐릭터 Id로 조회한다(Docs/설계/54번 §5) - 캐릭터 정보가 없는 Character(로스터 구현체가
+            // IMercenaryUnit이 아닌 경우)는 예전처럼 직업 기본값(Warrior)으로 대신할 수 없어 전투에서 제외하고 경고한다.
+            if (rosterUnit is not IMercenaryUnit mercenaryUnit)
+            {
+                Debug.LogWarning($"로스터 유닛 '{unitId}'가 {nameof(IMercenaryUnit)}이 아니라 캐릭터 스탯을 알 수 없어 전투에서 제외한다.");
+                return null;
+            }
+            var mercenaryClass = mercenaryUnit.Class;
 
             var column = slotIndex % layout.ColumnCount;
             var row = slotIndex / layout.ColumnCount;
             var position = ComputeAllyPositionForSlot(layout, unitId, column, row);
-            var stats = statProvider.GetStats(mercenaryClass);
+            var stats = statProvider.GetStats(mercenaryUnit.CharacterId);
 
             // 저장된 HP가 있으면(상행 중 이전 전투에서 입은 피해) 이번 전투의 시작 체력으로 쓴다 -
-            // 만피(stats.MaxHp)는 직업 기준 고정값 그대로 두고 건드리지 않는다(설계 23번 §1/§2,
+            // 만피(stats.MaxHp)는 캐릭터 테이블 고정값 그대로 두고 건드리지 않는다(설계 23번 §1/§2,
             // 기획 18번). 체력 게이지바가 항상 풀피로 보이던 문제(만피 자체가 저장값으로 재정의됨)의
             // 정정.
             float? startingHp = null;

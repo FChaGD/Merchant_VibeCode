@@ -55,7 +55,7 @@ namespace Game.Core
                 // 캐릭터(용병)만 HP 추적 대상 - 마차/시설은 전투에 참여하지 않는다(기획 13번 §2).
                 if (unit is IMercenaryUnit mercenary)
                 {
-                    currentHpById[unit.Id] = statProvider.GetStats(mercenary.Class).MaxHp;
+                    currentHpById[unit.Id] = statProvider.GetStats(mercenary.CharacterId).MaxHp;
                 }
             }
         }

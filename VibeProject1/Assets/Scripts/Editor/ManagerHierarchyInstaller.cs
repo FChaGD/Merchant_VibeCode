@@ -37,6 +37,8 @@ namespace Game.Core.Editor
             nameof(PlaceholderConsumableInventoryRepository),
             nameof(PlaceholderPersonalItemInventoryRepository),
             nameof(PlaceholderTownShopStockProvider),
+            nameof(CharacterCatalogProvider),
+            nameof(PlaceholderMercenaryCandidateProvider),
         };
 
         [MenuItem("Tools/Game/Build Bootstrap Scene")]
@@ -243,6 +245,12 @@ namespace Game.Core.Editor
             var townShopStockProvider = EditorUIBuilder.GetOrCreateManager<PlaceholderTownShopStockProvider>(uiManager.transform, nameof(PlaceholderTownShopStockProvider));
             WireTownShopStockTables(townShopStockProvider);
 
+            // 캐릭터 카탈로그와 고용 후보(설계 54번 §9). 카탈로그는 로스터·후보·고용 화면이 공유하고, 후보 제공자는 마을별 후보
+            // 시스템이 생기면 함께 제거한다.
+            var characterCatalogProvider = EditorUIBuilder.GetOrCreateManager<CharacterCatalogProvider>(uiManager.transform, nameof(CharacterCatalogProvider));
+            WireCharacterCatalogTables(characterCatalogProvider);
+            var mercenaryCandidateProvider = EditorUIBuilder.GetOrCreateManager<PlaceholderMercenaryCandidateProvider>(uiManager.transform, nameof(PlaceholderMercenaryCandidateProvider));
+
             return new MonoBehaviour[]
             {
                 placeholderRosterProvider,
@@ -260,6 +268,8 @@ namespace Game.Core.Editor
                 consumableInventoryRepository,
                 personalItemInventoryRepository,
                 townShopStockProvider,
+                characterCatalogProvider,
+                mercenaryCandidateProvider,
             };
         }
 
@@ -435,14 +445,24 @@ namespace Game.Core.Editor
             so.ApplyModifiedProperties();
         }
 
-        // 테이블 자산은 임포트(Play 진입 시 자동, 또는 Import Items)가 처음 만든다. 자산이 생기기 전에 이 인스톨러를 돌리면
+        // 직업명 테이블은 설계 54번에서 처음 생기는 자산이라 LoadImportedTable로 누락을 경고한다.
+        private static void WireCharacterCatalogTables(CharacterCatalogProvider provider)
+        {
+            var so = new SerializedObject(provider);
+            so.FindProperty("characterStatsTable").objectReferenceValue = LoadImportedTable<CharacterStatsTableAsset>(TableAssetPaths.CharacterStatsTable);
+            so.FindProperty("characterStringsTable").objectReferenceValue = LoadImportedTable<CharacterStringsTableAsset>(TableAssetPaths.CharacterStringsTable);
+            so.FindProperty("mercenaryClassStringsTable").objectReferenceValue = LoadImportedTable<MercenaryClassStringsTableAsset>(TableAssetPaths.MercenaryClassStringsTable);
+            so.ApplyModifiedProperties();
+        }
+
+        // 테이블 자산은 임포트(Play 진입 시 자동, 또는 Tools/Game/Table 메뉴)가 처음 만든다. 자산이 생기기 전에 이 인스톨러를 돌리면
         // 참조가 빈 채로 저장돼 판매 목록이 조용히 비는 문제가 있었다(설계 50번 제작 검증) - 빠진 자산을 경고로 드러낸다.
         private static T LoadImportedTable<T>(string assetPath) where T : Object
         {
             var asset = AssetDatabase.LoadAssetAtPath<T>(assetPath);
             if (asset == null)
             {
-                Debug.LogWarning($"'{assetPath}' 테이블 자산이 아직 없다 - Tools > Game > Table > Import Items(또는 Play 1회) 후 Build Bootstrap Scene을 다시 실행하라.");
+                Debug.LogWarning($"'{assetPath}' 테이블 자산이 아직 없다 - Play 1회(자동 임포트) 후 Build Bootstrap Scene을 다시 실행하라.");
             }
             return asset;
         }

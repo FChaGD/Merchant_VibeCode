@@ -1,3 +1,4 @@
+using System.Linq;
 using Game.Core;
 using UnityEditor;
 using UnityEngine;
@@ -38,9 +39,9 @@ namespace Game.Core.Editor
                     var statsTable = AssetDatabase.LoadAssetAtPath<CharacterStatsTableAsset>(AssetDatabase.GUIDToAssetPath(statsGuid));
                     if (statsTable == null) continue;
 
-                    foreach (var statsEntry in statsTable.Entries)
+                    // 행 단위가 캐릭터라(Docs/설계/54번 §2.3) 같은 직업이 여러 행에 나온다 - 직업별로 한 번만 검사한다.
+                    foreach (var mercenaryClass in statsTable.Entries.Select(e => e.MercenaryClass).Distinct())
                     {
-                        var mercenaryClass = statsEntry.MercenaryClass;
                         if (!map.TryGetRoleGroup(mercenaryClass, out var roleGroup))
                         {
                             Debug.LogWarning($"{nameof(TacticsCatalogValidator)}: 직업 '{mercenaryClass}'가 '{map.name}'에 역할군으로 매핑되어 있지 않다 - 실행 중 {nameof(UnitTacticsProfileResolver)}가 Frontline 기본값으로 조용히 대체한다.");
