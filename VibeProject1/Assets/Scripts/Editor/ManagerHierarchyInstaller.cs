@@ -39,6 +39,8 @@ namespace Game.Core.Editor
             nameof(PlaceholderTownShopStockProvider),
             nameof(CharacterCatalogProvider),
             nameof(PlaceholderMercenaryCandidateProvider),
+            nameof(CaravanAssetCatalogProvider),
+            nameof(PlaceholderCaravanAssetCandidateProvider),
         };
 
         [MenuItem("Tools/Game/Build Bootstrap Scene")]
@@ -251,6 +253,11 @@ namespace Game.Core.Editor
             WireCharacterCatalogTables(characterCatalogProvider);
             var mercenaryCandidateProvider = EditorUIBuilder.GetOrCreateManager<PlaceholderMercenaryCandidateProvider>(uiManager.transform, nameof(PlaceholderMercenaryCandidateProvider));
 
+            // 마차·시설 카탈로그와 구매 후보(설계 56번 §8). 후보 제공자는 마을별 판매 시스템이 생기면 함께 제거한다.
+            var caravanAssetCatalogProvider = EditorUIBuilder.GetOrCreateManager<CaravanAssetCatalogProvider>(uiManager.transform, nameof(CaravanAssetCatalogProvider));
+            WireCaravanAssetCatalogTables(caravanAssetCatalogProvider);
+            var caravanAssetCandidateProvider = EditorUIBuilder.GetOrCreateManager<PlaceholderCaravanAssetCandidateProvider>(uiManager.transform, nameof(PlaceholderCaravanAssetCandidateProvider));
+
             return new MonoBehaviour[]
             {
                 placeholderRosterProvider,
@@ -270,6 +277,8 @@ namespace Game.Core.Editor
                 townShopStockProvider,
                 characterCatalogProvider,
                 mercenaryCandidateProvider,
+                caravanAssetCatalogProvider,
+                caravanAssetCandidateProvider,
             };
         }
 
@@ -452,6 +461,16 @@ namespace Game.Core.Editor
             so.FindProperty("characterStatsTable").objectReferenceValue = LoadImportedTable<CharacterStatsTableAsset>(TableAssetPaths.CharacterStatsTable);
             so.FindProperty("characterStringsTable").objectReferenceValue = LoadImportedTable<CharacterStringsTableAsset>(TableAssetPaths.CharacterStringsTable);
             so.FindProperty("mercenaryClassStringsTable").objectReferenceValue = LoadImportedTable<MercenaryClassStringsTableAsset>(TableAssetPaths.MercenaryClassStringsTable);
+            so.ApplyModifiedProperties();
+        }
+
+        private static void WireCaravanAssetCatalogTables(CaravanAssetCatalogProvider provider)
+        {
+            var so = new SerializedObject(provider);
+            so.FindProperty("wagonTable").objectReferenceValue = LoadImportedTable<CaravanAssetTableAsset>(TableAssetPaths.WagonTable);
+            so.FindProperty("wagonStrings").objectReferenceValue = LoadImportedTable<CaravanAssetStringsTableAsset>(TableAssetPaths.WagonStrings);
+            so.FindProperty("facilityTable").objectReferenceValue = LoadImportedTable<CaravanAssetTableAsset>(TableAssetPaths.FacilityTable);
+            so.FindProperty("facilityStrings").objectReferenceValue = LoadImportedTable<CaravanAssetStringsTableAsset>(TableAssetPaths.FacilityStrings);
             so.ApplyModifiedProperties();
         }
 

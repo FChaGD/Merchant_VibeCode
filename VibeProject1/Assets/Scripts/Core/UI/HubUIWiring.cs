@@ -22,6 +22,8 @@ namespace Game.Core
         private TradeGoodsMarketPanel tradeGoodsMarketPanel;
         // 용병단 접촉 화면(Docs/설계/54번 §8.4) - 무역품 구매 화면과 같은 이유로 Hub 로드마다 새로 만들고 이전 것은 Dispose한다.
         private MercenaryContactPanel mercenaryContactPanel;
+        // 마구간 화면(Docs/설계/56번 §7.2) - 같은 이유로 Hub 로드마다 새로 만들고 이전 것은 Dispose한다.
+        private StablePanel stablePanel;
 
         public void Wire(IDependencyResolver registrar, IUIManager uiManager, IPanelRegistrar panelRegistrar)
         {
@@ -105,6 +107,11 @@ namespace Game.Core
             registrar.TryResolve<IHiredCharacterRoster>(out var hiredCharacterRoster);
             registrar.TryResolve<ICharacterCatalogReader>(out var characterCatalog);
             registrar.TryResolve<IMercenaryClassIconReader>(out var mercenaryClassIconReader);
+            // 마차·시설 구매(설계 56번 §7.2) - 로스터·판매 시스템이 아직 Placeholder라 선택적으로 조회한다.
+            registrar.TryResolve<ICaravanAssetCandidateReader>(out var caravanAssetCandidateReader);
+            registrar.TryResolve<IOwnedCaravanAssetRoster>(out var ownedCaravanAssetRoster);
+            registrar.TryResolve<ICaravanAssetCatalogReader>(out var caravanAssetCatalog);
+            registrar.TryResolve<ICaravanAssetIconReader>(out var caravanAssetIconReader);
             var inventoryPopupSources = new List<InventoryPopupSource>();
             AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.TradeGoods, tradeGoodsInventory, tradeGoodsInventory, nameof(ITradeGoodsInventoryRepository));
             AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.Equipment, equipmentInventory, equipmentInventory, nameof(IEquipmentInventoryRepository));
@@ -145,6 +152,7 @@ namespace Game.Core
             RegisterInventoryPopups(sceneUIRoot, uiManager, panelRegistrar, inventoryPopupSources);
             RegisterTradeGoodsMarket(sceneUIRoot, uiManager, panelRegistrar, tradeGoodsInventory, currencyWallet, townShopStockReader, currentLocationRepository);
             RegisterMercenaryContact(sceneUIRoot, uiManager, panelRegistrar, currencyWallet, mercenaryCandidateReader, hiredCharacterRoster, characterCatalog, mercenaryClassIconReader, currentLocationRepository);
+            RegisterStable(sceneUIRoot, uiManager, panelRegistrar, currencyWallet, caravanAssetCandidateReader, ownedCaravanAssetRoster, caravanAssetCatalog, caravanAssetIconReader, currentLocationRepository);
 
             // 팝업 축(Docs/설계/38번 §5·§6) - 모달 팝업이 열리면 DepthLayer/PersistentLayer를 숨긴다.
             // PersistentLayer에는 인벤토리 버튼이 있다. PopupExemptLayer(재화 HUD)와 PopupLayer는 대상이 아니다.
@@ -237,16 +245,35 @@ namespace Game.Core
                 return;
             }
 
-            if (!MercenaryContactElements.TryBind(sceneUIRoot, out var elements)) return;
+            if (!RosterShopElements.TryBind(sceneUIRoot, RosterShopUIElementIds.MercenaryContactPrefix, out var elements)) return;
 
             mercenaryContactPanel = new MercenaryContactPanel(elements, wallet, candidateReader, roster, catalog, iconReader, currentLocation, uiManager);
             panelRegistrar.RegisterPopupPanel(mercenaryContactPanel);
+        }
+
+        // 용병단 접촉 화면과 같은 등록 방식(모달 팝업 채널, 목록형 구매 화면 요소 공유). 종류 아이콘 제공자는 없어도 된다.
+        private void RegisterStable(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IPlayerCurrencyWallet wallet, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, ICaravanAssetCatalogReader catalog, ICaravanAssetIconReader iconReader, ITripCurrentLocationReader currentLocation)
+        {
+            stablePanel?.Dispose();
+            stablePanel = null;
+
+            if (wallet == null || candidateReader == null || roster == null || catalog == null)
+            {
+                Debug.LogWarning($"마구간 화면에 필요한 {nameof(IPlayerCurrencyWallet)}/{nameof(ICaravanAssetCandidateReader)}/{nameof(IOwnedCaravanAssetRoster)}/{nameof(ICaravanAssetCatalogReader)}가 연결되어 있지 않아 등록하지 못했다(Tools > Game > Build Bootstrap Scene).");
+                return;
+            }
+
+            if (!RosterShopElements.TryBind(sceneUIRoot, RosterShopUIElementIds.StablePrefix, out var elements)) return;
+
+            stablePanel = new StablePanel(elements, wallet, candidateReader, roster, catalog, iconReader, currentLocation, uiManager);
+            panelRegistrar.RegisterPopupPanel(stablePanel);
         }
 
         private void OnDestroy()
         {
             tradeGoodsMarketPanel?.Dispose();
             mercenaryContactPanel?.Dispose();
+            stablePanel?.Dispose();
             foreach (var popup in inventoryPopups) popup.Dispose();
             inventoryPopups.Clear();
             inventoryPopupFocus?.Dispose();

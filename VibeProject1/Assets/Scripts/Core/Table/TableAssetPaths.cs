@@ -47,6 +47,12 @@ namespace Game.Core
         public const string MiscItemTable = Folder + "/MiscItemTable.asset";
         public const string MiscItemStrings = Folder + "/MiscItemStrings.asset";
         public const string TradeGoodsKindTable = Folder + "/TradeGoodsKindTable.asset";
+
+        // 마차·시설 개체(Docs/설계/56번 §2.2) - 두 종류가 자산 클래스를 공유하고 경로만 따로 둔다.
+        public const string WagonTable = Folder + "/WagonTable.asset";
+        public const string WagonStrings = Folder + "/WagonStrings.asset";
+        public const string FacilityTable = Folder + "/FacilityTable.asset";
+        public const string FacilityStrings = Folder + "/FacilityStrings.asset";
     }
 }
 #endif

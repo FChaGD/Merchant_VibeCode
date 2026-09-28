@@ -30,6 +30,7 @@ namespace Game.Core.Editor
             RoleGroupTacticsTableImporter.Import();
             TripCityMapTableImporter.Import();
             ItemTableImporter.Import();
+            CaravanAssetTableImporter.Import();
         }
     }
 }

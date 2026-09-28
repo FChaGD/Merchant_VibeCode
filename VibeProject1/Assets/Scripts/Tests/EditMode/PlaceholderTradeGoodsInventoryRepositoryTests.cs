@@ -10,7 +10,6 @@ namespace Game.Core.Tests
     {
         private GameObject gameObject;
         private DependencyManager dependencyManager;
-        private PlaceholderCaravanRosterProvider rosterProvider;
         private InMemoryPlayerCurrencyWallet wallet;
         private PlaceholderTradeGoodsInventoryRepository repository;
         private ItemDefinitionTableAsset itemTable;
@@ -21,10 +20,6 @@ namespace Game.Core.Tests
         {
             gameObject = new GameObject(nameof(PlaceholderTradeGoodsInventoryRepositoryTests));
             dependencyManager = gameObject.AddComponent<DependencyManager>();
-
-            rosterProvider = gameObject.AddComponent<PlaceholderCaravanRosterProvider>();
-            rosterProvider.ResolveDependencies(null); // 마차 재고 5개(11번 문서 고정치)를 채운다 - 아이콘 미배선은 무해.
-            dependencyManager.Register<ICaravanRosterProvider>(rosterProvider);
 
             wallet = gameObject.AddComponent<InMemoryPlayerCurrencyWallet>();
             wallet.ResolveDependencies(null);
@@ -70,10 +65,9 @@ namespace Game.Core.Tests
         }
 
         [Test]
-        public void ResolveDependencies_ComputesGridSizeFromWagonCount()
+        public void ResolveDependencies_UsesFixedGridSize()
         {
-            // 마차 재고 5개(11번 문서 고정치) × 마차당 8칸 = 40칸, 가로 10칸 기준으로 접으면 세로 4칸
-            // (Docs/설계/32번 §4.2).
+            // 마차 구매와 무관하게 40칸 고정(Docs/기획/55번 §3, 설계 56번 §5), 가로 10칸 기준으로 접으면 세로 4칸.
             Assert.AreEqual(10, repository.GridWidth);
             Assert.AreEqual(4, repository.GridHeight);
         }

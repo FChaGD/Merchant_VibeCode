@@ -2,7 +2,7 @@ using UnityEditor;
 
 namespace Game.Core.Editor
 {
-    // 워크북 9개(Character/Enemy/Tactics/Trip/Item 폴더, 설계 18번 §7, 20번 §6, 35번 §5)를 한 번에
+    // 워크북(Character/Enemy/Tactics/Trip/Item/Caravan 폴더, 설계 18번 §7, 20번 §6, 35번 §5, 56번 §2.3)을 한 번에
     // 임포트하는 편의 메뉴 - TableAutoImportOnPlay가 플레이 진입마다 호출하는 것과 같은 순서를
     // 수동으로도 실행할 수 있게 한다. 아이템 카테고리 4종은 ItemTableImporter가 신설되면서
     // (2026-09-23) 이 목록에서 처음엔 누락됐었다 - 개별 메뉴로만 실행 가능해 "Import All"을 눌러도
@@ -18,6 +18,7 @@ namespace Game.Core.Editor
             RoleGroupTacticsTableImporter.Import();
             TripCityMapTableImporter.Import();
             ItemTableImporter.Import();
+            CaravanAssetTableImporter.Import();
         }
     }
 }

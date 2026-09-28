@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2df2cd8725d983340aefb967ba4ad723, type: 3}
+  m_Name: FacilityStrings
+  m_EditorClassIdentifier: Game.Core::Game.Core.CaravanAssetStringsTableAsset
+  strings:
+  - Id: Facility01
+    Ko: "\uC2DC\uC124\uC774\uB9841"
+  - Id: Facility02
+    Ko: "\uC2DC\uC124\uC774\uB9842"
+  - Id: Facility03
+    Ko: "\uC2DC\uC124\uC774\uB9843"
+  - Id: Facility04
+    Ko: "\uC2DC\uC124\uC774\uB9844"
+  - Id: Facility05
+    Ko: "\uC2DC\uC124\uC774\uB9845"

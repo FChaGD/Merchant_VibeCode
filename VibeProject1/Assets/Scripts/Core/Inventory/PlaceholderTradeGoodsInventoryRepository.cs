@@ -1,16 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace Game.Core
 {
     /// <summary>
-    /// 그리드 총 크기가 고정이 아니라 보유 마차 수 × 마차당 칸수로 계산된다(Docs/기획/31번 §3.3,
-    /// 설계 32번 §4.2). 마차 자체의 스탯 시스템이 없어 ICaravanRosterProvider의
-    /// FormationUnitKind.Wagon 재고 수(기획 11번 - 카테고리당 5개, "재고 수량" 의미)를 보유 마차 수
-    /// Placeholder로 쓴다 - 새 마차 데이터 소스를 따로 만들지 않는다. PlaceholderCellsPerWagon도
-    /// 마차 스탯 기획 전까지의 잠정 상수 - 실제 마차 스탯 시스템이 생기면 이 클래스를 통째로 대체한다.
+    /// 그리드 총 크기는 기획 31번 §3.3상 "보유 마차 칸수 합"이지만, 마구간 구매가 생기면서(Docs/기획/55번 §3) 이번엔 마차 구매가
+    /// 교역품 그리드와 무관하도록 정했다 - 예전 계산(로스터 마차 5대 × 8칸)의 결과인 40칸으로 고정하고 로스터 의존을 끊었다
+    /// (설계 56번 §5). 마차 적재 칸수 연동이 기획되면 이 고정값을 보유 마차 칸수 합으로 교체한다.
     ///
     /// 골드 상자(재화 500=1×1칸, 기획 31번 §3.4)는 아이템 테이블의 평범한 한 행("gold-box" Id)이다
     /// (Docs/기획/33번 §3.4, 설계 35번 §7.1) - 데이터(아이콘/크기/표시명)는 다른 아이템과 동일하게
@@ -20,7 +17,7 @@ namespace Game.Core
     /// </summary>
     public class PlaceholderTradeGoodsInventoryRepository : MonoBehaviour, ITradeGoodsInventoryRepository, IManagedComponent
     {
-        private const int PlaceholderCellsPerWagon = 8;
+        private const int PlaceholderGridCells = 40;
         private const int MaxGridColumns = 10; // 총 칸수를 가로 10칸 기준으로 접어 세로를 늘리는 임시 배치 규칙
         private const int GoldBoxCurrencyValue = 500;
         private const string GoldBoxItemId = "gold-box";
@@ -42,7 +39,6 @@ namespace Game.Core
         [SerializeField] private ItemDefinitionTableAsset miscItemTable;
         [SerializeField] private ItemStringTableAsset miscItemStrings;
 
-        private ICaravanRosterProvider caravanRosterProvider;
         private IPlayerCurrencyWallet currencyWallet;
         private InventoryGrid grid;
         private IItemCatalogReader catalog;
@@ -64,12 +60,10 @@ namespace Game.Core
 
         public void ResolveDependencies(IDependencyResolver registrar)
         {
-            caravanRosterProvider = registrar.Resolve<ICaravanRosterProvider>();
             registrar.TryResolve(out currencyWallet); // 선택적 의존성 - 없으면 골드 상자 배치만 불가.
             catalog = new CompositeItemCatalog(new TableItemCatalog(itemTable, itemStrings), new TableItemCatalog(miscItemTable, miscItemStrings));
 
-            var wagonCount = caravanRosterProvider.GetRoster().Count(unit => unit.Kind == FormationUnitKind.Wagon);
-            var totalCells = wagonCount * PlaceholderCellsPerWagon;
+            var totalCells = PlaceholderGridCells;
             var width = Mathf.Min(totalCells, MaxGridColumns);
             var height = width == 0 ? 0 : Mathf.CeilToInt(totalCells / (float)width);
             grid = new InventoryGrid(width, height);

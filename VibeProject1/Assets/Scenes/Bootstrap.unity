@@ -566,6 +566,8 @@ MonoBehaviour:
   - {fileID: 2031334301}
   - {fileID: 603011471}
   - {fileID: 77209089}
+  - {fileID: 1136290633}
+  - {fileID: 1804540255}
 --- !u!1 &900002000
 GameObject:
   m_ObjectHideFlags: 0
@@ -740,6 +742,8 @@ Transform:
   - {fileID: 2031334300}
   - {fileID: 603011470}
   - {fileID: 77209088}
+  - {fileID: 1136290632}
+  - {fileID: 1804540254}
   m_Father: {fileID: 900000001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &900004002
@@ -1182,6 +1186,54 @@ MonoBehaviour:
     available: 1
   - facilityId: MerchantGuild
     available: 1
+--- !u!1 &1136290631
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1136290632}
+  - component: {fileID: 1136290633}
+  m_Layer: 0
+  m_Name: CaravanAssetCatalogProvider
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1136290632
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1136290631}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900004001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1136290633
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1136290631}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c3ea0e265724913438dd9770677be697, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.CaravanAssetCatalogProvider
+  wagonTable: {fileID: 11400000, guid: 7207aba58c13ae94fa221ec04d4f3e91, type: 2}
+  wagonStrings: {fileID: 11400000, guid: 8e990c652a0f7754d8ac8e59006b450a, type: 2}
+  facilityTable: {fileID: 11400000, guid: 78656de3ecbd9cf4094a4033d93cc200, type: 2}
+  facilityStrings: {fileID: 11400000, guid: 7a79d333e00e8544c93f3aea24329e76, type: 2}
 --- !u!1 &1213019814
 GameObject:
   m_ObjectHideFlags: 0
@@ -1609,6 +1661,50 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0755c6258eed866479901d9c2ed935cb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.DebugTools.PlayerCurrencyDebugSpinView
+--- !u!1 &1804540253
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1804540254}
+  - component: {fileID: 1804540255}
+  m_Layer: 0
+  m_Name: PlaceholderCaravanAssetCandidateProvider
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1804540254
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1804540253}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900004001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1804540255
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1804540253}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8ee9a4b08fd560e4e9d606ceb2045a48, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.PlaceholderCaravanAssetCandidateProvider
 --- !u!1 &1891997714
 GameObject:
   m_ObjectHideFlags: 0
