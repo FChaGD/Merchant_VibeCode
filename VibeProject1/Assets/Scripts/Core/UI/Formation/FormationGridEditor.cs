@@ -13,6 +13,8 @@ namespace Game.Core
     /// Hub/Field 배치 UI(HubFormationPanel/FieldFormationPanel)가 공유한다. "드롭 시 무엇을 반영할지"
     /// (교체/스왑/타이머 시작 등)는 이 클래스가 판단하지 않고 IFormationEditingHandler에 위임한다 -
     /// 이 클래스는 화면 갱신과 이벤트 중계만 담당한다(SRP).
+    /// 화면은 외곽 판 전체가 아니라 대열 영역(FormationArea)의 경계 상자 + 여백만 그린다(Docs/기획/59번 §4.4, 설계 60번 §6). 대열이 편집마다
+    /// 바뀌므로 드래그가 끝날 때마다 영역·표시 범위를 다시 계산해 전체를 다시 그린다.
     /// </summary>
     internal class FormationGridEditor
     {
@@ -28,15 +30,18 @@ namespace Game.Core
         private FormationGridView gridView;
         private FormationInfoPanelView infoPanelView;
 #if UNITY_EDITOR
-        // 그리드 크기 디버그 패널 연동 지점 - Core/Debug/Formation 폴더를 지울 때는 이 #if UNITY_EDITOR
-        // 블록들도 함께 지운다(DEBUG_FEATURES.md 참고).
+        // 디버그 핀 패널 연동 지점(설계 60번 §8) - 디버그 도구를 걷어낼 때는 이 #if UNITY_EDITOR 블록들도 함께 지운다.
         private FormationGridDebugView debugView;
 #endif
+        // 대열 영역 외곽선(디버그 도구, 마을 정비창만 넘겨줌) - 없으면 null.
+        private IFormationAreaOutline areaOutline;
 
         private ICaravanRosterProvider rosterProvider;
         private IUnitConditionRepository conditionRepository;
 
         private FormationLayout displayLayout;
+        // 마차가 없어질 때(또는 마차 없이 열 때) 기준 칸으로 화면을 옮기기 위한 직전 마차 수. -1 = 방금 열림.
+        private int lastWagonCount = -1;
         private readonly Dictionary<string, IFormationUnit> unitsById = new();
         private IReadOnlyList<IFormationUnit> currentRoster = Array.Empty<IFormationUnit>();
 
@@ -46,11 +51,9 @@ namespace Game.Core
         private readonly List<FormationActivityOverlayVisual> activityOverlayBuffer = new();
         private readonly List<FormationMovePathVisual> movePathBuffer = new();
 
+        // 표시 범위 = 대열 경계 상자 바깥 이 칸 수만큼(설계 60번 §11-3).
+
         public GameObject PanelRoot => panelRoot;
-        // 배치가 아직 하나도 저장된 적 없을 때(repository.TryLoadCurrent 실패) 핸들러가 기본 그리드
-        // 모양을 결정하는 데 쓴다 - FormationGridView의 인스펙터 기본값이 단일 출처다.
-        public int GridColumnCount => gridView.ColumnCount;
-        public int GridRowCount => gridView.RowCount;
 
         public FormationGridEditor(IFormationEditingHandler handler)
         {
@@ -73,6 +76,9 @@ namespace Game.Core
                 return false;
             }
 
+#if UNITY_EDITOR
+            if (gridView != null) gridView.ViewChanged -= RenderDebugPins;
+#endif
             if (!sceneUIRoot.TryGetElement<FormationGridView>(FormationUIElementIds.GridRoot, out gridView))
             {
                 WarnMissing(FormationUIElementIds.GridRoot);
@@ -88,14 +94,19 @@ namespace Game.Core
 #if UNITY_EDITOR
             // 디버그 패널은 보조 기능이라 없어도 나머지 배치 UI는 정상 동작해야 한다 - 없으면 조용히 건너뛴다.
             sceneUIRoot.TryGetElement<FormationGridDebugView>(FormationUIElementIds.DebugPanelRoot, out debugView);
+            // 핀 표시는 칸 좌표로 놓이므로 확대/축소로 칸 좌표가 바뀔 때마다 다시 놓는다(2026-09-29 실전 확인 - 줌 후 핀이 어긋남).
+            gridView.ViewChanged += RenderDebugPins;
 #endif
 
             var rootCanvas = panelRoot.GetComponentInParent<Canvas>()?.rootCanvas;
-            dragCoordinator.Rebind(dragGhostPrefab, rootCanvas);
+            var grid = gridView;
+            dragCoordinator.Rebind(dragGhostPrefab, rootCanvas, () => grid.IconWorldSize);
 
             panelRoot.SetActive(false);
             return true;
         }
+
+        public void SetAreaOutline(IFormationAreaOutline outline) => areaOutline = outline;
 
         public void SetSources(ICaravanRosterProvider rosterProvider, IUnitConditionRepository conditionRepository)
         {
@@ -112,16 +123,22 @@ namespace Game.Core
 
             RefreshRosterCache();
             displayLayout = handler.GetDisplayLayout();
-            gridView.SetGridDimensions(displayLayout.ColumnCount, displayLayout.RowCount);
             gridView.Initialize(HandleSlotDropped, HandleUnitIconClicked, HandleGridIconBeginDrag, HandleIconDrag, HandleIconEndDrag);
-
-            RefreshAllSlots();
-            infoPanelView.Clear();
 #if UNITY_EDITOR
-            debugView?.Initialize(gridView.ColumnCount, gridView.RowCount, gridView.SlotSize, HandleDebugApply);
+            // 디버그 패널은 게임 UI 인스톨러가 늘 만들지만, 핀 저장소(Bootstrap, Install/Remove 메뉴)가 없으면 쓸 수 없으므로 숨긴다.
+            if (debugView != null)
+            {
+                debugView.gameObject.SetActive(handler.HasDebugPinStore);
+                if (handler.HasDebugPinStore) debugView.Initialize(HandleDebugPinDropped, HandleDebugPinClicked);
+            }
 #endif
 
+            // 표시 범위 전체가 들어오는 배율은 뷰포트 크기로 계산하므로, 패널을 먼저 켜고 레이아웃을 확정한 뒤 그린다.
             panelRoot.SetActive(true);
+            Canvas.ForceUpdateCanvases();
+            lastWagonCount = -1;
+            RefreshAllSlots();
+            infoPanelView.Clear();
         }
 
         public void Close()
@@ -212,22 +229,6 @@ namespace Game.Core
             }
         }
 
-#if UNITY_EDITOR
-        private void HandleDebugApply(int columns, int rows, Vector2 size)
-        {
-            // 뷰(그리드 타일 수)만 바꾸고 데이터 모델(FormationLayout)을 함께 재정렬하지 않으면, 새로
-            // 넓어진 칸의 슬롯 인덱스가 옛 배열 범위를 벗어나 배치가 조용히 실패하는 버그가 있었다
-            // (실전 확인, 2026-09-06) - handler.ResizeGrid를 먼저 호출해 데이터부터 맞춘다.
-            handler.ResizeGrid(columns, rows);
-            displayLayout = handler.GetDisplayLayout();
-
-            // 크기를 먼저 반영해야 열/행 변경으로 새로 생성되는 타일도 같은 크기로 만들어진다.
-            gridView.SetSlotSize(size);
-            gridView.SetGridDimensions(columns, rows);
-            RefreshAllSlots();
-        }
-#endif
-
         private void HandleUnitIconClicked(IFormationUnit unit) => infoPanelView.Show(unit);
 
         // 카테고리 행 클릭 시 같은 카테고리 개체는 전부 스탯/외형이 동일하므로(기획 11번 §3), 대표로
@@ -297,6 +298,8 @@ namespace Game.Core
 
             foreach (var unit in currentRoster)
             {
+                if (!handler.ShowsInPalette(unit)) continue;
+
                 var key = FormationCategoryKey.Of(unit);
                 if (!totals.ContainsKey(key))
                 {
@@ -414,18 +417,16 @@ namespace Game.Core
                 {
                     return;
                 }
-                handler.HandleGridMove(draggedUnit.Id, sourceIndex, targetSlotIndex);
+                // 이동이 거부되면(대열 밖·마차 연결 끊김) 옮기려던 유닛의 칸을 깜빡인다(설계 60번 §11-5).
+                if (!handler.HandleGridMove(draggedUnit.Id, sourceIndex, targetSlotIndex)) gridView.FlashRejected(sourceIndex);
             }
             else
             {
-                handler.HandlePaletteDrop(draggedUnit, targetSlotIndex);
+                if (!handler.HandlePaletteDrop(draggedUnit, targetSlotIndex)) gridView.FlashRejected(targetSlotIndex);
             }
 
-            // sourceIndex(원본 슬롯)는 아직 드래그 중인 아이콘이 점유하고 있으므로 여기서 갱신하지
-            // 않는다 - 실제 갱신은 드래그가 끝나는 HandleIconEndDrag에서 처리한다(기존 FormationPanel
-            // 동작 그대로).
-            displayLayout = handler.GetDisplayLayout();
-            RefreshSlot(targetSlotIndex);
+            // 화면 갱신은 여기서 하지 않는다 - 원본 슬롯 아이콘은 아직 드래그 중인 오브젝트라 지금 다시 그리면 뒤이은 OnEndDrag가
+            // 씹힌다(기존 FormationPanel 동작). 대열 영역이 바뀌었을 수 있어 드래그가 끝나는 HandleIconEndDrag에서 전체를 다시 그린다.
         }
 
         private void HandleIconEndDrag(PointerEventData eventData)
@@ -439,19 +440,15 @@ namespace Game.Core
             // (HandleActivityGhostEndDrag)와 동일한 규칙.
             if (!wasRedirect && !wasHandled && fromSlot.HasValue && unit != null)
             {
-                // 타일/팔레트가 아닌 곳에 드롭 = 배치 취소/제거(기획 20번 §3.4).
-                handler.HandleRemove(unit.Id, fromSlot.Value);
+                // 타일/팔레트가 아닌 곳에 드롭 = 배치 취소/제거(기획 20번 §3.4). 마차 연결을 끊는 제거면 거부되고 칸이 깜빡인다.
+                if (!handler.HandleRemove(unit.Id, fromSlot.Value)) gridView.FlashRejected(fromSlot.Value);
             }
 
-            // 원본 슬롯의 아이콘 갱신은 반드시 여기(드래그가 실제로 끝나는 시점)에서 한다 - OnDrop
-            // 시점(HandleSlotDropped)에는 이 아이콘이 아직 드래그 중인 오브젝트라, 거기서 갱신하면
-            // 뒤이은 OnEndDrag 호출이 씹혀 드래그 상태가 초기화되지 않는 문제가 있었다.
+            // 화면 갱신은 반드시 여기(드래그가 실제로 끝나는 시점)에서 한다 - OnDrop 시점(HandleSlotDropped)에는 원본 아이콘이
+            // 아직 드래그 중인 오브젝트라, 거기서 갱신하면 뒤이은 OnEndDrag 호출이 씹혀 드래그 상태가 초기화되지 않는 문제가 있었다.
+            // 배치·이동·제거로 대열 영역이 바뀌었을 수 있어 표시 범위부터 전체를 다시 그린다.
             displayLayout = handler.GetDisplayLayout();
-            if (fromSlot.HasValue)
-            {
-                RefreshSlot(fromSlot.Value);
-            }
-            RefreshPalette();
+            RefreshAllSlots();
         }
 
         private void RefreshSlot(int index)
@@ -466,16 +463,76 @@ namespace Game.Core
             gridView.RenderSlot(index, unit);
         }
 
+        // 대열 영역을 다시 계산해 표시 범위(경계 상자 + 여백, 판 경계로 자름)와 대열 칸 표시를 갱신하고, 보이는 칸만 다시 그린다.
+        private const int FitMarginCells = 2;
+
+        // 경계 상자를 여백만큼 넓히고 판 경계로 자른다.
+        private RectInt ExpandBounds(RectInt bounds, int margin)
+        {
+            var xMin = Mathf.Max(0, bounds.xMin - margin);
+            var yMin = Mathf.Max(0, bounds.yMin - margin);
+            var xMax = Mathf.Min(displayLayout.ColumnCount, bounds.xMax + margin);
+            var yMax = Mathf.Min(displayLayout.RowCount, bounds.yMax + margin);
+            return new RectInt(xMin, yMin, xMax - xMin, yMax - yMin);
+        }
+
         private void RefreshAllSlots()
         {
-            for (var i = 0; i < displayLayout.SlotCount; i++)
+            var area = FormationArea.Compute(displayLayout, LookupUnit, handler.GetAreaPins());
+            // 최대 축소 범위(대열 + 2칸)와 칸을 까는 범위(대열 + 정책 여백 - 마을은 연결 가능한 칸까지)를 나눈다. 둘을 같게 두면 마을의 넓은 여백 때문에
+            // 최대 축소 화면에서 대열이 너무 작아진다(2026-09-29 사용자 결정 - 축소 한계만 2칸, 먼 칸은 스크롤로 접근).
+            var fitRange = ExpandBounds(area.Bounds, FitMarginCells);
+            var contentRange = ExpandBounds(area.Bounds, Mathf.Max(FitMarginCells, handler.GetVisibleMarginCells()));
+            // 열 때는 늘 "범위 전체 보기"로 맞춘다(기획 59번 §4.4 - 이전에 열었을 때의 배율이 남으면 여는 화면이 최대 축소가 아니게 된다, 2026-09-29
+            // V-02 실전 확인). 마차가 없으면 전체 보기의 중앙이 곧 기준 칸이다. 편집 중 마차가 0대가 되는 순간에는 배율은 두고 기준 칸(원점)으로만
+            // 옮긴다(2026-09-29 사용자 요청) - 마차가 없는 동안 매번 옮기면 디버그 핀 편집 중에도 화면이 튄다.
+            var justOpened = lastWagonCount < 0;
+            Vector2? focus = null;
+            if (!justOpened && area.WagonCount == 0 && lastWagonCount > 0)
             {
-                RefreshSlot(i);
+                focus = new Vector2(area.AnchorSlotIndex % area.ColumnCount + 0.5f, area.AnchorSlotIndex / area.ColumnCount + 0.5f);
             }
-            // 슬롯 배치가 통째로 바뀌었을 수 있으므로(Open/디버그 리사이즈) 팔레트 잔여수도 다시
-            // 계산한다 - 카테고리는 최대 5개뿐이라 매번 다시 그려도 비용이 미미하다(설계 16번 §3).
+            lastWagonCount = area.WagonCount;
+            gridView.SetView(displayLayout.ColumnCount, displayLayout.RowCount, fitRange, contentRange, area.Contains, focus, fitView: justOpened);
+
+            foreach (var index in gridView.VisibleSlotIndices)
+            {
+                RefreshSlot(index);
+            }
+#if UNITY_EDITOR
+            RenderDebugPins();
+#endif
+            areaOutline?.Render(area, gridView);
+            // 슬롯 배치가 통째로 바뀌었을 수 있으므로 팔레트 잔여수도 다시 계산한다 - 카테고리는 최대 5개뿐이라 매번 다시 그려도
+            // 비용이 미미하다(설계 16번 §3).
             RefreshPalette();
         }
+
+#if UNITY_EDITOR
+        private void RenderDebugPins()
+        {
+            if (debugView == null || !debugView.isActiveAndEnabled || handler == null) return;
+            debugView.RenderPins(handler.GetAreaPins(), gridView.ContentRect, gridView.IsVisible, gridView.GetSlotAnchoredPosition, gridView.CellSize);
+        }
+
+        private void HandleDebugPinDropped(int slotIndex, int radius)
+        {
+            handler.HandleDebugPinAdd(slotIndex, radius);
+            displayLayout = handler.GetDisplayLayout();
+            RefreshAllSlots();
+        }
+
+        // 핀 제거가 마차 연결을 끊으면 거부되고 그 칸이 깜빡인다(기획 59번 §4.5).
+        private void HandleDebugPinClicked(int slotIndex)
+        {
+            if (!handler.HandleDebugPinRemove(slotIndex)) gridView.FlashRejected(slotIndex);
+            displayLayout = handler.GetDisplayLayout();
+            RefreshAllSlots();
+        }
+#endif
+
+        private IFormationUnit LookupUnit(string unitId)
+            => !string.IsNullOrEmpty(unitId) && unitsById.TryGetValue(unitId, out var unit) ? unit : null;
 
         private static void WarnMissing(string id)
         {

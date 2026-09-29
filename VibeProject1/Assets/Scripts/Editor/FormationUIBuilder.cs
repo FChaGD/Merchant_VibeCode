@@ -371,7 +371,8 @@ namespace Game.Core.Editor
         {
             var root = EditorUIBuilder.GetOrCreateUIObject(parent, "Grid");
             EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.08f, 0.30f), new Vector2(0.64f, 0.74f));
-            EditorUIBuilder.EnsureImage(root, new Color(0.82f, 0.95f, 0.85f, 1f));
+            // 격자 바탕 = 판 밖(어두운 회색). 민트 판 칸은 FormationGridView/FormationSlotView가 칸마다 칠한다(2026-09-29, 판 경계 구분).
+            EditorUIBuilder.EnsureImage(root, new Color(0.25f, 0.25f, 0.27f, 1f));
             EditorUIBuilder.EnsureMarker(root, FormationUIElementIds.GridRoot);
 
             var (_, content, layoutGroup) = BuildGridScrollArea(root.transform, new Vector2(120f, 120f), 8);
@@ -416,8 +417,9 @@ namespace Game.Core.Editor
         }
 
         /// <summary>
-        /// Play 모드에서 그리드 슬롯 개수/크기를 즉시 조절할 수 있는 온스크린 디버그 패널.
-        /// 상단 여백(팔레트/버튼 행 위쪽, 목업에는 없는 영역)에 배치한다.
+        /// 정비창 디버그 핀 패널(Docs/기획/59번 §4.5, 설계 60번 §8): 반경 입력 + 끌어서 격자에 놓는 핀 아이콘. 격자 위 핀 표시를 누르면 제거를
+        /// 시도한다. 상단 여백(팔레트/버튼 행 위쪽, 목업에는 없는 영역)에 배치한다. 핀 저장소는 디버그 설치기(FormationDebugPinInstaller)가
+        /// Bootstrap에 붙인다 - 저장소가 없으면 이 패널은 보이지만 핀이 저장되지 않는다.
         /// </summary>
         private static void BuildDebugPanel(Transform parent)
         {
@@ -426,32 +428,27 @@ namespace Game.Core.Editor
             EditorUIBuilder.EnsureImage(root, new Color(0f, 0f, 0f, 0.15f));
             EditorUIBuilder.EnsureMarker(root, FormationUIElementIds.DebugPanelRoot);
 
-            BuildDebugLabel(root.transform, "ColumnsLabel", "X", new Vector2(0.00f, 0f), new Vector2(0.05f, 1f));
-            var columnsInput = CreateInputField(root.transform, "ColumnsInput", new Vector2(0.05f, 0.1f), new Vector2(0.16f, 0.9f), TMP_InputField.ContentType.IntegerNumber);
+            // 옛 판 크기 조절 입력(열·행·칸 크기·적용) 정리 - 외곽 판이 50 × 50 고정이 되며 없앴다.
+            foreach (var stale in new[] { "ColumnsLabel", "ColumnsInput", "RowsLabel", "RowsInput", "WidthLabel", "WidthInput", "HeightLabel", "HeightInput", "ApplyButton" })
+            {
+                EditorUIBuilder.DestroyChildIfExists(root.transform, stale);
+            }
 
-            BuildDebugLabel(root.transform, "RowsLabel", "Y", new Vector2(0.19f, 0f), new Vector2(0.24f, 1f));
-            var rowsInput = CreateInputField(root.transform, "RowsInput", new Vector2(0.24f, 0.1f), new Vector2(0.35f, 0.9f), TMP_InputField.ContentType.IntegerNumber);
+            BuildDebugLabel(root.transform, "RadiusLabel", "핀 반경", new Vector2(0.00f, 0f), new Vector2(0.12f, 1f));
+            var radiusInput = CreateInputField(root.transform, "RadiusInput", new Vector2(0.13f, 0.1f), new Vector2(0.22f, 0.9f), TMP_InputField.ContentType.IntegerNumber);
 
-            BuildDebugLabel(root.transform, "WidthLabel", "W", new Vector2(0.38f, 0f), new Vector2(0.43f, 1f));
-            var widthInput = CreateInputField(root.transform, "WidthInput", new Vector2(0.43f, 0.1f), new Vector2(0.55f, 0.9f), TMP_InputField.ContentType.DecimalNumber);
+            var pinGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "PinHandle");
+            EditorUIBuilder.SetAnchors(pinGo.GetComponent<RectTransform>(), new Vector2(0.25f, 0.15f), new Vector2(0.29f, 0.85f));
+            EditorUIBuilder.EnsureImage(pinGo, new Color(0.85f, 0.1f, 0.85f, 0.95f));
+            var pinHandle = EditorUIBuilder.GetOrAddComponent<FormationDebugPinHandle>(pinGo);
 
-            BuildDebugLabel(root.transform, "HeightLabel", "H", new Vector2(0.58f, 0f), new Vector2(0.63f, 1f));
-            var heightInput = CreateInputField(root.transform, "HeightInput", new Vector2(0.63f, 0.1f), new Vector2(0.75f, 0.9f), TMP_InputField.ContentType.DecimalNumber);
-
-            var applyGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "ApplyButton");
-            EditorUIBuilder.SetAnchors(applyGo.GetComponent<RectTransform>(), new Vector2(0.78f, 0.1f), new Vector2(0.98f, 0.9f));
-            EditorUIBuilder.EnsureImage(applyGo, new Color(0.7f, 1f, 0.7f, 1f));
-            EditorUIBuilder.EnsureButton(applyGo);
-            var applyLabel = EditorUIBuilder.EnsureLabel(applyGo.transform, "적용");
-            applyLabel.fontSize = 18;
+            BuildDebugLabel(root.transform, "PinHint", "← 핀을 격자에 끌어다 놓기 / 격자의 핀 클릭 = 제거", new Vector2(0.30f, 0f), new Vector2(0.98f, 1f));
+            root.transform.Find("PinHint").GetComponent<TextMeshProUGUI>().alignment = TextAlignmentOptions.MidlineLeft;
 
             var debugView = EditorUIBuilder.GetOrAddComponent<FormationGridDebugView>(root);
             var so = new SerializedObject(debugView);
-            so.FindProperty("columnsInput").objectReferenceValue = columnsInput;
-            so.FindProperty("rowsInput").objectReferenceValue = rowsInput;
-            so.FindProperty("slotWidthInput").objectReferenceValue = widthInput;
-            so.FindProperty("slotHeightInput").objectReferenceValue = heightInput;
-            so.FindProperty("applyButton").objectReferenceValue = applyGo.GetComponent<Button>();
+            so.FindProperty("radiusInput").objectReferenceValue = radiusInput;
+            so.FindProperty("pinHandle").objectReferenceValue = pinHandle;
             so.ApplyModifiedProperties();
         }
 

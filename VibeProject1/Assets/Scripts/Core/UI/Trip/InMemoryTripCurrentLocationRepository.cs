@@ -12,8 +12,8 @@ namespace Game.Core
     /// </summary>
     public class InMemoryTripCurrentLocationRepository : MonoBehaviour, ITripCurrentLocationRepository, IManagedComponent
     {
-        // 임시값 - 실제 홈/시작 도시를 어떻게 정할지는 후속 과제(기획 16번 §4/§8).
-        private const int InitialHomeCityId = 1;
+        // 임시값 - 실제 홈/시작 도시를 어떻게 정할지는 후속 과제(기획 16번 §4/§8). 2026-09-29 사용자 지시로 1 → 4(대도시, 시설 전부 제공).
+        private const int InitialHomeCityId = 4;
 
         private int currentCityId = InitialHomeCityId;
 

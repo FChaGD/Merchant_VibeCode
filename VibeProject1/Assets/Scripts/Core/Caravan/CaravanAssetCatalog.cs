@@ -13,14 +13,16 @@ namespace Game.Core
         public FormationUnitKind Kind { get; }
         public string KindLabel { get; }
         public int Price { get; }
+        public int Radius { get; }
 
-        public CaravanAssetProfile(string id, string name, FormationUnitKind kind, string kindLabel, int price)
+        public CaravanAssetProfile(string id, string name, FormationUnitKind kind, string kindLabel, int price, int radius = 0)
         {
             Id = id;
             Name = name;
             Kind = kind;
             KindLabel = kindLabel;
             Price = price;
+            Radius = radius;
         }
     }
 
@@ -69,7 +71,7 @@ namespace Game.Core
             foreach (var entry in table.Entries)
             {
                 var name = strings != null && strings.TryGetLabel(entry.Id, out var ko) ? ko : MissingText;
-                var profile = new CaravanAssetProfile(entry.Id, name, kind, GetKindLabel(kind), entry.Price);
+                var profile = new CaravanAssetProfile(entry.Id, name, kind, GetKindLabel(kind), entry.Price, entry.Radius);
                 all.Add(profile);
                 byId[entry.Id] = profile;
             }

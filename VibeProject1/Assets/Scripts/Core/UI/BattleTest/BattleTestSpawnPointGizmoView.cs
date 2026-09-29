@@ -27,10 +27,10 @@ namespace Game.Core
 
         private void Update()
         {
-            var columnCount = FieldLayout.ColumnCount;
+            var extent = FieldLayout.Extent;
 
-            DrawCircle(FieldLayout.ComputeSpawnRadius(columnCount));
-            RepositionMarkers(columnCount);
+            DrawCircle(FieldLayout.ComputeSpawnRadius(extent));
+            RepositionMarkers(extent);
             RefreshMarkerReservations();
         }
 
@@ -44,11 +44,11 @@ namespace Game.Core
             }
         }
 
-        private void RepositionMarkers(int columnCount)
+        private void RepositionMarkers(FormationExtent extent)
         {
             foreach (var marker in markers)
             {
-                var position = FieldLayout.ComputeSpawnPoint(marker.SpawnPointIndex, columnCount);
+                var position = FieldLayout.ComputeSpawnPoint(marker.SpawnPointIndex, extent);
                 marker.transform.position = new Vector3(position.x, position.y, 0f);
             }
         }

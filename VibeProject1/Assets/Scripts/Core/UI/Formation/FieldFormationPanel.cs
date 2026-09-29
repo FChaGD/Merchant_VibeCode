@@ -12,6 +12,9 @@ namespace Game.Core
     /// 쓰지 않고 IFieldFormationActivityRepository에 배치/이동 활동을 등록하는 것으로 대신한다 -
     /// 그 저장소가 시간이 지나 활동을 완료 처리할 때 비로소 FormationLayout에 반영된다(설계 25번
     /// §3.2). 그리드/팔레트 렌더링과 드래그 이벤트 중계는 공용 로직(FormationGridEditor)에 위임한다.
+    /// 마차 중심 대열 규칙(Docs/기획/59번, 설계 60번 §5): 대열 영역은 배치 완료된 유닛만으로 계산한다(진행 중 배치는 영역을 넓히지 않음).
+    /// 배치·이동 목표는 현재 영역 안이어야 하고, 이동·제거는 편집 후 배치로 마차 연결을 검사한다. 영역이 줄면 영역 밖 유닛을 자동 해제하고
+    /// 목표가 영역 밖이 된 진행 중 활동을 취소한다. 이동 경로는 영역 밖 칸을 지나지 않는다.
     /// </summary>
     public class FieldFormationPanel : MonoBehaviour, IUIPanel, IFormationEditingHandler, IFormationActivityHandler
     {
@@ -26,6 +29,8 @@ namespace Game.Core
         private IFormationRepository formationRepository;
         private IFieldFormationActivityRepository activityRepository;
         private IUIManager uiManager;
+        // 디버그 핀(에디터 전용 도구, 같은 UIManager 오브젝트에 설치된 경우만) - 없으면 null.
+        private IFormationDebugAreaSource debugAreaSource;
 
         public void RegisterFieldFormationUI(SceneUIRoot sceneUIRoot, ICaravanRosterProvider rosterProvider, IFormationRepository formationRepository, IUnitConditionRepository conditionRepository, IFieldFormationActivityRepository activityRepository, IUIManager uiManager)
         {
@@ -33,6 +38,7 @@ namespace Game.Core
             this.formationRepository = formationRepository;
             this.activityRepository = activityRepository;
             this.uiManager = uiManager;
+            debugAreaSource = GetComponent<IFormationDebugAreaSource>();
 
             gridEditor = new FormationGridEditor(this);
             if (!gridEditor.TryBind(sceneUIRoot, dragGhostPrefab))
@@ -71,23 +77,13 @@ namespace Game.Core
 
         public IReadOnlyList<FormationActivity> GetActiveActivities() => activityRepository?.ActiveActivities ?? Array.Empty<FormationActivity>();
 
-#if UNITY_EDITOR
-        public void ResizeGrid(int columns, int rows)
-        {
-            if (formationRepository == null) return;
-
-            var layout = formationRepository.TryLoadCurrent(out var current)
-                ? current.Resize(columns, rows)
-                : new FormationLayout(columns, rows);
-            formationRepository.Apply(layout);
-        }
-#endif
-
         // 완료/취소된 활동의 도착 고스트를 지금 드래그하는 중이었다면(예: 드래그를 놓지 않은 채
         // 목적지에 도착) 드래그 상태를 함께 정리한다 - 안 그러면 오버레이 자체는 사라져도 별도
         // 오브젝트인 드래그 고스트만 화면에 남아 마우스 커서를 계속 따라다닌다(실전 확인, 2026-09-07).
         private void HandleActivityChanged(FormationActivity activity)
         {
+            // 이동 완료로 마차·시설 위치가 바뀌면 영역이 달라질 수 있다 - 영역 밖 유닛·활동을 정리한다.
+            NormalizeToArea();
             gridEditor?.CancelDragIfRedirectingUnit(activity.UnitId);
             gridEditor?.RequestRefresh();
         }
@@ -105,14 +101,53 @@ namespace Game.Core
             {
                 return layout;
             }
-            return new FormationLayout(gridEditor.GridColumnCount, gridEditor.GridRowCount);
+            return FormationLayout.CreateDefault();
         }
+
+        public IReadOnlyList<FormationAreaPin> GetAreaPins() => debugAreaSource?.Pins;
+
+        // 상행 중은 대열 안에만 놓으므로 여백 2칸(설계 60번 §15.3 - 마차 자유 배치는 마을만).
+        public int GetVisibleMarginCells() => 2;
+
+        // 상행 중 팔레트에는 마차를 보이지 않는다(새로 놓을 수 없음, 2026-09-29 사용자 결정).
+        public bool ShowsInPalette(IFormationUnit unit) => unit.Kind != FormationUnitKind.Wagon;
+
+#if UNITY_EDITOR
+        public bool HasDebugPinStore => debugAreaSource != null;
+
+        public void HandleDebugPinAdd(int slotIndex, int radius) => debugAreaSource?.AddOrReplace(new FormationAreaPin(slotIndex, radius));
+
+        // 핀 제거로 영역이 줄면 영역 밖 유닛 해제·활동 취소까지 마차 제거와 같게 처리한다.
+        public bool HandleDebugPinRemove(int slotIndex)
+        {
+            if (debugAreaSource == null) return false;
+
+            var layout = GetDisplayLayout();
+            var remaining = new List<FormationAreaPin>(debugAreaSource.Pins);
+            remaining.RemoveAll(p => p.SlotIndex == slotIndex);
+            var result = FormationAreaRules.Validate(layout.Clone(), FormationAreaRules.LookupFrom(rosterProvider), remaining);
+            if (!result.Accepted) return false;
+
+            debugAreaSource.Remove(slotIndex);
+            if (formationRepository != null) ApplyAndCancelOutside(result);
+            return true;
+        }
+#endif
 
         public bool IsUnitReserved(string unitId) => activityRepository != null && activityRepository.IsUnitBusy(unitId);
 
-        public void HandlePaletteDrop(IFormationUnit unit, int targetSlotIndex)
+        public bool HandlePaletteDrop(IFormationUnit unit, int targetSlotIndex)
         {
-            if (activityRepository == null) return;
+            if (activityRepository == null) return false;
+            // 상행 중에는 마차를 새로 놓거나 뺄 수 없다(2026-09-29 사용자 결정 - 이동만 허용). 팔레트에서도 숨기지만 방어적으로 한 번 더 막는다.
+            if (unit.Kind == FormationUnitKind.Wagon) return false;
+
+            // 목표는 현재 대열 칸이어야 하고(마차가 없으면 기준 칸엔 마차만), 상행 중엔 비어 있는 칸에만 놓는다 - 배치 완료 시점에
+            // 점유 유닛을 덮어쓰면 그 유닛이 마차일 때 연결 판정 없이 빠지기 때문이다.
+            var layout = GetDisplayLayout();
+            var lookup = FormationAreaRules.LookupFrom(rosterProvider);
+            if (FormationAreaRules.CanPlaceAt(FormationArea.Compute(layout, lookup, GetAreaPins()), unit, targetSlotIndex) != FormationEditRejection.None) return false;
+            if (!string.IsNullOrEmpty(GetOccupantTreatingMovedOriginAsEmpty(layout, targetSlotIndex)) || IsActivityTarget(targetSlotIndex)) return false;
 
             var duration = unit.Kind switch
             {
@@ -121,11 +156,15 @@ namespace Game.Core
                 _ => FormationTiming.CharacterAddSeconds,
             };
             activityRepository.BeginAdd(unit.Id, targetSlotIndex, duration);
+            return true;
         }
 
-        public void HandleGridMove(string unitId, int originSlotIndex, int targetSlotIndex)
+        public bool HandleGridMove(string unitId, int originSlotIndex, int targetSlotIndex)
         {
-            if (activityRepository == null || formationRepository == null || !formationRepository.TryLoadCurrent(out var layout)) return;
+            if (activityRepository == null || formationRepository == null || !formationRepository.TryLoadCurrent(out var layout)) return false;
+
+            // 이동을 끝낸 뒤의 배치(맞바꾸기 포함)로 대열 규칙을 먼저 검사한다 - 활동을 취소하기 전에 판정해야 거부 시 원래 상태가 유지된다.
+            if (!FormationAreaRules.Move(layout, originSlotIndex, targetSlotIndex, FormationAreaRules.LookupFrom(rosterProvider), GetAreaPins()).Accepted) return false;
 
             // 이미 이동 중인 유닛을 다시 드래그하면(재조정) 기존 활동을 취소하고 새로 시작한다 -
             // 그대로 두면 같은 유닛에 활동이 두 개 겹쳐 상태가 어긋난다(설계 25번 §3.2 안전장치).
@@ -148,6 +187,7 @@ namespace Game.Core
             }
 
             StartMove(layout, unitId, originSlotIndex, targetSlotIndex);
+            return true;
         }
 
         private void StartMove(FormationLayout layout, string unitId, int originSlotIndex, int targetSlotIndex)
@@ -172,6 +212,9 @@ namespace Game.Core
             if (activityRepository == null || formationRepository == null) return;
             if (!activityRepository.TryGetActivity(unitId, out var activity) || activity.Kind != FormationActivityKind.Moving) return;
             if (!formationRepository.TryLoadCurrent(out var layout)) return;
+            // 새 목적지도 대열 안이어야 한다(시설은 마차·핀 영역 안).
+            var lookup = FormationAreaRules.LookupFrom(rosterProvider);
+            if (!FormationArea.Compute(layout, lookup, GetAreaPins()).CanHost(lookup(unitId), newTargetSlotIndex)) return;
 
             // 지금 정확히 어느 구간(fromNode→toNode)의 몇 %(localT) 지점에 있는지 찾는다 - 이 활동
             // 자신이 이전 리다이렉트로 이미 부분 구간을 갖고 있어도(PartialSegmentIndex/Weight)
@@ -244,25 +287,76 @@ namespace Game.Core
             activityRepository.RedirectMove(unitId, newTargetSlotIndex, combinedPath, requiredSeconds, elapsedSeconds, partialSegmentIndex, partialSegmentWeight);
         }
 
-        public void HandleRemove(string unitId, int slotIndex)
+        public bool HandleRemove(string unitId, int slotIndex)
         {
+            // 상행 중 마차 제거 금지(2026-09-29 사용자 결정) - 이전의 "마차 최소 1대 유지"(기획 20번 §3.4)는 이 규칙에 포함돼 따로 두지 않는다.
+            var rosterUnit = rosterProvider?.GetRoster().FirstOrDefault(u => u.Id == unitId);
+            if (rosterUnit != null && rosterUnit.Kind == FormationUnitKind.Wagon) return false;
+
             if (activityRepository != null && activityRepository.IsUnitBusy(unitId))
             {
                 // 진행 중(배치/이동) 제거 - 즉시 취소, 로스터 복귀(기획 20번 §3.4).
                 activityRepository.Cancel(unitId);
+                return true;
+            }
+
+            if (formationRepository == null || !formationRepository.TryLoadCurrent(out var layout)) return false;
+
+            var result = FormationAreaRules.Remove(layout, slotIndex, FormationAreaRules.LookupFrom(rosterProvider), GetAreaPins());
+            if (!result.Accepted) return false;
+
+            ApplyAndCancelOutside(result);
+            return true;
+        }
+
+        // 영역 밖 유닛 자동 해제와 영역 밖 목표 활동 취소를 함께 반영한다(설계 60번 §5).
+        private void ApplyAndCancelOutside(FormationEditResult result)
+        {
+            if (activityRepository != null)
+            {
+                foreach (var releasedId in result.ReleasedUnitIds)
+                {
+                    if (activityRepository.IsUnitBusy(releasedId)) activityRepository.Cancel(releasedId);
+                }
+            }
+
+            formationRepository.Apply(result.Layout);
+
+            if (activityRepository == null) return;
+            var lookup = FormationAreaRules.LookupFrom(rosterProvider);
+            var area = FormationArea.Compute(result.Layout, lookup, GetAreaPins());
+            var outside = new List<string>();
+            foreach (var activity in activityRepository.ActiveActivities)
+            {
+                if (!area.CanHost(lookup(activity.UnitId), activity.TargetSlotIndex)) outside.Add(activity.UnitId);
+            }
+            foreach (var outsideUnitId in outside) activityRepository.Cancel(outsideUnitId);
+        }
+
+        // 활동 완료 뒤 현재 배치를 대열 규칙에 맞춘다. 이동 시작 시점에 연결을 검사했지만, 그 사이 다른 편집이 끼면 도착 시점에 연결이
+        // 끊길 수 있다 - 이미 끝난 이동은 되돌릴 수 없어 이 경우는 경고만 남기고 둔다.
+        private void NormalizeToArea()
+        {
+            if (formationRepository == null || !formationRepository.TryLoadCurrent(out var layout)) return;
+
+            var result = FormationAreaRules.Validate(layout.Clone(), FormationAreaRules.LookupFrom(rosterProvider), GetAreaPins());
+            if (!result.Accepted)
+            {
+                Debug.LogWarning($"{nameof(FieldFormationPanel)}: 이동 완료 후 마차 대열 연결이 끊겼다 - 마차 위치를 다시 조정하라.");
                 return;
             }
 
-            if (formationRepository == null || !formationRepository.TryLoadCurrent(out var layout)) return;
+            if (result.ReleasedUnitIds.Count > 0) ApplyAndCancelOutside(result);
+        }
 
-            var rosterUnit = rosterProvider?.GetRoster().FirstOrDefault(u => u.Id == unitId);
-            if (rosterUnit != null && rosterUnit.Kind == FormationUnitKind.Wagon && WouldViolateMinimumCount(rosterUnit, layout))
+        private bool IsActivityTarget(int slotIndex)
+        {
+            if (activityRepository == null) return false;
+            foreach (var activity in activityRepository.ActiveActivities)
             {
-                return; // 마차 최소 1개 유지(기획 20번 §3.4, 2026-09-07 사용자 확정으로 시설은 제외) - 조용히 무시, 슬롯은 그대로 유지.
+                if (activity.TargetSlotIndex == slotIndex) return true;
             }
-
-            layout.Clear(slotIndex);
-            formationRepository.Apply(layout);
+            return false;
         }
 
         // 이동 중인 유닛은 도착 완료(Complete) 전까지 FormationLayout 상 여전히 출발 슬롯을 점유한
@@ -293,6 +387,14 @@ namespace Game.Core
         private HashSet<int> CollectBlockedSlots(FormationLayout layout, string excludeUnitId)
         {
             var blocked = new HashSet<int>();
+
+            // 대열 밖 칸은 지나갈 수 없다(설계 60번 §5).
+            var area = FormationArea.Compute(layout, FormationAreaRules.LookupFrom(rosterProvider), GetAreaPins());
+            for (var i = 0; i < layout.SlotCount; i++)
+            {
+                if (!area.Contains(i)) blocked.Add(i);
+            }
+
             for (var i = 0; i < layout.SlotCount; i++)
             {
                 var id = layout.GetUnitId(i);
@@ -314,27 +416,6 @@ namespace Game.Core
             }
 
             return blocked;
-        }
-
-        // 마차는 최소 1개가 대열(배치 완료된 슬롯)에 남아 있어야 한다(기획 20번 §3.4, 2026-09-07
-        // 사용자 확정으로 시설은 제외 - 호출부(HandleRemove)가 Wagon일 때만 호출한다). 이 유닛을
-        // 제거했을 때 같은 종류(Kind)가 0개가 되면 위반 - Kind로 일반화해둔 이유는 향후 다른 종류에도
-        // 같은 최소 유지 규칙이 필요해지면 호출부만 바꿔 재사용하기 위함.
-        private bool WouldViolateMinimumCount(IFormationUnit unitToRemove, FormationLayout layout)
-        {
-            var remainingOfKind = 0;
-            for (var i = 0; i < layout.SlotCount; i++)
-            {
-                var id = layout.GetUnitId(i);
-                if (string.IsNullOrEmpty(id) || id == unitToRemove.Id) continue;
-
-                var placedUnit = rosterProvider?.GetRoster().FirstOrDefault(u => u.Id == id);
-                if (placedUnit != null && placedUnit.Kind == unitToRemove.Kind)
-                {
-                    remainingOfKind++;
-                }
-            }
-            return remainingOfKind < 1;
         }
     }
 }

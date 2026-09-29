@@ -15,11 +15,16 @@ MonoBehaviour:
   entries:
   - Id: Facility01
     Price: 1000
+    Radius: 4
   - Id: Facility02
     Price: 1000
+    Radius: 4
   - Id: Facility03
     Price: 1000
+    Radius: 4
   - Id: Facility04
     Price: 1000
+    Radius: 4
   - Id: Facility05
     Price: 1000
+    Radius: 4

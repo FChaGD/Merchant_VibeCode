@@ -95,13 +95,13 @@ namespace Game.Core
             // 다시 정확하게 잡아준다. BattleTest 프리셋 - 요구사항: 이 씬은 전장 정사각형 밖으로도
             // 자유롭게 드래그팬할 수 있어야 한다(Field 씬은 프리셋을 안 바꿔 기존 제약 그대로).
             cameraView.ApplyPreset(CameraPreset.BattleTest);
-            var columnCount = battleTestSimulation.FieldLayout.ColumnCount;
-            cameraView.ConfigureFieldBounds(battleTestSimulation.FieldLayout.ComputeFieldRadius(columnCount));
+            var extent = battleTestSimulation.FieldLayout.Extent;
+            cameraView.ConfigureFieldBounds(battleTestSimulation.FieldLayout.ComputeFieldRadius(extent));
 
             // 요구사항: 바닥 배경 타일이 전투 시작 전(세팅 단계)부터 보여야 한다 - 원래
             // BattleBackgroundGridView.ConfigureField는 BattleViewPresenter.Present()(전투 시작 시)에만
             // 호출돼, 그전까지는 타일 풀 자체가 비어 있었다(비활성화가 아니라 아예 생성 전).
-            backgroundView.ConfigureField(battleTestSimulation.FieldLayout.ComputeSpawnRadius(columnCount));
+            backgroundView.ConfigureField(battleTestSimulation.FieldLayout.ComputeSpawnRadius(extent));
         }
 
         // BattleViewPresenter는 OnSimulationBuilt(Evaluate() 1회)에만 반응해 유닛 뷰를 스폰하므로,

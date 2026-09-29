@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,6 +12,7 @@ namespace Game.Core
     /// 모델을 쓰지 않고 FieldFormationPanel이 즉시 반영 모델로 대신 담당한다).
     /// 그리드/팔레트 렌더링과 드래그 이벤트 중계는 공용 로직(FormationGridEditor)에 위임하고, 이
     /// 클래스는 "드롭 시 무엇을 반영할지"(IFormationEditingHandler)와 적용 버튼만 담당한다.
+    /// 배치·이동·제거는 마차 중심 대열 규칙(FormationAreaRules, Docs/기획/59번)으로 판정하고, 허용된 결과(자동 해제 포함)만 로컬 사본에 반영한다.
     /// </summary>
     public class HubFormationPanel : MonoBehaviour, IUIPanel, IFormationEditingHandler
     {
@@ -23,14 +25,19 @@ namespace Game.Core
         private Button closeButton;
 
         private IFormationRepository repository;
+        private ICaravanRosterProvider rosterProvider;
         private IUIManager uiManager;
+        // 디버그 핀(에디터 전용 도구, 같은 UIManager 오브젝트에 설치된 경우만) - 없으면 null.
+        private IFormationDebugAreaSource debugAreaSource;
 
         private FormationLayout currentLayout;
 
         public void RegisterFormationUI(SceneUIRoot sceneUIRoot, ICaravanRosterProvider rosterProvider, IFormationRepository repository, IUnitConditionRepository conditionRepository, IUIManager uiManager)
         {
             this.repository = repository;
+            this.rosterProvider = rosterProvider;
             this.uiManager = uiManager;
+            debugAreaSource = GetComponent<IFormationDebugAreaSource>();
 
             gridEditor = new FormationGridEditor(this);
             if (!gridEditor.TryBind(sceneUIRoot, dragGhostPrefab))
@@ -51,6 +58,8 @@ namespace Game.Core
             }
 
             gridEditor.SetSources(rosterProvider, conditionRepository);
+            // 대열 외곽선은 마을 정비창에만 표시한다(디버그 도구, 사용자 결정 2026-09-29) - 상행 정비창은 넘기지 않는다.
+            gridEditor.SetAreaOutline(GetComponent<IFormationAreaOutline>());
 
             applyButton.onClick.RemoveAllListeners();
             applyButton.onClick.AddListener(HandleApply);
@@ -77,7 +86,7 @@ namespace Game.Core
                 return saved.Clone();
             }
 
-            return new FormationLayout(gridEditor.GridColumnCount, gridEditor.GridRowCount);
+            return FormationLayout.CreateDefault();
         }
 
         private void HandleApply()
@@ -97,30 +106,64 @@ namespace Game.Core
         // 않는다(ISP, Docs/Refactor/2026-09-08_공통.md §6.3 수정 G).
         public FormationLayout GetDisplayLayout() => currentLayout;
 
-        public void HandlePaletteDrop(IFormationUnit unit, int targetSlotIndex)
+        public IReadOnlyList<FormationAreaPin> GetAreaPins() => debugAreaSource?.Pins;
+
+        // 연결 가능한 가장 먼 칸 = 대열 경계에서 (새 마차 반경 + 1)칸 - 팔레트의 마차까지 포함해 로스터 마차 반경 최댓값으로 정한다(설계 60번 §15.3).
+        public int GetVisibleMarginCells()
         {
-            // 기존 점유 유닛은 슬롯 표시에서만 해제된다(상행 관리 데이터 삭제 아님).
-            currentLayout.SetUnitId(targetSlotIndex, unit.Id);
+            var maxRadius = -1;
+            if (rosterProvider != null)
+            {
+                foreach (var unit in rosterProvider.GetRoster())
+                {
+                    if (unit.Kind == FormationUnitKind.Wagon && unit is IAreaAnchorUnit anchor) maxRadius = Mathf.Max(maxRadius, anchor.AreaRadius);
+                }
+            }
+            return maxRadius < 0 ? DefaultVisibleMarginCells : Mathf.Max(DefaultVisibleMarginCells, maxRadius + 1);
         }
 
-        public void HandleGridMove(string unitId, int originSlotIndex, int targetSlotIndex)
-        {
-            var targetUnitId = currentLayout.GetUnitId(targetSlotIndex);
-            if (string.IsNullOrEmpty(targetUnitId))
-            {
-                currentLayout.SetUnitId(targetSlotIndex, unitId);
-                currentLayout.Clear(originSlotIndex);
-            }
-            else
-            {
-                currentLayout.Swap(originSlotIndex, targetSlotIndex);
-            }
-        }
+        private const int DefaultVisibleMarginCells = 2;
 
-        public void HandleRemove(string unitId, int slotIndex) => currentLayout.Clear(slotIndex);
+        public bool ShowsInPalette(IFormationUnit unit) => true;
+
+        // 점유 칸에 드롭하면 기존 유닛은 배치에서 빠진다(상행 관리 데이터 삭제 아님) - 빠지는 유닛이 마차면 연결 판정을 받는다.
+        // 마을은 마차 자유 배치(기획 59번 §3.4) - 마차는 판 어디든, 다른 마차가 있으면 연결만 확인.
+        public bool HandlePaletteDrop(IFormationUnit unit, int targetSlotIndex)
+            => Commit(FormationAreaRules.Place(currentLayout, unit, targetSlotIndex, FormationAreaRules.LookupFrom(rosterProvider), GetAreaPins(), WagonPlacement.Anywhere));
+
+        // 목표 칸이 점유돼 있으면 맞바꾼다.
+        public bool HandleGridMove(string unitId, int originSlotIndex, int targetSlotIndex)
+            => Commit(FormationAreaRules.Move(currentLayout, originSlotIndex, targetSlotIndex, FormationAreaRules.LookupFrom(rosterProvider), GetAreaPins(), WagonPlacement.Anywhere));
+
+        public bool HandleRemove(string unitId, int slotIndex)
+            => Commit(FormationAreaRules.Remove(currentLayout, slotIndex, FormationAreaRules.LookupFrom(rosterProvider), GetAreaPins()));
+
+        private bool Commit(FormationEditResult result)
+        {
+            if (!result.Accepted) return false;
+            currentLayout = result.Layout;
+            return true;
+        }
 
 #if UNITY_EDITOR
-        public void ResizeGrid(int columns, int rows) => currentLayout = currentLayout.Resize(columns, rows);
+        // 핀은 적용 버튼과 무관하게 저장소에 바로 반영된다(디버그 도구). 핀 제거로 영역 밖이 된 유닛은 로컬 사본에서 해제한다.
+        public bool HasDebugPinStore => debugAreaSource != null;
+
+        public void HandleDebugPinAdd(int slotIndex, int radius) => debugAreaSource?.AddOrReplace(new FormationAreaPin(slotIndex, radius));
+
+        public bool HandleDebugPinRemove(int slotIndex)
+        {
+            if (debugAreaSource == null) return false;
+
+            var remaining = new List<FormationAreaPin>(debugAreaSource.Pins);
+            remaining.RemoveAll(p => p.SlotIndex == slotIndex);
+            var result = FormationAreaRules.Validate(currentLayout.Clone(), FormationAreaRules.LookupFrom(rosterProvider), remaining);
+            if (!result.Accepted) return false;
+
+            debugAreaSource.Remove(slotIndex);
+            currentLayout = result.Layout;
+            return true;
+        }
 #endif
     }
 }

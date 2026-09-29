@@ -3,48 +3,37 @@ using UnityEngine;
 namespace Game.Core
 {
     /// <summary>
-    /// 배틀 테스트 씬 전용 파생 - BattleFieldLayout(실제 게임)과 같은 수식을 쓰되, 행 개수가 2로
-    /// 고정된 BattleFieldLayout과 달리 열/행 모두 인스턴스 상태(RowCount/ColumnCount)로 가변이다.
-    /// IAllyPositionLayout/IBattleFieldGeometry 인터페이스는 columnCount만 매개변수로 받고 row는
-    /// 아예 모른다(실제 게임은 항상 2행을 가정) - 그래서 RowCount는 인터페이스에 없는, 이 클래스만의
-    /// 추가 상태로 둔다(인터페이스 변경 없이 실제 게임 코드에 영향을 주지 않기 위함).
+    /// 배틀 테스트 씬 전용 - 대열 범위를 정비창 배치가 아니라 열/행 수 인스턴스 상태(ColumnCount/RowCount)로 들고 있고,
+    /// 좌표·반경 계산은 실제 게임과 같은 BattleFieldLayout에 위임한다(Docs/설계/60번 §7.3 - 예전엔 "행 수 가변"만 다른 같은
+    /// 공식을 따로 들고 있었으나, 계약이 FormationExtent로 바뀌면서 차이가 사라졌다). 이 상태는 Extent로 변환해 넘긴다.
     /// 대열 범위 기즈모(BattleTestExtentGizmoView)가 매 프레임 ColumnCount/RowCount를 읽어 박스를
     /// 그리고, 모서리 드래그/숫자 입력이 이 값을 직접 바꾼다.
     /// </summary>
     public class BattleTestFieldLayout : IAllyPositionLayout, IBattleFieldGeometry
     {
-        // 간격/마진/경계 상수와 스폰지점·반지름 계산 공식은 BattleFieldRadiusFormulas로 옮겼다 -
-        // BattleFieldLayout(프로덕션)과 "행 몇 개인지"만 다르고 완전히 같은 공식을 쓰고 있었다(DRY,
-        // Docs/Refactor/2026-09-08_전투도메인.md ④ 수정 S). 이 클래스는 가변 RowCount 가정만
-        // FormationExtentRadius/HalfExtentX/SetExtentFromCorner에 남긴다.
-        public int ColumnCount { get; set; } = FormationLayout.DefaultColumnCount;
-        public int RowCount { get; set; } = 2;
+        // 배틀 테스트 기본 대열 범위 - 정비창 외곽 판(FormationLayout, 50 × 50)과 무관한 이 씬만의 값이다(예전 정비창 기본 8 × 2를 유지).
+        private const int DefaultColumnCount = 8;
+        private const int DefaultRowCount = 2;
 
-        public Vector2 ComputeAllyPosition(int column, int row, int columnCount)
-        {
-            var y = (column - (columnCount - 1) / 2f) * BattleFieldRadiusFormulas.ColumnSpacing;
-            var x = (row - (RowCount - 1) / 2f) * BattleFieldRadiusFormulas.RowSpacing;
-            return new Vector2(x, y);
-        }
+        private readonly BattleFieldLayout formulas = new();
 
-        public Vector2 ComputeSpawnPoint(int spawnPointIndex, int columnCount)
-            => BattleFieldRadiusFormulas.ComputeSpawnPoint(spawnPointIndex, ComputeSpawnRadius(columnCount));
+        public int ColumnCount { get; set; } = DefaultColumnCount;
+        public int RowCount { get; set; } = DefaultRowCount;
 
-        public float ComputeFleeTravelDistance(int columnCount) => ComputeFieldRadius(columnCount);
+        /// <summary>배틀 테스트의 대열 범위 - 격자 전체(원점 중심 대칭).</summary>
+        public FormationExtent Extent => FormationExtent.FromGrid(ColumnCount, RowCount);
 
-        public float ComputeFieldRadius(int columnCount) => BattleFieldRadiusFormulas.ComputeFieldRadius(ComputeSpawnRadius(columnCount));
+        public Vector2 ComputeAllyPosition(int column, int row, FormationExtent extent) => formulas.ComputeAllyPosition(column, row, extent);
 
-        public float ComputeStandardActivityRadius(int columnCount) => BattleFieldRadiusFormulas.ComputeStandardActivityRadius(FormationExtentRadius(columnCount));
+        public Vector2 ComputeSpawnPoint(int spawnPointIndex, FormationExtent extent) => formulas.ComputeSpawnPoint(spawnPointIndex, extent);
 
-        public float ComputeSpawnRadius(int columnCount) => BattleFieldRadiusFormulas.ComputeSpawnRadius(FormationExtentRadius(columnCount));
+        public float ComputeFleeTravelDistance(FormationExtent extent) => formulas.ComputeFleeTravelDistance(extent);
 
-        // BattleFieldLayout과 달리 halfRowExtent도 RowCount에서 파생된다(열 공식과 대칭).
-        private float FormationExtentRadius(int columnCount)
-        {
-            var halfColumnExtent = (columnCount - 1) / 2f * BattleFieldRadiusFormulas.ColumnSpacing;
-            var halfRowExtent = (RowCount - 1) / 2f * BattleFieldRadiusFormulas.RowSpacing;
-            return Mathf.Sqrt(halfColumnExtent * halfColumnExtent + halfRowExtent * halfRowExtent);
-        }
+        public float ComputeFieldRadius(FormationExtent extent) => formulas.ComputeFieldRadius(extent);
+
+        public float ComputeStandardActivityRadius(FormationExtent extent) => formulas.ComputeStandardActivityRadius(extent);
+
+        public float ComputeSpawnRadius(FormationExtent extent) => formulas.ComputeSpawnRadius(extent);
 
         // 대열 범위 기즈모(BattleTestExtentGizmoView)가 그릴 사각형의 네 모서리(월드 좌표, 원점 중심).
         // ComputeAllyPosition과 같은 축 대응을 쓴다 - column→Y축, row→X축(클래스 요약 주석의 "반시계

@@ -15,11 +15,16 @@ MonoBehaviour:
   entries:
   - Id: Wagon01
     Price: 1000
+    Radius: 4
   - Id: Wagon02
     Price: 1000
+    Radius: 4
   - Id: Wagon03
     Price: 1000
+    Radius: 4
   - Id: Wagon04
     Price: 1000
+    Radius: 4
   - Id: Wagon05
     Price: 1000
+    Radius: 4

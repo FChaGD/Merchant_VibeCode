@@ -59,6 +59,11 @@ namespace Game.Core.Editor.DebugTools
             var dependencyManager = EditorUIBuilder.GetOrCreateManager<DependencyManager>(managersRoot.transform, "DependencyManager");
 
             var battleManager = EditorUIBuilder.GetOrCreateManager<BattleManager>(managersRoot.transform, "BattleManager");
+            // 씬 신설 때 남은 실제 게임 규칙(LiveBattleSimulationRule) 잔재 제거 - 이 씬은 BattleTestSimulationRule만 쓰는데, 테이블이 비어 있는
+            // 잔재가 Awake에서 적 테이블을 읽다 NullReferenceException을 냈다(2026-09-29 실전 확인, 9/24 테이블 Id 전환 이후).
+            var leftoverLiveRule = battleManager.GetComponent<LiveBattleSimulationRule>();
+            if (leftoverLiveRule != null) Object.DestroyImmediate(leftoverLiveRule);
+
             var battleTestSimulation = EditorUIBuilder.GetOrAddComponent<BattleTestSimulationRule>(battleManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<PlaceholderDefeatConsequenceRule>(battleManager.gameObject);
             WireRoleGroupMap(battleTestSimulation);

@@ -147,7 +147,7 @@ namespace Game.Core
 
                 var column = activity.TargetSlotIndex % layout.ColumnCount;
                 var row = activity.TargetSlotIndex / layout.ColumnCount;
-                var position = FieldPositionLayout.ComputeAllyPosition(column, row, layout.ColumnCount);
+                var position = FieldPositionLayout.ComputeAllyPosition(column, row, ComputeExtent(layout));
                 pending.Add(new PendingReinforcementInfo(activity.UnitId, position, activity.RequiredSeconds - activity.ElapsedSeconds));
             }
             OnPendingReinforcementsChanged?.Invoke(pending);
@@ -206,21 +206,20 @@ namespace Game.Core
             // 추적하지 못해(CS0165) layout을 먼저 null로 초기화해둬야 한다.
             FormationLayout layout = null;
             var hasLayout = formationReader != null && formationReader.TryLoadCurrent(out layout);
-            // 배치가 없을 때(hasLayout=false) 스폰 반지름/도주 이탈 거리를 계산할 기준 열 수 -
+            // 배치가 없을 때(hasLayout=false) 스폰 반지름/도주 이탈 거리를 계산할 기준 대열 범위 -
             // 아군이 없으면 어차피 즉시 패배하므로 정확한 값이 중요하지 않지만, 계산 자체는 항상
-            // 유효한 columnCount를 필요로 한다. FormationLayout.DefaultColumnCount가 FormationGridView
-            // 기본값과 공유하는 단일 출처다.
-            var columnCount = hasLayout ? layout.ColumnCount : FormationLayout.DefaultColumnCount;
-            var spawnCenter = FieldGeometry.ComputeSpawnPoint(spawnSelector.SelectSpawnPointIndex(), columnCount);
+            // 유효한 범위를 필요로 한다. 빈 기본 판이면 기준 칸 1칸짜리 범위가 된다.
+            var extent = ComputeExtent(hasLayout ? layout : FormationLayout.CreateDefault());
+            var spawnCenter = FieldGeometry.ComputeSpawnPoint(spawnSelector.SelectSpawnPointIndex(), extent);
             var enemyMorale = new PartyMorale();
-            var spawnRadius = FieldGeometry.ComputeSpawnRadius(columnCount);
+            var spawnRadius = FieldGeometry.ComputeSpawnRadius(extent);
 
             // 진영 공용 협력 객체를 필드로 채운다(설계 25번 §6.1) - 전투 중간에 Field 배치 타이머가
             // 완료돼 새 아군이 늦게 합류할 때(HandleFieldActivityCompleted) BuildSimulation() 스코프
             // 밖에서도 이번 전투와 같은 인스턴스를 재사용해야 하기 때문이다(안 그러면 새로 합류한
             // 유닛이 이미 싸우던 유닛과 다른 사기/방진 조율자를 갖게 된다 - BattleTestSimulationRule이
             // 같은 이유로 이미 필드 캐싱을 쓰는 것과 동일 패턴).
-            midBattleFleeTravelDistance = FieldGeometry.ComputeFleeTravelDistance(columnCount);
+            midBattleFleeTravelDistance = FieldGeometry.ComputeFleeTravelDistance(extent);
             midBattleAllyMorale = new PartyMorale(); // 전투마다 새로 시작
             // tacticsReader가 없으면(인스톨러 미실행 등) 방향성 지시 없이 기존 동작으로 자연히
             // 폴백한다 - null을 넘기면 UnitTacticsBehaviors도 null이 되어 BattleCharacterUnit이
@@ -228,8 +227,8 @@ namespace Game.Core
             midBattleTacticsProfileResolver = tacticsReader != null
                 ? new UnitTacticsProfileResolver(tacticsReader, roleGroupMap)
                 : null;
-            midBattleStandardActivityRadius = FieldGeometry.ComputeStandardActivityRadius(columnCount);
-            midBattleFieldRadius = FieldGeometry.ComputeFieldRadius(columnCount);
+            midBattleStandardActivityRadius = FieldGeometry.ComputeStandardActivityRadius(extent);
+            midBattleFieldRadius = FieldGeometry.ComputeFieldRadius(extent);
             // 사기 파동 조율자(Docs/설계/14번 §6) - fieldRadius가 있어야 소멸 조건을 계산할 수 있어
             // 그 직후 생성한다. PartyMorale과 마찬가지로 진영별 인스턴스, 전투마다 새로 시작.
             midBattleAllyWaveCoordinator = new MoraleWaveCoordinator(midBattleFieldRadius);
@@ -325,13 +324,14 @@ namespace Game.Core
         // 해결한다. 진행 중인 이동이 없으면(가장 흔한 경우) 기존 슬롯 좌표를 그대로 쓴다.
         private Vector2 ComputeAllyPositionForSlot(FormationLayout layout, string unitId, int column, int row)
         {
+            var extent = ComputeExtent(layout);
             if (fieldActivityRepository != null && fieldActivityRepository.TryGetActivity(unitId, out var activity)
                 && activity.Kind == FormationActivityKind.Moving && activity.PathSlotIndices.Count > 0)
             {
                 var waypoints = new List<Vector2>(activity.PathSlotIndices.Count);
                 foreach (var slotIndex in activity.PathSlotIndices)
                 {
-                    waypoints.Add(FieldPositionLayout.ComputeAllyPosition(slotIndex % layout.ColumnCount, slotIndex / layout.ColumnCount, layout.ColumnCount));
+                    waypoints.Add(FieldPositionLayout.ComputeAllyPosition(slotIndex % layout.ColumnCount, slotIndex / layout.ColumnCount, extent));
                 }
                 // 도착 고스트로 중도 수정된 이동은 부분 구간(연속 좌표)을 가질 수 있다(기획 21번,
                 // 설계 26번 §2) - UI 쪽(FormationGridView.BuildWaypoints)과 동일하게 반영해야 인카운터
@@ -342,8 +342,12 @@ namespace Game.Core
                 return FormationPathInterpolation.Evaluate(waypoints, activity.Progress01, weights);
             }
 
-            return FieldPositionLayout.ComputeAllyPosition(column, row, layout.ColumnCount);
+            return FieldPositionLayout.ComputeAllyPosition(column, row, extent);
         }
+
+        // 전투로 옮길 대열 범위(Docs/설계/60번 §7.2, §11-4) - 중심은 마차들의 중심값, 반폭은 그 중심에서 대열 영역 경계 상자
+        // 가장자리까지. 외곽 판(50 × 50) 전체를 쓰면 대형이 판 중앙 기준으로 치우치고 반경이 과하게 커진다.
+        private FormationExtent ComputeExtent(FormationLayout layout) => FormationArea.Compute(layout, FindRosterUnit).ToExtent();
 
         private List<IBattleCombatant> BuildEnemies(Vector2 spawnCenter, PartyMorale enemyMorale, MoraleWaveCoordinator enemyWaveCoordinator, float fleeTravelDistance)
         {
@@ -357,6 +361,7 @@ namespace Game.Core
         private List<IDamageable> BuildProtectedUnits(FormationLayout layout)
         {
             var result = new List<IDamageable>();
+            var extent = ComputeExtent(layout);
             for (var slotIndex = 0; slotIndex < layout.SlotCount; slotIndex++)
             {
                 var unitId = layout.GetUnitId(slotIndex);
@@ -367,7 +372,7 @@ namespace Game.Core
 
                 var column = slotIndex % layout.ColumnCount;
                 var row = slotIndex / layout.ColumnCount;
-                var position = FieldPositionLayout.ComputeAllyPosition(column, row, layout.ColumnCount);
+                var position = FieldPositionLayout.ComputeAllyPosition(column, row, extent);
                 result.Add(new BattleProtectedUnit(position, ProtectedUnitTuning.MaxHp, rosterUnit.Icon));
             }
             return result;

@@ -22,6 +22,8 @@ namespace Game.Core.Editor.DebugTools
             BattleGizmoInstaller.InstallGizmos();
             BattleDebugResultInstaller.InstallResultButtons();
             PlayerCurrencyDebugInstaller.InstallSpinButtons();
+            FormationDebugPinInstaller.InstallPins();
+            FormationAreaOutlineDebugInstaller.InstallOutline();
 
             Debug.Log("디버그 도구 전체 설치/동기화 완료.");
         }
@@ -33,6 +35,8 @@ namespace Game.Core.Editor.DebugTools
             BattleGizmoInstaller.RemoveGizmos();
             BattleDebugResultInstaller.RemoveResultButtons();
             PlayerCurrencyDebugInstaller.RemoveSpinButtons();
+            FormationDebugPinInstaller.RemovePins();
+            FormationAreaOutlineDebugInstaller.RemoveOutline();
 
             Debug.Log("디버그 도구 전체 제거 완료.");
         }

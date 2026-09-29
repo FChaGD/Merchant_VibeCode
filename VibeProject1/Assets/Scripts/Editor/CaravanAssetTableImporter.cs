@@ -52,6 +52,7 @@ namespace Game.Core.Editor
                 {
                     Id = EditorTableReader.ParseSlug(row, "Id", seenIds),
                     Price = EditorTableReader.ParseInt(row, "Price"),
+                    Radius = EditorTableReader.ParseInt(row, "Radius"),
                 });
             }
             return entries;
@@ -97,6 +98,7 @@ namespace Game.Core.Editor
                 var element = entriesProp.GetArrayElementAtIndex(i);
                 element.FindPropertyRelative("Id").stringValue = entries[i].Id;
                 element.FindPropertyRelative("Price").intValue = entries[i].Price;
+                element.FindPropertyRelative("Radius").intValue = entries[i].Radius;
             }
             so.ApplyModifiedProperties();
             EditorUtility.SetDirty(asset);

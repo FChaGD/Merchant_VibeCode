@@ -121,7 +121,7 @@ namespace Game.Core
 
             foreach (var reservation in spawnPointReservations.All)
             {
-                var position = fieldLayout.ComputeSpawnPoint(reservation.Key, fieldLayout.ColumnCount);
+                var position = fieldLayout.ComputeSpawnPoint(reservation.Key, fieldLayout.Extent);
                 var composition = reservation.Value;
                 AddReservedBatch("Marauder", composition.Marauder, position);
                 AddReservedBatch("Monster", composition.Monster, position);
@@ -210,7 +210,7 @@ namespace Game.Core
         {
             for (var i = 0; i < count; i++)
             {
-                var position = fieldLayout.ComputeSpawnPoint(enemySetupSpawnSelector.SelectSpawnPointIndex(), fieldLayout.ColumnCount);
+                var position = fieldLayout.ComputeSpawnPoint(enemySetupSpawnSelector.SelectSpawnPointIndex(), fieldLayout.Extent);
                 var entry = enemySide.Roster.Add(BattleTestUnitKind.Enemy(type), position);
                 OnUnitAdded?.Invoke(enemySide.CreatePreviewUnit(entry), false, entry.Id);
             }
@@ -260,11 +260,11 @@ namespace Game.Core
 
         private BattleSimulationLoop BuildSimulation()
         {
-            var columnCount = fieldLayout.ColumnCount;
-            var fleeTravelDistance = fieldLayout.ComputeFleeTravelDistance(columnCount);
-            var standardActivityRadius = fieldLayout.ComputeStandardActivityRadius(columnCount);
-            var fieldRadius = fieldLayout.ComputeFieldRadius(columnCount);
-            var spawnRadius = fieldLayout.ComputeSpawnRadius(columnCount);
+            var extent = fieldLayout.Extent;
+            var fleeTravelDistance = fieldLayout.ComputeFleeTravelDistance(extent);
+            var standardActivityRadius = fieldLayout.ComputeStandardActivityRadius(extent);
+            var fieldRadius = fieldLayout.ComputeFieldRadius(extent);
+            var spawnRadius = fieldLayout.ComputeSpawnRadius(extent);
 
             allySide.BeginBattle(fieldRadius);
             enemySide.BeginBattle(fieldRadius);

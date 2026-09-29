@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -14,6 +15,8 @@ namespace Game.Core
     {
         private FormationUnitIconView dragGhostPrefab;
         private Canvas rootCanvas;
+        // 격자 아이콘의 현재 월드 크기 - 확대/축소로 칸이 바뀌어도 고스트가 놓일 아이콘과 같은 크기로 보이게 한다.
+        private Func<float> ghostWorldSizeProvider;
 
         private FormationUnitIconView dragGhost;
 
@@ -24,10 +27,11 @@ namespace Game.Core
         // DraggedFromSlot==null인 팔레트 드래그와 구분하기 위한 별도 플래그.
         public bool IsRedirect { get; private set; }
 
-        public void Rebind(FormationUnitIconView dragGhostPrefab, Canvas rootCanvas)
+        public void Rebind(FormationUnitIconView dragGhostPrefab, Canvas rootCanvas, Func<float> ghostWorldSizeProvider)
         {
             this.dragGhostPrefab = dragGhostPrefab;
             this.rootCanvas = rootCanvas;
+            this.ghostWorldSizeProvider = ghostWorldSizeProvider;
         }
 
         public void CancelActiveDrag()
@@ -79,9 +83,23 @@ namespace Game.Core
             }
 
             dragGhost.Bind(unit);
+            ApplyGhostSize();
             dragGhost.gameObject.SetActive(true);
             dragGhost.transform.SetAsLastSibling();
             UpdateGhostPosition(eventData);
+        }
+
+        // 드래그 시작 시점의 격자 배율로 한 번만 맞춘다 - 드래그 중에는 휠 입력이 격자로 가지 않아 배율이 바뀌지 않는다.
+        private void ApplyGhostSize()
+        {
+            var worldSize = ghostWorldSizeProvider?.Invoke() ?? 0f;
+            var canvasScale = rootCanvas != null ? rootCanvas.transform.lossyScale.x : 1f;
+            if (worldSize <= 0f || canvasScale <= 0f) return;
+
+            var ghostRect = (RectTransform)dragGhost.transform;
+            var size = worldSize / canvasScale;
+            ghostRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, size);
+            ghostRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, size);
         }
 
         public void UpdateGhostPosition(PointerEventData eventData)
