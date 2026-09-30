@@ -19,27 +19,32 @@ MonoBehaviour:
     Down: 3
     Left: 3
     Right: 3
+    CargoShape: 11111/11111/11111/11111
   - Id: Wagon02
     Price: 1000
     Up: 3
     Down: 3
     Left: 3
     Right: 3
+    CargoShape: 11111/11111/11111/11111
   - Id: Wagon03
     Price: 1000
     Up: 3
     Down: 3
     Left: 3
     Right: 3
+    CargoShape: 11111/11111/11111/11111
   - Id: Wagon04
     Price: 1000
     Up: 3
     Down: 3
     Left: 3
     Right: 3
+    CargoShape: 11111/11111/11111/11111
   - Id: Wagon05
     Price: 1000
     Up: 3
     Down: 3
     Left: 3
     Right: 3
+    CargoShape: 11111/11111/11111/11111
