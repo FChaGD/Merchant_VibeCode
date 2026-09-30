@@ -115,7 +115,7 @@ namespace Game.Core
 #if UNITY_EDITOR
         public bool HasDebugPinStore => debugAreaSource != null;
 
-        public void HandleDebugPinAdd(int slotIndex, FormationAreaSpan span) => debugAreaSource?.AddOrReplace(new FormationAreaPin(slotIndex, span));
+        public void HandleDebugPinAdd(int slotIndex, FormationAreaShape shape) => debugAreaSource?.AddOrReplace(new FormationAreaPin(slotIndex, shape));
 
         // 핀 제거로 영역이 줄면 영역 밖 유닛 해제·활동 취소까지 마차 제거와 같게 처리한다.
         public bool HandleDebugPinRemove(int slotIndex)

@@ -163,7 +163,7 @@ namespace Game.Core
             if (assetCatalog == null || ownedById.ContainsKey(id)) return false;
             if (!assetCatalog.TryGet(id, out var profile)) return false;
 
-            ownedById[id] = new PlaceholderFormationUnit(profile.Id, profile.KindLabel, GetKindIcon(profile.Kind), profile.Kind, profile.AreaSpan);
+            ownedById[id] = new PlaceholderFormationUnit(profile.Id, profile.KindLabel, GetKindIcon(profile.Kind), profile.Kind, profile.AreaShape);
             ownedCountByKind[profile.Kind] = CountOwnedOfKind(profile.Kind) + 1;
             if (!ownedAssetIdsByKind.TryGetValue(profile.Kind, out var ids)) ownedAssetIdsByKind[profile.Kind] = ids = new List<string>();
             ids.Add(id);

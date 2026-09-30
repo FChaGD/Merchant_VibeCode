@@ -5,13 +5,13 @@ namespace Game.Core
     /// <summary>
     /// 그리드 한 구역의 모양(외곽 가로×세로 + 칸별 적재 가능 여부, Docs/기획/63번 §3.1, 설계 64번 §2.1). 마차 적재 공간은
     /// 테이블 마스크 문자열에서 오고, 나머지 인벤토리 3종은 직사각형이다. 파서를 런타임 어셈블리에 두는 이유는 임포터(검증)와
-    /// 카탈로그(변환)가 같은 규칙 하나를 쓰게 하기 위해서다. 불변이라 여러 곳에서 공유해도 안전하다.
+    /// 카탈로그(변환)가 같은 규칙 하나를 쓰게 하기 위해서다. 줄 파싱은 대열 모양과 공용(CellMaskParser, 설계 66번 §2.1). 불변이라 여러 곳에서 공유해도 안전하다.
     /// </summary>
     public sealed class InventoryShape
     {
-        private const char RowSeparator = '/';
         private const char UsableCell = '1';
         private const char BlockedCell = '0';
+        private const string AllowedChars = "10";
 
         private readonly bool[,] usable;
 
@@ -50,33 +50,12 @@ namespace Game.Core
         public static bool TryParse(string mask, out InventoryShape shape, out string error)
         {
             shape = null;
-            if (string.IsNullOrWhiteSpace(mask))
-            {
-                error = "모양 문자열이 비어 있다.";
-                return false;
-            }
+            if (!CellMaskParser.TryParse(mask, AllowedChars, out var chars, out error)) return false;
 
-            var rows = mask.Trim().Split(RowSeparator);
-            var width = rows[0].Length;
-            var cells = new bool[width, rows.Length];
-            for (var y = 0; y < rows.Length; y++)
+            var cells = new bool[chars.GetLength(0), chars.GetLength(1)];
+            for (var x = 0; x < cells.GetLength(0); x++)
             {
-                if (rows[y].Length != width || width == 0)
-                {
-                    error = $"{y + 1}번째 줄의 길이({rows[y].Length})가 첫 줄({width})과 다르거나 비어 있다.";
-                    return false;
-                }
-
-                for (var x = 0; x < width; x++)
-                {
-                    var c = rows[y][x];
-                    if (c != UsableCell && c != BlockedCell)
-                    {
-                        error = $"허용되지 않는 문자 '{c}'({y + 1}번째 줄) - '{UsableCell}'/'{BlockedCell}'만 쓴다.";
-                        return false;
-                    }
-                    cells[x, y] = c == UsableCell;
-                }
+                for (var y = 0; y < cells.GetLength(1); y++) cells[x, y] = chars[x, y] == UsableCell;
             }
 
             var parsed = new InventoryShape(cells);
@@ -114,7 +93,7 @@ namespace Game.Core
             var builder = new StringBuilder();
             for (var y = 0; y < Height; y++)
             {
-                if (y > 0) builder.Append(RowSeparator);
+                if (y > 0) builder.Append(CellMaskParser.RowSeparator);
                 for (var x = 0; x < Width; x++) builder.Append(usable[x, y] ? UsableCell : BlockedCell);
             }
             return builder.ToString();

@@ -417,7 +417,7 @@ namespace Game.Core.Editor
         }
 
         /// <summary>
-        /// 정비창 디버그 핀 패널(Docs/기획/59번 §4.5, 설계 60번 §8): 상하좌우 범위 입력(기획 61번) + 끌어서 격자에 놓는 핀 아이콘. 격자 위 핀 표시를 누르면 제거를
+        /// 정비창 디버그 핀 패널(Docs/기획/59번 §4.5, 설계 60번 §8): 모양 마스크 입력(기획 65번) + 형식 오류 안내 + 끌어서 격자에 놓는 핀 아이콘. 격자 위 핀 표시를 누르면 제거를
         /// 시도한다. 상단 여백(팔레트/버튼 행 위쪽, 목업에는 없는 영역)에 배치한다. 핀 저장소는 디버그 설치기(FormationDebugPinInstaller)가
         /// Bootstrap에 붙인다 - 저장소가 없으면 이 패널은 보이지만 핀이 저장되지 않는다.
         /// </summary>
@@ -428,37 +428,39 @@ namespace Game.Core.Editor
             EditorUIBuilder.EnsureImage(root, new Color(0f, 0f, 0f, 0.15f));
             EditorUIBuilder.EnsureMarker(root, FormationUIElementIds.DebugPanelRoot);
 
-            // 옛 입력 정리 - 판 크기 조절(열·행·칸 크기·적용)은 외곽 판이 50 × 50 고정이 되며, 핀 반경 1칸은 상하좌우 4칸으로 바뀌며(기획 61번) 없앴다.
-            foreach (var stale in new[] { "ColumnsLabel", "ColumnsInput", "RowsLabel", "RowsInput", "WidthLabel", "WidthInput", "HeightLabel", "HeightInput", "ApplyButton", "RadiusLabel", "RadiusInput" })
+            // 옛 입력 정리 - 판 크기 조절(열·행·칸 크기·적용)은 외곽 판이 50 × 50 고정이 되며, 핀 반경 1칸은 상하좌우 4칸으로(기획 61번),
+            // 다시 모양 마스크 1칸으로(기획 65번) 바뀌며 없앴다.
+            foreach (var stale in new[]
+            {
+                "ColumnsLabel", "ColumnsInput", "RowsLabel", "RowsInput", "WidthLabel", "WidthInput", "HeightLabel", "HeightInput", "ApplyButton", "RadiusLabel", "RadiusInput",
+                "UpLabel", "UpInput", "DownLabel", "DownInput", "LeftLabel", "LeftInput", "RightLabel", "RightInput",
+            })
             {
                 EditorUIBuilder.DestroyChildIfExists(root.transform, stale);
             }
 
-            // 상·하·좌·우 라벨+입력칸 4쌍을 가로로 나란히 둔다(쌍마다 폭 0.11).
-            var directions = new[] { ("Up", "상"), ("Down", "하"), ("Left", "좌"), ("Right", "우") };
-            var inputs = new TMP_InputField[directions.Length];
-            for (var i = 0; i < directions.Length; i++)
-            {
-                var (key, label) = directions[i];
-                var x = i * 0.11f;
-                BuildDebugLabel(root.transform, key + "Label", label, new Vector2(x, 0f), new Vector2(x + 0.04f, 1f));
-                inputs[i] = CreateInputField(root.transform, key + "Input", new Vector2(x + 0.045f, 0.1f), new Vector2(x + 0.105f, 0.9f), TMP_InputField.ContentType.IntegerNumber);
-            }
+            // 핀 모양 마스크 입력(기획 65번 §3.3) - 9 × 9 기본값이 89자라 폭을 넉넉히 준다.
+            BuildDebugLabel(root.transform, "ShapeLabel", "모양", new Vector2(0.00f, 0f), new Vector2(0.06f, 1f));
+            var shapeInput = CreateInputField(root.transform, "ShapeInput", new Vector2(0.065f, 0.1f), new Vector2(0.44f, 0.9f), TMP_InputField.ContentType.Standard);
 
             var pinGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "PinHandle");
             EditorUIBuilder.SetAnchors(pinGo.GetComponent<RectTransform>(), new Vector2(0.46f, 0.15f), new Vector2(0.50f, 0.85f));
             EditorUIBuilder.EnsureImage(pinGo, new Color(0.85f, 0.1f, 0.85f, 0.95f));
             var pinHandle = EditorUIBuilder.GetOrAddComponent<FormationDebugPinHandle>(pinGo);
 
-            BuildDebugLabel(root.transform, "PinHint", "← 핀을 격자에 끌어다 놓기 / 핀 클릭 = 제거", new Vector2(0.51f, 0f), new Vector2(0.99f, 1f));
+            BuildDebugLabel(root.transform, "PinHint", "← 핀을 격자에 끌어다 놓기 / 핀 클릭 = 제거", new Vector2(0.51f, 0.5f), new Vector2(0.99f, 1f));
             root.transform.Find("PinHint").GetComponent<TextMeshProUGUI>().alignment = TextAlignmentOptions.MidlineLeft;
+
+            // 모양 형식 오류 안내(기획 65번 §3.3) - 런타임이 채운다.
+            BuildDebugLabel(root.transform, "PinMessage", string.Empty, new Vector2(0.51f, 0f), new Vector2(0.99f, 0.5f));
+            var pinMessage = root.transform.Find("PinMessage").GetComponent<TextMeshProUGUI>();
+            pinMessage.alignment = TextAlignmentOptions.MidlineLeft;
+            pinMessage.color = new Color(0.75f, 0.1f, 0.1f, 1f);
 
             var debugView = EditorUIBuilder.GetOrAddComponent<FormationGridDebugView>(root);
             var so = new SerializedObject(debugView);
-            so.FindProperty("upInput").objectReferenceValue = inputs[0];
-            so.FindProperty("downInput").objectReferenceValue = inputs[1];
-            so.FindProperty("leftInput").objectReferenceValue = inputs[2];
-            so.FindProperty("rightInput").objectReferenceValue = inputs[3];
+            so.FindProperty("shapeInput").objectReferenceValue = shapeInput;
+            so.FindProperty("messageLabel").objectReferenceValue = pinMessage;
             so.FindProperty("pinHandle").objectReferenceValue = pinHandle;
             so.ApplyModifiedProperties();
         }

@@ -15,36 +15,21 @@ MonoBehaviour:
   entries:
   - Id: Wagon01
     Price: 1000
-    Up: 3
-    Down: 3
-    Left: 3
-    Right: 3
-    CargoShape: 11111/11111/11111/11111
+    AreaShape: 1111111/1111111/1111111/1112111/1111111/1111111/1111111
+    CargoShape: 111111111/110011100/110011110/111011111
   - Id: Wagon02
     Price: 1000
-    Up: 3
-    Down: 3
-    Left: 3
-    Right: 3
+    AreaShape: 1111111/1111111/1111111/1112111/1111111/1111111/1111111
     CargoShape: 11111/11111/11111/11111
   - Id: Wagon03
     Price: 1000
-    Up: 3
-    Down: 3
-    Left: 3
-    Right: 3
+    AreaShape: 1111111/1111111/1111111/1112111/1111111/1111111/1111111
     CargoShape: 11111/11111/11111/11111
   - Id: Wagon04
     Price: 1000
-    Up: 3
-    Down: 3
-    Left: 3
-    Right: 3
+    AreaShape: 1111111/1111111/1111111/1112111/1111111/1111111/1111111
     CargoShape: 11111/11111/11111/11111
   - Id: Wagon05
     Price: 1000
-    Up: 3
-    Down: 3
-    Left: 3
-    Right: 3
+    AreaShape: 1111111/1111111/1111111/1112111/1111111/1111111/1111111
     CargoShape: 11111/11111/11111/11111

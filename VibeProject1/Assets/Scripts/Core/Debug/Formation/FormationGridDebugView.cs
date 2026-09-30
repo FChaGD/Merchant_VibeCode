@@ -15,33 +15,30 @@ namespace Game.Core.DebugTools
     /// </summary>
     public class FormationGridDebugView : MonoBehaviour
     {
+        // 기본 핀 모양 = 9 × 9 전부 대열, 가운데 기준 칸(기획 65번 §3.3 - 예전 반경 4와 같음).
         private const int DefaultReach = 4;
         // 핀 표시 크기 = 칸 크기 비율(최소 8px) - 고정 px면 축소 시 칸보다 커져 이웃 칸을 덮는다.
         private const float MarkerToCellRatio = 0.3f;
         private const float MinMarkerSize = 8f;
         private static readonly Color MarkerColor = new(0.85f, 0.1f, 0.85f, 0.95f);
 
-        // 핀 영역 방향별 범위 입력(기획 61번 §3.2) - 마차·시설과 같은 직사각형 규칙.
-        [SerializeField] private TMP_InputField upInput;
-        [SerializeField] private TMP_InputField downInput;
-        [SerializeField] private TMP_InputField leftInput;
-        [SerializeField] private TMP_InputField rightInput;
+        // 핀 영역 모양 마스크 입력(기획 65번 §3.3) - 마차·시설과 같은 형식. 형식 오류는 안내 문구로 알린다.
+        [SerializeField] private TMP_InputField shapeInput;
+        [SerializeField] private TMP_Text messageLabel;
         [SerializeField] private FormationDebugPinHandle pinHandle;
 
         private readonly List<Button> markers = new();
-        private Action<int, FormationAreaSpan> onPinDropped;
+        private Action<int, FormationAreaShape> onPinDropped;
         private Action<int> onPinClicked;
 
-        public void Initialize(Action<int, FormationAreaSpan> pinDropped, Action<int> pinClicked)
+        public void Initialize(Action<int, FormationAreaShape> pinDropped, Action<int> pinClicked)
         {
             onPinDropped = pinDropped;
             onPinClicked = pinClicked;
 
-            foreach (var input in new[] { upInput, downInput, leftInput, rightInput })
-            {
-                if (input != null && string.IsNullOrEmpty(input.text)) input.text = DefaultReach.ToString();
-            }
-            if (pinHandle != null) pinHandle.Initialize(slot => onPinDropped?.Invoke(slot, ParseSpan()));
+            if (shapeInput != null && string.IsNullOrEmpty(shapeInput.text)) shapeInput.text = FormationAreaShape.Square(DefaultReach).ToString();
+            if (messageLabel != null) messageLabel.text = string.Empty;
+            if (pinHandle != null) pinHandle.Initialize(HandlePinDropped);
         }
 
         /// <summary>핀 칸마다 표시를 하나씩 그린다. 표시를 누르면 그 핀 제거를 시도한다.</summary>
@@ -71,11 +68,19 @@ namespace Game.Core.DebugTools
             }
         }
 
-        // 음수는 FormationAreaSpan이 0으로 올린다.
-        private FormationAreaSpan ParseSpan() => new(Parse(upInput), Parse(downInput), Parse(leftInput), Parse(rightInput));
+        // 형식이 틀리면 핀을 놓지 않고 이유를 보여 준다(기획 65번 §3.3).
+        private void HandlePinDropped(int slotIndex)
+        {
+            var mask = shapeInput != null ? shapeInput.text : string.Empty;
+            if (!FormationAreaShape.TryParse(mask, out var shape, out var error))
+            {
+                if (messageLabel != null) messageLabel.text = $"핀 모양 오류: {error}";
+                return;
+            }
 
-        private static int Parse(TMP_InputField input)
-            => input != null && int.TryParse(input.text, out var value) ? value : DefaultReach;
+            if (messageLabel != null) messageLabel.text = string.Empty;
+            onPinDropped?.Invoke(slotIndex, shape);
+        }
 
         private static Button CreateMarker(RectTransform parent)
         {

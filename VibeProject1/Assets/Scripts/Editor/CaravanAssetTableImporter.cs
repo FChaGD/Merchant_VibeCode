@@ -53,10 +53,7 @@ namespace Game.Core.Editor
                 {
                     Id = EditorTableReader.ParseSlug(row, "Id", seenIds),
                     Price = EditorTableReader.ParseInt(row, "Price"),
-                    Up = EditorTableReader.ParseInt(row, "Up"),
-                    Down = EditorTableReader.ParseInt(row, "Down"),
-                    Left = EditorTableReader.ParseInt(row, "Left"),
-                    Right = EditorTableReader.ParseInt(row, "Right"),
+                    AreaShape = EditorTableReader.ParseRequiredString(row, "AreaShape"),
                     CargoShape = hasCargoShape ? EditorTableReader.ParseRequiredString(row, "CargoShape") : string.Empty,
                 });
             }
@@ -90,10 +87,10 @@ namespace Game.Core.Editor
                 {
                     throw new FormatException($"{sheetName}의 '{entry.Id}'에 해당하는 이름이 {sheetName}Strings 시트에 없다.");
                 }
-                // 대열 범위는 0 이상(기획 61번 §3.1) - 영역 계산은 음수를 0으로 올려 버티지만, 입력 실수는 임포트에서 드러낸다(설계 62번 §7-2).
-                if (entry.Up < 0 || entry.Down < 0 || entry.Left < 0 || entry.Right < 0)
+                // 대열 영역 모양은 런타임 카탈로그와 같은 파서로 검증한다(설계 66번 §3) - 형식이 틀리면 카탈로그가 기준 칸 1칸으로 줄여 버린다.
+                if (!FormationAreaShape.TryParse(entry.AreaShape, out _, out var areaError))
                 {
-                    throw new FormatException($"{sheetName}의 '{entry.Id}' 대열 범위(Up/Down/Left/Right)에 음수가 있다.");
+                    throw new FormatException($"{sheetName}의 '{entry.Id}' 대열 영역 모양(AreaShape) 오류: {areaError}");
                 }
                 // 적재 모양은 런타임 카탈로그와 같은 파서로 검증한다(설계 64번 §2.2) - 형식이 틀린 마차는 조용히 적재 공간 없이 시작하게 된다.
                 if (!string.IsNullOrEmpty(entry.CargoShape) && !InventoryShape.TryParse(entry.CargoShape, out _, out var shapeError))
@@ -113,10 +110,7 @@ namespace Game.Core.Editor
                 var element = entriesProp.GetArrayElementAtIndex(i);
                 element.FindPropertyRelative("Id").stringValue = entries[i].Id;
                 element.FindPropertyRelative("Price").intValue = entries[i].Price;
-                element.FindPropertyRelative("Up").intValue = entries[i].Up;
-                element.FindPropertyRelative("Down").intValue = entries[i].Down;
-                element.FindPropertyRelative("Left").intValue = entries[i].Left;
-                element.FindPropertyRelative("Right").intValue = entries[i].Right;
+                element.FindPropertyRelative("AreaShape").stringValue = entries[i].AreaShape;
                 element.FindPropertyRelative("CargoShape").stringValue = entries[i].CargoShape;
             }
             so.ApplyModifiedProperties();

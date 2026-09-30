@@ -9,11 +9,8 @@ namespace Game.Core
     {
         public string Id; // 개체 Id(예: Wagon01) - 한 행 = 마차 한 대 / 시설 하나(Docs/기획/55번 §3)
         public int Price;
-        // 대열 영역이 중심 칸에서 방향별로 뻗는 칸 수(Docs/기획/61번 §3.1, 기본 4). 임포터가 필드 이름으로 값을 써 넣어 평면 int로 둔다.
-        public int Up;
-        public int Down;
-        public int Left;
-        public int Right;
+        // 대열 영역 모양 마스크(Docs/기획/65번 §3.1 - 0/1/2, 2 = 기준 칸). 파싱은 카탈로그가 FormationAreaShape로 한다.
+        public string AreaShape;
         // 적재 공간 모양 마스크(Docs/기획/63번 §3.1) - 마차만 쓰고 시설은 빈 문자열. 파싱은 카탈로그가 InventoryShape로 한다.
         public string CargoShape;
     }

@@ -42,7 +42,7 @@ namespace Game.Core
         // #if UNITY_EDITOR 블록을 함께 지운다.
         // 핀 저장소가 설치돼 있는지 - 없으면 편집기가 디버그 패널을 숨긴다(2026-09-29 사용자 결정, 설계 60번 §8 개정).
         bool HasDebugPinStore { get; }
-        void HandleDebugPinAdd(int slotIndex, FormationAreaSpan span);
+        void HandleDebugPinAdd(int slotIndex, FormationAreaShape shape);
         bool HandleDebugPinRemove(int slotIndex);
 #endif
     }
