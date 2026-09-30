@@ -16,7 +16,7 @@ namespace Game.Core
     /// 배치·이동 목표는 현재 영역 안이어야 하고, 이동·제거는 편집 후 배치로 마차 연결을 검사한다. 영역이 줄면 영역 밖 유닛을 자동 해제하고
     /// 목표가 영역 밖이 된 진행 중 활동을 취소한다. 이동 경로는 영역 밖 칸을 지나지 않는다.
     /// </summary>
-    public class FieldFormationPanel : MonoBehaviour, IUIPanel, IFormationEditingHandler, IFormationActivityHandler
+    public class FieldFormationPanel : MonoBehaviour, IUIPanel, IFormationEditingHandler, IFormationActivityHandler, ISceneLoadingTaskSource
     {
         [SerializeField] private FormationUnitIconView dragGhostPrefab;
 
@@ -70,6 +70,14 @@ namespace Game.Core
 
         public void Open() => gridEditor.Open();
         public void Close() => gridEditor?.Close();
+
+        // 필드 로딩 중 정비창 칸 미리 생성(Docs/설계/67번 §4.4).
+        public ContentSceneId LoadingScene => ContentSceneId.Field;
+
+        public IEnumerable<ISceneLoadingTask> GetLoadingTasks()
+        {
+            yield return new ActionSceneLoadingTask("정비창 준비 중", () => gridEditor?.Prewarm());
+        }
 
         // 진행 중인 활동은 매 프레임 잔여시간이 줄어들므로(설계 25번 §5.1), 패널이 열려 있는 동안
         // 매 프레임 오버레이/경로선을 다시 그린다 - RequestRefresh(이벤트 기반)와 별개 경로다.

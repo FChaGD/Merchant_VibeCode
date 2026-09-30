@@ -51,6 +51,16 @@ namespace Game.Core
                     Debug.LogWarning($"'{wiring.SceneId}'에 대한 {nameof(IContentSceneUIWiring)}이 중복 등록되어 있다: {wiring.GetType().Name}", this);
                 }
             }
+
+            // 산하 패널의 로딩 준비 작업(Docs/설계/67번 §4.3)을 Bootstrap 초기화 때 한 번 등록한다 - 전환을 시작할 때 작업 수가 이미
+            // 정해져 있어야 로딩바 게이지가 뒤로 가지 않는다. 패널은 전역 DI 대상이 아니라 조율자를 모르므로 여기서 대신 등록한다.
+            if (registrar.TryResolve<ISceneLoadingTaskRegistry>(out var loadingTasks))
+            {
+                foreach (var source in GetComponents<ISceneLoadingTaskSource>())
+                {
+                    foreach (var task in source.GetLoadingTasks()) loadingTasks.Register(source.LoadingScene, task);
+                }
+            }
         }
 
         public bool IsAtRootDepth => !depthChannel.HasActive;

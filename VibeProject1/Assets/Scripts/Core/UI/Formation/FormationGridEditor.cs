@@ -141,6 +141,19 @@ namespace Game.Core
             infoPanelView.Clear();
         }
 
+        /// <summary>
+        /// 씬 로딩 중(검은 커튼 뒤) 칸·아이콘 풀을 미리 채운다(Docs/설계/67번 §4.4) - 칸 오브젝트를 처음 열 때 한 번에 만들어 첫 클릭이
+        /// 멈추던 것을 로딩 시간으로 옮긴다. 표시 범위 계산에 뷰포트 크기가 필요해 여는 경로를 그대로 한 번 지나고 곧바로 닫는다.
+        /// 같은 프레임 안에서 끝나고 커튼(정렬 순서 100)이 덮고 있어 보이지 않는다.
+        /// </summary>
+        public void Prewarm()
+        {
+            if (panelRoot == null) return;
+
+            Open();
+            Close();
+        }
+
         public void Close()
         {
             if (panelRoot == null)

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using TMPro;
 using Game.Core;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -56,6 +57,8 @@ namespace Game.Core.Editor
                 = BuildCoreManagers(root);
 
             var sceneLoader = WireGameManagerDependents(gameManager);
+            // 씬 로딩 절차 조율자(Docs/설계/67번 §4.5) - 준비 작업 등록(UIManager)·진행 보고(SceneLoader)·연출이 모두 DI로 찾는다.
+            var sceneLoadingCoordinator = EditorUIBuilder.GetOrCreateManager<SceneLoadingCoordinator>(root.transform, nameof(SceneLoadingCoordinator));
             WireBattleManagerDependents(battleManager);
             WireUIManagerPanels(uiManager);
             var dataRepositories = BuildUIManagerDataRepositories(root, uiManager);
@@ -66,6 +69,7 @@ namespace Game.Core.Editor
 
             var coreManagers = new MonoBehaviour[]
             {
+                sceneLoadingCoordinator,
                 gameManager,
                 inputManager,
                 uiManager,
@@ -365,9 +369,56 @@ namespace Game.Core.Editor
             curtainSerialized.FindProperty("canvasGroup").objectReferenceValue = canvasGroup;
             curtainSerialized.ApplyModifiedProperties();
 
+            var loadingBar = EnsureSceneLoadingBar(curtainGo.transform);
+
             var controllerSerialized = new SerializedObject(controller);
             controllerSerialized.FindProperty("curtain").objectReferenceValue = curtainView;
+            controllerSerialized.FindProperty("loadingBar").objectReferenceValue = loadingBar;
             controllerSerialized.ApplyModifiedProperties();
+        }
+
+        // 커튼 위 로딩바(Docs/설계/67번 §4.7): "로딩 중" 문구 + 게이지 + 현재 작업 이름 + 백분율. 커튼의 자식이라 커튼과 함께 켜지고,
+        // 평상시엔 숨김 - 연출 컨트롤러가 로딩 중에만 보인다.
+        private static SceneLoadingBarView EnsureSceneLoadingBar(Transform curtain)
+        {
+            var bar = EditorUIBuilder.GetOrCreateUIObject(curtain, "LoadingBar");
+            EditorUIBuilder.SetAnchors(bar.GetComponent<RectTransform>(), new Vector2(0.3f, 0.1f), new Vector2(0.7f, 0.24f));
+
+            var title = EditorUIBuilder.GetOrCreateUIObject(bar.transform, "Title");
+            EditorUIBuilder.SetAnchors(title.GetComponent<RectTransform>(), new Vector2(0f, 0.66f), Vector2.one);
+            EditorUIBuilder.EnsureLabel(title.transform, "로딩 중", autoSize: true, minFontSize: 14f, maxFontSize: 28f).color = Color.white;
+
+            var gauge = EditorUIBuilder.GetOrCreateUIObject(bar.transform, "Gauge");
+            EditorUIBuilder.SetAnchors(gauge.GetComponent<RectTransform>(), new Vector2(0f, 0.4f), new Vector2(1f, 0.58f));
+            EditorUIBuilder.EnsureImage(gauge, new Color(0.25f, 0.25f, 0.25f, 1f)).raycastTarget = false;
+            var fill = EditorUIBuilder.GetOrCreateUIObject(gauge.transform, "Fill");
+            var fillRect = fill.GetComponent<RectTransform>();
+            EditorUIBuilder.SetAnchors(fillRect, Vector2.zero, new Vector2(0f, 1f));
+            fillRect.offsetMin = Vector2.zero;
+            fillRect.offsetMax = Vector2.zero;
+            EditorUIBuilder.EnsureImage(fill, new Color(0.9f, 0.8f, 0.45f, 1f)).raycastTarget = false;
+
+            var step = EditorUIBuilder.GetOrCreateUIObject(bar.transform, "Step");
+            EditorUIBuilder.SetAnchors(step.GetComponent<RectTransform>(), Vector2.zero, new Vector2(0.8f, 0.34f));
+            var stepLabel = EditorUIBuilder.EnsureLabel(step.transform, string.Empty, autoSize: true, minFontSize: 12f, maxFontSize: 20f);
+            stepLabel.alignment = TextAlignmentOptions.MidlineLeft;
+            stepLabel.color = Color.white;
+
+            var percent = EditorUIBuilder.GetOrCreateUIObject(bar.transform, "Percent");
+            EditorUIBuilder.SetAnchors(percent.GetComponent<RectTransform>(), new Vector2(0.8f, 0f), new Vector2(1f, 0.34f));
+            var percentLabel = EditorUIBuilder.EnsureLabel(percent.transform, string.Empty, autoSize: true, minFontSize: 12f, maxFontSize: 20f);
+            percentLabel.alignment = TextAlignmentOptions.MidlineRight;
+            percentLabel.color = Color.white;
+
+            var view = EditorUIBuilder.GetOrAddComponent<SceneLoadingBarView>(bar);
+            var so = new SerializedObject(view);
+            so.FindProperty("fill").objectReferenceValue = fillRect;
+            so.FindProperty("stepLabel").objectReferenceValue = stepLabel;
+            so.FindProperty("percentLabel").objectReferenceValue = percentLabel;
+            so.ApplyModifiedProperties();
+
+            bar.SetActive(false);
+            return view;
         }
 
         private static void WireFieldBattleViewPrefabs(FieldUIController fieldUIController)

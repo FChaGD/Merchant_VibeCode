@@ -16,6 +16,8 @@ namespace Game.Core
         [SerializeField] private ContentSceneId initialScene = ContentSceneId.Hub;
 
         private string currentContentScene;
+        // 로딩 절차(Docs/설계/67번) - 불러오기·정리 작업 완료를 알린다. 없으면(테스트 등) 알리지 않고 전환만 한다.
+        private ISceneLoadingSequence loadingSequence;
 
         public event Action<string> OnSceneLoaded;
 
@@ -26,6 +28,8 @@ namespace Game.Core
 
         public void ResolveDependencies(IDependencyResolver registrar)
         {
+            registrar.TryResolve(out loadingSequence);
+
             // 매니징 컴포넌트 초기설정이 끝난 직후 지정된 콘텐츠 씬으로 최초 전환한다.
             Transition(initialScene.ToString());
         }
@@ -38,6 +42,7 @@ namespace Game.Core
         private IEnumerator TransitionRoutine(string sceneName)
         {
             var previousSceneName = currentContentScene;
+            loadingSequence?.Begin(sceneName, !string.IsNullOrEmpty(previousSceneName));
 
             // 콘텐츠 씬마다 자체 EventSystem과 Camera(AudioListener 포함)를 갖고 있다(각 씬에 이미
             // 구성돼 있음). 예전에는 새 씬을 먼저 로드한 뒤 이전 것들을 파괴했는데, LoadSceneAsync가
@@ -57,10 +62,12 @@ namespace Game.Core
             }
 
             yield return SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+            loadingSequence?.CompleteCurrent();
 
             if (!string.IsNullOrEmpty(previousSceneName))
             {
                 yield return SceneManager.UnloadSceneAsync(previousSceneName);
+                loadingSequence?.CompleteCurrent();
             }
 
             currentContentScene = sceneName;

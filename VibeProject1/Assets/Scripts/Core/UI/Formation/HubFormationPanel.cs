@@ -14,7 +14,7 @@ namespace Game.Core
     /// 클래스는 "드롭 시 무엇을 반영할지"(IFormationEditingHandler)와 적용 버튼만 담당한다.
     /// 배치·이동·제거는 마차 중심 대열 규칙(FormationAreaRules, Docs/기획/59번)으로 판정하고, 허용된 결과(자동 해제 포함)만 로컬 사본에 반영한다.
     /// </summary>
-    public class HubFormationPanel : MonoBehaviour, IUIPanel, IFormationEditingHandler
+    public class HubFormationPanel : MonoBehaviour, IUIPanel, IFormationEditingHandler, ISceneLoadingTaskSource
     {
         [SerializeField] private FormationUnitIconView dragGhostPrefab;
 
@@ -72,6 +72,19 @@ namespace Game.Core
         {
             currentLayout = BuildInitialLayout();
             gridEditor.Open();
+        }
+
+        // 마을 로딩 중 칸 미리 생성(Docs/설계/67번 §4.4). UI 연결에 실패해 편집기가 없으면 아무것도 하지 않는다.
+        public ContentSceneId LoadingScene => ContentSceneId.Hub;
+
+        public IEnumerable<ISceneLoadingTask> GetLoadingTasks()
+        {
+            yield return new ActionSceneLoadingTask("상단 배치 준비 중", () =>
+            {
+                if (gridEditor == null) return;
+                currentLayout = BuildInitialLayout();
+                gridEditor.Prewarm();
+            });
         }
 
         // 순수 "숨기기"만 한다. 상행 준비 UI 등으로 되돌아가는 네비게이션은 UIManager.Close(PanelId)의
