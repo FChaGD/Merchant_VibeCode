@@ -52,7 +52,10 @@ namespace Game.Core.Editor
                 {
                     Id = EditorTableReader.ParseSlug(row, "Id", seenIds),
                     Price = EditorTableReader.ParseInt(row, "Price"),
-                    Radius = EditorTableReader.ParseInt(row, "Radius"),
+                    Up = EditorTableReader.ParseInt(row, "Up"),
+                    Down = EditorTableReader.ParseInt(row, "Down"),
+                    Left = EditorTableReader.ParseInt(row, "Left"),
+                    Right = EditorTableReader.ParseInt(row, "Right"),
                 });
             }
             return entries;
@@ -85,6 +88,11 @@ namespace Game.Core.Editor
                 {
                     throw new FormatException($"{sheetName}의 '{entry.Id}'에 해당하는 이름이 {sheetName}Strings 시트에 없다.");
                 }
+                // 대열 범위는 0 이상(기획 61번 §3.1) - 영역 계산은 음수를 0으로 올려 버티지만, 입력 실수는 임포트에서 드러낸다(설계 62번 §7-2).
+                if (entry.Up < 0 || entry.Down < 0 || entry.Left < 0 || entry.Right < 0)
+                {
+                    throw new FormatException($"{sheetName}의 '{entry.Id}' 대열 범위(Up/Down/Left/Right)에 음수가 있다.");
+                }
             }
         }
 
@@ -98,7 +106,10 @@ namespace Game.Core.Editor
                 var element = entriesProp.GetArrayElementAtIndex(i);
                 element.FindPropertyRelative("Id").stringValue = entries[i].Id;
                 element.FindPropertyRelative("Price").intValue = entries[i].Price;
-                element.FindPropertyRelative("Radius").intValue = entries[i].Radius;
+                element.FindPropertyRelative("Up").intValue = entries[i].Up;
+                element.FindPropertyRelative("Down").intValue = entries[i].Down;
+                element.FindPropertyRelative("Left").intValue = entries[i].Left;
+                element.FindPropertyRelative("Right").intValue = entries[i].Right;
             }
             so.ApplyModifiedProperties();
             EditorUtility.SetDirty(asset);

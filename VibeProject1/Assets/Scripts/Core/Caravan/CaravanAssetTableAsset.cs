@@ -9,7 +9,11 @@ namespace Game.Core
     {
         public string Id; // 개체 Id(예: Wagon01) - 한 행 = 마차 한 대 / 시설 하나(Docs/기획/55번 §3)
         public int Price;
-        public int Radius; // 대열 영역 정사각형 반경 - 한 변 2 × 반경 + 1(Docs/기획/59번 §3.1, 기본 4)
+        // 대열 영역이 중심 칸에서 방향별로 뻗는 칸 수(Docs/기획/61번 §3.1, 기본 4). 임포터가 필드 이름으로 값을 써 넣어 평면 int로 둔다.
+        public int Up;
+        public int Down;
+        public int Left;
+        public int Right;
     }
 
     /// <summary>

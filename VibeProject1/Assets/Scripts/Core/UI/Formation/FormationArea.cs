@@ -5,25 +5,25 @@ using UnityEngine;
 namespace Game.Core
 {
     /// <summary>
-    /// 디버그 핀 한 개(판 칸 + 정사각형 반경 - 마차와 같은 규칙, Docs/기획/59번 §4.5). 영역 계산의 선택적 입력이다.
+    /// 디버그 핀 한 개(판 칸 + 방향별 범위 - 마차와 같은 규칙, Docs/기획/59번 §4.5·61번 §3.2). 영역 계산의 선택적 입력이다.
     /// </summary>
     public readonly struct FormationAreaPin
     {
         public int SlotIndex { get; }
-        public int Radius { get; }
+        public FormationAreaSpan Span { get; }
 
-        public FormationAreaPin(int slotIndex, int radius)
+        public FormationAreaPin(int slotIndex, FormationAreaSpan span)
         {
             SlotIndex = slotIndex;
-            Radius = radius;
+            Span = span;
         }
     }
 
     /// <summary>
     /// 외곽 판 위의 대열 영역(Docs/기획/59번, 설계 60번 §3). 배치가 바뀔 때마다 새로 계산하는 불변 스냅샷이다 - 판 2,500칸·유닛 수십 개
     /// 수준이라 편집 동작마다 다시 계산해도 충분하고, 캐시를 두면 배치와 어긋날 위험만 생긴다.
-    /// - 대열 칸: 마차가 없으면 기준 칸(판 중앙) + 핀 영역, 있으면 마차·시설·핀을 중심으로 한 정사각형(한 변 2 × 반경 + 1)의 합집합(판 밖은
-    ///   잘림). 처음 기획은 십자 반경이었으나 제작 후 정사각형으로 바뀌었다(2026-09-28 사용자 정정, 기획 59번 §3.1).
+    /// - 대열 칸: 마차가 없으면 기준 칸(판 중앙) + 핀 영역, 있으면 마차·시설·핀을 중심으로 방향별 범위만큼 뻗은 직사각형의 합집합(판 밖은
+    ///   잘림). 정사각형 반경 1개에서 상하좌우 4방향 범위로 바뀌었다(기획 61번).
     /// - 시설 자리(자리 칸): 마차·핀 영역 안만. 시설이 넓힌 칸까지 허용하면 시설을 자기 영역 끝으로 반복 이동해 대열에서 끝없이 떨어져 나갈 수
     ///   있다(2026-09-29 실전 확인, 사용자 결정).
     /// - 연결 판정(연결 칸): 자리 칸 + 자리 칸 위 시설의 영역(2026-09-29 개정, 기획 59번 §3.3 - 시설도 마차를 잇는다). 4방향으로 맞닿은 칸을
@@ -39,7 +39,7 @@ namespace Game.Core
         private readonly HashSet<int> hostCells = new();
         // 자리 칸 + 자리 칸 위 시설의 영역 - 마차 연결 판정.
         private readonly HashSet<int> connectCells = new();
-        // 마차만 / 시설만의 정사각형 합집합 - 판정에는 쓰지 않고 디버그 외곽선 표시용으로만 노출한다.
+        // 마차만 / 시설만의 직사각형 합집합 - 판정에는 쓰지 않고 디버그 외곽선 표시용으로만 노출한다.
         private readonly HashSet<int> wagonCells = new();
         private readonly HashSet<int> facilityCells = new();
         private readonly List<int> wagonSlots = new();
@@ -60,8 +60,8 @@ namespace Game.Core
             RowCount = layout.RowCount;
             AnchorSlotIndex = layout.AnchorSlotIndex;
 
-            var facilityAnchors = new List<(int slot, int radius)>();
-            var wagonAnchors = new List<(int slot, int radius)>();
+            var facilityAnchors = new List<(int slot, FormationAreaSpan span)>();
+            var wagonAnchors = new List<(int slot, FormationAreaSpan span)>();
             for (var slot = 0; slot < layout.SlotCount; slot++)
             {
                 var id = layout.GetUnitId(slot);
@@ -70,15 +70,15 @@ namespace Game.Core
                 var unit = lookup?.Invoke(id);
                 if (unit == null || unit.Kind == FormationUnitKind.Character) continue;
 
-                var radius = unit is IAreaAnchorUnit anchor ? anchor.AreaRadius : 0;
+                var span = unit is IAreaAnchorUnit anchor ? anchor.AreaSpan : default;
                 if (unit.Kind == FormationUnitKind.Wagon)
                 {
                     wagonSlots.Add(slot);
-                    wagonAnchors.Add((slot, radius));
+                    wagonAnchors.Add((slot, span));
                 }
                 else
                 {
-                    facilityAnchors.Add((slot, radius));
+                    facilityAnchors.Add((slot, span));
                 }
             }
 
@@ -87,8 +87,8 @@ namespace Game.Core
                 foreach (var pin in pins)
                 {
                     if (!IsOnBoard(pin.SlotIndex)) continue;
-                    AddSquare(pin.SlotIndex, pin.Radius, pinCells);
-                    AddSquare(pin.SlotIndex, pin.Radius, hostCells);
+                    AddRect(pin.SlotIndex, pin.Span, pinCells);
+                    AddRect(pin.SlotIndex, pin.Span, hostCells);
                 }
             }
 
@@ -98,15 +98,15 @@ namespace Game.Core
             }
             else
             {
-                foreach (var (slot, radius) in wagonAnchors)
+                foreach (var (slot, span) in wagonAnchors)
                 {
-                    AddSquare(slot, radius, hostCells);
-                    AddSquare(slot, radius, wagonCells);
+                    AddRect(slot, span, hostCells);
+                    AddRect(slot, span, wagonCells);
                 }
                 // 자리 칸이 모두 정해진 뒤에 판별한다 - 시설끼리 서로를 자리로 삼지 못하게.
-                foreach (var (slot, radius) in facilityAnchors)
+                foreach (var (slot, span) in facilityAnchors)
                 {
-                    if (hostCells.Contains(slot)) AddSquare(slot, radius, facilityCells);
+                    if (hostCells.Contains(slot)) AddRect(slot, span, facilityCells);
                 }
                 cells.UnionWith(wagonCells);
                 cells.UnionWith(facilityCells);
@@ -147,14 +147,14 @@ namespace Game.Core
 
         private bool IsOnBoard(int slotIndex) => slotIndex >= 0 && slotIndex < ColumnCount * RowCount;
 
-        // 중심 칸에서 가로·세로 모두 반경 이내인 정사각형(대각선 칸 포함).
-        private void AddSquare(int slotIndex, int radius, HashSet<int> target)
+        // 중심 칸에서 방향별 범위만큼 뻗은 직사각형(모서리 칸 포함). 격자 화면이 행을 위→아래로 놓아 상 = 행 감소.
+        private void AddRect(int slotIndex, FormationAreaSpan span, HashSet<int> target)
         {
             var column = slotIndex % ColumnCount;
             var row = slotIndex / ColumnCount;
-            for (var dRow = -radius; dRow <= radius; dRow++)
+            for (var dRow = -span.Up; dRow <= span.Down; dRow++)
             {
-                for (var dColumn = -radius; dColumn <= radius; dColumn++)
+                for (var dColumn = -span.Left; dColumn <= span.Right; dColumn++)
                 {
                     TryAdd(column + dColumn, row + dRow, target);
                 }

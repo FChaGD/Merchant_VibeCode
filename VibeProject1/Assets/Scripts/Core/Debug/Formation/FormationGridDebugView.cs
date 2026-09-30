@@ -15,26 +15,33 @@ namespace Game.Core.DebugTools
     /// </summary>
     public class FormationGridDebugView : MonoBehaviour
     {
-        private const int DefaultRadius = 4;
+        private const int DefaultReach = 4;
         // 핀 표시 크기 = 칸 크기 비율(최소 8px) - 고정 px면 축소 시 칸보다 커져 이웃 칸을 덮는다.
         private const float MarkerToCellRatio = 0.3f;
         private const float MinMarkerSize = 8f;
         private static readonly Color MarkerColor = new(0.85f, 0.1f, 0.85f, 0.95f);
 
-        [SerializeField] private TMP_InputField radiusInput;
+        // 핀 영역 방향별 범위 입력(기획 61번 §3.2) - 마차·시설과 같은 직사각형 규칙.
+        [SerializeField] private TMP_InputField upInput;
+        [SerializeField] private TMP_InputField downInput;
+        [SerializeField] private TMP_InputField leftInput;
+        [SerializeField] private TMP_InputField rightInput;
         [SerializeField] private FormationDebugPinHandle pinHandle;
 
         private readonly List<Button> markers = new();
-        private Action<int, int> onPinDropped;
+        private Action<int, FormationAreaSpan> onPinDropped;
         private Action<int> onPinClicked;
 
-        public void Initialize(Action<int, int> pinDropped, Action<int> pinClicked)
+        public void Initialize(Action<int, FormationAreaSpan> pinDropped, Action<int> pinClicked)
         {
             onPinDropped = pinDropped;
             onPinClicked = pinClicked;
 
-            if (radiusInput != null && string.IsNullOrEmpty(radiusInput.text)) radiusInput.text = DefaultRadius.ToString();
-            if (pinHandle != null) pinHandle.Initialize(slot => onPinDropped?.Invoke(slot, ParseRadius()));
+            foreach (var input in new[] { upInput, downInput, leftInput, rightInput })
+            {
+                if (input != null && string.IsNullOrEmpty(input.text)) input.text = DefaultReach.ToString();
+            }
+            if (pinHandle != null) pinHandle.Initialize(slot => onPinDropped?.Invoke(slot, ParseSpan()));
         }
 
         /// <summary>핀 칸마다 표시를 하나씩 그린다. 표시를 누르면 그 핀 제거를 시도한다.</summary>
@@ -64,8 +71,11 @@ namespace Game.Core.DebugTools
             }
         }
 
-        private int ParseRadius()
-            => radiusInput != null && int.TryParse(radiusInput.text, out var value) ? Mathf.Max(0, value) : DefaultRadius;
+        // 음수는 FormationAreaSpan이 0으로 올린다.
+        private FormationAreaSpan ParseSpan() => new(Parse(upInput), Parse(downInput), Parse(leftInput), Parse(rightInput));
+
+        private static int Parse(TMP_InputField input)
+            => input != null && int.TryParse(input.text, out var value) ? value : DefaultReach;
 
         private static Button CreateMarker(RectTransform parent)
         {

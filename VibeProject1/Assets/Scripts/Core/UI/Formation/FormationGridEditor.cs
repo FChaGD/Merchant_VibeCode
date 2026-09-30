@@ -515,9 +515,9 @@ namespace Game.Core
             debugView.RenderPins(handler.GetAreaPins(), gridView.ContentRect, gridView.IsVisible, gridView.GetSlotAnchoredPosition, gridView.CellSize);
         }
 
-        private void HandleDebugPinDropped(int slotIndex, int radius)
+        private void HandleDebugPinDropped(int slotIndex, FormationAreaSpan span)
         {
-            handler.HandleDebugPinAdd(slotIndex, radius);
+            handler.HandleDebugPinAdd(slotIndex, span);
             displayLayout = handler.GetDisplayLayout();
             RefreshAllSlots();
         }

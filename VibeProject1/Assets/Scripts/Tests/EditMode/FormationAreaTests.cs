@@ -15,9 +15,12 @@ namespace Game.Core.Tests
         public void SetUp()
         {
             units.Clear();
-            for (var i = 1; i <= 5; i++) Add(new PlaceholderFormationUnit($"Wagon0{i}", "마차", null, FormationUnitKind.Wagon, 4));
-            Add(new PlaceholderFormationUnit("Facility01", "시설", null, FormationUnitKind.Facility, 4));
-            Add(new PlaceholderFormationUnit("Facility02", "시설", null, FormationUnitKind.Facility, 4));
+            for (var i = 1; i <= 5; i++) Add(new PlaceholderFormationUnit($"Wagon0{i}", "마차", null, FormationUnitKind.Wagon, FormationAreaSpan.Uniform(4)));
+            Add(new PlaceholderFormationUnit("Facility01", "시설", null, FormationUnitKind.Facility, FormationAreaSpan.Uniform(4)));
+            Add(new PlaceholderFormationUnit("Facility02", "시설", null, FormationUnitKind.Facility, FormationAreaSpan.Uniform(4)));
+            // 비대칭 범위(기획 61번 §3.1 예시).
+            Add(new PlaceholderFormationUnit("WagonWide", "마차", null, FormationUnitKind.Wagon, new FormationAreaSpan(1, 1, 4, 4)));
+            Add(new PlaceholderFormationUnit("WagonUpOnly", "마차", null, FormationUnitKind.Wagon, new FormationAreaSpan(3, 0, 2, 2)));
             Add(new PlaceholderMercenaryUnit("Warrior01", "전사", null, "Warrior"));
             Add(new PlaceholderMercenaryUnit("Warrior02", "전사", null, "Warrior"));
         }
@@ -59,6 +62,46 @@ namespace Game.Core.Tests
             var edge = Empty();
             edge.SetUnitId(Slot(0, 0), "Wagon01");
             Assert.AreEqual(25, FormationArea.Compute(edge, Lookup).Cells.Count); // 판 모서리에서 잘려 5 × 5
+        }
+
+        [Test]
+        public void Wagon_OpensRectangleOfDirectionalSpan()
+        {
+            var wide = Empty();
+            wide.SetUnitId(Anchor, "WagonWide"); // 상1·하1·좌4·우4
+            var wideArea = FormationArea.Compute(wide, Lookup);
+            Assert.AreEqual(27, wideArea.Cells.Count); // 9 × 3
+            Assert.IsTrue(wideArea.Contains(Slot(20, 23)));
+            Assert.IsTrue(wideArea.Contains(Slot(28, 25)));
+            Assert.IsFalse(wideArea.Contains(Slot(24, 22)));
+            Assert.IsFalse(wideArea.Contains(Slot(24, 26)));
+
+            var upOnly = Empty();
+            upOnly.SetUnitId(Anchor, "WagonUpOnly"); // 상3·하0·좌2·우2 - 상 = 행 감소
+            var upArea = FormationArea.Compute(upOnly, Lookup);
+            Assert.AreEqual(20, upArea.Cells.Count); // 5 × 4
+            Assert.IsTrue(upArea.Contains(Slot(24, 21)));
+            Assert.IsFalse(upArea.Contains(Slot(24, 25))); // 중심 칸이 맨 아래 줄
+            Assert.AreEqual(new UnityEngine.RectInt(22, 21, 5, 4), upArea.Bounds);
+        }
+
+        [Test]
+        public void DirectionalSpan_ClippedOnlyOnEdgeSide()
+        {
+            var layout = Empty();
+            layout.SetUnitId(Slot(1, 24), "WagonWide"); // 좌4 중 3칸이 판 밖
+            Assert.AreEqual(18, FormationArea.Compute(layout, Lookup).Cells.Count); // 열 0~5(6) × 행 3
+        }
+
+        [Test]
+        public void Span_ClampsNegativeToZero()
+        {
+            var span = new FormationAreaSpan(-1, 2, -3, 4);
+            Assert.AreEqual(0, span.Up);
+            Assert.AreEqual(2, span.Down);
+            Assert.AreEqual(0, span.Left);
+            Assert.AreEqual(4, span.Right);
+            Assert.AreEqual(4, span.MaxReach);
         }
 
         [Test]
@@ -191,15 +234,24 @@ namespace Game.Core.Tests
         [Test]
         public void Pins_AllowCharactersWithoutWagon_AndCountForConnectivity()
         {
-            var pins = new[] { new FormationAreaPin(Slot(10, 10), 2) };
+            var pins = new[] { new FormationAreaPin(Slot(10, 10), FormationAreaSpan.Uniform(2)) };
             var area = FormationArea.Compute(Empty(), Lookup, pins);
             Assert.AreEqual(FormationEditRejection.None, FormationAreaRules.CanPlaceAt(area, units["Warrior01"], Slot(11, 10)));
 
             var layout = Empty();
             layout.SetUnitId(Slot(10, 24), "Wagon01");
             layout.SetUnitId(Slot(20, 24), "Wagon02");
-            var bridge = new[] { new FormationAreaPin(Slot(15, 24), 1) };
+            var bridge = new[] { new FormationAreaPin(Slot(15, 24), FormationAreaSpan.Uniform(1)) };
             Assert.IsTrue(FormationArea.Compute(layout, Lookup, bridge).WagonsConnected);
+
+            // 비대칭 핀: 마차 영역(4~12, 18~26) 사이 틈(13~17)을 가로로 뻗은 핀은 잇고, 세로로만 뻗은 핀은 잇지 못한다.
+            var apart = Empty();
+            apart.SetUnitId(Slot(8, 30), "Wagon01");
+            apart.SetUnitId(Slot(22, 30), "Wagon02");
+            var horizontal = new[] { new FormationAreaPin(Slot(15, 30), new FormationAreaSpan(0, 0, 3, 3)) };
+            var vertical = new[] { new FormationAreaPin(Slot(15, 30), new FormationAreaSpan(3, 3, 0, 0)) };
+            Assert.IsTrue(FormationArea.Compute(apart, Lookup, horizontal).WagonsConnected);
+            Assert.IsFalse(FormationArea.Compute(apart, Lookup, vertical).WagonsConnected);
         }
 
         [Test]

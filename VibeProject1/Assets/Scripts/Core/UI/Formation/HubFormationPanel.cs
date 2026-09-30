@@ -108,18 +108,19 @@ namespace Game.Core
 
         public IReadOnlyList<FormationAreaPin> GetAreaPins() => debugAreaSource?.Pins;
 
-        // 연결 가능한 가장 먼 칸 = 대열 경계에서 (새 마차 반경 + 1)칸 - 팔레트의 마차까지 포함해 로스터 마차 반경 최댓값으로 정한다(설계 60번 §15.3).
+        // 연결 가능한 가장 먼 칸 = 대열 경계에서 (새 마차 범위 + 1)칸 - 팔레트의 마차까지 포함해 로스터 마차 범위 최댓값으로 정한다(설계 60번 §15.3).
+        // 방향별로 따로 계산하지 않고 네 방향 최댓값을 사방에 똑같이 쓴다(기획 61번 §3.3) - 일부 방향에 칸이 더 깔리는 대신 규칙이 단순하다.
         public int GetVisibleMarginCells()
         {
-            var maxRadius = -1;
+            var maxReach = -1;
             if (rosterProvider != null)
             {
                 foreach (var unit in rosterProvider.GetRoster())
                 {
-                    if (unit.Kind == FormationUnitKind.Wagon && unit is IAreaAnchorUnit anchor) maxRadius = Mathf.Max(maxRadius, anchor.AreaRadius);
+                    if (unit.Kind == FormationUnitKind.Wagon && unit is IAreaAnchorUnit anchor) maxReach = Mathf.Max(maxReach, anchor.AreaSpan.MaxReach);
                 }
             }
-            return maxRadius < 0 ? DefaultVisibleMarginCells : Mathf.Max(DefaultVisibleMarginCells, maxRadius + 1);
+            return maxReach < 0 ? DefaultVisibleMarginCells : Mathf.Max(DefaultVisibleMarginCells, maxReach + 1);
         }
 
         private const int DefaultVisibleMarginCells = 2;
@@ -149,7 +150,7 @@ namespace Game.Core
         // 핀은 적용 버튼과 무관하게 저장소에 바로 반영된다(디버그 도구). 핀 제거로 영역 밖이 된 유닛은 로컬 사본에서 해제한다.
         public bool HasDebugPinStore => debugAreaSource != null;
 
-        public void HandleDebugPinAdd(int slotIndex, int radius) => debugAreaSource?.AddOrReplace(new FormationAreaPin(slotIndex, radius));
+        public void HandleDebugPinAdd(int slotIndex, FormationAreaSpan span) => debugAreaSource?.AddOrReplace(new FormationAreaPin(slotIndex, span));
 
         public bool HandleDebugPinRemove(int slotIndex)
         {
