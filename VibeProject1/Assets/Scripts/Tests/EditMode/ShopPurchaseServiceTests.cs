@@ -32,13 +32,15 @@ namespace Game.Core.Tests
 
             public GridRepository(int width, int height) => grid = new InventoryGrid(width, height);
 
-            public int GridWidth => grid.Width;
-            public int GridHeight => grid.Height;
+            public GridRepository(InventoryGrid grid) => this.grid = grid;
+
+            public IReadOnlyList<InventorySection> Sections => grid.Sections;
             public IReadOnlyCollection<InventoryItemInstance> Items => grid.Items;
             public event System.Action OnChanged;
-            public bool TryGetItemAt(GridPosition position, out InventoryItemInstance item) => grid.TryGetAt(position, out item);
+            public bool TryGetItemAt(string sectionId, GridPosition position, out InventoryItemInstance item) => grid.TryGetAt(sectionId, position, out item);
+            public bool TryGetItemAt(GridPosition position, out InventoryItemInstance item) => grid.TryGetAt(null, position, out item);
 
-            public bool TryPlaceItem(IInventoryItemDefinition definition, GridPosition position, out InventoryItemInstance placed, int quarterTurns = 0)
+            public bool TryPlaceItem(IInventoryItemDefinition definition, GridPosition position, out InventoryItemInstance placed, int quarterTurns = 0, string sectionId = null)
             {
                 if (FailNextPlacement)
                 {
@@ -46,7 +48,7 @@ namespace Game.Core.Tests
                     return false;
                 }
 
-                if (!grid.TryPlace(definition, position, out placed, quarterTurns)) return false;
+                if (!grid.TryPlace(definition, position, out placed, quarterTurns, sectionId)) return false;
                 OnChanged?.Invoke();
                 return true;
             }
@@ -79,7 +81,7 @@ namespace Game.Core.Tests
             var entry = new ShopStockEntry(new FakeItemDefinition("a", 2, 1), 300);
             var startingAmount = wallet.CurrentAmount;
 
-            Assert.IsTrue(service.TryPurchase(entry));
+            Assert.IsTrue(service.TryPurchase(entry, null, out _));
             Assert.AreEqual(startingAmount - 300, wallet.CurrentAmount);
             Assert.IsTrue(inventory.TryGetItemAt(new GridPosition(0, 0), out var placed));
             Assert.AreEqual("a", placed.Definition.Id);
@@ -92,7 +94,7 @@ namespace Game.Core.Tests
             var entry = new ShopStockEntry(new FakeItemDefinition("a", 1, 1), wallet.CurrentAmount + 1);
 
             Assert.AreEqual(ShopPurchaseCheck.InsufficientFunds, service.Evaluate(entry));
-            Assert.IsFalse(service.TryPurchase(entry));
+            Assert.IsFalse(service.TryPurchase(entry, null, out _));
             Assert.AreEqual(wallet.Capacity, wallet.CurrentAmount);
         }
 
@@ -105,7 +107,7 @@ namespace Game.Core.Tests
             var entry = new ShopStockEntry(new FakeItemDefinition("a", 1, 1), 100);
 
             Assert.AreEqual(ShopPurchaseCheck.NoSpace, service.Evaluate(entry));
-            Assert.IsFalse(service.TryPurchase(entry));
+            Assert.IsFalse(service.TryPurchase(entry, null, out _));
             Assert.AreEqual(wallet.Capacity, wallet.CurrentAmount);
         }
 
@@ -127,7 +129,7 @@ namespace Game.Core.Tests
             var service = new ShopPurchaseService(wallet, inventory, allowRotation: true);
             var entry = new ShopStockEntry(new FakeItemDefinition("long", 2, 1), 100);
 
-            Assert.IsTrue(service.TryPurchase(entry));
+            Assert.IsTrue(service.TryPurchase(entry, null, out _));
             Assert.IsTrue(inventory.TryGetItemAt(new GridPosition(0, 1), out var placed));
             Assert.AreEqual(1, placed.QuarterTurns);
         }
@@ -148,7 +150,7 @@ namespace Game.Core.Tests
             var service = new ShopPurchaseService(wallet, inventory, allowRotation: true);
             var entry = new ShopStockEntry(new FakeItemDefinition("a", 1, 1), 100);
 
-            Assert.IsFalse(service.TryPurchase(entry));
+            Assert.IsFalse(service.TryPurchase(entry, null, out _));
             Assert.AreEqual(wallet.Capacity, wallet.CurrentAmount);
         }
 
@@ -157,12 +159,30 @@ namespace Game.Core.Tests
         {
             var placed = new List<InventoryItemInstance>
             {
-                new("x", new FakeItemDefinition("x", 1, 1), new GridPosition(0, 0)),
+                new("x", new FakeItemDefinition("x", 1, 1), new GridPosition(0, 0), 0, false, InventoryGrid.DefaultSectionId),
             };
+            var sections = new[] { new InventorySection(InventoryGrid.DefaultSectionId, string.Empty, InventoryShape.Rectangle(3, 2)) };
 
-            Assert.IsTrue(InventoryAutoSorter.TryFindSlot(3, 2, placed, new FakeItemDefinition("a", 1, 1), allowRotation: true, out var position, out var turns));
+            Assert.IsTrue(InventoryAutoSorter.TryFindSlot(sections, placed, new FakeItemDefinition("a", 1, 1), allowRotation: true, out _, out var position, out var turns));
             Assert.AreEqual(new GridPosition(1, 0), position);
             Assert.AreEqual(0, turns);
+        }
+
+        [Test]
+        public void TryPurchase_PrefersGivenSection_AndReportsPlacedSection()
+        {
+            var grid = new InventoryGrid();
+            grid.AddSection(new InventorySection("a", string.Empty, InventoryShape.Rectangle(1, 1)));
+            grid.AddSection(new InventorySection("b", string.Empty, InventoryShape.Rectangle(1, 1)));
+            var inventory = new GridRepository(grid);
+            var service = new ShopPurchaseService(wallet, inventory, allowRotation: true);
+            var entry = new ShopStockEntry(new FakeItemDefinition("item", 1, 1), 100);
+
+            Assert.IsTrue(service.TryPurchase(entry, "b", out var firstSection));
+            Assert.AreEqual("b", firstSection);
+            Assert.IsTrue(service.TryPurchase(entry, "b", out var secondSection));
+            Assert.AreEqual("a", secondSection, "우선 섹션이 차면 다음 섹션에 넣는다(기획 63번 §3.5).");
+            Assert.AreEqual(ShopPurchaseCheck.NoSpace, service.Evaluate(entry));
         }
     }
 }

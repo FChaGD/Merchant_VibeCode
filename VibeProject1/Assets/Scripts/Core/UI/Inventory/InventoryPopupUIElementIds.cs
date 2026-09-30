@@ -20,5 +20,9 @@ namespace Game.Core
         public static string DragLayer(string popupId) => $"{popupId}.DragLayer";
         public static string ItemTemplate(string popupId) => $"{popupId}.ItemTemplate";
         public static string CellTemplate(string popupId) => $"{popupId}.CellTemplate";
+        // 마차 전환(Docs/기획/63번 §3.3) - 섹션을 쓰는 화면(InventoryPopupSpec.HasSections)에만 있다.
+        public static string SectionPrevButton(string popupId) => $"{popupId}.SectionPrevButton";
+        public static string SectionNextButton(string popupId) => $"{popupId}.SectionNextButton";
+        public static string SectionLabel(string popupId) => $"{popupId}.SectionLabel";
     }
 }

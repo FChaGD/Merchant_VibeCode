@@ -25,6 +25,8 @@ namespace Game.Core.Tests
 
             public int CountOwnedOfKind(FormationUnitKind kind) => kindById.Values.Count(k => k == kind);
 
+            public IReadOnlyList<string> GetOwnedIds(FormationUnitKind kind) => kindById.Where(pair => pair.Value == kind).Select(pair => pair.Key).ToList();
+
             public bool TryAddOwned(string id)
             {
                 if (FailNextAdd || IsOwned(id) || !knownKinds.TryGetValue(id, out var kind)) return false;

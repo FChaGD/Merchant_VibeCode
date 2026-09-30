@@ -31,6 +31,8 @@ namespace Game.Core
         private readonly Dictionary<string, IFormationUnit> ownedById = new();
         private readonly Dictionary<string, int> hiredCountByClass = new();
         private readonly Dictionary<FormationUnitKind, int> ownedCountByKind = new();
+        // 보유 순서(시작 보유 → 구매 순) - ownedById(Dictionary)에는 순서가 없어 따로 둔다(설계 64번 §5).
+        private readonly Dictionary<FormationUnitKind, List<string>> ownedAssetIdsByKind = new();
         private ICharacterCatalogReader characterCatalog;
         private ICaravanAssetCatalogReader assetCatalog;
 
@@ -43,6 +45,7 @@ namespace Game.Core
             registrar.Register<IHiredCharacterRoster>(this);
             registrar.Register<IMercenaryClassIconReader>(this);
             registrar.Register<IOwnedCaravanAssetRoster>(this);
+            registrar.Register<IOwnedCaravanAssetReader>(this);
             registrar.Register<ICaravanAssetIconReader>(this);
         }
 
@@ -52,6 +55,7 @@ namespace Game.Core
             ownedById.Clear();
             hiredCountByClass.Clear();
             ownedCountByKind.Clear();
+            ownedAssetIdsByKind.Clear();
 
             characterCatalog = null;
             assetCatalog = null;
@@ -70,6 +74,9 @@ namespace Game.Core
             AddStartingCharacters();
             AddStartingAssets();
             RebuildRoster();
+            // 이 시점 이전에 먼저 해결된 구독자(상단 물류품 저장소 등)도 시작 보유분을 받도록 알린다 - DI 해결 순서와 무관하게
+            // 동기화되게 하기 위함이다(설계 64번 §5).
+            OnOwnedChanged?.Invoke();
         }
 
         public IReadOnlyList<IFormationUnit> GetRoster() => roster;
@@ -90,6 +97,9 @@ namespace Game.Core
         public bool IsOwned(string id) => assetCatalog != null && assetCatalog.TryGet(id, out _) && ownedById.ContainsKey(id);
 
         public int CountOwnedOfKind(FormationUnitKind kind) => ownedCountByKind.TryGetValue(kind, out var count) ? count : 0;
+
+        public IReadOnlyList<string> GetOwnedIds(FormationUnitKind kind)
+            => ownedAssetIdsByKind.TryGetValue(kind, out var ids) ? ids : System.Array.Empty<string>();
 
         public bool TryAddOwned(string id)
         {
@@ -155,6 +165,8 @@ namespace Game.Core
 
             ownedById[id] = new PlaceholderFormationUnit(profile.Id, profile.KindLabel, GetKindIcon(profile.Kind), profile.Kind, profile.AreaSpan);
             ownedCountByKind[profile.Kind] = CountOwnedOfKind(profile.Kind) + 1;
+            if (!ownedAssetIdsByKind.TryGetValue(profile.Kind, out var ids)) ownedAssetIdsByKind[profile.Kind] = ids = new List<string>();
+            ids.Add(id);
             return true;
         }
 

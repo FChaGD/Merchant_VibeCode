@@ -7,13 +7,14 @@ namespace Game.Core
     /// 인벤토리 그리드 조회 계약(Docs/설계/32번 §3). 카테고리별 읽기 전용 소비자가 실제로 생기기
     /// 전까지는 카테고리 마커 인터페이스에서 이 계약과 IInventoryRepository를 함께 묶어 쓴다 - 지금
     /// 당장 필요하지 않은 IFormationReader류 분리를 미리 하지 않는다(과잉 설계 방지).
+    /// 크기는 섹션 모양 한 곳에만 둔다(설계 64번 §4.1) - 예전 GridWidth/GridHeight는 그리드 1개를 전제해 없앴다.
+    /// 섹션 인자가 null이면 첫 섹션이다(섹션 1개짜리 인벤토리용).
     /// </summary>
     public interface IInventoryReader
     {
-        int GridWidth { get; }
-        int GridHeight { get; }
+        IReadOnlyList<InventorySection> Sections { get; }
         IReadOnlyCollection<InventoryItemInstance> Items { get; }
-        bool TryGetItemAt(GridPosition position, out InventoryItemInstance item);
+        bool TryGetItemAt(string sectionId, GridPosition position, out InventoryItemInstance item);
 
         // Update 폴링 금지(CLAUDE.md 최적화 컨벤션) - 그리드 뷰는 이 이벤트로만 갱신한다.
         event Action OnChanged;

@@ -19,6 +19,9 @@ namespace Game.Core
     /// 경유하지 않는다 - 입력 매니저가 설계되면 이 바인딩을 옮긴다(설계 40번 §10).
     /// 회전을 허용하지 않는 팝업은 입력 액션 자체를 만들지 않고, 임시 보관 뷰가 없으면 그리드 밖 드롭은
     /// 전부 원위치다(설계 42번 §4.3).
+    ///
+    /// 드롭 섹션은 드롭 시점에 화면이 보여 주는 섹션이다(currentSectionId) - 드래그 중 스테퍼 호버로 마차를 바꾸면 다른 마차에
+    /// 놓게 된다(기획 63번 §3.4). 판정·적용은 한 번의 재배치라 실패하면 원래 마차·원래 칸에 그대로 남는다.
     /// </summary>
     internal sealed class InventoryItemDragController : IDisposable
     {
@@ -31,6 +34,8 @@ namespace Game.Core
         private readonly RectTransform dragLayer;
         private readonly InventoryItemView ghost;
         private readonly InputAction rotateAction; // 회전을 허용하지 않는 팝업은 null
+        private readonly Func<string> currentSectionId;
+        private readonly Action onFinished;
 
         private InventoryItemView sourceView;
         private InventoryItemInstance dragged;
@@ -40,9 +45,15 @@ namespace Game.Core
         private Camera eventCamera;
 
         public bool IsDragging { get; private set; }
+        /// <summary>드래그를 시작한 뷰(드래그 중이 아니면 null) - 그리드를 다시 그릴 때 재사용 풀에서 빼야 한다(설계 64번 §6.2).</summary>
+        public InventoryItemView SourceView => IsDragging ? sourceView : null;
 
-        public InventoryItemDragController(IInventoryReader reader, IInventoryArrangement arrangement, InventoryGridView gridView, InventoryStagingView stagingView, RectTransform dragLayer, InventoryItemView itemTemplate, bool allowsRotation)
+        /// <param name="currentSectionId">드롭할 섹션 - 편집 본문이 지금 보여 주는 섹션.</param>
+        /// <param name="onFinished">드롭 처리가 끝난 뒤(성공·실패 모두) - 섹션을 바꾼 채 실패하면 저장소 변경 이벤트가 없어 화면을 따로 정리해야 한다.</param>
+        public InventoryItemDragController(IInventoryReader reader, IInventoryArrangement arrangement, InventoryGridView gridView, InventoryStagingView stagingView, RectTransform dragLayer, InventoryItemView itemTemplate, bool allowsRotation, Func<string> currentSectionId, Action onFinished)
         {
+            this.currentSectionId = currentSectionId;
+            this.onFinished = onFinished;
             this.reader = reader;
             this.arrangement = arrangement;
             this.gridView = gridView;
@@ -104,13 +115,21 @@ namespace Game.Core
             // 불가 위치·그 밖의 바깥 드롭은 아무것도 하지 않는다 = 원위치·원래 회전 유지(기획 39번 §3.2, §4.1).
             if (target == DropTarget.Grid)
             {
-                var result = InventoryDropResolver.ResolveGridDrop(reader, arrangement, FindCurrent(itemId), topLeft, turns);
+                var result = InventoryDropResolver.ResolveGridDrop(reader, arrangement, FindCurrent(itemId), currentSectionId(), topLeft, turns);
                 if (result.Kind != InventoryDropKind.Invalid) arrangement.TryApplyPlacements(result.Placements);
             }
             else if (target == DropTarget.Staging)
             {
                 arrangement.TryApplyPlacements(new[] { ItemPlacement.ToStaging(itemId, turns) });
             }
+
+            onFinished?.Invoke();
+        }
+
+        /// <summary>드래그 중 보이는 섹션이 바뀌었을 때 미리보기를 새 섹션 기준으로 다시 판정한다.</summary>
+        public void RefreshPreview()
+        {
+            if (IsDragging) Refresh();
         }
 
         public void Cancel()
@@ -148,7 +167,7 @@ namespace Game.Core
 
             if (TryGetTarget(out var topLeft) == DropTarget.Grid)
             {
-                var result = InventoryDropResolver.ResolveGridDrop(reader, arrangement, dragged, topLeft, quarterTurns);
+                var result = InventoryDropResolver.ResolveGridDrop(reader, arrangement, dragged, currentSectionId(), topLeft, quarterTurns);
                 gridView.ShowPreview(topLeft, CurrentWidth, CurrentHeight, result.Kind);
             }
             else

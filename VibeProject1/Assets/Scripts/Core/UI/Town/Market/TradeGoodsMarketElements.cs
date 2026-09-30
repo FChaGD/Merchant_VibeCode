@@ -26,7 +26,7 @@ namespace Game.Core
         public Button BuyButton { get; private set; }
         public InventoryArrangementElements Inventory { get; private set; }
 
-        public static bool TryBind(SceneUIRoot sceneUIRoot, bool inventoryHasStaging, out TradeGoodsMarketElements elements)
+        public static bool TryBind(SceneUIRoot sceneUIRoot, bool inventoryHasStaging, bool inventoryHasSections, out TradeGoodsMarketElements elements)
         {
             elements = null;
             var ok = InventoryArrangementElements.TryGet(sceneUIRoot, TradeGoodsMarketUIElementIds.Root, out RectTransform root)
@@ -42,7 +42,7 @@ namespace Game.Core
                 & InventoryArrangementElements.TryGet(sceneUIRoot, TradeGoodsMarketUIElementIds.InfoDescription, out TMP_Text infoDescription)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, TradeGoodsMarketUIElementIds.ReasonLabel, out TMP_Text reasonLabel)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, TradeGoodsMarketUIElementIds.BuyButton, out Button buyButton)
-                & InventoryArrangementElements.TryBind(sceneUIRoot, TradeGoodsMarketUIElementIds.InventoryPrefix, inventoryHasStaging, out var inventory);
+                & InventoryArrangementElements.TryBind(sceneUIRoot, TradeGoodsMarketUIElementIds.InventoryPrefix, inventoryHasStaging, inventoryHasSections, out var inventory);
             if (!ok) return false;
 
             elements = new TradeGoodsMarketElements

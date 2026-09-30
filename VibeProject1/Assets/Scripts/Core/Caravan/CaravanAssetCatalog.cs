@@ -14,8 +14,11 @@ namespace Game.Core
         public string KindLabel { get; }
         public int Price { get; }
         public FormationAreaSpan AreaSpan { get; }
+        // 마차 적재 공간 모양(Docs/기획/63번 §3.1). 시설이거나 테이블 값이 형식에 맞지 않으면 null - 임포터가 형식을 막으므로
+        // null인 마차는 임포트 전 자산뿐이다.
+        public InventoryShape CargoShape { get; }
 
-        public CaravanAssetProfile(string id, string name, FormationUnitKind kind, string kindLabel, int price, FormationAreaSpan areaSpan = default)
+        public CaravanAssetProfile(string id, string name, FormationUnitKind kind, string kindLabel, int price, FormationAreaSpan areaSpan = default, InventoryShape cargoShape = null)
         {
             Id = id;
             Name = name;
@@ -23,6 +26,7 @@ namespace Game.Core
             KindLabel = kindLabel;
             Price = price;
             AreaSpan = areaSpan;
+            CargoShape = cargoShape;
         }
     }
 
@@ -71,7 +75,8 @@ namespace Game.Core
             foreach (var entry in table.Entries)
             {
                 var name = strings != null && strings.TryGetLabel(entry.Id, out var ko) ? ko : MissingText;
-                var profile = new CaravanAssetProfile(entry.Id, name, kind, GetKindLabel(kind), entry.Price, new FormationAreaSpan(entry.Up, entry.Down, entry.Left, entry.Right));
+                var cargoShape = kind == FormationUnitKind.Wagon && InventoryShape.TryParse(entry.CargoShape, out var parsed, out _) ? parsed : null;
+                var profile = new CaravanAssetProfile(entry.Id, name, kind, GetKindLabel(kind), entry.Price, new FormationAreaSpan(entry.Up, entry.Down, entry.Left, entry.Right), cargoShape);
                 all.Add(profile);
                 byId[entry.Id] = profile;
             }

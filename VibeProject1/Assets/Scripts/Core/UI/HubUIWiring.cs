@@ -227,7 +227,7 @@ namespace Game.Core
                 return;
             }
 
-            if (!TradeGoodsMarketElements.TryBind(sceneUIRoot, InventoryPopupSpecs.TradeGoods.HasStaging, out var elements)) return;
+            if (!TradeGoodsMarketElements.TryBind(sceneUIRoot, InventoryPopupSpecs.TradeGoods.HasStaging, InventoryPopupSpecs.TradeGoods.HasSections, out var elements)) return;
 
             tradeGoodsMarketPanel = new TradeGoodsMarketPanel(elements, inventory, wallet, stockReader, currentLocation, uiManager);
             panelRegistrar.RegisterPopupPanel(tradeGoodsMarketPanel);

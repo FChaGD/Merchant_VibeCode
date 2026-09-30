@@ -36,18 +36,20 @@ namespace Game.Core.Tests
 
             public GridInventory(int width, int height) => Grid = new InventoryGrid(width, height);
 
-            public int GridWidth => Grid.Width;
-            public int GridHeight => Grid.Height;
+            public GridInventory(InventoryGrid grid) => Grid = grid;
+
+            public IReadOnlyList<InventorySection> Sections => Grid.Sections;
             public IReadOnlyCollection<InventoryItemInstance> Items => Grid.Items;
             public IReadOnlyList<InventoryItemInstance> StagedItems => Grid.StagedItems;
-            public bool TryGetItemAt(GridPosition position, out InventoryItemInstance item) => Grid.TryGetAt(position, out item);
+            public bool TryGetItemAt(string sectionId, GridPosition position, out InventoryItemInstance item) => Grid.TryGetAt(sectionId, position, out item);
+            public bool TryGetItemAt(GridPosition position, out InventoryItemInstance item) => Grid.TryGetAt(null, position, out item);
             public bool TryApplyPlacements(IReadOnlyList<ItemPlacement> placements) => Grid.TryApplyPlacements(placements);
             public bool CanApplyPlacements(IReadOnlyList<ItemPlacement> placements) => Grid.CanApplyPlacements(placements);
             public event Action OnChanged { add { } remove { } }
 
-            public InventoryItemInstance Place(IInventoryItemDefinition definition, int x, int y)
+            public InventoryItemInstance Place(IInventoryItemDefinition definition, int x, int y, string sectionId = null)
             {
-                Assert.IsTrue(Grid.TryPlace(definition, new GridPosition(x, y), out var placed));
+                Assert.IsTrue(Grid.TryPlace(definition, new GridPosition(x, y), out var placed, 0, sectionId));
                 return placed;
             }
 
@@ -57,6 +59,8 @@ namespace Game.Core.Tests
                 return item;
             }
         }
+
+        private static InventorySection Rect(int width, int height) => new(InventoryGrid.DefaultSectionId, string.Empty, InventoryShape.Rectangle(width, height));
 
         private static readonly FakeItemDefinition OneByOne = new("a-1x1", 1, 1);
         private static readonly FakeItemDefinition TwoByOne = new("b-2x1", 2, 1);
@@ -170,7 +174,7 @@ namespace Game.Core.Tests
             var inventory = new GridInventory(4, 2);
             var item = inventory.Place(TwoByOne, 0, 0);
 
-            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, item, new GridPosition(2, 1), 0);
+            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, item, null, new GridPosition(2, 1), 0);
 
             Assert.AreEqual(InventoryDropKind.Move, result.Kind);
         }
@@ -181,7 +185,7 @@ namespace Game.Core.Tests
             var inventory = new GridInventory(4, 1);
             var item = inventory.Place(TwoByOne, 0, 0);
 
-            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, item, new GridPosition(1, 0), 0);
+            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, item, null, new GridPosition(1, 0), 0);
 
             Assert.AreEqual(InventoryDropKind.Move, result.Kind);
         }
@@ -192,7 +196,7 @@ namespace Game.Core.Tests
             var inventory = new GridInventory(4, 1);
             var item = inventory.Place(TwoByOne, 0, 0);
 
-            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, item, new GridPosition(3, 0), 0);
+            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, item, null, new GridPosition(3, 0), 0);
 
             Assert.AreEqual(InventoryDropKind.Invalid, result.Kind);
         }
@@ -204,7 +208,7 @@ namespace Game.Core.Tests
             var dragged = inventory.Place(OneByOne, 0, 0);
             var other = inventory.Place(OneByOne, 2, 0);
 
-            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, dragged, new GridPosition(2, 0), 0);
+            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, dragged, null, new GridPosition(2, 0), 0);
             Assert.AreEqual(InventoryDropKind.Swap, result.Kind);
 
             Assert.IsTrue(inventory.TryApplyPlacements(result.Placements));
@@ -220,7 +224,7 @@ namespace Game.Core.Tests
             var dragged = inventory.Place(OneByOne, 0, 0);
             var other = inventory.Place(TwoByOne, 2, 0);
 
-            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, dragged, new GridPosition(2, 0), 0);
+            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, dragged, null, new GridPosition(2, 0), 0);
 
             Assert.AreEqual(InventoryDropKind.Swap, result.Kind);
         }
@@ -234,7 +238,7 @@ namespace Game.Core.Tests
             var dragged = inventory.Place(OneByOne, 0, 0);
             inventory.Place(TwoByOne, 1, 0);
 
-            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, dragged, new GridPosition(1, 0), 0);
+            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, dragged, null, new GridPosition(1, 0), 0);
 
             Assert.AreEqual(InventoryDropKind.Invalid, result.Kind);
         }
@@ -248,7 +252,7 @@ namespace Game.Core.Tests
             inventory.Place(TwoByTwo, 0, 0);
             var dragged = inventory.Place(OneByOne, 2, 0);
 
-            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, dragged, new GridPosition(1, 0), 0);
+            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, dragged, null, new GridPosition(1, 0), 0);
 
             Assert.AreEqual(InventoryDropKind.Invalid, result.Kind);
         }
@@ -261,7 +265,7 @@ namespace Game.Core.Tests
             inventory.Place(OneByOne, 1, 0);
             var dragged = inventory.Place(TwoByOne, 0, 1);
 
-            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, dragged, new GridPosition(0, 0), 0);
+            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, dragged, null, new GridPosition(0, 0), 0);
 
             Assert.AreEqual(InventoryDropKind.Invalid, result.Kind);
         }
@@ -274,7 +278,7 @@ namespace Game.Core.Tests
             inventory.TryApplyPlacements(new[] { ItemPlacement.ToStaging(staged.InstanceId, 0) });
             var other = inventory.Place(TwoByOne, 0, 0);
 
-            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, inventory.Find(staged.InstanceId), new GridPosition(0, 0), 0);
+            var result = InventoryDropResolver.ResolveGridDrop(inventory, inventory, inventory.Find(staged.InstanceId), null, new GridPosition(0, 0), 0);
             Assert.AreEqual(InventoryDropKind.Swap, result.Kind);
 
             Assert.IsTrue(inventory.TryApplyPlacements(result.Placements));
@@ -289,8 +293,8 @@ namespace Game.Core.Tests
             var item = inventory.Place(OneByTwo, 0, 0);
 
             // 회전 안 하면 1×2라 들어가지만, 1회 회전하면 2×1이 되어 폭 1 그리드를 넘는다.
-            Assert.AreEqual(InventoryDropKind.Move, InventoryDropResolver.ResolveGridDrop(inventory, inventory, item, new GridPosition(0, 0), 0).Kind);
-            Assert.AreEqual(InventoryDropKind.Invalid, InventoryDropResolver.ResolveGridDrop(inventory, inventory, item, new GridPosition(0, 0), 1).Kind);
+            Assert.AreEqual(InventoryDropKind.Move, InventoryDropResolver.ResolveGridDrop(inventory, inventory, item, null, new GridPosition(0, 0), 0).Kind);
+            Assert.AreEqual(InventoryDropKind.Invalid, InventoryDropResolver.ResolveGridDrop(inventory, inventory, item, null, new GridPosition(0, 0), 1).Kind);
         }
 
         // ==================== 자동 정렬 ====================
@@ -302,7 +306,7 @@ namespace Game.Core.Tests
             inventory.Place(OneByOne, 0, 0);
             var big = inventory.Place(TwoByTwo, 2, 0);
 
-            Assert.IsTrue(InventoryAutoSorter.TryBuildSortedLayout(4, 2, inventory.Items, inventory.StagedItems, out var placements));
+            Assert.IsTrue(InventoryAutoSorter.TryBuildSortedLayout(Rect(4, 2), inventory.Items, inventory.StagedItems, out var placements));
             Assert.IsTrue(inventory.TryApplyPlacements(placements));
 
             Assert.AreEqual(new GridPosition(0, 0), inventory.Find(big.InstanceId).Position);
@@ -314,7 +318,7 @@ namespace Game.Core.Tests
             // 폭 1 × 높이 2 그리드에 임시 보관된 2×1 → 원래 방향으로는 못 넣고 시계방향 90° 회전해서 넣는다.
             var wide = new GridInventory(2, 1).Place(TwoByOne, 0, 0);
 
-            Assert.IsTrue(InventoryAutoSorter.TryBuildSortedLayout(1, 2, Array.Empty<InventoryItemInstance>(), new[] { wide }, out var placements));
+            Assert.IsTrue(InventoryAutoSorter.TryBuildSortedLayout(Rect(1, 2), Array.Empty<InventoryItemInstance>(), new[] { wide }, out var placements));
 
             Assert.AreEqual(1, placements.Count);
             Assert.AreEqual(new GridPosition(0, 0), placements[0].Position);
@@ -329,8 +333,8 @@ namespace Game.Core.Tests
             inventory.Place(TwoByOne, 0, 1);
             inventory.Place(OneByTwo, 2, 0);
 
-            InventoryAutoSorter.TryBuildSortedLayout(4, 2, inventory.Items, inventory.StagedItems, out var first);
-            InventoryAutoSorter.TryBuildSortedLayout(4, 2, inventory.Items.Reverse(), inventory.StagedItems, out var second);
+            InventoryAutoSorter.TryBuildSortedLayout(Rect(4, 2), inventory.Items, inventory.StagedItems, out var first);
+            InventoryAutoSorter.TryBuildSortedLayout(Rect(4, 2), inventory.Items.Reverse(), inventory.StagedItems, out var second);
 
             CollectionAssert.AreEqual(
                 first.Select(p => (p.InstanceId, p.Position, p.QuarterTurns)).ToArray(),
@@ -344,7 +348,7 @@ namespace Game.Core.Tests
             inventory.Place(TwoByOne, 0, 0);
             var extra = new GridInventory(2, 1).Place(OneByOne, 0, 0);
 
-            Assert.IsFalse(InventoryAutoSorter.TryBuildSortedLayout(2, 1, inventory.Items, new[] { extra }, out _));
+            Assert.IsFalse(InventoryAutoSorter.TryBuildSortedLayout(Rect(2, 1), inventory.Items, new[] { extra }, out _));
         }
 
         [Test]
@@ -355,7 +359,7 @@ namespace Game.Core.Tests
             var staged = inventory.Place(OneByOne, 0, 0);
             inventory.TryApplyPlacements(new[] { ItemPlacement.ToStaging(staged.InstanceId, 0) });
 
-            Assert.IsTrue(InventoryAutoSorter.TryBuildStagedFlush(3, 1, inventory.Items, inventory.StagedItems, out var placements));
+            Assert.IsTrue(InventoryAutoSorter.TryBuildStagedFlush(new[] { Rect(3, 1) }, inventory.Items, inventory.StagedItems, out var placements));
             Assert.IsTrue(inventory.TryApplyPlacements(placements));
 
             Assert.AreEqual(new GridPosition(1, 0), inventory.Find(fixedItem.InstanceId).Position);
@@ -370,7 +374,97 @@ namespace Game.Core.Tests
             inventory.TryApplyPlacements(new[] { ItemPlacement.ToStaging(staged.InstanceId, 0) });
             inventory.Place(OneByOne, 0, 0);
 
-            Assert.IsFalse(InventoryAutoSorter.TryBuildStagedFlush(1, 1, inventory.Items, inventory.StagedItems, out _));
+            Assert.IsFalse(InventoryAutoSorter.TryBuildStagedFlush(new[] { Rect(1, 1) }, inventory.Items, inventory.StagedItems, out _));
+        }
+
+        // ==================== 섹션(마차별 그리드, Docs/설계/64번 §11) ====================
+
+        private static GridInventory TwoWagons(int width, int height)
+        {
+            var grid = new InventoryGrid();
+            grid.AddSection(new InventorySection("a", "A", InventoryShape.Rectangle(width, height)));
+            grid.AddSection(new InventorySection("b", "B", InventoryShape.Rectangle(width, height)));
+            return new GridInventory(grid);
+        }
+
+        [Test]
+        public void ResolveGridDrop_OtherSection_MovesThere_AndSwapSendsDisplacedToOriginalSection()
+        {
+            var inventory = TwoWagons(2, 1);
+            var dragged = inventory.Place(OneByOne, 0, 0, "a");
+            var other = inventory.Place(OneByOne, 1, 0, "b");
+
+            var move = InventoryDropResolver.ResolveGridDrop(inventory, inventory, dragged, "b", new GridPosition(0, 0), 0);
+            Assert.AreEqual(InventoryDropKind.Move, move.Kind);
+            Assert.AreEqual("b", move.Placements[0].SectionId);
+
+            var swap = InventoryDropResolver.ResolveGridDrop(inventory, inventory, dragged, "b", new GridPosition(1, 0), 0);
+            Assert.AreEqual(InventoryDropKind.Swap, swap.Kind);
+            Assert.IsTrue(inventory.TryApplyPlacements(swap.Placements));
+            Assert.AreEqual("a", inventory.Find(other.InstanceId).SectionId, "밀려난 아이템은 드래그 아이템의 원래 마차로 간다.");
+            Assert.AreEqual(new GridPosition(0, 0), inventory.Find(other.InstanceId).Position);
+            Assert.AreEqual("b", inventory.Find(dragged.InstanceId).SectionId);
+        }
+
+        [Test]
+        public void ResolveGridDrop_OnBlockedCell_IsInvalid()
+        {
+            Assert.IsTrue(InventoryShape.TryParse("10/11", out var shape, out _));
+            var grid = new InventoryGrid();
+            grid.AddSection(new InventorySection("a", string.Empty, shape));
+            var inventory = new GridInventory(grid);
+            var item = inventory.Place(OneByOne, 0, 1, "a");
+
+            Assert.AreEqual(InventoryDropKind.Invalid, InventoryDropResolver.ResolveGridDrop(inventory, inventory, item, "a", new GridPosition(1, 0), 0).Kind);
+            Assert.AreEqual(InventoryDropKind.Move, InventoryDropResolver.ResolveGridDrop(inventory, inventory, item, "a", new GridPosition(0, 0), 0).Kind);
+        }
+
+        [Test]
+        public void TryBuildSortedLayout_Section_AvoidsBlockedCells_AndLeavesOtherSections()
+        {
+            Assert.IsTrue(InventoryShape.TryParse("01/11", out var shape, out _));
+            var grid = new InventoryGrid();
+            grid.AddSection(new InventorySection("a", string.Empty, shape));
+            grid.AddSection(new InventorySection("b", string.Empty, InventoryShape.Rectangle(2, 2)));
+            var inventory = new GridInventory(grid);
+            var wide = inventory.Place(TwoByOne, 0, 1, "a");
+            var elsewhere = inventory.Place(OneByOne, 0, 0, "b");
+
+            Assert.IsTrue(InventoryAutoSorter.TryBuildSortedLayout(grid.Sections[0], inventory.Items, inventory.StagedItems, out var placements));
+
+            Assert.AreEqual(1, placements.Count, "다른 섹션의 아이템은 정렬 대상이 아니다.");
+            Assert.AreEqual(wide.InstanceId, placements[0].InstanceId);
+            Assert.AreEqual(new GridPosition(0, 1), placements[0].Position, "막힌 칸(0,0)을 피해 아래 줄에 놓인다.");
+            Assert.IsTrue(inventory.TryApplyPlacements(placements));
+            Assert.AreEqual("b", inventory.Find(elsewhere.InstanceId).SectionId);
+        }
+
+        [Test]
+        public void TryBuildStagedFlush_StartsFromGivenSection_AndSpillsToNext()
+        {
+            var inventory = TwoWagons(1, 1);
+            var first = inventory.Place(OneByOne, 0, 0, "a");
+            var second = inventory.Place(OneByOne, 0, 0, "b");
+            inventory.TryApplyPlacements(new[] { ItemPlacement.ToStaging(first.InstanceId, 0), ItemPlacement.ToStaging(second.InstanceId, 0) });
+
+            var order = InventoryAutoSorter.OrderFrom(inventory.Sections, "b");
+            Assert.AreEqual("b", order[0].Id);
+            Assert.AreEqual("a", order[1].Id);
+            Assert.IsTrue(InventoryAutoSorter.TryBuildStagedFlush(order, inventory.Items, inventory.StagedItems, out var placements));
+            Assert.IsTrue(inventory.TryApplyPlacements(placements));
+            Assert.AreEqual(0, inventory.StagedItems.Count);
+            Assert.IsTrue(inventory.TryGetItemAt("a", new GridPosition(0, 0), out _));
+            Assert.IsTrue(inventory.TryGetItemAt("b", new GridPosition(0, 0), out _));
+        }
+
+        [Test]
+        public void TryFindSlot_PrefersFirstSectionInOrder_ThenFallsBack()
+        {
+            var inventory = TwoWagons(1, 1);
+            inventory.Place(OneByOne, 0, 0, "b");
+
+            Assert.IsTrue(InventoryAutoSorter.TryFindSlot(InventoryAutoSorter.OrderFrom(inventory.Sections, "b"), inventory.Items, OneByOne, allowRotation: true, out var sectionId, out _, out _));
+            Assert.AreEqual("a", sectionId, "보이는 마차(b)가 차 있으면 다음 마차로 넘어간다.");
         }
 
         // ==================== 품목 색 ====================

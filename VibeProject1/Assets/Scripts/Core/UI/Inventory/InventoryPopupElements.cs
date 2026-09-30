@@ -17,7 +17,7 @@ namespace Game.Core
         {
             elements = null;
             var popupId = spec.PopupId;
-            var ok = InventoryArrangementElements.TryBind(sceneUIRoot, popupId, spec.HasStaging, out var arrangement)
+            var ok = InventoryArrangementElements.TryBind(sceneUIRoot, popupId, spec.HasStaging, spec.HasSections, out var arrangement)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, InventoryPopupUIElementIds.TitleBar(popupId), out DraggableWindow titleBar)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, InventoryPopupUIElementIds.CloseButton(popupId), out Button closeButton);
             if (!ok) return false;

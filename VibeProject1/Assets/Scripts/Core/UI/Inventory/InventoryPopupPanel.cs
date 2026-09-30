@@ -29,7 +29,7 @@ namespace Game.Core
             PanelId = spec.PopupId;
             this.elements = elements;
             this.windowPositions = windowPositions;
-            arrangementController = new InventoryArrangementController(elements.Arrangement, reader, arrangement, spec.AllowsRotation, spec.HasStaging);
+            arrangementController = new InventoryArrangementController(elements.Arrangement, reader, arrangement, spec.AllowsRotation, spec.HasStaging, spec.HasSections);
 
             // 닫기 버튼도 상시 호출 버튼과 같은 토글 경로를 탄다 - 닫기 차단(IPanelCloseGuard)이 코디네이터 한 곳에서만 확인된다.
             elements.CloseButton.onClick.RemoveAllListeners();

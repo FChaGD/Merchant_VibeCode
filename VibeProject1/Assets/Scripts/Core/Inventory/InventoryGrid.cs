@@ -8,32 +8,68 @@ namespace Game.Core
     /// 1개, 1차원 인덱스 배열)과 달리 아이템이 여러 칸(WxH)을 동시에 차지할 수 있어 좌표 기반 점유
     /// 배열로 겹침/범위를 검사한다.
     ///
-    /// 임시 보관은 별도 컬렉션이 아니라 "같은 인벤토리 안에서 칸을 점유하지 않는 상태"로 둔다(설계 40번 §3.1) -
-    /// Resize가 이미 "목록엔 있지만 점유 칸에선 빠진 아이템"을 다루는 것과 같은 개념이고, 그리드↔임시 보관
-    /// 이동이 TryApplyPlacements 한 번의 원자적 조작이 된다. 재배치는 인벤토리 유입/유출이 아니므로
-    /// 골드 상자 지갑 연동 같은 부수 효과는 저장소의 TryPlace/Remove 경로에만 남는다.
+    /// 구역(섹션)을 여러 개 가질 수 있다(설계 64번 §3) - 상단 물류품은 마차 1대 = 섹션 1개, 나머지 인벤토리는 섹션 1개다.
+    /// 마차별로 그리드를 따로 두지 않고 한 그리드 안의 섹션으로 둔 이유는, 마차 간 이동·교환도 TryApplyPlacements 한 번의
+    /// 원자적 조작이 되게 하기 위해서다 - 제거 후 배치로 옮기면 골드 상자 지갑 연동(저장소의 TryPlace/Remove 경로)이 끼어든다.
+    /// 섹션 모양의 막힌 칸은 배치 판정에서 범위 밖과 똑같이 취급한다.
+    ///
+    /// 임시 보관은 별도 컬렉션이 아니라 "같은 인벤토리 안에서 칸을 점유하지 않는 상태"로 두고 모든 섹션이 공유한다
+    /// (설계 40번 §3.1, 기획 63번 §3.4) - 그리드↔임시 보관 이동이 TryApplyPlacements 한 번의 원자적 조작이 된다.
+    /// 섹션 인자가 null이면 첫 섹션이다 - 섹션이 1개인 인벤토리의 호출부를 단순하게 두기 위함이다.
     /// </summary>
     public class InventoryGrid
     {
+        public const string DefaultSectionId = "main";
+
+        private sealed class SectionState
+        {
+            public readonly InventorySection Section;
+            public readonly string[,] Occupancy;
+
+            public SectionState(InventorySection section)
+            {
+                Section = section;
+                Occupancy = new string[section.Shape.Width, section.Shape.Height];
+            }
+        }
+
         private readonly Dictionary<string, InventoryItemInstance> placedById = new();
         private readonly List<InventoryItemInstance> stagedItems = new();
-        private string[,] occupancy;
+        private readonly List<InventorySection> sections = new();
+        private readonly Dictionary<string, SectionState> sectionsById = new();
 
-        public int Width { get; private set; }
-        public int Height { get; private set; }
+        public IReadOnlyList<InventorySection> Sections => sections;
         public IReadOnlyCollection<InventoryItemInstance> Items => placedById.Values;
         public IReadOnlyList<InventoryItemInstance> StagedItems => stagedItems;
 
-        public InventoryGrid(int width, int height)
+        /// <summary>섹션 없이 시작한다 - 섹션은 AddSection으로 늘린다(상단 물류품: 보유 마차 동기화).</summary>
+        public InventoryGrid()
         {
-            Resize(width, height);
         }
 
+        /// <summary>직사각형 섹션 1개짜리 그리드(장비·소모품·개인 물품, 테스트).</summary>
+        public InventoryGrid(int width, int height)
+        {
+            AddSection(new InventorySection(DefaultSectionId, string.Empty, InventoryShape.Rectangle(width, height)));
+        }
+
+        /// <summary>섹션을 끝에 추가한다. 같은 Id가 이미 있으면 false. 섹션 제거·모양 변경은 지원하지 않는다(마차 판매·손실은 기획 63번 범위 밖).</summary>
+        public bool AddSection(InventorySection section)
+        {
+            if (section == null || section.Shape == null || sectionsById.ContainsKey(section.Id)) return false;
+
+            sections.Add(section);
+            sectionsById[section.Id] = new SectionState(section);
+            return true;
+        }
+
+        public bool HasSection(string sectionId) => sectionId != null && sectionsById.ContainsKey(sectionId);
+
         // quarterTurns: 구매 자동 배치가 회전한 자리를 쓸 수 있도록 받는다(Docs/설계/50번 §5.1).
-        public bool TryPlace(IInventoryItemDefinition definition, GridPosition position, out InventoryItemInstance placed, int quarterTurns = 0)
+        public bool TryPlace(IInventoryItemDefinition definition, GridPosition position, out InventoryItemInstance placed, int quarterTurns = 0, string sectionId = null)
         {
             placed = default;
-            if (definition == null)
+            if (definition == null || !TryResolveSection(sectionId, out var state))
             {
                 return false;
             }
@@ -41,14 +77,14 @@ namespace Game.Core
             var turns = InventoryRotation.Normalize(quarterTurns);
             var width = turns % 2 == 1 ? definition.FootprintHeight : definition.FootprintWidth;
             var height = turns % 2 == 1 ? definition.FootprintWidth : definition.FootprintHeight;
-            if (!FitsAndFree(position, width, height))
+            if (!FitsAndFree(state, position, width, height))
             {
                 return false;
             }
 
-            placed = new InventoryItemInstance(Guid.NewGuid().ToString("N"), definition, position, turns, isStaged: false);
+            placed = new InventoryItemInstance(Guid.NewGuid().ToString("N"), definition, position, turns, isStaged: false, state.Section.Id);
             placedById[placed.InstanceId] = placed;
-            Mark(placed, placed.InstanceId);
+            Mark(state, placed, placed.InstanceId);
             return true;
         }
 
@@ -56,16 +92,17 @@ namespace Game.Core
         {
             if (placedById.Remove(instanceId, out var item))
             {
-                Unmark(item);
+                Unmark(sectionsById[item.SectionId], item);
                 return true;
             }
 
             return stagedItems.RemoveAll(staged => staged.InstanceId == instanceId) > 0;
         }
 
-        public bool TryGetAt(GridPosition position, out InventoryItemInstance item)
+        public bool TryGetAt(string sectionId, GridPosition position, out InventoryItemInstance item)
         {
-            if (!InBounds(position) || occupancy[position.X, position.Y] is not { } instanceId)
+            if (!TryResolveSection(sectionId, out var state) || !state.Section.Shape.IsUsable(position.X, position.Y)
+                || state.Occupancy[position.X, position.Y] is not { } instanceId)
             {
                 item = default;
                 return false;
@@ -84,52 +121,38 @@ namespace Game.Core
         }
 
         /// <summary>
-        /// 목록의 아이템들을 한꺼번에 새 위치(또는 임시 보관)로 옮긴다. 하나라도 범위를 벗어나거나 겹치면
-        /// 아무것도 바꾸지 않고 false - 교환·자동 정렬이 중간 실패로 반쯤 적용되는 상태가 생기지 않는다.
+        /// 목록의 아이템들을 한꺼번에 새 위치(또는 임시 보관)로 옮긴다. 섹션이 달라도 한 번에 처리한다. 하나라도 범위를
+        /// 벗어나거나(막힌 칸 포함) 겹치면 아무것도 바꾸지 않고 false - 교환·자동 정렬·마차 간 이동이 중간 실패로 반쯤
+        /// 적용되는 상태가 생기지 않는다.
         /// </summary>
         public bool TryApplyPlacements(IReadOnlyList<ItemPlacement> placements) => ApplyPlacements(placements, commit: true);
 
         /// <summary>TryApplyPlacements와 같은 검사만 하고 상태는 바꾸지 않는다(드래그 미리보기용).</summary>
         public bool CanApplyPlacements(IReadOnlyList<ItemPlacement> placements) => ApplyPlacements(placements, commit: false);
 
-        /// <summary>
-        /// 마차 증감(Docs/설계/32번 §4.2)으로 총 칸 수가 바뀔 때 호출한다. 매번 처음부터 다시 계산하므로
-        /// 축소 시 범위 밖으로 밀려난 아이템은 목록에는 남되 점유 칸에서는 빠지고(겹침 검사 제외),
-        /// 이후 다시 그 칸을 포함하도록 커지면 자동으로 되살아난다. 아이템을 함부로 잃지 않는 쪽을
-        /// 기본값으로 삼는다(31번 §4/§6 "최종 정책은 범위 밖" - 재검토 여지 명시).
-        /// </summary>
-        public void Resize(int newWidth, int newHeight)
-        {
-            Width = newWidth < 0 ? 0 : newWidth;
-            Height = newHeight < 0 ? 0 : newHeight;
-            occupancy = new string[Width, Height];
-
-            foreach (var item in placedById.Values)
-            {
-                if (Fits(item.Position, item.Width, item.Height))
-                {
-                    Mark(item, item.InstanceId);
-                }
-            }
-        }
-
         private bool ApplyPlacements(IReadOnlyList<ItemPlacement> placements, bool commit)
         {
             if (placements == null || placements.Count == 0) return false;
 
-            // 1) 대상 아이템을 전부 찾고 중복 지정을 거부한다.
+            // 1) 대상 아이템을 전부 찾고 중복 지정·없는 섹션 지정을 거부한다.
             var originals = new List<InventoryItemInstance>(placements.Count);
+            var targets = new List<SectionState>(placements.Count);
             var seen = new HashSet<string>();
             foreach (var placement in placements)
             {
                 if (!seen.Add(placement.InstanceId) || !TryFind(placement.InstanceId, out var original)) return false;
+
+                SectionState target = null;
+                if (placement.Position != null && !TryResolveSection(placement.SectionId, out target)) return false;
+
                 originals.Add(original);
+                targets.Add(target);
             }
 
             // 2) 대상 아이템의 현재 점유를 해제한 상태에서 새 위치를 하나씩 검사·기록한다(서로 간 겹침도 검출).
             foreach (var original in originals)
             {
-                if (!original.IsStaged) Unmark(original);
+                if (!original.IsStaged) Unmark(sectionsById[original.SectionId], original);
             }
 
             var updated = new List<InventoryItemInstance>(placements.Count);
@@ -137,21 +160,23 @@ namespace Game.Core
             for (var i = 0; i < placements.Count; i++)
             {
                 var placement = placements[i];
+                var target = targets[i];
                 var next = new InventoryItemInstance(
                     placement.InstanceId,
                     originals[i].Definition,
                     placement.Position ?? default,
                     placement.QuarterTurns,
-                    isStaged: placement.Position == null);
+                    isStaged: target == null,
+                    target?.Section.Id);
 
-                if (!next.IsStaged)
+                if (target != null)
                 {
-                    if (!FitsAndFree(next.Position, next.Width, next.Height))
+                    if (!FitsAndFree(target, next.Position, next.Width, next.Height))
                     {
                         valid = false;
                         break;
                     }
-                    Mark(next, next.InstanceId);
+                    Mark(target, next, next.InstanceId);
                 }
                 updated.Add(next);
             }
@@ -161,11 +186,11 @@ namespace Game.Core
             {
                 foreach (var next in updated)
                 {
-                    if (!next.IsStaged) Unmark(next);
+                    if (!next.IsStaged) Unmark(sectionsById[next.SectionId], next);
                 }
                 foreach (var original in originals)
                 {
-                    if (!original.IsStaged && Fits(original.Position, original.Width, original.Height)) Mark(original, original.InstanceId);
+                    if (!original.IsStaged) Mark(sectionsById[original.SectionId], original, original.InstanceId);
                 }
                 return valid;
             }
@@ -191,57 +216,54 @@ namespace Game.Core
             return true;
         }
 
-        private int IndexOfStaged(string instanceId) => stagedItems.FindIndex(staged => staged.InstanceId == instanceId);
-
-        private bool InBounds(GridPosition position) => position.X >= 0 && position.X < Width && position.Y >= 0 && position.Y < Height;
-
-        private bool Fits(GridPosition position, int width, int height)
+        private bool TryResolveSection(string sectionId, out SectionState state)
         {
-            if (width <= 0 || height <= 0) return false;
-            return position.X >= 0 && position.Y >= 0 && position.X + width <= Width && position.Y + height <= Height;
+            if (sectionId == null)
+            {
+                state = sections.Count > 0 ? sectionsById[sections[0].Id] : null;
+                return state != null;
+            }
+
+            return sectionsById.TryGetValue(sectionId, out state);
         }
 
-        private bool FitsAndFree(GridPosition position, int width, int height)
+        private int IndexOfStaged(string instanceId) => stagedItems.FindIndex(staged => staged.InstanceId == instanceId);
+
+        private static bool FitsAndFree(SectionState state, GridPosition position, int width, int height)
         {
-            if (!Fits(position, width, height)) return false;
+            if (!state.Section.Shape.ContainsRect(position, width, height)) return false;
 
             for (var x = position.X; x < position.X + width; x++)
             {
                 for (var y = position.Y; y < position.Y + height; y++)
                 {
-                    if (occupancy[x, y] != null) return false;
+                    if (state.Occupancy[x, y] != null) return false;
                 }
             }
 
             return true;
         }
 
-        // 축소(Resize)로 아이템이 부분/전체적으로 범위 밖일 수 있어 클램프한다 - 배치 시에는 FitsAndFree가
-        // 이미 전체 포함을 확인했으므로 클램프가 항상 무해하다.
-        private void Mark(InventoryItemInstance item, string instanceId)
+        // 섹션은 줄어들지 않고 배치는 항상 FitsAndFree를 거치므로 점유 범위는 늘 섹션 안이다.
+        private static void Mark(SectionState state, InventoryItemInstance item, string instanceId)
         {
-            var maxX = Math.Min(item.Position.X + item.Width, Width);
-            var maxY = Math.Min(item.Position.Y + item.Height, Height);
-            for (var x = Math.Max(item.Position.X, 0); x < maxX; x++)
+            for (var x = item.Position.X; x < item.Position.X + item.Width; x++)
             {
-                for (var y = Math.Max(item.Position.Y, 0); y < maxY; y++)
+                for (var y = item.Position.Y; y < item.Position.Y + item.Height; y++)
                 {
-                    occupancy[x, y] = instanceId;
+                    state.Occupancy[x, y] = instanceId;
                 }
             }
         }
 
-        // 자기 Id가 기록된 칸만 지운다 - 축소로 겹침 검사에서 빠졌던 아이템을 치울 때 그 칸을 차지한
-        // 다른 아이템의 점유까지 지우지 않기 위함이다.
-        private void Unmark(InventoryItemInstance item)
+        // 자기 Id가 기록된 칸만 지운다 - 검사 도중 되돌릴 때 그 칸을 차지한 다른 아이템의 점유까지 지우지 않기 위함이다.
+        private static void Unmark(SectionState state, InventoryItemInstance item)
         {
-            var maxX = Math.Min(item.Position.X + item.Width, Width);
-            var maxY = Math.Min(item.Position.Y + item.Height, Height);
-            for (var x = Math.Max(item.Position.X, 0); x < maxX; x++)
+            for (var x = item.Position.X; x < item.Position.X + item.Width; x++)
             {
-                for (var y = Math.Max(item.Position.Y, 0); y < maxY; y++)
+                for (var y = item.Position.Y; y < item.Position.Y + item.Height; y++)
                 {
-                    if (occupancy[x, y] == item.InstanceId) occupancy[x, y] = null;
+                    if (state.Occupancy[x, y] == item.InstanceId) state.Occupancy[x, y] = null;
                 }
             }
         }

@@ -36,7 +36,7 @@ namespace Game.Core.Editor
 
             BuildTitleBar(rootRect, popupId, spec.Title);
             BuildCloseButton(rootRect, popupId);
-            BuildArrangementBody(rootRect, popupId, spec.HasStaging);
+            BuildArrangementBody(rootRect, popupId, spec.HasStaging, spec.HasSections);
 
             // 런타임 패널이 등록될 때 숨기지만, 씬 편집 화면에서 다른 UI를 가리지 않도록 저장 상태도 비활성.
             root.SetActive(false);
@@ -46,24 +46,22 @@ namespace Game.Core.Editor
         /// 그리드 편집 본문(그리드·임시 보관·자동 정렬·안내 줄·템플릿·드래그 레이어)을 root 안에 조립한다(Docs/설계/50번 §6.4).
         /// 인벤토리 팝업과 무역품 구매 화면의 고정 패널이 함께 쓴다. root 윗부분(0.9 이상)은 호출자의 제목 줄 자리로 비워 둔다.
         /// root 자체에 편집 화면 루트 마커와 빈 곳 클릭(선택 해제) 릴레이를 붙인다.
+        /// 섹션(마차)을 쓰는 화면은 상단 물류품 배치(아이템 정보 우측 세로, 임시 보관 하단 가로, 스테퍼·마차 표기 - 기획 63번 §3.6)로,
+        /// 나머지는 기존 배치로 조립한다(설계 64번 §7.2 - 나머지 팝업 3종은 범위 밖이라 유지).
         /// </summary>
-        public static void BuildArrangementBody(RectTransform root, string prefix, bool hasStaging)
+        public static void BuildArrangementBody(RectTransform root, string prefix, bool hasStaging, bool hasSections)
         {
             EditorUIBuilder.GetOrAddComponent<PointerClickRelay>(root.gameObject);
             EditorUIBuilder.EnsureMarker(root.gameObject, InventoryPopupUIElementIds.Root(prefix));
 
-            BuildGridArea(root, prefix, hasStaging ? GridRightWithStaging : GridRightWithoutStaging);
-            if (hasStaging)
+            if (hasSections)
             {
-                BuildStagingArea(root, prefix);
+                BuildCargoLayout(root, prefix, hasStaging);
             }
             else
             {
-                // 임시 보관을 끈 뒤 재실행하면 이전 실행이 만든 요소가 남는다 - 재실행 안전성을 위해 정리한다.
-                EditorUIBuilder.DestroyChildIfExists(root, "StagingHeader");
-                EditorUIBuilder.DestroyChildIfExists(root, "StagingArea");
+                BuildClassicLayout(root, prefix, hasStaging);
             }
-            BuildBottomRow(root, prefix);
             BuildTemplates(root, prefix);
 
             // 드래그 고스트는 다른 요소(임시 보관 목록 마스크 포함) 위에 그려져야 한다 - 항상 마지막 자식.
@@ -71,6 +69,74 @@ namespace Game.Core.Editor
             EditorUIBuilder.SetStretch(dragLayer.GetComponent<RectTransform>());
             EditorUIBuilder.EnsureMarker(dragLayer, InventoryPopupUIElementIds.DragLayer(prefix));
             dragLayer.transform.SetAsLastSibling();
+        }
+
+        // 기존 배치: 그리드(임시 보관이 있으면 오른쪽을 내줌) + 하단 자동 정렬·정보 줄.
+        private static void BuildClassicLayout(RectTransform root, string prefix, bool hasStaging)
+        {
+            RemoveSectionControls(root);
+
+            BuildGridArea(root, prefix, new Vector2(0.02f, 0.13f), new Vector2(hasStaging ? GridRightWithStaging : GridRightWithoutStaging, 0.88f));
+            if (hasStaging)
+            {
+                BuildStagingArea(root, prefix, new Vector2(0.74f, 0.83f), new Vector2(0.98f, 0.88f), new Vector2(0.74f, 0.13f), new Vector2(0.98f, 0.83f), horizontal: false);
+            }
+            else
+            {
+                RemoveStaging(root);
+            }
+            BuildSortButton(root, prefix, new Vector2(0.02f, 0.02f), new Vector2(0.2f, 0.11f));
+            BuildInfo(root, prefix, new Vector2(0.22f, 0.02f), new Vector2(0.98f, 0.11f), TextAlignmentOptions.MidlineLeft);
+        }
+
+        // 상단 물류품 배치(기획 63번 §3.6, 설계 64번 §7.2 - 비율 잠정).
+        private static void BuildCargoLayout(RectTransform root, string prefix, bool hasStaging)
+        {
+            var label = EditorUIBuilder.GetOrCreateUIObject(root, "SectionLabel");
+            EditorUIBuilder.SetAnchors(label.GetComponent<RectTransform>(), new Vector2(0.10f, 0.82f), new Vector2(0.66f, 0.88f));
+            var labelText = EditorUIBuilder.EnsureLabel(label.transform, string.Empty, autoSize: true, minFontSize: 10f, maxFontSize: 22f);
+            EditorUIBuilder.EnsureMarker(labelText.gameObject, InventoryPopupUIElementIds.SectionLabel(prefix));
+
+            BuildStepper(root, "SectionPrevButton", "<", InventoryPopupUIElementIds.SectionPrevButton(prefix), new Vector2(0.02f, 0.45f), new Vector2(0.08f, 0.60f));
+            BuildStepper(root, "SectionNextButton", ">", InventoryPopupUIElementIds.SectionNextButton(prefix), new Vector2(0.68f, 0.45f), new Vector2(0.74f, 0.60f));
+            BuildGridArea(root, prefix, new Vector2(0.10f, 0.30f), new Vector2(0.66f, 0.81f));
+
+            if (hasStaging)
+            {
+                BuildStagingArea(root, prefix, new Vector2(0.02f, 0.255f), new Vector2(0.30f, 0.29f), new Vector2(0.02f, 0.02f), new Vector2(0.74f, 0.25f), horizontal: true);
+            }
+            else
+            {
+                RemoveStaging(root);
+            }
+            BuildInfo(root, prefix, new Vector2(0.76f, 0.14f), new Vector2(0.98f, 0.88f), TextAlignmentOptions.TopLeft);
+            BuildSortButton(root, prefix, new Vector2(0.76f, 0.02f), new Vector2(0.98f, 0.12f));
+        }
+
+        // 드래그 중 호버 전환(HoverRepeatTrigger)을 버튼과 같은 오브젝트에 붙인다 - 런타임이 같은 요소 Id로 둘 다 찾는다.
+        private static void BuildStepper(RectTransform root, string name, string text, string elementId, Vector2 anchorMin, Vector2 anchorMax)
+        {
+            var go = EditorUIBuilder.GetOrCreateUIObject(root, name);
+            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
+            EditorUIBuilder.EnsureImage(go, ButtonColor);
+            EditorUIBuilder.EnsureButton(go);
+            EditorUIBuilder.GetOrAddComponent<HoverRepeatTrigger>(go);
+            EditorUIBuilder.EnsureLabel(go.transform, text, autoSize: true, minFontSize: 10f, maxFontSize: 28f);
+            EditorUIBuilder.EnsureMarker(go, elementId);
+        }
+
+        // 배치를 바꿔 재실행할 때 이전 실행이 만든 요소가 남지 않게 정리한다(재실행 안전성).
+        private static void RemoveSectionControls(RectTransform root)
+        {
+            EditorUIBuilder.DestroyChildIfExists(root, "SectionLabel");
+            EditorUIBuilder.DestroyChildIfExists(root, "SectionPrevButton");
+            EditorUIBuilder.DestroyChildIfExists(root, "SectionNextButton");
+        }
+
+        private static void RemoveStaging(RectTransform root)
+        {
+            EditorUIBuilder.DestroyChildIfExists(root, "StagingHeader");
+            EditorUIBuilder.DestroyChildIfExists(root, "StagingArea");
         }
 
         private static void BuildTitleBar(RectTransform root, string popupId, string title)
@@ -96,10 +162,10 @@ namespace Game.Core.Editor
             EditorUIBuilder.EnsureMarker(go, InventoryPopupUIElementIds.CloseButton(popupId));
         }
 
-        private static void BuildGridArea(RectTransform root, string popupId, float right)
+        private static void BuildGridArea(RectTransform root, string popupId, Vector2 anchorMin, Vector2 anchorMax)
         {
             var area = EditorUIBuilder.GetOrCreateUIObject(root, "GridArea");
-            EditorUIBuilder.SetAnchors(area.GetComponent<RectTransform>(), new Vector2(0.02f, 0.13f), new Vector2(right, 0.88f));
+            EditorUIBuilder.SetAnchors(area.GetComponent<RectTransform>(), anchorMin, anchorMax);
             EditorUIBuilder.EnsureMarker(area, InventoryPopupUIElementIds.GridArea(popupId));
 
             var cells = EditorUIBuilder.GetOrCreateUIObject(area.transform, "Cells");
@@ -112,43 +178,58 @@ namespace Game.Core.Editor
             items.transform.SetAsLastSibling(); // 아이템은 칸 위에 그린다.
         }
 
-        private static void BuildStagingArea(RectTransform root, string popupId)
+        // horizontal: 하단 가로 목록(상단 물류품, 기획 63번 §3.6) / 세로 목록(기존 배치).
+        private static void BuildStagingArea(RectTransform root, string popupId, Vector2 headerMin, Vector2 headerMax, Vector2 areaMin, Vector2 areaMax, bool horizontal)
         {
             var header = EditorUIBuilder.GetOrCreateUIObject(root, "StagingHeader");
-            EditorUIBuilder.SetAnchors(header.GetComponent<RectTransform>(), new Vector2(0.74f, 0.83f), new Vector2(0.98f, 0.88f));
-            EditorUIBuilder.EnsureLabel(header.transform, "임시 보관", autoSize: true, minFontSize: 10f, maxFontSize: 20f);
+            EditorUIBuilder.SetAnchors(header.GetComponent<RectTransform>(), headerMin, headerMax);
+            var headerLabel = EditorUIBuilder.EnsureLabel(header.transform, "임시 보관", autoSize: true, minFontSize: 10f, maxFontSize: 20f);
+            headerLabel.alignment = horizontal ? TextAlignmentOptions.MidlineLeft : TextAlignmentOptions.Center;
 
             var area = EditorUIBuilder.GetOrCreateUIObject(root, "StagingArea");
             var areaRect = area.GetComponent<RectTransform>();
-            EditorUIBuilder.SetAnchors(areaRect, new Vector2(0.74f, 0.13f), new Vector2(0.98f, 0.83f));
+            EditorUIBuilder.SetAnchors(areaRect, areaMin, areaMax);
             EditorUIBuilder.EnsureImage(area, StagingColor);
             EditorUIBuilder.EnsureMarker(area, InventoryPopupUIElementIds.StagingArea(popupId));
 
             var (viewport, content) = EditorUIBuilder.CreateViewportAndContent(areaRect);
             var contentRect = content.GetComponent<RectTransform>();
-            // 위쪽 고정·가로 늘림 - 높이는 런타임(InventoryStagingView)이 목록 길이에 맞춰 정한다.
-            contentRect.anchorMin = new Vector2(0f, 1f);
-            contentRect.anchorMax = new Vector2(1f, 1f);
-            contentRect.pivot = new Vector2(0.5f, 1f);
+            if (horizontal)
+            {
+                // 왼쪽 고정·세로 늘림 - 폭은 런타임(InventoryStagingView)이 목록 길이에 맞춰 정한다.
+                contentRect.anchorMin = new Vector2(0f, 0f);
+                contentRect.anchorMax = new Vector2(0f, 1f);
+                contentRect.pivot = new Vector2(0f, 0.5f);
+            }
+            else
+            {
+                // 위쪽 고정·가로 늘림 - 높이는 런타임이 목록 길이에 맞춰 정한다.
+                contentRect.anchorMin = new Vector2(0f, 1f);
+                contentRect.anchorMax = new Vector2(1f, 1f);
+                contentRect.pivot = new Vector2(0.5f, 1f);
+            }
             contentRect.anchoredPosition = Vector2.zero;
             contentRect.sizeDelta = new Vector2(0f, 0f);
             EditorUIBuilder.EnsureMarker(content, InventoryPopupUIElementIds.StagingContent(popupId));
-            EditorUIBuilder.ConfigureScrollRect(area, viewport, contentRect, horizontal: false, vertical: true);
+            EditorUIBuilder.ConfigureScrollRect(area, viewport, contentRect, horizontal: horizontal, vertical: !horizontal);
         }
 
-        private static void BuildBottomRow(RectTransform root, string popupId)
+        private static void BuildSortButton(RectTransform root, string popupId, Vector2 anchorMin, Vector2 anchorMax)
         {
             var sort = EditorUIBuilder.GetOrCreateUIObject(root, "SortButton");
-            EditorUIBuilder.SetAnchors(sort.GetComponent<RectTransform>(), new Vector2(0.02f, 0.02f), new Vector2(0.2f, 0.11f));
+            EditorUIBuilder.SetAnchors(sort.GetComponent<RectTransform>(), anchorMin, anchorMax);
             EditorUIBuilder.EnsureImage(sort, ButtonColor);
             EditorUIBuilder.EnsureButton(sort);
             EditorUIBuilder.EnsureLabel(sort.transform, "자동 정렬", autoSize: true, minFontSize: 10f, maxFontSize: 22f);
             EditorUIBuilder.EnsureMarker(sort, InventoryPopupUIElementIds.SortButton(popupId));
+        }
 
+        private static void BuildInfo(RectTransform root, string popupId, Vector2 anchorMin, Vector2 anchorMax, TextAlignmentOptions alignment)
+        {
             var info = EditorUIBuilder.GetOrCreateUIObject(root, "Info");
-            EditorUIBuilder.SetAnchors(info.GetComponent<RectTransform>(), new Vector2(0.22f, 0.02f), new Vector2(0.98f, 0.11f));
+            EditorUIBuilder.SetAnchors(info.GetComponent<RectTransform>(), anchorMin, anchorMax);
             var label = EditorUIBuilder.EnsureLabel(info.transform, string.Empty, autoSize: true, minFontSize: 10f, maxFontSize: 22f);
-            label.alignment = TextAlignmentOptions.MidlineLeft;
+            label.alignment = alignment;
             EditorUIBuilder.EnsureMarker(label.gameObject, InventoryPopupUIElementIds.InfoLabel(popupId));
         }
 

@@ -41,8 +41,8 @@ namespace Game.Core.Tests
         [Test]
         public void ResolveDependencies_SetsFixedGridSize()
         {
-            Assert.AreEqual(6, repository.GridWidth);
-            Assert.AreEqual(4, repository.GridHeight);
+            Assert.AreEqual(6, repository.Sections[0].Shape.Width);
+            Assert.AreEqual(4, repository.Sections[0].Shape.Height);
         }
 
         [Test]
@@ -123,7 +123,7 @@ namespace Game.Core.Tests
             repository.ResolveDependencies(null);
 
             Assert.AreEqual(4, repository.Items.Count);
-            Assert.IsTrue(repository.TryGetItemAt(new GridPosition(5, 3), out var corner));
+            Assert.IsTrue(repository.TryGetItemAt(null, new GridPosition(5, 3), out var corner));
             Assert.AreEqual("placeholder-equipment-3", corner.Definition.Id);
             Object.DestroyImmediate(table);
         }
@@ -134,14 +134,14 @@ namespace Game.Core.Tests
             repository.TryPlaceItem(new FakeItemDefinition(), new GridPosition(0, 0), out var dragged);
             repository.TryPlaceItem(new FakeItemDefinition(), new GridPosition(5, 3), out var other);
 
-            var result = InventoryDropResolver.ResolveGridDrop(repository, repository, dragged, new GridPosition(5, 3), 0);
+            var result = InventoryDropResolver.ResolveGridDrop(repository, repository, dragged, null, new GridPosition(5, 3), 0);
             Assert.AreEqual(InventoryDropKind.Swap, result.Kind);
 
             var fired = false;
             repository.OnChanged += () => fired = true;
             Assert.IsTrue(repository.TryApplyPlacements(result.Placements));
             Assert.IsTrue(fired);
-            Assert.IsTrue(repository.TryGetItemAt(new GridPosition(0, 0), out var movedOther));
+            Assert.IsTrue(repository.TryGetItemAt(null, new GridPosition(0, 0), out var movedOther));
             Assert.AreEqual(other.InstanceId, movedOther.InstanceId);
         }
 
@@ -151,7 +151,7 @@ namespace Game.Core.Tests
             repository.TryPlaceItem(new FakeItemDefinition(), new GridPosition(5, 3), out _);
             repository.TryPlaceItem(new FakeItemDefinition(), new GridPosition(2, 2), out _);
 
-            Assert.IsTrue(InventoryAutoSorter.TryBuildSortedLayout(repository.GridWidth, repository.GridHeight, repository.Items, repository.StagedItems, out var placements));
+            Assert.IsTrue(InventoryAutoSorter.TryBuildSortedLayout(repository.Sections[0], repository.Items, repository.StagedItems, out var placements));
 
             CollectionAssert.AreEquivalent(new[] { new GridPosition(0, 0), new GridPosition(1, 0) }, placements.Select(p => p.Position.Value).ToArray());
             Assert.IsTrue(placements.All(p => p.QuarterTurns == 0));
@@ -173,10 +173,10 @@ namespace Game.Core.Tests
         {
             var consumable = CreateWithPlaceholderRows<PlaceholderConsumableInventoryRepository>(gameObject, "placeholder-consumable", out var table);
 
-            Assert.AreEqual(5, consumable.GridWidth);
-            Assert.AreEqual(4, consumable.GridHeight);
+            Assert.AreEqual(5, consumable.Sections[0].Shape.Width);
+            Assert.AreEqual(4, consumable.Sections[0].Shape.Height);
             Assert.AreEqual(4, consumable.Items.Count);
-            Assert.IsTrue(consumable.TryGetItemAt(new GridPosition(4, 3), out _));
+            Assert.IsTrue(consumable.TryGetItemAt(null, new GridPosition(4, 3), out _));
             Object.DestroyImmediate(table);
         }
 
@@ -185,10 +185,10 @@ namespace Game.Core.Tests
         {
             var personal = CreateWithPlaceholderRows<PlaceholderPersonalItemInventoryRepository>(gameObject, "placeholder-personal", out var table);
 
-            Assert.AreEqual(3, personal.GridWidth);
-            Assert.AreEqual(3, personal.GridHeight);
+            Assert.AreEqual(3, personal.Sections[0].Shape.Width);
+            Assert.AreEqual(3, personal.Sections[0].Shape.Height);
             Assert.AreEqual(4, personal.Items.Count);
-            Assert.IsTrue(personal.TryGetItemAt(new GridPosition(2, 2), out _));
+            Assert.IsTrue(personal.TryGetItemAt(null, new GridPosition(2, 2), out _));
             Object.DestroyImmediate(table);
         }
     }

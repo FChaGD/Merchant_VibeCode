@@ -64,6 +64,14 @@ namespace Game.Core
             background.color = color;
         }
 
+        // 오브젝트는 활성인 채로 그래픽만 숨긴다 - 드래그 원본이 다른 마차를 보는 동안 숨을 때 드래그 이벤트가 끊기지 않게(설계 64번 §6.2).
+        public void SetVisible(bool visible)
+        {
+            if (background != null) background.enabled = visible;
+            if (label != null) label.enabled = visible;
+            if (!visible && selectionOutline != null) selectionOutline.enabled = false;
+        }
+
         public void SetRaycastTarget(bool raycastTarget)
         {
             if (background != null) background.raycastTarget = raycastTarget;

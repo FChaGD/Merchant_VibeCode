@@ -59,7 +59,7 @@ namespace Game.Core.Editor
             EditorUIBuilder.EnsureImage(panel, PanelColor);
 
             BuildHeader(panelRect, InventoryPopupSpecs.TradeGoods.Title);
-            InventoryPopupUIBuilder.BuildArrangementBody(panelRect, TradeGoodsMarketUIElementIds.InventoryPrefix, InventoryPopupSpecs.TradeGoods.HasStaging);
+            InventoryPopupUIBuilder.BuildArrangementBody(panelRect, TradeGoodsMarketUIElementIds.InventoryPrefix, InventoryPopupSpecs.TradeGoods.HasStaging, InventoryPopupSpecs.TradeGoods.HasSections);
         }
 
         private static void BuildShopPanel(RectTransform root)

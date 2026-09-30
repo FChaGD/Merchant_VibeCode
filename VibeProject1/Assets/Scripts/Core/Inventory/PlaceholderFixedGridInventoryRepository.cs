@@ -26,8 +26,7 @@ namespace Game.Core
         // 눈으로 확인할 수 있게 일부러 흩어 둔다.
         protected abstract IReadOnlyList<(string itemId, int x, int y)> InitialItems { get; }
 
-        public int GridWidth => grid.Width;
-        public int GridHeight => grid.Height;
+        public IReadOnlyList<InventorySection> Sections => grid.Sections;
         public IReadOnlyCollection<InventoryItemInstance> Items => grid.Items;
         public IReadOnlyList<InventoryItemInstance> StagedItems => grid.StagedItems;
         public event Action OnChanged;
@@ -45,11 +44,11 @@ namespace Game.Core
             PlaceholderInventorySeeder.PlaceAll(grid, catalog, InitialItems, GetType().Name);
         }
 
-        public bool TryGetItemAt(GridPosition position, out InventoryItemInstance item) => grid.TryGetAt(position, out item);
+        public bool TryGetItemAt(string sectionId, GridPosition position, out InventoryItemInstance item) => grid.TryGetAt(sectionId, position, out item);
 
-        public bool TryPlaceItem(IInventoryItemDefinition definition, GridPosition position, out InventoryItemInstance placed, int quarterTurns = 0)
+        public bool TryPlaceItem(IInventoryItemDefinition definition, GridPosition position, out InventoryItemInstance placed, int quarterTurns = 0, string sectionId = null)
         {
-            if (!grid.TryPlace(definition, position, out placed, quarterTurns)) return false;
+            if (!grid.TryPlace(definition, position, out placed, quarterTurns, sectionId)) return false;
 
             OnChanged?.Invoke();
             return true;

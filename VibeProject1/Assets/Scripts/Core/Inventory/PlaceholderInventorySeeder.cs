@@ -13,12 +13,12 @@ namespace Game.Core
         /// 테이블에 행이 없으면(임포트 전) 건너뛰고, 자리가 없으면 경고만 남긴다 - 검증용 데이터라 실패해도 저장소
         /// 자체는 정상 동작해야 한다. 초기화 중에 호출되므로 호출자는 OnChanged를 발행하지 않는다.
         /// </summary>
-        public static void PlaceAll(InventoryGrid grid, IItemCatalogReader catalog, IEnumerable<(string itemId, int x, int y)> items, string ownerName)
+        public static void PlaceAll(InventoryGrid grid, IItemCatalogReader catalog, IEnumerable<(string itemId, int x, int y)> items, string ownerName, string sectionId = null)
         {
             foreach (var (itemId, x, y) in items)
             {
                 if (!catalog.TryGetDefinition(itemId, out var definition)) continue;
-                if (!grid.TryPlace(definition, new GridPosition(x, y), out _))
+                if (!grid.TryPlace(definition, new GridPosition(x, y), out _, 0, sectionId))
                 {
                     Debug.LogWarning($"{ownerName}: 초기 아이템 '{itemId}'을(를) ({x}, {y})에 배치하지 못했다.");
                 }

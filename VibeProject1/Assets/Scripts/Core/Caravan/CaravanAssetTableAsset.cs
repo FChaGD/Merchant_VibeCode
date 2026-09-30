@@ -14,6 +14,8 @@ namespace Game.Core
         public int Down;
         public int Left;
         public int Right;
+        // 적재 공간 모양 마스크(Docs/기획/63번 §3.1) - 마차만 쓰고 시설은 빈 문자열. 파싱은 카탈로그가 InventoryShape로 한다.
+        public string CargoShape;
     }
 
     /// <summary>

@@ -24,8 +24,14 @@ namespace Game.Core
         public RectTransform DragLayer { get; private set; }
         public InventoryItemView ItemTemplate { get; private set; }
         public Image CellTemplate { get; private set; }
+        // 섹션(마차) 전환 요소 - hasSections일 때만 채운다.
+        public Button SectionPrevButton { get; private set; }
+        public Button SectionNextButton { get; private set; }
+        public HoverRepeatTrigger SectionPrevHover { get; private set; }
+        public HoverRepeatTrigger SectionNextHover { get; private set; }
+        public TMP_Text SectionLabel { get; private set; }
 
-        public static bool TryBind(SceneUIRoot sceneUIRoot, string prefix, bool hasStaging, out InventoryArrangementElements elements)
+        public static bool TryBind(SceneUIRoot sceneUIRoot, string prefix, bool hasStaging, bool hasSections, out InventoryArrangementElements elements)
         {
             elements = null;
             var ok = TryGet(sceneUIRoot, InventoryPopupUIElementIds.Root(prefix), out RectTransform root)
@@ -47,6 +53,20 @@ namespace Game.Core
                     & TryGet(sceneUIRoot, InventoryPopupUIElementIds.StagingContent(prefix), out stagingContent);
             }
 
+            Button sectionPrev = null;
+            Button sectionNext = null;
+            HoverRepeatTrigger sectionPrevHover = null;
+            HoverRepeatTrigger sectionNextHover = null;
+            TMP_Text sectionLabel = null;
+            if (hasSections)
+            {
+                ok &= TryGet(sceneUIRoot, InventoryPopupUIElementIds.SectionPrevButton(prefix), out sectionPrev)
+                    & TryGet(sceneUIRoot, InventoryPopupUIElementIds.SectionPrevButton(prefix), out sectionPrevHover)
+                    & TryGet(sceneUIRoot, InventoryPopupUIElementIds.SectionNextButton(prefix), out sectionNext)
+                    & TryGet(sceneUIRoot, InventoryPopupUIElementIds.SectionNextButton(prefix), out sectionNextHover)
+                    & TryGet(sceneUIRoot, InventoryPopupUIElementIds.SectionLabel(prefix), out sectionLabel);
+            }
+
             if (!ok) return false;
 
             elements = new InventoryArrangementElements
@@ -63,6 +83,11 @@ namespace Game.Core
                 DragLayer = dragLayer,
                 ItemTemplate = itemTemplate,
                 CellTemplate = cellTemplate,
+                SectionPrevButton = sectionPrev,
+                SectionNextButton = sectionNext,
+                SectionPrevHover = sectionPrevHover,
+                SectionNextHover = sectionNextHover,
+                SectionLabel = sectionLabel,
             };
             return true;
         }

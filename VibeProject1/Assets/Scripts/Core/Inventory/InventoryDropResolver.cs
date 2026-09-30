@@ -33,18 +33,21 @@ namespace Game.Core
     public static class InventoryDropResolver
     {
         /// <param name="dragged">드래그 시작 시점의 인스턴스(원래 위치·회전·임시 보관 여부).</param>
+        /// <param name="sectionId">드롭할 섹션(마차) - 드래그를 시작한 섹션과 달라도 된다(기획 63번 §3.4). null이면 첫 섹션.</param>
         /// <param name="target">드롭할 좌상단 칸.</param>
         /// <param name="quarterTurns">드롭 시점의 회전(드래그 중 Q로 바뀐 값).</param>
-        public static InventoryDropResult ResolveGridDrop(IInventoryReader reader, IInventoryArrangement arrangement, InventoryItemInstance dragged, GridPosition target, int quarterTurns)
+        public static InventoryDropResult ResolveGridDrop(IInventoryReader reader, IInventoryArrangement arrangement, InventoryItemInstance dragged, string sectionId, GridPosition target, int quarterTurns)
         {
-            var move = new ItemPlacement(dragged.InstanceId, target, quarterTurns);
             var width = quarterTurns % 2 == 1 ? dragged.Definition.FootprintHeight : dragged.Definition.FootprintWidth;
             var height = quarterTurns % 2 == 1 ? dragged.Definition.FootprintWidth : dragged.Definition.FootprintHeight;
 
-            if (target.X < 0 || target.Y < 0 || target.X + width > reader.GridWidth || target.Y + height > reader.GridHeight)
+            // 외곽 밖이나 막힌 칸에 걸치면 불가(설계 64번 §4.2).
+            if (!reader.TryGetSection(sectionId, out var section) || !section.Shape.ContainsRect(target, width, height))
             {
                 return InventoryDropResult.Invalid;
             }
+
+            var move = new ItemPlacement(dragged.InstanceId, target, quarterTurns, section.Id);
 
             // 목표 범위와 겹치는 다른 아이템을 모은다(드래그 중인 아이템 자신의 원래 칸은 제외).
             var overlapped = new Dictionary<string, InventoryItemInstance>();
@@ -52,7 +55,7 @@ namespace Game.Core
             {
                 for (var y = target.Y; y < target.Y + height; y++)
                 {
-                    if (reader.TryGetItemAt(new GridPosition(x, y), out var other) && other.InstanceId != dragged.InstanceId)
+                    if (reader.TryGetItemAt(section.Id, new GridPosition(x, y), out var other) && other.InstanceId != dragged.InstanceId)
                     {
                         overlapped[other.InstanceId] = other;
                     }
@@ -71,13 +74,13 @@ namespace Game.Core
             }
 
             // 밀려난 아이템은 드래그 아이템의 원래 자리로 간다 - 원래 자리가 임시 보관이면 임시 보관, 그리드면
-            // 원래 좌상단 좌표. 밀려난 아이템 자신의 회전은 유지한다.
+            // 원래 섹션의 원래 좌상단 좌표(다른 마차일 수 있다). 밀려난 아이템 자신의 회전은 유지한다.
             InventoryItemInstance displaced = default;
             foreach (var item in overlapped.Values) displaced = item;
 
             var displacedPlacement = dragged.IsStaged
                 ? ItemPlacement.ToStaging(displaced.InstanceId, displaced.QuarterTurns)
-                : new ItemPlacement(displaced.InstanceId, dragged.Position, displaced.QuarterTurns);
+                : new ItemPlacement(displaced.InstanceId, dragged.Position, displaced.QuarterTurns, dragged.SectionId);
 
             var swap = new[] { move, displacedPlacement };
             return arrangement.CanApplyPlacements(swap)

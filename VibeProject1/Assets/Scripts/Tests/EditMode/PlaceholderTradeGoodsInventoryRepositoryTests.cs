@@ -8,6 +8,40 @@ namespace Game.Core.Tests
 {
     public class PlaceholderTradeGoodsInventoryRepositoryTests
     {
+        // 보유 마차 목록(설계 64번 §5) - 저장소는 읽기 계약만 쓴다.
+        private class FakeOwnedAssets : IOwnedCaravanAssetReader
+        {
+            private readonly List<string> wagonIds = new();
+            public event System.Action OnOwnedChanged;
+
+            public IReadOnlyList<string> GetOwnedIds(FormationUnitKind kind) => kind == FormationUnitKind.Wagon ? wagonIds : System.Array.Empty<string>();
+
+            public void Add(string wagonId)
+            {
+                wagonIds.Add(wagonId);
+                OnOwnedChanged?.Invoke();
+            }
+        }
+
+        private class FakeCaravanCatalog : ICaravanAssetCatalogReader
+        {
+            private readonly Dictionary<string, CaravanAssetProfile> byId = new();
+            private readonly List<CaravanAssetProfile> all = new();
+
+            public IReadOnlyList<CaravanAssetProfile> All => all;
+            public bool TryGet(string id, out CaravanAssetProfile profile) => byId.TryGetValue(id, out profile);
+            public string GetKindLabel(FormationUnitKind kind) => "마차";
+
+            public void AddWagon(string id, string name, InventoryShape shape)
+            {
+                var profile = new CaravanAssetProfile(id, name, FormationUnitKind.Wagon, "마차", 1000, default, shape);
+                all.Add(profile);
+                byId[id] = profile;
+            }
+        }
+
+        private FakeOwnedAssets ownedAssets;
+        private FakeCaravanCatalog caravanCatalog;
         private GameObject gameObject;
         private DependencyManager dependencyManager;
         private InMemoryPlayerCurrencyWallet wallet;
@@ -24,6 +58,15 @@ namespace Game.Core.Tests
             wallet = gameObject.AddComponent<InMemoryPlayerCurrencyWallet>();
             wallet.ResolveDependencies(null);
             dependencyManager.Register<IPlayerCurrencyWallet>(wallet);
+
+            // 시작 마차 1대(5 × 4, 기획 63번 §3.1 초기값) + 구매 테스트용 마차 1종.
+            caravanCatalog = new FakeCaravanCatalog();
+            caravanCatalog.AddWagon("W1", "마차1", InventoryShape.Rectangle(5, 4));
+            caravanCatalog.AddWagon("W2", "마차2", InventoryShape.Rectangle(2, 1));
+            ownedAssets = new FakeOwnedAssets();
+            ownedAssets.Add("W1");
+            dependencyManager.Register<IOwnedCaravanAssetReader>(ownedAssets);
+            dependencyManager.Register<ICaravanAssetCatalogReader>(caravanCatalog);
 
             // 골드 상자는 기타 카테고리 테이블의 행이다(33번 §3.4, 설계 50번 §5.2). 테스트용 테이블을 만들어
             // [SerializeField]에 리플렉션으로 주입한다 - 인스펙터/임포터를 거치지 않는 EditMode 테스트 전용 배선.
@@ -65,11 +108,42 @@ namespace Game.Core.Tests
         }
 
         [Test]
-        public void ResolveDependencies_UsesFixedGridSize()
+        public void ResolveDependencies_CreatesSectionPerOwnedWagon()
         {
-            // 마차 구매와 무관하게 40칸 고정(Docs/기획/55번 §3, 설계 56번 §5), 가로 10칸 기준으로 접으면 세로 4칸.
-            Assert.AreEqual(10, repository.GridWidth);
-            Assert.AreEqual(4, repository.GridHeight);
+            // 보유 마차 1대 = 섹션 1개, 모양·이름은 마차 테이블 값(기획 63번 §3.2).
+            Assert.AreEqual(1, repository.Sections.Count);
+            Assert.AreEqual("W1", repository.Sections[0].Id);
+            Assert.AreEqual("마차1", repository.Sections[0].DisplayName);
+            Assert.AreEqual(5, repository.Sections[0].Shape.Width);
+            Assert.AreEqual(4, repository.Sections[0].Shape.Height);
+        }
+
+        [Test]
+        public void OwnedWagonAdded_AppendsSection_AndRaisesOnChanged()
+        {
+            var raised = 0;
+            repository.OnChanged += () => raised++;
+
+            ownedAssets.Add("W2");
+
+            Assert.AreEqual(2, repository.Sections.Count);
+            Assert.AreEqual("W2", repository.Sections[1].Id);
+            Assert.AreEqual(1, raised);
+        }
+
+        [Test]
+        public void TryApplyPlacements_GoldBoxAcrossWagons_DoesNotTouchWallet()
+        {
+            ownedAssets.Add("W2");
+            repository.TryPlaceItem(GoldBoxDefinition, new GridPosition(0, 0), out var goldBox, 0, "W1");
+            var amountAfterPlacing = wallet.CurrentAmount;
+
+            // 마차 간 이동도 재배치 한 번이다 - 제거·배치가 아니므로 환급·차감이 없어야 한다(설계 64번 §1).
+            Assert.IsTrue(repository.TryApplyPlacements(new[] { new ItemPlacement(goldBox.InstanceId, new GridPosition(1, 0), 0, "W2") }));
+            Assert.AreEqual(amountAfterPlacing, wallet.CurrentAmount);
+            Assert.IsTrue(repository.TryGetItemAt("W2", new GridPosition(1, 0), out var moved));
+            Assert.AreEqual("W2", moved.SectionId);
+            Assert.IsFalse(repository.TryGetItemAt("W1", new GridPosition(0, 0), out _));
         }
 
         [Test]
@@ -100,7 +174,7 @@ namespace Game.Core.Tests
             // 그리드 범위 밖 좌표를 지정해 배치 자체를 실패시킨다 - 이미 차감된 재화가 롤백돼야 한다.
             var startingAmount = wallet.CurrentAmount;
 
-            var placed = repository.TryPlaceItem(GoldBoxDefinition, new GridPosition(repository.GridWidth, 0), out _);
+            var placed = repository.TryPlaceItem(GoldBoxDefinition, new GridPosition(repository.Sections[0].Shape.Width, 0), out _);
 
             Assert.IsFalse(placed);
             Assert.AreEqual(startingAmount, wallet.CurrentAmount);
@@ -140,7 +214,8 @@ namespace Game.Core.Tests
             repository.ResolveDependencies(dependencyManager);
 
             Assert.AreEqual(5, repository.Items.Count);
-            Assert.IsTrue(repository.TryGetItemAt(new GridPosition(5, 1), out var bottomRightOf2x2));
+            // 2×2는 (1,2)에 놓인다 - 5 × 4 시작 마차에 맞춘 좌표(설계 64번 §5).
+            Assert.IsTrue(repository.TryGetItemAt("W1", new GridPosition(2, 3), out var bottomRightOf2x2));
             Assert.AreEqual("placeholder-2x2", bottomRightOf2x2.Definition.Id);
             Assert.AreEqual(startingAmount, wallet.CurrentAmount);
         }
@@ -188,8 +263,8 @@ namespace Game.Core.Tests
             Assert.IsTrue(repository.TryPlaceItem(definition, new GridPosition(0, 0), out var placed, quarterTurns: 1));
             Assert.AreEqual(1, placed.Width);
             Assert.AreEqual(2, placed.Height);
-            Assert.IsTrue(repository.TryGetItemAt(new GridPosition(0, 1), out _));
-            Assert.IsFalse(repository.TryGetItemAt(new GridPosition(1, 0), out _));
+            Assert.IsTrue(repository.TryGetItemAt(null, new GridPosition(0, 1), out _));
+            Assert.IsFalse(repository.TryGetItemAt(null, new GridPosition(1, 0), out _));
         }
 
         [Test]

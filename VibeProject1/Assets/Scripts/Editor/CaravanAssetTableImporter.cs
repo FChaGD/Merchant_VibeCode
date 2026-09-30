@@ -17,14 +17,15 @@ namespace Game.Core.Editor
         [MenuItem("Tools/Game/Table/Import Caravan Assets")]
         public static void Import()
         {
-            ImportWorkbook("Caravan/Wagon.xlsx", "Wagon", TableAssetPaths.WagonTable, TableAssetPaths.WagonStrings);
-            ImportWorkbook("Caravan/Facility.xlsx", "Facility", TableAssetPaths.FacilityTable, TableAssetPaths.FacilityStrings);
+            ImportWorkbook("Caravan/Wagon.xlsx", "Wagon", TableAssetPaths.WagonTable, TableAssetPaths.WagonStrings, hasCargoShape: true);
+            ImportWorkbook("Caravan/Facility.xlsx", "Facility", TableAssetPaths.FacilityTable, TableAssetPaths.FacilityStrings, hasCargoShape: false);
 
             AssetDatabase.SaveAssets();
             Debug.Log($"{nameof(CaravanAssetTableImporter)}: 임포트 완료.");
         }
 
-        private static void ImportWorkbook(string relativePath, string sheetName, string tableAssetPath, string stringsAssetPath)
+        // hasCargoShape: 적재 모양 열(CargoShape)은 마차 시트에만 있다(Docs/기획/63번 §3.1).
+        private static void ImportWorkbook(string relativePath, string sheetName, string tableAssetPath, string stringsAssetPath, bool hasCargoShape)
         {
             var workbookPath = Path.Combine(Application.dataPath, "Table", relativePath);
             if (!File.Exists(workbookPath))
@@ -33,7 +34,7 @@ namespace Game.Core.Editor
                 return;
             }
 
-            var entries = ReadEntries(workbookPath, sheetName);
+            var entries = ReadEntries(workbookPath, sheetName, hasCargoShape);
             var names = ReadStrings(workbookPath, sheetName + "Strings");
             Validate(entries, names, sheetName);
 
@@ -41,7 +42,7 @@ namespace Game.Core.Editor
             WriteStrings(EditorTableReader.GetOrCreateAsset<CaravanAssetStringsTableAsset>(stringsAssetPath), names);
         }
 
-        private static List<CaravanAssetEntry> ReadEntries(string workbookPath, string sheetName)
+        private static List<CaravanAssetEntry> ReadEntries(string workbookPath, string sheetName, bool hasCargoShape)
         {
             var rows = EditorTableReader.ReadSheet(workbookPath, sheetName);
             var entries = new List<CaravanAssetEntry>(rows.Count);
@@ -56,6 +57,7 @@ namespace Game.Core.Editor
                     Down = EditorTableReader.ParseInt(row, "Down"),
                     Left = EditorTableReader.ParseInt(row, "Left"),
                     Right = EditorTableReader.ParseInt(row, "Right"),
+                    CargoShape = hasCargoShape ? EditorTableReader.ParseRequiredString(row, "CargoShape") : string.Empty,
                 });
             }
             return entries;
@@ -93,6 +95,11 @@ namespace Game.Core.Editor
                 {
                     throw new FormatException($"{sheetName}의 '{entry.Id}' 대열 범위(Up/Down/Left/Right)에 음수가 있다.");
                 }
+                // 적재 모양은 런타임 카탈로그와 같은 파서로 검증한다(설계 64번 §2.2) - 형식이 틀린 마차는 조용히 적재 공간 없이 시작하게 된다.
+                if (!string.IsNullOrEmpty(entry.CargoShape) && !InventoryShape.TryParse(entry.CargoShape, out _, out var shapeError))
+                {
+                    throw new FormatException($"{sheetName}의 '{entry.Id}' 적재 모양(CargoShape) 오류: {shapeError}");
+                }
             }
         }
 
@@ -110,6 +117,7 @@ namespace Game.Core.Editor
                 element.FindPropertyRelative("Down").intValue = entries[i].Down;
                 element.FindPropertyRelative("Left").intValue = entries[i].Left;
                 element.FindPropertyRelative("Right").intValue = entries[i].Right;
+                element.FindPropertyRelative("CargoShape").stringValue = entries[i].CargoShape;
             }
             so.ApplyModifiedProperties();
             EditorUtility.SetDirty(asset);
