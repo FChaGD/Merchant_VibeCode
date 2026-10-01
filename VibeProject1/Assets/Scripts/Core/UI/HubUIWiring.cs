@@ -90,6 +90,8 @@ namespace Game.Core
             // 월드 지도(Docs/설계/69번 §4.3) - 지역 지도 표시와 도착지 도달 판정.
             registrar.TryResolve<IWorldMapReader>(out var worldMap);
             registrar.TryResolve<ITripRouteReader>(out var routeReader);
+            // 상행 구간 계획 확정(Docs/설계/76번 §5).
+            registrar.TryResolve<ITripDeparture>(out var tripDeparture);
             // IPlayerCurrencyWallet으로 등록되어 있다(InMemoryPlayerCurrencyWallet.RegisterSelf) - 이
             // 컨트롤러는 조회 전용만 필요하므로 IPlayerCurrencyReader 타입으로만 넘긴다(ISP).
             registrar.TryResolve<IPlayerCurrencyWallet>(out var currencyWallet);
@@ -136,7 +138,7 @@ namespace Game.Core
             formationPanel.RegisterFormationUI(sceneUIRoot, caravanRosterProvider, formationRepository, unitConditionRepository, uiManager);
             panelRegistrar.RegisterPopupPanel(formationPanel);
 
-            tripPanel.RegisterTripUI(sceneUIRoot, uiManager, gameManager, formationRepository, tripInfoProvider, sceneRevealSignal, currentLocationRepository, destinationAssigner, inventoryStagingReaders, worldMap, routeReader);
+            tripPanel.RegisterTripUI(sceneUIRoot, uiManager, gameManager, formationRepository, tripInfoProvider, sceneRevealSignal, currentLocationRepository, destinationAssigner, inventoryStagingReaders, worldMap, routeReader, tripDeparture);
 #if UNITY_EDITOR
             if (registrar.TryResolve<IWorldMapEditor>(out var worldMapEditor)) tripPanel.RegisterDebugMapEditor(worldMapEditor);
 #endif

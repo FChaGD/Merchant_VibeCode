@@ -50,12 +50,13 @@ namespace Game.Core.Editor
             foreach (var row in roadRows) roads.Add((row["NodeA"], row["NodeB"]));
 
             var errors = WorldMapDataValidator.Validate(sizeByRegion.Keys, cityChecks, gateChecks, roads);
+            var roadDifficulties = ReadRoadDifficulties(roadRows, errors);
             if (errors.Count > 0)
             {
                 throw new FormatException($"{nameof(CityTableImporter)}: City.xlsx 지도 데이터 오류 {errors.Count}건\n- " + string.Join("\n- ", errors));
             }
 
-            WriteMap(regions, cityRows, gateRows, roads, sizeByRegion);
+            WriteMap(regions, cityRows, gateRows, roads, roadDifficulties, sizeByRegion);
             var cityIds = new HashSet<int>();
             foreach (var city in cityChecks) cityIds.Add(city.Id);
             ImportCityStrings(workbookPath, cityIds);
@@ -63,7 +64,30 @@ namespace Game.Core.Editor
             AssetDatabase.SaveAssets();
         }
 
-        private static void WriteMap(List<(int Id, Vector2 Size)> regions, IReadOnlyList<IReadOnlyDictionary<string, string>> cityRows, IReadOnlyList<IReadOnlyDictionary<string, string>> gateRows, List<(string A, string B)> roads, Dictionary<int, Vector2> sizeByRegion)
+        // 도로 난이도 기본값(Docs/설계/76번 §3.1) - 열이 없거나 빈 칸이면 50, 1~100 밖이면 임포트 오류.
+        private static List<int> ReadRoadDifficulties(IReadOnlyList<IReadOnlyDictionary<string, string>> roadRows, List<string> errors)
+        {
+            var result = new List<int>(roadRows.Count);
+            for (var i = 0; i < roadRows.Count; i++)
+            {
+                var row = roadRows[i];
+                if (!row.TryGetValue("Difficulty", out var text) || string.IsNullOrWhiteSpace(text))
+                {
+                    result.Add(TripTravelSettings.DefaultRoadDifficulty);
+                    continue;
+                }
+                if (!int.TryParse(text.Trim(), out var value) || value < TripTravelRules.MinDifficulty || value > TripTravelRules.MaxDifficulty)
+                {
+                    errors.Add($"RoadData {i + 2}행: Difficulty '{text}'는 {TripTravelRules.MinDifficulty}~{TripTravelRules.MaxDifficulty} 정수여야 한다.");
+                    result.Add(TripTravelSettings.DefaultRoadDifficulty);
+                    continue;
+                }
+                result.Add(value);
+            }
+            return result;
+        }
+
+        private static void WriteMap(List<(int Id, Vector2 Size)> regions, IReadOnlyList<IReadOnlyDictionary<string, string>> cityRows, IReadOnlyList<IReadOnlyDictionary<string, string>> gateRows, List<(string A, string B)> roads, List<int> roadDifficulties, Dictionary<int, Vector2> sizeByRegion)
         {
             var asset = EditorTableReader.GetOrCreateAsset<TripCityMapAsset>(TableAssetPaths.TripCityMap);
             var so = new SerializedObject(asset);
@@ -119,6 +143,7 @@ namespace Game.Core.Editor
                 var element = roadsProp.GetArrayElementAtIndex(i);
                 WriteNode(element.FindPropertyRelative("A"), a);
                 WriteNode(element.FindPropertyRelative("B"), b);
+                element.FindPropertyRelative("Difficulty").intValue = roadDifficulties[i];
             }
 
             so.ApplyModifiedProperties();

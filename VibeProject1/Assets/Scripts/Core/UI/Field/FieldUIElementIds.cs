@@ -10,6 +10,7 @@ namespace Game.Core
         public const string MovementViewRoot = "Field.MovementViewRoot";
         public const string Background = "Field.Background";
         public const string ProgressGauge = "Field.ProgressGauge";
+        public const string LegArrivalNotice = "Field.LegArrivalNotice";
         public const string FormationButton = "Field.FormationButton";
         public const string TacticsButton = "Field.TacticsButton";
         public const string EncounterWarning = "Field.EncounterWarning";

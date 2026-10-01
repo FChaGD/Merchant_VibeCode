@@ -100,87 +100,102 @@ MonoBehaviour:
     B:
       Kind: 0
       Id: 3
+    Difficulty: 50
   - A:
       Kind: 0
       Id: 2
     B:
       Kind: 0
       Id: 3
+    Difficulty: 50
   - A:
       Kind: 0
       Id: 2
     B:
       Kind: 0
       Id: 4
+    Difficulty: 50
   - A:
       Kind: 0
       Id: 4
     B:
       Kind: 0
       Id: 6
+    Difficulty: 50
   - A:
       Kind: 0
       Id: 4
     B:
       Kind: 0
       Id: 10
+    Difficulty: 50
   - A:
       Kind: 0
       Id: 4
     B:
       Kind: 0
       Id: 7
+    Difficulty: 50
   - A:
       Kind: 0
       Id: 5
     B:
       Kind: 0
       Id: 7
+    Difficulty: 50
   - A:
       Kind: 0
       Id: 6
     B:
       Kind: 0
       Id: 9
+    Difficulty: 50
   - A:
       Kind: 0
       Id: 6
     B:
       Kind: 0
       Id: 8
+    Difficulty: 50
   - A:
       Kind: 0
       Id: 11
     B:
       Kind: 0
       Id: 12
+    Difficulty: 50
   - A:
       Kind: 0
       Id: 3
     B:
       Kind: 1
       Id: 4
+    Difficulty: 50
   - A:
       Kind: 0
       Id: 11
     B:
       Kind: 1
       Id: 3
+    Difficulty: 50
   - A:
       Kind: 0
       Id: 15
     B:
       Kind: 0
       Id: 16
+    Difficulty: 50
   - A:
       Kind: 0
       Id: 15
     B:
       Kind: 1
       Id: 7
+    Difficulty: 50
   - A:
       Kind: 0
       Id: 5
     B:
       Kind: 1
       Id: 8
+    Difficulty: 50

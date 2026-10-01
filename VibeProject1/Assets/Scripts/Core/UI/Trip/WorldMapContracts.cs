@@ -72,6 +72,8 @@ namespace Game.Core
         IEnumerable<(MapNodeId A, MapNodeId B)> GetRoads(int regionId);
         IEnumerable<MapNodeId> GetConnectedNodes(MapNodeId node);
         bool TryGetNodePosition(MapNodeId node, out int regionId, out Vector2 position);
+        /// <summary>도로 난이도 기본값(데이터). 게임 중 바뀐 값은 IRoadDifficultyReader로 읽는다(Docs/설계/76번 §4.4).</summary>
+        int GetRoadBaseDifficulty(RoadKey road);
 
         IEnumerable<WorldCity> AllCities { get; }
         IEnumerable<WorldGate> AllGates { get; }

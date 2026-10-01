@@ -96,12 +96,15 @@ namespace Game.Core.DebugTools
                 row++;
             }
 
-            var roadSheet = AddSheet(workbook, RoadSheetName, "NodeA", "NodeB");
+            // 난이도는 모델 값을 그대로 쓴다 - 모델은 엑셀에서 임포트한 값이라 사람이 넣은 난이도가 보존되고, 편집기로 그린 새 도로만
+            // 기본값(50)이 된다(Docs/설계/76번 §3.1).
+            var roadSheet = AddSheet(workbook, RoadSheetName, "NodeA", "NodeB", "Difficulty");
             row = 2;
             foreach (var (a, b) in map.AllRoads)
             {
                 roadSheet.Cell(row, 1).Value = a.ToString();
                 roadSheet.Cell(row, 2).Value = b.ToString();
+                roadSheet.Cell(row, 3).Value = map.GetRoadBaseDifficulty(RoadKey.Of(a, b));
                 row++;
             }
 

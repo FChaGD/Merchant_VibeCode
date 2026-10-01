@@ -24,6 +24,8 @@ namespace Game.Core
         private readonly Dictionary<int, HashSet<int>> cityIdsByRegion = new();
         private readonly Dictionary<int, HashSet<int>> gateIdsByRegion = new();
         private readonly HashSet<(MapNodeId A, MapNodeId B)> roads = new();
+        // 도로별 난이도 기본값(Docs/설계/76번 §3.1) - 데이터(RoadData.Difficulty)에서 온 값. 게임 중 바뀐 값은 RoadDifficultyState가 따로 든다.
+        private readonly Dictionary<RoadKey, int> roadDifficulty = new();
         private readonly Dictionary<MapNodeId, HashSet<MapNodeId>> adjacency = new();
         private int nextCityId = 1;
         private int nextGateId = 1;
@@ -66,7 +68,10 @@ namespace Game.Core
             nextGateId = Mathf.Max(nextGateId, gateId + 1);
         }
 
-        public void RestoreRoad(MapNodeId a, MapNodeId b) => AddRoadInternal(a, b);
+        public void RestoreRoad(MapNodeId a, MapNodeId b, int difficulty = TripTravelSettings.DefaultRoadDifficulty)
+        {
+            if (AddRoadInternal(a, b)) roadDifficulty[RoadKey.Of(a, b)] = TripTravelRules.ClampDifficulty(difficulty);
+        }
 
         // ==================== 읽기 ====================
 
@@ -83,6 +88,9 @@ namespace Game.Core
         // 도로는 같은 지역 끝점끼리만 있으므로 한쪽 끝점의 지역으로 거른다.
         public IEnumerable<(MapNodeId A, MapNodeId B)> GetRoads(int regionId)
             => roads.Where(road => TryGetNodePosition(road.A, out var region, out _) && region == regionId);
+
+        public int GetRoadBaseDifficulty(RoadKey road)
+            => roadDifficulty.TryGetValue(road, out var value) ? value : TripTravelSettings.DefaultRoadDifficulty;
 
         public IEnumerable<MapNodeId> GetConnectedNodes(MapNodeId node)
             => adjacency.TryGetValue(node, out var set) ? set : Enumerable.Empty<MapNodeId>();
@@ -192,6 +200,8 @@ namespace Game.Core
             if (a == b) return false;
             if (!TryGetNodePosition(a, out var regionA, out _) || !TryGetNodePosition(b, out var regionB, out _) || regionA != regionB) return false;
             if (!AddRoadInternal(a, b)) return false;
+            // 디버그 편집기로 그린 새 도로는 기본 난이도 - 난이도 편집은 엑셀에서 한다(설계 76번 §10-7).
+            roadDifficulty[RoadKey.Of(a, b)] = TripTravelSettings.DefaultRoadDifficulty;
             Changed?.Invoke();
             return true;
         }
@@ -289,6 +299,7 @@ namespace Game.Core
         private bool RemoveRoadInternal(MapNodeId a, MapNodeId b)
         {
             if (!roads.Remove(Key(a, b))) return false;
+            roadDifficulty.Remove(RoadKey.Of(a, b));
             if (adjacency.TryGetValue(a, out var setA)) setA.Remove(b);
             if (adjacency.TryGetValue(b, out var setB)) setB.Remove(a);
             return true;

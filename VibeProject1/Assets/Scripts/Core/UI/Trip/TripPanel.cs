@@ -50,6 +50,8 @@ namespace Game.Core
         private ITripInfoProvider tripInfoProvider;
         private ISceneRevealSignal sceneRevealSignal;
         private ITripCurrentLocationReader currentLocationReader;
+        // "상행 시작" 때 구간 계획을 확정한다(Docs/설계/76번 §5). 없으면(인스톨러 미실행) 예전처럼 여정 없이 30초 상행.
+        private ITripDeparture tripDeparture;
         private ITripDestinationAssigner destinationAssigner;
 
         // 화면(Hub)이 완전히 드러나기 전까지는 "상행 시작"을 막는다(사용자 확정) - 도착지 배정 게이팅과 AND로 합친다.
@@ -58,7 +60,7 @@ namespace Game.Core
         // 임시 보관 영역에 아이템이 있으면 "상행 시작"을 막는다(Docs/설계/40번 §5.5).
         private IReadOnlyList<IInventoryStagingReader> inventoryStagingReaders = System.Array.Empty<IInventoryStagingReader>();
 
-        public void RegisterTripUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingReader> inventoryStagingReaders, IWorldMapReader worldMap, ITripRouteReader routeReader)
+        public void RegisterTripUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingReader> inventoryStagingReaders, IWorldMapReader worldMap, ITripRouteReader routeReader, ITripDeparture tripDeparture)
         {
             this.uiManager = uiManager;
             this.gameManager = gameManager;
@@ -66,6 +68,7 @@ namespace Game.Core
             this.tripInfoProvider = tripInfoProvider;
             this.sceneRevealSignal = sceneRevealSignal;
             this.currentLocationReader = currentLocationReader;
+            this.tripDeparture = tripDeparture;
             this.destinationAssigner = destinationAssigner;
 
             // 저장소는 Bootstrap 상주라 Hub를 반복 방문해도 구독이 누적되지 않게 이전 구독부터 해제한다.
@@ -102,12 +105,15 @@ namespace Game.Core
             openFormationButton.onClick.AddListener(() => uiManager.Open(UIPanelIds.Formation));
 
             startButton.onClick.RemoveAllListeners();
-            startButton.onClick.AddListener(() => gameManager.RequestSceneTransition(ContentSceneId.Field));
+            startButton.onClick.AddListener(() => StartTrip(gameManager));
 
             if (destinationAssigner != null)
             {
                 destinationAssigner.Changed -= RefreshStartButtonInteractable;
                 destinationAssigner.Changed += RefreshStartButtonInteractable;
+                // 도착지를 바꾸면 정보 패널(구간별 소요시간·등급)도 바로 바뀐다 - 예전엔 패널을 열 때만 갱신했다(Docs/설계/76번 §7.1).
+                destinationAssigner.Changed -= RefreshSummary;
+                destinationAssigner.Changed += RefreshSummary;
             }
 
             sceneRevealed = false;
@@ -271,8 +277,24 @@ namespace Game.Core
             panelRoot.SetActive(false);
         }
 
+        private void StartTrip(IGameManager gameManager)
+        {
+            if (tripDeparture != null && currentLocationReader != null && destinationAssigner?.DestinationCityId is { } destinationCityId
+                && !tripDeparture.TryDepart(currentLocationReader.CurrentCityId, destinationCityId))
+            {
+                Debug.LogWarning($"{nameof(TripPanel)}: 현재 위치({currentLocationReader.CurrentCityId}) → 도착지({destinationCityId}) 경로를 찾지 못해 여정 없이 출발한다.");
+            }
+            gameManager.RequestSceneTransition(ContentSceneId.Field);
+        }
+
         private void RefreshSummary()
         {
+            // destinationAssigner(Bootstrap 상주)의 Changed는 Hub가 언로드된 상태에서도 발화할 수 있다 - 뷰가 파괴됐으면 무시한다.
+            if (summaryView == null)
+            {
+                return;
+            }
+
             var summary = tripInfoProvider != null
                 ? tripInfoProvider.GetTripSummary()
                 : new TripSummary("값 없음", "값 없음", "값 없음");

@@ -199,6 +199,94 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &188415740
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 188415741}
+  - component: {fileID: 188415742}
+  m_Layer: 0
+  m_Name: TripPlanSummaryProvider
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &188415741
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 188415740}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900004001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &188415742
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 188415740}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4695e3a0460b80a4ba6ce77a976ceb92, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.TripPlanSummaryProvider
+--- !u!1 &194370871
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 194370872}
+  - component: {fileID: 194370873}
+  m_Layer: 0
+  m_Name: RoadDifficultyState
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &194370872
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 194370871}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900004001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &194370873
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 194370871}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c20f1d2f827efa5449aa598b5e6ada23, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.RoadDifficultyState
 --- !u!1 &230752039
 GameObject:
   m_ObjectHideFlags: 0
@@ -498,6 +586,90 @@ MonoBehaviour:
   characterStatsTable: {fileID: 11400000, guid: b1473094d8379ba4eb3c1dc126a974e9, type: 2}
   characterStringsTable: {fileID: 11400000, guid: a5a45b045bbb76340b16123e8c9b5261, type: 2}
   mercenaryClassStringsTable: {fileID: 11400000, guid: fb5cc931fe3dd784bb5b77c9c468b4c5, type: 2}
+--- !u!1 &618500468
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 618500469}
+  - component: {fileID: 618500470}
+  m_Layer: 0
+  m_Name: TripItineraryState
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &618500469
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 618500468}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900004001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &618500470
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 618500468}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a2a212cc4838e65439e52d1855f5a5e3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.TripItineraryState
+  settings:
+    DifficultyTimeSeconds: 36
+    DistanceBands:
+    - Name: "\uC9E7\uC74C"
+      MinSeconds: 60
+      SpanSeconds: 120
+      StartDistance: 0
+      DistanceSpan: 600
+    - Name: "\uC911\uAC04"
+      MinSeconds: 300
+      SpanSeconds: 180
+      StartDistance: 600
+      DistanceSpan: 500
+    - Name: "\uAE34"
+      MinSeconds: 900
+      SpanSeconds: 300
+      StartDistance: 1100
+      DistanceSpan: 1100
+    DifficultyGrades:
+    - Name: "\uB9E4\uC6B0 \uC26C\uC6C0"
+      MaxDifficulty: 14
+      EncountersPerFiveMinutes: 1.25
+    - Name: "\uC26C\uC6C0"
+      MaxDifficulty: 28
+      EncountersPerFiveMinutes: 1.5
+    - Name: "\uC870\uAE08 \uC26C\uC6C0"
+      MaxDifficulty: 42
+      EncountersPerFiveMinutes: 1.75
+    - Name: "\uBCF4\uD1B5"
+      MaxDifficulty: 57
+      EncountersPerFiveMinutes: 2
+    - Name: "\uC57D\uAC04 \uC5B4\uB824\uC6C0"
+      MaxDifficulty: 71
+      EncountersPerFiveMinutes: 2.25
+    - Name: "\uC5B4\uB824\uC6C0"
+      MaxDifficulty: 85
+      EncountersPerFiveMinutes: 2.5
+    - Name: "\uB9E4\uC6B0 \uC5B4\uB824\uC6C0"
+      MaxDifficulty: 100
+      EncountersPerFiveMinutes: 2.75
 --- !u!1 &684925342
 GameObject:
   m_ObjectHideFlags: 0
@@ -1107,10 +1279,12 @@ MonoBehaviour:
   - {fileID: 812193435}
   - {fileID: 2085441672}
   - {fileID: 2136397305}
-  - {fileID: 1325062939}
+  - {fileID: 188415742}
   - {fileID: 1621465529}
   - {fileID: 1707920027}
   - {fileID: 1291961381}
+  - {fileID: 194370873}
+  - {fileID: 618500470}
   - {fileID: 1393312301}
   - {fileID: 1730478252}
   - {fileID: 864792254}
@@ -1135,6 +1309,7 @@ GameObject:
   - component: {fileID: 900002002}
   - component: {fileID: 900002003}
   - component: {fileID: 900002004}
+  - component: {fileID: 900002005}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -1194,7 +1369,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5e6e520f6b2154439ab7cf91f3e08ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.SessionStateTracker
-  testDurationSeconds: 30
+--- !u!114 &900002005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900002000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b5a1dc35775d8049b499e3ca9904e95, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.DebugTools.TripTimeScaleDebugView
 --- !u!1 &900003000
 GameObject:
   m_ObjectHideFlags: 0
@@ -1286,7 +1472,6 @@ Transform:
   - {fileID: 812193434}
   - {fileID: 2085441671}
   - {fileID: 2136397304}
-  - {fileID: 1325062938}
   - {fileID: 1621465528}
   - {fileID: 1707920026}
   - {fileID: 1393312300}
@@ -1302,6 +1487,9 @@ Transform:
   - {fileID: 1804540254}
   - {fileID: 864792253}
   - {fileID: 1291961380}
+  - {fileID: 188415741}
+  - {fileID: 194370872}
+  - {fileID: 618500469}
   m_Father: {fileID: 900000001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &900004002
@@ -1503,6 +1691,7 @@ GameObject:
   - component: {fileID: 900005007}
   - component: {fileID: 900005006}
   - component: {fileID: 900005009}
+  - component: {fileID: 900005010}
   m_Layer: 0
   m_Name: BattleManager
   m_TagString: Untagged
@@ -1613,6 +1802,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: feda567deb63ec840a2fc13f03c81fe9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.DebugTools.BattleDebugResultView
+--- !u!114 &900005010
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900005000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 866c3835003db754faa92e12bb0668bc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.DebugTools.BattleObstacleGizmoView
 --- !u!1 &900006000
 GameObject:
   m_ObjectHideFlags: 0
@@ -1975,50 +2176,6 @@ MonoBehaviour:
   cityMap: {fileID: 11400000, guid: 97db78d423f2fce46888ee1d35e6c40d, type: 2}
   cityStrings: {fileID: 11400000, guid: eed406d33fd9c1146b10a6094e45874b, type: 2}
   regionStrings: {fileID: 11400000, guid: fa0db9fec0ea6ec47bbad18c52cd867f, type: 2}
---- !u!1 &1325062937
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1325062938}
-  - component: {fileID: 1325062939}
-  m_Layer: 0
-  m_Name: PlaceholderTripInfoProvider
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1325062938
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1325062937}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 900004001}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1325062939
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1325062937}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5b7dbadfe9eb492fba342f06925bc9a2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.Core::Game.Core.PlaceholderTripInfoProvider
 --- !u!1 &1393312299
 GameObject:
   m_ObjectHideFlags: 0

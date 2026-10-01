@@ -28,10 +28,12 @@ namespace Game.Core.Editor
             nameof(InMemoryFormationRepository),
             nameof(InMemoryUnitConditionRepository),
             nameof(InMemoryTacticsRepository),
-            nameof(PlaceholderTripInfoProvider),
+            nameof(TripPlanSummaryProvider),
             nameof(InMemoryTripCurrentLocationRepository),
             nameof(TripDestinationAssigner),
             nameof(WorldMapProvider),
+            nameof(RoadDifficultyState),
+            nameof(TripItineraryState),
             nameof(InMemoryFieldFormationActivityRepository),
             nameof(InMemoryPlayerCurrencyWallet),
             nameof(PlaceholderTradeGoodsInventoryRepository),
@@ -48,6 +50,8 @@ namespace Game.Core.Editor
 
         // 마을 규모 제공자로 교체되며 삭제된 임시 제공자(Docs/설계/58번 §5.4). 클래스가 없어 nameof를 못 쓴다.
         private const string RemovedPlaceholderTownFacilityProviderName = "PlaceholderTownFacilityAvailabilityProvider";
+        // 상행 계획 기반 요약(TripPlanSummaryProvider)으로 교체되며 삭제된 임시 제공자(Docs/설계/76번 §7.1).
+        private const string RemovedPlaceholderTripInfoProviderName = "PlaceholderTripInfoProvider";
 
         [MenuItem("Tools/Game/Build Bootstrap Scene")]
         public static void BuildManagerHierarchy()
@@ -212,9 +216,9 @@ namespace Game.Core.Editor
             WirePartyPolicyCatalog(tacticsRepository);
             WireRoleGroupCatalog(tacticsRepository);
 
-            // 지역 시스템이 아직 없어, 상행 준비 UI 테스트용 임시 상행 요약 제공자를 등록한다.
-            // 실제 데이터 시스템이 생기면 이 저장소를 함께 제거한다.
-            var placeholderTripInfoProvider = EditorUIBuilder.GetOrCreateManager<PlaceholderTripInfoProvider>(uiManager.transform, nameof(PlaceholderTripInfoProvider));
+            // 상행정보 패널 요약 - 현재 위치 → 도착지 구간 계획에서 문구를 만든다(Docs/설계/76번 §7.1).
+            EditorUIBuilder.DestroyChildIfExists(uiManager.transform, RemovedPlaceholderTripInfoProviderName);
+            var tripPlanSummaryProvider = EditorUIBuilder.GetOrCreateManager<TripPlanSummaryProvider>(uiManager.transform, nameof(TripPlanSummaryProvider));
 
             // "현재 위치"/도착지 지정(기획 16번, 설계 21번) - formationRepository와 같은 성격의 인메모리
             // 저장소.
@@ -224,6 +228,10 @@ namespace Game.Core.Editor
             // 월드 지도(지역·도시·관문·도로, Docs/설계/69번 §4.3) - 지도 표시·도착지 도달 판정·디버그 편집이 DI로 찾는다.
             var worldMapProvider = EditorUIBuilder.GetOrCreateManager<WorldMapProvider>(uiManager.transform, nameof(WorldMapProvider));
             WireWorldMapTables(worldMapProvider);
+
+            // 도로 난이도 현재값과 상행 여정(구간 계획·인카운터 빈도, Docs/설계/76번 §4.4·§5). 이동 수치는 여정 상태의 인스펙터 값이다.
+            var roadDifficultyState = EditorUIBuilder.GetOrCreateManager<RoadDifficultyState>(uiManager.transform, nameof(RoadDifficultyState));
+            var tripItineraryState = EditorUIBuilder.GetOrCreateManager<TripItineraryState>(uiManager.transform, nameof(TripItineraryState));
 
             // 상행 중(Field) 정비창 배치/이동 소요시간 진행 상태(기획 20번, 설계 25번) - formationRepository와
             // 같은 성격의 인메모리 저장소.
@@ -278,10 +286,12 @@ namespace Game.Core.Editor
                 formationRepository,
                 unitConditionRepository,
                 tacticsRepository,
-                placeholderTripInfoProvider,
+                tripPlanSummaryProvider,
                 tripCurrentLocationRepository,
                 tripDestinationAssigner,
                 worldMapProvider,
+                roadDifficultyState,
+                tripItineraryState,
                 fieldFormationActivityRepository,
                 playerCurrencyWallet,
                 townFacilityAvailabilityProvider,

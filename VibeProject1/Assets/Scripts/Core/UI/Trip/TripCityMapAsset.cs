@@ -34,6 +34,7 @@ namespace Game.Core
     {
         public MapNodeId A;
         public MapNodeId B;
+        public int Difficulty; // 도로 난이도 기본값 1~100(Docs/기획/75번 §4.2). 0 = 예전 자산(열 없음) - 기본값 50으로 읽는다
     }
 
     /// <summary>

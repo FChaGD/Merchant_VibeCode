@@ -58,7 +58,7 @@ namespace Game.Core
             }
             foreach (var road in cityMap.Roads)
             {
-                map.RestoreRoad(road.A, road.B);
+                map.RestoreRoad(road.A, road.B, road.Difficulty > 0 ? road.Difficulty : TripTravelSettings.DefaultRoadDifficulty);
             }
             return map;
         }

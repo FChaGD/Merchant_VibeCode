@@ -54,6 +54,7 @@ namespace Game.Core.Editor
 
             BuildBackground(movementViewRoot.transform);
             BuildProgressGauge(movementViewRoot.transform);
+            BuildLegArrivalNotice(movementViewRoot.transform);
             BuildFormationButton(movementViewRoot.transform);
             BuildTacticsButton(movementViewRoot.transform);
             BuildEncounterWarning(movementViewRoot.transform);
@@ -146,9 +147,36 @@ namespace Game.Core.Editor
             fillImage.fillMethod = Image.FillMethod.Horizontal;
             fillImage.fillAmount = 0f;
 
+            // 구간 라벨("구간 n/N · 등급", Docs/설계/76번 §7.2) - 게이지 위에 겹쳐 그린다.
+            var legLabel = EditorUIBuilder.EnsureLabel(root.transform, string.Empty, autoSize: true, minFontSize: 12f, maxFontSize: 24f);
+            legLabel.color = Color.white;
+
             var gaugeView = EditorUIBuilder.GetOrAddComponent<FieldProgressGaugeView>(root);
             var so = new SerializedObject(gaugeView);
             so.FindProperty("fillImage").objectReferenceValue = fillImage;
+            so.FindProperty("legLabel").objectReferenceValue = legLabel;
+            so.ApplyModifiedProperties();
+        }
+
+        // 중간 도시 도착 알림(Docs/설계/76번 §7.2) - 게이지 바로 아래, 평소엔 투명(CanvasGroup)이라 항상 켜 둔다.
+        private static void BuildLegArrivalNotice(Transform parent)
+        {
+            var root = EditorUIBuilder.GetOrCreateUIObject(parent, "LegArrivalNotice");
+            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.3f, 0.82f), new Vector2(0.7f, 0.9f));
+            var background = EditorUIBuilder.EnsureImage(root, new Color(0f, 0f, 0f, 0.7f));
+            background.raycastTarget = false;
+            var canvasGroup = EditorUIBuilder.GetOrAddComponent<CanvasGroup>(root);
+            canvasGroup.alpha = 0f;
+            canvasGroup.blocksRaycasts = false;
+            EditorUIBuilder.EnsureMarker(root, FieldUIElementIds.LegArrivalNotice);
+
+            var label = EditorUIBuilder.EnsureLabel(root.transform, string.Empty, autoSize: true, minFontSize: 14f, maxFontSize: 30f);
+            label.color = Color.white;
+
+            var noticeView = EditorUIBuilder.GetOrAddComponent<FieldLegArrivalNoticeView>(root);
+            var so = new SerializedObject(noticeView);
+            so.FindProperty("canvasGroup").objectReferenceValue = canvasGroup;
+            so.FindProperty("messageText").objectReferenceValue = label;
             so.ApplyModifiedProperties();
         }
 

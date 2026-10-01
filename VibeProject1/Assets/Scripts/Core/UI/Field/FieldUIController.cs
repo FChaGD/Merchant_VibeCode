@@ -24,6 +24,9 @@ namespace Game.Core
         public RectTransform MovementViewRoot => movementViewRoot;
 
         private FieldProgressGaugeView gaugeView;
+        private FieldLegArrivalNoticeView legArrivalNoticeView;
+        // 구간 단위 진행(Docs/설계/76번 §6.2) - 씬을 로드할 때마다 이번 씬의 뷰로 새로 만든다.
+        private FieldTripLegCoordinator legCoordinator;
         private Button formationButton;
         private Button tacticsButton;
         private FieldEncounterWarningView warningView;
@@ -54,7 +57,7 @@ namespace Game.Core
         // Hub 진입 시 출발지로 되돌아간 것처럼 보이는 버그가 있었다(실전 확인, 2026-09-06).
         private IFieldFormationActivityRepository fieldActivityRepository;
 
-        public void RegisterFieldUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository, ITripCurrentLocationRepository currentLocationRepository, ITripDestinationAssigner destinationAssigner, IFieldFormationActivityRepository fieldActivityRepository)
+        public void RegisterFieldUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository, ITripCurrentLocationRepository currentLocationRepository, ITripDestinationAssigner destinationAssigner, IFieldFormationActivityRepository fieldActivityRepository, ITripItinerary itinerary, IWorldMapReader worldMap)
         {
             if (!TryBind(sceneUIRoot))
             {
@@ -68,6 +71,7 @@ namespace Game.Core
             this.currentLocationRepository = currentLocationRepository;
             this.destinationAssigner = destinationAssigner;
             this.fieldActivityRepository = fieldActivityRepository;
+            legCoordinator = new FieldTripLegCoordinator(sessionState, itinerary, currentLocationRepository, worldMap, gaugeView, legArrivalNoticeView, HandleTripArrived);
 
             formationButton.onClick.RemoveAllListeners();
             formationButton.onClick.AddListener(() => uiManager.Open(UIPanelIds.Formation));
@@ -86,8 +90,8 @@ namespace Game.Core
             // (Docs/설계/04-2026-08-25-Field씬_아키텍처.md §5 이벤트 구독 수명주기 참고).
             sessionState.OnProgressChanged -= HandleProgressChanged;
             sessionState.OnProgressChanged += HandleProgressChanged;
-            sessionState.OnArrived -= HandleArrived;
-            sessionState.OnArrived += HandleArrived;
+            sessionState.OnArrived -= HandleLegArrived;
+            sessionState.OnArrived += HandleLegArrived;
 
             // encounterManager/battleResultSource는 Bootstrap 상주 영속 객체다 - flowCoordinator를
             // Field 재방문 시 재생성하지 않아야 이전 상행의 구독이 쌓이지 않는다
@@ -118,7 +122,7 @@ namespace Game.Core
 
             SetTopLevelButtonsInteractable(true);
             unitConditionRepository?.ResetAllToFull(); // 상행 시작 = 전원 만피로 출발(기획 13번 §4-1, 설계 15번 §4)
-            sessionState.Begin();
+            legCoordinator.BeginFirstLeg(); // 구간마다 소요시간이 다르다(Docs/설계/76번 §6.2)
         }
 
         public void SetTopLevelButtonsInteractable(bool interactable)
@@ -139,9 +143,12 @@ namespace Game.Core
             gaugeView.SetProgress(progress);
         }
 
-        // 도착 성공 처리(Docs/설계/04-2026-08-25-Field씬_아키텍처.md §5.3) - 전투 승/패와 같은 resultPopupView를
-        // 재사용한다(문구·버튼 라벨·콜백만 다름).
-        private void HandleArrived()
+        // 구간 하나가 끝날 때마다 불린다 - 중간 도시인지 최종 도착인지는 구간 진행 조율자가 가른다(Docs/설계/76번 §6.2).
+        private void HandleLegArrived() => legCoordinator?.HandleLegArrived();
+
+        // 최종 도착 처리(Docs/설계/04-2026-08-25-Field씬_아키텍처.md §5.3) - 전투 승/패와 같은 resultPopupView를
+        // 재사용한다(문구·버튼 라벨·콜백만 다름). 중간 도시 도착은 여기 오지 않는다(FieldTripLegCoordinator).
+        private void HandleTripArrived()
         {
             fieldActivityRepository?.ForceCompleteAll(); // 이동 중이던 배치를 도착지로 즉시 확정(위 필드 선언부 주석 참고)
             unitConditionRepository?.ResetAllToFull(); // 상행 종료(허브 복귀) = 전원 회복(기획 13번 §4-3, 사용자 확정)
@@ -168,6 +175,12 @@ namespace Game.Core
             {
                 WarnMissing(FieldUIElementIds.ProgressGauge);
                 return false;
+            }
+
+            // 구간 도착 알림은 없어도 진행은 된다(알림 없이 바로 다음 구간) - 인스톨러 미실행만 경고한다.
+            if (!sceneUIRoot.TryGetElement(FieldUIElementIds.LegArrivalNotice, out legArrivalNoticeView))
+            {
+                WarnMissing(FieldUIElementIds.LegArrivalNotice + " (Tools > Game > Build Field Scene)");
             }
 
             if (!sceneUIRoot.TryGetElement<Image>(FieldUIElementIds.Background, out var background))

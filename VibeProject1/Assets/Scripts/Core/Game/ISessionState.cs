@@ -3,9 +3,8 @@ using System;
 namespace Game.Core
 {
     /// <summary>
-    /// 상행 진행 상태 조회/시작/재개 인터페이스. 테스트 단계 시간 기반 계산이 실제 거리+변수 기반
-    /// 계산으로 바뀌어도 이 인터페이스는 그대로 유지하고 구현체(SessionStateTracker)만 교체하면 된다
-    /// (Docs/설계/04-2026-08-25-Field씬_아키텍처.md 3절).
+    /// 상행 진행 상태 조회/시작/재개 인터페이스. 진행 단위는 상행 구간 하나(다음 도시까지)다 - 소요시간은 구간마다
+    /// 거리·난이도로 계산해 시작할 때 넘긴다(Docs/설계/76번 §6.1).
     /// </summary>
     public interface ISessionState : ISessionPauseControl
     {
@@ -13,7 +12,7 @@ namespace Game.Core
         event Action<float> OnProgressChanged;
         event Action OnArrived;
 
-        void Begin();
+        void Begin(float durationSeconds);
         void Resume();
     }
 }

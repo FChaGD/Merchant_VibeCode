@@ -48,6 +48,8 @@ namespace Game.Core
             registrar.TryResolve<ITripCurrentLocationRepository>(out var currentLocationRepository);
             registrar.TryResolve<ITripDestinationAssigner>(out var destinationAssigner);
             registrar.TryResolve<IFieldFormationActivityRepository>(out var fieldActivityRepository);
+            registrar.TryResolve<ITripItinerary>(out var tripItinerary);
+            registrar.TryResolve<IWorldMapReader>(out var worldMap);
 
             var sessionState = registrar.Resolve<ISessionState>();
             var encounterManager = registrar.Resolve<IEncounterManager>();
@@ -66,7 +68,7 @@ namespace Game.Core
             tacticsPanel.RegisterTacticsUI(sceneUIRoot, tacticsRepository, uiManager);
             panelRegistrar.RegisterPopupPanel(tacticsPanel);
 
-            fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository, currentLocationRepository, destinationAssigner, fieldActivityRepository);
+            fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository, currentLocationRepository, destinationAssigner, fieldActivityRepository, tripItinerary, worldMap);
 
             // Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 다음 전환 때 슬라이드시킬 대상을
             // 등록한다. 예전엔 이동 뷰 루트만 등록해 전투 뷰/패널/결과 팝업이 전환 중 제자리에 남았다 - 이제
