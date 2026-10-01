@@ -11,7 +11,7 @@ namespace Game.Core
     /// (BattleManager 무변경). 승패 조건: 적 전멸(사망+도주)=Victory, 아군 전멸(사망+도주)
     /// 또는 보호 목표 파괴=Defeat.
     /// </summary>
-    public class LiveBattleSimulationRule : MonoBehaviour, IBattleResultRule, IRequiresFormationReader, IRequiresCaravanRoster, IRequiresTacticsReader, IRequiresUnitConditionRepository, IRequiresFieldFormationActivityRepository, IBattleSimulationEvents, IPausableBattleSimulation
+    public class LiveBattleSimulationRule : MonoBehaviour, IBattleResultRule, IRequiresFormationReader, IRequiresCaravanRoster, IRequiresTacticsReader, IRequiresUnitConditionRepository, IRequiresFieldFormationActivityRepository, IBattleSimulationEvents, IPausableBattleSimulation, IObstacleFieldDebugSource
     {
         // 직업→역할군 매핑 - 실제 데이터(직업별 항목)는 에디터에서 에셋을 만들어 채운다
         // (Docs/설계/12번 §2.1). 비어있으면 UnitTacticsProfileResolver가 경고 후 기본값으로 대체한다.
@@ -59,6 +59,11 @@ namespace Game.Core
         private float midBattleFleeTravelDistance;
         private FrontlineFormationCoordinator midBattleFrontlineCoordinator;
         private RangedSurroundCoordinator midBattleRangedSurroundCoordinator;
+        // 마차·시설 장애물(Docs/설계/72번 §5) - 증원 캐릭터도 이번 전투와 같은 장애물 정보를 받아야 해서 필드로 둔다.
+        private IObstacleNavigator midBattleObstacleNavigator = NullObstacleNavigator.Instance;
+
+        // 디버깅 전용(BattleObstacleGizmoView) - 장애물이 없는 전투면 null.
+        public BattleObstacleField DebugObstacleField => midBattleObstacleNavigator as BattleObstacleField;
 
         // 화면(커튼)이 완전히 드러나기 전까지는 유닛 위치만 잡아두고 틱은 멈춰둔다(사용자 확정) -
         // 안 그러면 페이드 아웃 도중 반투명해진 커튼 너머로 이미 움직이는 전투가 비쳐 보인다.
@@ -244,9 +249,13 @@ namespace Game.Core
             // 알고리즘 재사용을 위해 frontlineCoordinator 참조가 필요하다(§13.3′ "로직 공유").
             midBattleRangedSurroundCoordinator = new RangedSurroundCoordinator(midBattleStandardActivityRadius, midBattleFrontlineCoordinator);
 
+            // 장애물은 캐릭터보다 먼저 있어야 생성자에 넘길 수 있다(설계 72번 §5) - 그래서 마차·시설을 아군·적보다 먼저 만든다.
+            var protectedPlacements = hasLayout ? BuildProtectedPlacements(layout) : new List<ProtectedPlacement>();
+            midBattleObstacleNavigator = BattleObstacleField.Create(protectedPlacements);
+
             var allies = hasLayout ? BuildAllies(layout) : new List<IBattleCombatant>();
             var enemies = BuildEnemies(spawnCenter, enemyMorale, enemyWaveCoordinator, midBattleFleeTravelDistance);
-            var protectedUnits = hasLayout ? BuildProtectedUnits(layout) : new List<IDamageable>();
+            var protectedUnits = protectedPlacements.Select(placement => (IDamageable)placement.Unit).ToList();
 
             return new BattleSimulationLoop(allies, enemies, protectedUnits, midBattleFieldRadius, spawnRadius, midBattleFrontlineCoordinator, midBattleRangedSurroundCoordinator, midBattleAllyWaveCoordinator, enemyWaveCoordinator);
         }
@@ -311,7 +320,7 @@ namespace Game.Core
                 tacticsBehaviors = UnitTacticsBehaviorsFactory.Build(profile, midBattleStandardActivityRadius, midBattleFieldRadius, spatialQuery, midBattleFrontlineCoordinator, midBattleRangedSurroundCoordinator);
             }
 
-            var characterUnit = new BattleCharacterUnit(position, isAlly: true, stats, damageFormula, midBattleAllyMorale, midBattleAllyWaveCoordinator, spatialQuery, midBattleFleeTravelDistance, tacticsBehaviors, startingHp: startingHp);
+            var characterUnit = new BattleCharacterUnit(position, isAlly: true, stats, damageFormula, midBattleAllyMorale, midBattleAllyWaveCoordinator, spatialQuery, midBattleFleeTravelDistance, tacticsBehaviors, startingHp: startingHp, obstacleNavigator: midBattleObstacleNavigator);
             allyUnitIds.Add((unitId, characterUnit));
             return characterUnit;
         }
@@ -354,13 +363,14 @@ namespace Game.Core
             return enemyProvider.GetEncounterComposition()
                 .Select(enemyStats => (IBattleCombatant)new BattleCharacterUnit(
                     spawnCenter, isAlly: false, enemyStats, damageFormula, enemyMorale, enemyWaveCoordinator, spatialQuery, fleeTravelDistance,
-                    icon: BattlePlaceholderSprite.ForEnemyType(enemyStats.EnemyType)))
+                    icon: BattlePlaceholderSprite.ForEnemyType(enemyStats.EnemyType), obstacleNavigator: midBattleObstacleNavigator))
                 .ToList();
         }
 
-        private List<IDamageable> BuildProtectedUnits(FormationLayout layout)
+        // 칸(열·행)을 함께 돌려준다 - 장애물 묶음을 칸 8방향 이웃으로 판정한다(설계 72번 §3.2).
+        private List<ProtectedPlacement> BuildProtectedPlacements(FormationLayout layout)
         {
-            var result = new List<IDamageable>();
+            var result = new List<ProtectedPlacement>();
             var extent = ComputeExtent(layout);
             for (var slotIndex = 0; slotIndex < layout.SlotCount; slotIndex++)
             {
@@ -373,7 +383,8 @@ namespace Game.Core
                 var column = slotIndex % layout.ColumnCount;
                 var row = slotIndex / layout.ColumnCount;
                 var position = FieldPositionLayout.ComputeAllyPosition(column, row, extent);
-                result.Add(new BattleProtectedUnit(position, ProtectedUnitTuning.MaxHp, rosterUnit.Icon));
+                var unit = new BattleProtectedUnit(position, ProtectedUnitTuning.MaxHp, rosterUnit.Icon, ProtectedUnitTuning.BodySize * 0.5f);
+                result.Add(new ProtectedPlacement(unit, column, row));
             }
             return result;
         }

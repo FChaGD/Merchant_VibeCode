@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Game.Core.Editor.DebugTools
 {
     /// <summary>
-    /// 전투 디버그 기즈모 3종(포위망/방진선/이동 목적지)을 BattleManager와 같은 GameObject에
+    /// 전투 디버그 기즈모 4종(포위망/방진선/이동 목적지/마차·시설 장애물)을 BattleManager와 같은 GameObject에
     /// 설치/제거한다. ManagerHierarchyInstaller(전체 매니저 하이어라키 빌드)와 분리해 여기 둔 이유는
     /// DebugBootstrapReentryGuardInstaller와 같다 - "게임 빌드"와 "디버그 도구 켜고 끄기"는 다른
     /// 관심사라, 기즈모만 껐다 켰다 하고 싶을 때 전체 매니저 하이어라키를 다시 빌드할 필요가 없게
@@ -15,7 +15,7 @@ namespace Game.Core.Editor.DebugTools
     /// DebugBootstrapReentryGuardInstaller와 달리) 씬을 열고 닫는 루프 없이 현재 활성 씬에서 바로
     /// 찾는다 - Bootstrap.unity를 열고 실행해야 한다.
     /// 걷어낼 때는 이 파일과 BattleSurroundGizmoView/BattleFrontlineGizmoView/
-    /// BattleMoveTargetGizmoView.cs(+.meta 전부)만 지우고 Remove 메뉴를 한 번 실행하면 된다.
+    /// BattleMoveTargetGizmoView/BattleObstacleGizmoView.cs(+.meta 전부)만 지우고 Remove 메뉴를 한 번 실행하면 된다.
     /// </summary>
     public static class BattleGizmoInstaller
     {
@@ -32,6 +32,7 @@ namespace Game.Core.Editor.DebugTools
             EnsureComponent<BattleSurroundGizmoView>(battleManager.gameObject);
             EnsureComponent<BattleFrontlineGizmoView>(battleManager.gameObject);
             EnsureComponent<BattleMoveTargetGizmoView>(battleManager.gameObject);
+            EnsureComponent<BattleObstacleGizmoView>(battleManager.gameObject);
 
             EditorSceneManager.MarkSceneDirty(battleManager.gameObject.scene);
             Debug.Log("전투 디버그 기즈모 설치/동기화 완료. Ctrl+S로 씬을 저장했다.");
@@ -49,6 +50,7 @@ namespace Game.Core.Editor.DebugTools
             RemoveComponent<BattleSurroundGizmoView>(battleManager.gameObject);
             RemoveComponent<BattleFrontlineGizmoView>(battleManager.gameObject);
             RemoveComponent<BattleMoveTargetGizmoView>(battleManager.gameObject);
+            RemoveComponent<BattleObstacleGizmoView>(battleManager.gameObject);
 
             EditorSceneManager.MarkSceneDirty(battleManager.gameObject.scene);
             Debug.Log("전투 디버그 기즈모 제거 완료. Ctrl+S로 씬을 저장했다.");

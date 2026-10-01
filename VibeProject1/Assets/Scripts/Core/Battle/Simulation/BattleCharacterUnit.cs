@@ -53,8 +53,8 @@ namespace Game.Core
         // 읽어야 해서 노출 - TickAndGetRecognized를 또 호출하지 않도록 스냅샷만 전달한다.
         public IReadOnlyCollection<IDamageable> RecognizedEnemies => tacticsBehaviors?.RecognitionTracker.RecognizedSnapshot ?? Array.Empty<IDamageable>();
         // 디버깅 전용(Assets/Scripts/Core/Debug/Battle/BattleMoveTargetGizmoView) - IBattleCombatant.
-        // DebugMoveTarget 참고. 삭제 시 이 필드/프로퍼티와 아래 대입 3곳(MoveTowardTacticalDestination/
-        // TickEngageWithoutTactics/TickReturning)만 지우면 된다 - 다른 로직은 이 값을 읽지 않는다.
+        // DebugMoveTarget 참고. 삭제 시 이 필드/프로퍼티와 아래 대입 4곳(MoveTowardTacticalDestination/
+        // TickEngageWithoutTactics/TickReturning/MoveToward)만 지우면 된다 - 다른 로직은 이 값을 읽지 않는다.
         public Vector2? DebugMoveTarget => debugMoveTarget;
         private Vector2? debugMoveTarget;
         // 아군은 아직 직업별 팔레트 아이콘(사각형/오각형/육각형)을 전투 뷰에 재사용하지 않아(이번
@@ -78,6 +78,10 @@ namespace Game.Core
         private readonly float fleeTravelDistance;
         // null이면 방향성 지시 미적용(적 유닛) - TickEngageWithoutTactics로 분기(Docs/설계/12번 §0).
         private readonly UnitTacticsBehaviors tacticsBehaviors;
+        // 마차·시설 회피(Docs/설계/72번) - 장애물 없는 전투(배틀 테스트 등)는 NullObstacleNavigator라 기존 직선 이동 그대로.
+        private readonly IObstacleNavigator obstacleNavigator;
+        // 장애물을 지날 때까지 같은 쪽으로 돌기 위한 좌우 결정(기획 71번 §4-5).
+        private ObstacleAvoidanceState avoidanceState;
 
         private float currentHp;
         private float unitMorale = MoraleTuning.Initial;
@@ -107,7 +111,8 @@ namespace Game.Core
         public BattleCharacterUnit(
             Vector2 startPosition, bool isAlly, BattleUnitStats stats, IDamageFormula damageFormula,
             PartyMorale partyMorale, MoraleWaveCoordinator waveCoordinator, IUnitSpatialQuery spatialQuery, float fleeTravelDistance,
-            UnitTacticsBehaviors tacticsBehaviors = null, Sprite icon = null, float? startingHp = null)
+            UnitTacticsBehaviors tacticsBehaviors = null, Sprite icon = null, float? startingHp = null,
+            IObstacleNavigator obstacleNavigator = null)
         {
             Position = startPosition;
             IsAlly = isAlly;
@@ -119,6 +124,7 @@ namespace Game.Core
             this.fleeTravelDistance = fleeTravelDistance;
             this.tacticsBehaviors = tacticsBehaviors;
             this.icon = icon;
+            this.obstacleNavigator = obstacleNavigator ?? NullObstacleNavigator.Instance;
             // startingHp가 만피를 넘지 않게 방어적으로 clamp - 저장된 체력과 직업 기준 만피가
             // 항상 일치한다는 보장이 없다(설계 23번 §1, 기획 18번).
             currentHp = Mathf.Clamp(startingHp ?? stats.MaxHp, 0f, stats.MaxHp);
@@ -134,14 +140,14 @@ namespace Game.Core
             if (isFleeing)
             {
                 TickFlee(deltaTime);
-                ApplySeparation(sameSideUnits, deltaTime);
+                ResolveOverlaps(sameSideUnits, deltaTime);
                 return;
             }
 
             if (isReturning)
             {
                 TickReturning(deltaTime);
-                ApplySeparation(sameSideUnits, deltaTime);
+                ResolveOverlaps(sameSideUnits, deltaTime);
                 return;
             }
 
@@ -154,7 +160,7 @@ namespace Game.Core
                 TickEngageWithoutTactics(deltaTime, targets);
             }
 
-            ApplySeparation(sameSideUnits, deltaTime);
+            ResolveOverlaps(sameSideUnits, deltaTime);
         }
 
         // 최근접 스티키 타겟팅, 사거리 밖이면 직진 접근, 안이면 공격 - 단 사거리 밖에서 피격당하면
@@ -271,13 +277,16 @@ namespace Game.Core
             return true;
         }
 
+        // 교전·방향성 지시·복귀가 모두 이 한 곳을 지난다 - 장애물 회피를 여기 두면 포지셔닝 전략마다 따로 고치지
+        // 않아도 된다(설계 72번 §9-2). 목적지가 장애물 안이면 바깥으로 보정하고(기획 71번 §4-14), 공격 대상은 피하지 않는다.
         private void MoveToward(Vector2 destination, float deltaTime)
         {
-            var toDestination = destination - Position;
-            if (toDestination.sqrMagnitude > 0.0001f)
-            {
-                Position += toDestination.normalized * EffectiveMoveSpeed * deltaTime;
-            }
+            var corrected = obstacleNavigator.CorrectDestination(Position, destination);
+            if (debugMoveTarget.HasValue) debugMoveTarget = corrected;
+            if ((corrected - Position).sqrMagnitude <= 0.0001f) return;
+
+            var direction = obstacleNavigator.Steer(Position, corrected, target, ref avoidanceState);
+            Position += direction * EffectiveMoveSpeed * obstacleNavigator.GetSpeedMultiplier(Position) * deltaTime;
         }
 
         // 사기 3단계(기획 §7.2/§7.5, 설계 14번 §4/§9.1) - UnitMorale 자기 자신의 값으로 판정한다.
@@ -294,6 +303,14 @@ namespace Game.Core
         // 하나로 뭉쳐 보임")를 해결한다. 실제 공간 탐색(반경 안 이웃 찾기)은 spatialQuery에 위임한다 -
         // BattleCharacterUnit은 "얼마나 빨리 밀려날지"(SeparationSpeed)만 알고, "누가 이웃인지 어떻게
         // 찾을지"는 몰라도 된다(OCP - 전투 규모가 커져 공간 분할 구현체로 교체해도 이 클래스는 무변경).
+        // 이동 뒤 겹침 정리 - 캐릭터끼리 밀어내기 다음에 장애물 빼내기(안전망, 기획 71번 §4-13)를 둬야 밀려서 마차
+        // 안에 머무는 일이 없다.
+        private void ResolveOverlaps(IReadOnlyList<IBattleCombatant> sameSideUnits, float deltaTime)
+        {
+            ApplySeparation(sameSideUnits, deltaTime);
+            Position = obstacleNavigator.ResolvePenetration(Position);
+        }
+
         private void ApplySeparation(IReadOnlyList<IBattleCombatant> sameSideUnits, float deltaTime)
         {
             var pushOut = spatialQuery.ComputeSeparationPush(this, Position, SeparationRadius, sameSideUnits);
@@ -376,8 +393,13 @@ namespace Game.Core
         // fleeDirection으로 이동만 한다 - 타겟팅/공격 없음(기획 §7.3 "이동/공격을 멈추고").
         private void TickFlee(float deltaTime)
         {
-            var step = EffectiveMoveSpeed * deltaTime;
-            Position += fleeDirection * step;
+            // 붙은 마차·시설 사이를 지나는 중이면 도주도 느려진다(설계 72번 §12) - 도주 완료 판정은 실제 이동량 기준이라 그만큼 늦어진다.
+            var step = EffectiveMoveSpeed * obstacleNavigator.GetSpeedMultiplier(Position) * deltaTime;
+            // 도주도 마차·시설을 피한다(기획 71번 §4-11). 목적지가 없어 도주 방향 앞의 가상 목적지로 조향만 받는다 -
+            // 이동 거리 누적(도주 완료 판정)은 실제 이동량 그대로다. 뷰 연출용 FleeVelocity는 원래 방향 유지.
+            var probe = Position + fleeDirection * ObstacleAvoidanceTuning.FleeProbeDistance;
+            var direction = obstacleNavigator.Steer(Position, probe, null, ref avoidanceState);
+            Position += direction * step;
             fledDistance += step;
 
             if (fledDistance >= fleeTravelDistance)

@@ -19,11 +19,6 @@ namespace Game.Core
         private const float DeathFadeSeconds = 0.3f;
         private static readonly Color FallbackBodyColor = new(0.85f, 0.75f, 0.3f, 1f);
         private static readonly Color FlashColor = Color.white;
-        // 기존 UGUI 버전의 28px(=0.7 월드유닛, CoordinateToPixelScale=40 기준) 체감 크기를 그대로
-        // 유지한다 - unit.Icon(FormationPlaceholderIcons 산출물, 기본 PPU=100, 128px 텍스처)을 쓸 땐
-        // 원본이 이미 1.28 월드유닛이라 정확히 같은 크기는 아니지만(Placeholder 수준 근사), 폴백
-        // 단색 사각형(BattlePlaceholderSprite, 1x1 월드유닛)에는 정확히 적용된다.
-        private const float BodySize = 0.7f;
         private const int SortingOrderYScale = 100;
 
         private IDamageable unit;
@@ -46,7 +41,11 @@ namespace Game.Core
             bodyRenderer.color = baseColor;
 
             transform.position = new Vector3(unit.Position.x, unit.Position.y, 0f); // 고정 배치, 이후 갱신 없음
-            transform.localScale = Vector3.one * BodySize;
+            // 크기는 모델(BattleProtectedUnit.HalfSize)에서 읽는다 - 장애물 회피 반경과 같은 값이어야 한다(Docs/설계/72번 §3.1).
+            // unit.Icon(PPU=100, 128px)은 원본이 1.28 월드유닛이라 정확히 같은 크기는 아니지만(Placeholder 수준 근사),
+            // 폴백 단색 사각형(1x1 월드유닛)에는 정확히 적용된다.
+            var bodySize = unit is BattleProtectedUnit protectedUnit ? protectedUnit.HalfSize * 2f : ProtectedUnitTuning.BodySize;
+            transform.localScale = Vector3.one * bodySize;
             // 고정 배치라 Update에서 매 프레임 갱신할 필요 없이 최초 1회만 계산한다.
             bodyRenderer.sortingOrder = -Mathf.RoundToInt(transform.position.y * SortingOrderYScale);
             gaugeView?.Bind(unit);

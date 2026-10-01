@@ -8,5 +8,8 @@ namespace Game.Core
     public static class ProtectedUnitTuning
     {
         public const float MaxHp = 200f;
+        // 전투 화면 크기(월드 유닛) - 뷰 표시와 장애물 회피 반경(ObstacleAvoidanceTuning)이 같은 값에서 나온다(설계 72번 §3.1).
+        // 개체별 크기 데이터가 생기면 BattleProtectedUnit 생성 시점에 그 값을 넣는다.
+        public const float BodySize = 0.7f;
     }
 }

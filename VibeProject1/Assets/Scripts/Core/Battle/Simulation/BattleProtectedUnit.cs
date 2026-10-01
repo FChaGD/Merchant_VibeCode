@@ -21,14 +21,18 @@ namespace Game.Core
         // 정비창 팔레트에서 이미 쓰던 아이콘(마차=삼각형/시설=원형)을 그대로 - 뷰가 별도 도형을
         // 새로 만들지 않고 이 아이콘을 재사용한다.
         public Sprite Icon { get; }
+        // 크기의 절반(월드 유닛). 뷰 표시 크기와 장애물 회피 반경의 공통 근거(Docs/설계/72번 §3.1) - 크기는 마차·시설만
+        // 가지므로 IDamageable이 아니라 여기 둔다.
+        public float HalfSize { get; }
         public event Action OnDied;
         public event Action<float> OnDamaged;
 
         private float currentHp;
 
-        public BattleProtectedUnit(Vector2 position, float maxHp, Sprite icon)
+        public BattleProtectedUnit(Vector2 position, float maxHp, Sprite icon, float halfSize)
         {
             Position = position;
+            HalfSize = halfSize;
             MaxHp = maxHp;
             Icon = icon;
             currentHp = maxHp;
