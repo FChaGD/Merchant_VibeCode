@@ -2,27 +2,33 @@ using System.Collections.Generic;
 #if UNITY_EDITOR
 using Game.Core.DebugTools;
 #endif
+using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace Game.Core
 {
     /// <summary>
-    /// Hub 씬의 상행 준비 UI를 조율한다. 지도의 출발/도착 핀 클릭에 따라 정보 패널을 채우고,
-    /// 상행정보 패널의 편성 요약은 열릴 때마다 IFormationReader에서 다시 읽어온다(별도 캐시 없음 -
-    /// 배치 UI를 거쳐 돌아왔을 때도 최신 상태를 보장하기 위함).
+    /// Hub 씬의 상행 준비 UI를 조율한다. 지도 표시·도착지 지정·지역 전환은 TripMapPresenter(정식, 빌드 포함)에, 지도 편집은
+    /// TripMapDebugEditor(에디터 전용)에 위임한다(Docs/설계/69번 §2 - 예전엔 둘이 디버그 조율자 하나에 섞여 빌드에 지도가 없었다).
+    /// 상행정보 패널의 편성 요약은 열릴 때마다 IFormationReader에서 다시 읽어온다(별도 캐시 없음 - 배치 UI를 거쳐 돌아왔을 때도
+    /// 최신 상태를 보장하기 위함).
     /// </summary>
     public class TripPanel : MonoBehaviour, ITripPanel
     {
-#if UNITY_EDITOR
-        [SerializeField] private TripDebugCityMarkerView debugCityMarkerPrefab;
-        [SerializeField] private TripDebugRoadLineView debugRoadLinePrefab;
-#endif
+        // 마커·선 프리팹 - 예전 디버그 이름에서 옮겨 온 직렬화 값을 유지한다. ManagerHierarchyInstaller가 코드로 배선한다.
+        [FormerlySerializedAs("debugCityMarkerPrefab")]
+        [SerializeField] private TripMapMarkerView cityMarkerPrefab;
+        [SerializeField] private TripMapMarkerView gateMarkerPrefab;
+        [FormerlySerializedAs("debugRoadLinePrefab")]
+        [SerializeField] private TripRoadLineView roadLinePrefab;
 
         public string PanelId => UIPanelIds.Trip;
 
         private GameObject panelRoot;
         private TripMapView mapView;
+        private TMP_Dropdown regionDropdown;
         private TripLocationInfoView originInfoView;
         private TripLocationInfoView destinationInfoView;
         private TripSummaryView summaryView;
@@ -30,17 +36,12 @@ namespace Game.Core
         private Button openFormationButton;
         private Button startButton;
         private Canvas rootCanvas;
+        private SceneUIRoot boundSceneUIRoot;
+        private TripMapPresenter mapPresenter;
 
 #if UNITY_EDITOR
-        // 지도 위 디버그 도시 배치/경로 연결 + 출발·도착 지정 배선 전체의 연동 지점 - Core/Debug/Trip
-        // 폴더를 지울 때는 이 필드들과 SetupDebugMapInteraction, TryBind/RefreshStartButtonInteractable
-        // 안의 #if UNITY_EDITOR 블록도 함께 지운다(DEBUG_FEATURES.md 참고).
-        private TripDebugCityPaletteView debugCityPaletteView;
-        private TripDebugRoadToggleView debugRoadToggleView;
-        private Button debugCityBulkDeleteButton;
-        private Button debugRoadBulkDeleteButton;
-        private Button debugMapSaveButton;
-        private TripMapInteractionCoordinator mapInteractionCoordinator;
+        // 지도 디버그 편집 연동 지점 - Core/Debug/Trip 폴더를 지울 때는 이 필드와 RegisterDebugMapEditor도 함께 지운다.
+        private TripMapDebugEditor mapDebugEditor;
 #endif
 
         private IUIManager uiManager;
@@ -48,20 +49,16 @@ namespace Game.Core
         private IFormationReader formationReader;
         private ITripInfoProvider tripInfoProvider;
         private ISceneRevealSignal sceneRevealSignal;
-        // 정식 DI 타입이라 #if UNITY_EDITOR로 감싸지 않는다 - 빌드에도 등록돼 있지만, 지금은 지도
-        // 자체가 에디터 전용(03/04번 기획)이라 빌드에서는 값이 바뀔 방법이 없을 뿐이다(설계 21번 §6).
         private ITripCurrentLocationReader currentLocationReader;
         private ITripDestinationAssigner destinationAssigner;
 
-        // 화면(Hub)이 완전히 드러나기 전까지는 "상행 시작"을 막는다(사용자 확정) - 출발/도착 배정
-        // 게이팅(RefreshStartButtonInteractable)과 별개 조건이라 AND로 합친다.
+        // 화면(Hub)이 완전히 드러나기 전까지는 "상행 시작"을 막는다(사용자 확정) - 도착지 배정 게이팅과 AND로 합친다.
         private bool sceneRevealed;
 
-        // 임시 보관 영역에 아이템이 있으면 "상행 시작"을 막는다(Docs/설계/40번 §5.5) - Hub를 떠나는 경로가
-        // 이 버튼뿐이라, 인벤토리 팝업의 닫기 차단이 개입할 수 없는 씬 전환에서도 정리를 끝내도록 강제한다.
+        // 임시 보관 영역에 아이템이 있으면 "상행 시작"을 막는다(Docs/설계/40번 §5.5).
         private IReadOnlyList<IInventoryStagingReader> inventoryStagingReaders = System.Array.Empty<IInventoryStagingReader>();
 
-        public void RegisterTripUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingReader> inventoryStagingReaders)
+        public void RegisterTripUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingReader> inventoryStagingReaders, IWorldMapReader worldMap, ITripRouteReader routeReader)
         {
             this.uiManager = uiManager;
             this.gameManager = gameManager;
@@ -76,23 +73,27 @@ namespace Game.Core
             this.inventoryStagingReaders = inventoryStagingReaders ?? System.Array.Empty<IInventoryStagingReader>();
             foreach (var reader in this.inventoryStagingReaders) reader.OnChanged += RefreshStartButtonInteractable;
 
+            // 이전 Hub 방문의 지도 표시는 파괴된 씬 오브젝트를 가리키므로 버린다.
+            mapPresenter?.Dispose();
+            mapPresenter = null;
+#if UNITY_EDITOR
+            mapDebugEditor?.Dispose();
+            mapDebugEditor = null;
+#endif
+
             if (!TryBind(sceneUIRoot))
             {
                 return;
             }
 
+            boundSceneUIRoot = sceneUIRoot;
             rootCanvas = panelRoot.GetComponentInParent<Canvas>()?.rootCanvas;
-
-#if UNITY_EDITOR
-            SetupDebugMapInteraction();
-#endif
+            SetupMapPresenter(worldMap, routeReader);
 
             closeButton.onClick.RemoveAllListeners();
             closeButton.onClick.AddListener(() =>
             {
-                // 배치 UI 왕복(openFormationButton) 중에는 배정을 유지하고, 상행 준비 UI를 완전히
-                // 종료할 때만 도착지 배정과 지도 강조를 초기화한다("현재 위치"는 건드리지 않음).
-                // #if UNITY_EDITOR 불필요 - destinationAssigner는 빌드에도 등록돼 있고, 없으면 no-op.
+                // 배치 UI 왕복 중에는 배정을 유지하고, 상행 준비 UI를 완전히 종료할 때만 도착지 배정을 초기화한다.
                 destinationAssigner?.Reset();
                 uiManager.Close(PanelId);
             });
@@ -103,8 +104,12 @@ namespace Game.Core
             startButton.onClick.RemoveAllListeners();
             startButton.onClick.AddListener(() => gameManager.RequestSceneTransition(ContentSceneId.Field));
 
-            // Hub 화면이 완전히 드러날 때까지 "상행 시작"을 막는다 - 매번 재구독 전 해제해 Hub를
-            // 반복 방문해도 구독이 누적되지 않게 한다(sceneRevealSignal은 Bootstrap 상주 영속 객체).
+            if (destinationAssigner != null)
+            {
+                destinationAssigner.Changed -= RefreshStartButtonInteractable;
+                destinationAssigner.Changed += RefreshStartButtonInteractable;
+            }
+
             sceneRevealed = false;
             sceneRevealSignal.SceneRevealed -= HandleSceneRevealed;
             sceneRevealSignal.SceneRevealed += HandleSceneRevealed;
@@ -113,45 +118,29 @@ namespace Game.Core
             panelRoot.SetActive(false);
         }
 
-#if UNITY_EDITOR
-        // 지도 위 도시 배치/경로 연결(디버그, 03/04번 기획)과 출발/도착 지정(정식, 02번 기획) 배선을
-        // 모두 TripMapInteractionCoordinator에 위임한다(SRP) - 둘 다 같은 지도/도시 데이터를 다루고,
-        // TripPanel이 직접 들고 있으면 책임이 비대해진다. 필요한 요소 중 하나라도 씬에 없으면(예: 아직
-        // 인스톨러를 재실행하지 않음) 이 기능 전체를 건너뛰고 나머지 상행 준비 UI(요약/버튼)는 정상
-        // 동작해야 한다.
-        private void SetupDebugMapInteraction()
+        private void SetupMapPresenter(IWorldMapReader worldMap, ITripRouteReader routeReader)
         {
-            if (debugCityPaletteView == null || debugRoadToggleView == null
-                || debugCityBulkDeleteButton == null || debugRoadBulkDeleteButton == null
-                || debugMapSaveButton == null
-                || debugCityMarkerPrefab == null || debugRoadLinePrefab == null
-                || currentLocationReader == null || destinationAssigner == null)
+            if (worldMap == null || routeReader == null || currentLocationReader == null || destinationAssigner == null
+                || cityMarkerPrefab == null || gateMarkerPrefab == null || roadLinePrefab == null)
             {
-                Debug.LogWarning($"{nameof(TripPanel)}: 지도 디버그 배치/경로 연결 요소 중 일부가 연결되지 않아 해당 기능을 건너뛴다.");
+                Debug.LogWarning($"{nameof(TripPanel)}: 지도 표시에 필요한 요소(월드 지도·도착지·마커/선 프리팹) 중 일부가 없어 지도를 그리지 않는다(Tools > Game > Build Bootstrap Scene).");
                 return;
             }
 
-            mapInteractionCoordinator = new TripMapInteractionCoordinator();
-            mapInteractionCoordinator.Bind(
-                mapView,
-                debugCityMarkerPrefab,
-                debugCityPaletteView,
-                debugRoadLinePrefab,
-                debugRoadToggleView,
-                debugCityBulkDeleteButton,
-                debugRoadBulkDeleteButton,
-                debugMapSaveButton,
-                rootCanvas != null ? rootCanvas.transform : null,
-                originInfoView,
-                destinationInfoView,
-                currentLocationReader,
-                destinationAssigner);
+            mapPresenter = new TripMapPresenter(mapView, cityMarkerPrefab, gateMarkerPrefab, roadLinePrefab, regionDropdown,
+                originInfoView, destinationInfoView, worldMap, routeReader, currentLocationReader, destinationAssigner);
+        }
 
-            // "상행 시작"은 도착지가 배정돼야 활성화된다(02번 5절, 기획 16번 §7) - 배정이 바뀔 때마다 갱신.
-            // destinationAssigner는 Bootstrap 상주라 Hub를 반복 방문해도 구독이 누적되지 않게 먼저 해제한다.
-            destinationAssigner.Changed -= RefreshStartButtonInteractable;
-            destinationAssigner.Changed += RefreshStartButtonInteractable;
-            RefreshStartButtonInteractable();
+#if UNITY_EDITOR
+        public void RegisterDebugMapEditor(IWorldMapEditor editor)
+        {
+            if (mapPresenter == null || boundSceneUIRoot == null || editor == null) return;
+
+            mapDebugEditor = new TripMapDebugEditor();
+            if (!mapDebugEditor.TryBind(boundSceneUIRoot, mapPresenter, editor, currentLocationReader, destinationAssigner, rootCanvas != null ? rootCanvas.transform : null))
+            {
+                mapDebugEditor = null;
+            }
         }
 #endif
 
@@ -166,26 +155,17 @@ namespace Game.Core
             RefreshStartButtonInteractable();
         }
 
+        // 지도가 빌드에도 있으므로 빌드에서도 도착지가 있어야 "상행 시작"이 켜진다(Docs/설계/69번 §9-3).
         private void RefreshStartButtonInteractable()
         {
-            // destinationAssigner(Bootstrap 상주)의 Changed는 Hub가 언로드된 상태(Field 진행 중 도착
-            // 판정으로 인한 Reset() 등)에서도 발화할 수 있다 - startButton은 Hub 콘텐츠 씬 전용이라
-            // 그 시점엔 이미 파괴돼 있으므로 접근 전 반드시 확인한다.
+            // destinationAssigner(Bootstrap 상주)의 Changed는 Hub가 언로드된 상태에서도 발화할 수 있다 - 버튼이 파괴됐으면 무시한다.
             if (startButton == null)
             {
                 return;
             }
 
-            // #if/#else 분기는 그대로 유지한다 - 빌드에는 지도 자체가 안 보여(03/04번 기획, 전부
-            // #if UNITY_EDITOR) 도착지를 고를 방법이 없다. 여기서 분기를 걷어내면 "상행 시작" 버튼이
-            // 실제 게임에서 영원히 비활성화되는 회귀가 생긴다(설계 21번 §6) - 빌드는 기존처럼 항상
-            // 활성 상태인 플레이스홀더로 남겨둔다.
-#if UNITY_EDITOR
-            var debugReady = destinationAssigner?.IsAssigned ?? true;
-#else
-            var debugReady = true;
-#endif
-            startButton.interactable = sceneRevealed && debugReady && !HasStagedInventoryItems();
+            var hasDestination = destinationAssigner != null && destinationAssigner.IsAssigned;
+            startButton.interactable = sceneRevealed && hasDestination && !HasStagedInventoryItems();
         }
 
         private bool HasStagedInventoryItems()
@@ -248,15 +228,11 @@ namespace Game.Core
                 return false;
             }
 
-#if UNITY_EDITOR
-            // 지도 디버그 배치/경로 연결 요소는 보조 기능이라 없어도 나머지 상행 준비 UI는 정상 동작해야
-            // 한다 - 없으면 SetupDebugMapInteraction에서 조용히 건너뛴다.
-            sceneUIRoot.TryGetElement<TripDebugCityPaletteView>(TripUIElementIds.DebugCityPaletteRoot, out debugCityPaletteView);
-            sceneUIRoot.TryGetElement<TripDebugRoadToggleView>(TripUIElementIds.DebugRoadToggleButton, out debugRoadToggleView);
-            sceneUIRoot.TryGetElement<Button>(TripUIElementIds.DebugCityBulkDeleteButton, out debugCityBulkDeleteButton);
-            sceneUIRoot.TryGetElement<Button>(TripUIElementIds.DebugRoadBulkDeleteButton, out debugRoadBulkDeleteButton);
-            sceneUIRoot.TryGetElement<Button>(TripUIElementIds.DebugMapSaveButton, out debugMapSaveButton);
-#endif
+            // 지역 드롭다운이 없어도(인스톨러 미실행) 지도는 그린다 - 관문 클릭으로만 전환된다.
+            if (!sceneUIRoot.TryGetElement(TripUIElementIds.RegionDropdown, out regionDropdown))
+            {
+                WarnMissing(TripUIElementIds.RegionDropdown);
+            }
 
             return true;
         }
@@ -273,20 +249,13 @@ namespace Game.Core
                 return;
             }
 
-            // 출발/도착 정보 패널은 여기서 강제로 비우지 않는다 - 배치 UI를 갔다 와도 배정 상태(및
-            // 지도 강조)가 유지되므로, 정보 패널도 그 상태를 그대로 반영해야 한다(destinationAssigner.Changed가
-            // 배정 시점에 이미 채워/비워 둔 값을 그대로 둔다). 완전 초기화는 종료 버튼에서만 일어난다.
+            // 출발/도착 정보 패널은 여기서 강제로 비우지 않는다 - 배치 UI를 갔다 와도 배정 상태가 유지된다.
             RefreshSummary();
 
             panelRoot.SetActive(true);
 
-#if UNITY_EDITOR
-            // TripMapView.Content/Viewport는 Awake 이전엔 null이라(패널이 비활성 상태로 배치돼 최초
-            // 활성화 시점까지 Awake가 지연됨, TripMapView.cs 참고) 패널이 실제로 활성화된 지금 시점에
-            // 불러와야 한다 - RegisterTripUI/Bind() 시점에 불러오면 마커가 Content 밖에 생성돼 화면에
-            // 나타나지 않는다. 코디네이터가 세션당 한 번만 불러오도록 내부에서 가드한다.
-            mapInteractionCoordinator?.EnsureSavedMapLoaded();
-#endif
+            // TripMapView.Content는 패널이 처음 켜질 때 Awake로 생기므로 켠 뒤에 그린다.
+            mapPresenter?.Show();
         }
 
         // 순수 "숨기기"만 한다. Hub로 돌아갈지 이전 패널로 돌아갈지는 UIManager.Close(PanelId)가 결정하므로
@@ -298,6 +267,7 @@ namespace Game.Core
                 return;
             }
 
+            mapPresenter?.Hide();
             panelRoot.SetActive(false);
         }
 

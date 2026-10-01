@@ -20,9 +20,6 @@ namespace Game.Core.Editor
     /// </summary>
     public static class HubSceneInstaller
     {
-        private const string TripPrefabFolder = "Assets/Prefabs/UI/Trip";
-        private const string CityMarkerPrefabPath = TripPrefabFolder + "/TripDebugCityMarker.prefab";
-        private const string RoadLinePrefabPath = TripPrefabFolder + "/TripDebugRoadLine.prefab";
 
         [MenuItem("Tools/Game/Build Hub Scene")]
         public static void BuildHubScene()
@@ -89,8 +86,8 @@ namespace Game.Core.Editor
             Debug.Log("Hub Scene UI 생성/동기화 완료. 씬을 저장(Ctrl+S)해야 변경사항이 파일에 반영된다. "
                 + "HubFormationPanel.dragGhostPrefab과 FieldFormationPanel.dragGhostPrefab 둘 다에 "
                 + "'Assets/Prefabs/UI/Formation/FormationUnitIcon.prefab'을, "
-                + $"TripPanel.debugCityMarkerPrefab에는 '{CityMarkerPrefabPath}', debugRoadLinePrefab에는 '{RoadLinePrefabPath}'를 "
-                + "수동으로 연결하라(HubFormationPanel/FieldFormationPanel/TripPanel은 Bootstrap 씬에 있어 이 도구가 직접 연결할 수 없다).");
+                + "수동으로 연결하라(HubFormationPanel/FieldFormationPanel은 Bootstrap 씬에 있어 이 도구가 직접 연결할 수 없다). "
+                + "TripPanel의 지도 마커·선 프리팹은 Build Bootstrap Scene이 연결한다.");
         }
 
         // ==================== 레이어 (Docs/설계/37번 §3, 38번 §5) ====================
@@ -332,9 +329,10 @@ namespace Game.Core.Editor
         // ==================== 상행 준비(Trip) UI ====================
         private static void BuildTripUI(Transform modalPopups)
         {
-            EnsureTripPrefabFolder();
-            GetOrCreateCityMarkerPrefab(); // TripPanel.debugCityMarkerPrefab에 수동 연결 대상(에셋만 미리 생성)
-            GetOrCreateRoadLinePrefab();   // TripPanel.debugRoadLinePrefab에 수동 연결 대상(에셋만 미리 생성)
+            // 지도 마커·선 프리팹(TripPanel 연결은 Build Bootstrap Scene이 한다, 설계 69번 §7).
+            TripMapPrefabs.GetOrCreateCityMarker();
+            TripMapPrefabs.GetOrCreateGateMarker();
+            TripMapPrefabs.GetOrCreateRoadLine();
 
             var panelRoot = EditorUIBuilder.GetOrCreateUIObject(modalPopups, "TripPanel");
             EditorUIBuilder.SetStretch(panelRoot.GetComponent<RectTransform>());
@@ -347,6 +345,7 @@ namespace Game.Core.Editor
             BuildTripSummary(panelRoot.transform);
             BuildTripStartButton(panelRoot.transform);
             BuildTripDebugMapControls(panelRoot.transform);
+            BuildTripDebugConfirmPanel(panelRoot.transform);
 
             panelRoot.SetActive(false);
         }
@@ -418,6 +417,13 @@ namespace Game.Core.Editor
             mapScrollRect.inertia = false;
 
             EditorUIBuilder.GetOrAddComponent<TripMapView>(root);
+
+            // 지역 선택 드롭다운(기획 68번 §3.2) - 지도 왼쪽 위에 겹쳐 둔다. 뷰포트 뒤에 만들어져야 위에 그려진다.
+            var dropdownGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "RegionDropdown");
+            EditorUIBuilder.SetAnchors(dropdownGo.GetComponent<RectTransform>(), new Vector2(0.02f, 0.92f), new Vector2(0.34f, 0.99f));
+            EditorUIBuilder.EnsureDropdown(dropdownGo);
+            EditorUIBuilder.EnsureMarker(dropdownGo, TripUIElementIds.RegionDropdown);
+            dropdownGo.transform.SetAsLastSibling();
         }
 
         private static void BuildTripLocationInfo(Transform parent, string objectName, string markerId, Vector2 anchorMin, Vector2 anchorMax)
@@ -568,89 +574,62 @@ namespace Game.Core.Editor
             var saveLabel = EditorUIBuilder.EnsureLabel(saveGo.transform, "지도 저장");
             saveLabel.fontSize = 10;
             EditorUIBuilder.EnsureMarker(saveGo, TripUIElementIds.DebugMapSaveButton);
+
+            BuildTripDebugRegionControls(parent);
         }
 
-        private static void EnsureTripPrefabFolder()
+        // 지역 시스템 디버그 컨트롤(Docs/설계/69번 §6) - 지도 아래 왼쪽(상행 시작 버튼 왼쪽 빈 구간)에 두 줄로 둔다. 윗줄: 관문
+        // 팔레트 + 연결할 지역 드롭다운(놓기 전에 고른다, 기획 68번 §3.5), 아랫줄: 지역 추가·삭제.
+        private static void BuildTripDebugRegionControls(Transform parent)
         {
-            if (!AssetDatabase.IsValidFolder("Assets/Prefabs"))
-            {
-                AssetDatabase.CreateFolder("Assets", "Prefabs");
-            }
-            if (!AssetDatabase.IsValidFolder("Assets/Prefabs/UI"))
-            {
-                AssetDatabase.CreateFolder("Assets/Prefabs", "UI");
-            }
-            if (!AssetDatabase.IsValidFolder(TripPrefabFolder))
-            {
-                AssetDatabase.CreateFolder("Assets/Prefabs/UI", "Trip");
-            }
+            var gatePaletteGo = EditorUIBuilder.GetOrCreateUIObject(parent, "DebugGatePalette");
+            EditorUIBuilder.SetAnchors(gatePaletteGo.GetComponent<RectTransform>(), new Vector2(0.06f, 0.085f), new Vector2(0.09f, 0.145f));
+            EditorUIBuilder.EnsureMarker(gatePaletteGo, TripUIElementIds.DebugGatePaletteRoot);
+            var gateIcon = EditorUIBuilder.EnsureImage(gatePaletteGo, new Color(0.55f, 0.35f, 0.75f, 1f));
+            gateIcon.sprite = FormationPlaceholderIcons.GetOrCreateSquare();
+            gateIcon.preserveAspect = true;
+            var gatePaletteView = EditorUIBuilder.GetOrAddComponent<TripDebugCityPaletteView>(gatePaletteGo);
+            var gatePaletteSo = new SerializedObject(gatePaletteView);
+            gatePaletteSo.FindProperty("iconImage").objectReferenceValue = gateIcon;
+            gatePaletteSo.ApplyModifiedProperties();
+
+            var targetGo = EditorUIBuilder.GetOrCreateUIObject(parent, "DebugGateTargetDropdown");
+            EditorUIBuilder.SetAnchors(targetGo.GetComponent<RectTransform>(), new Vector2(0.10f, 0.085f), new Vector2(0.28f, 0.145f));
+            EditorUIBuilder.EnsureDropdown(targetGo);
+            EditorUIBuilder.EnsureMarker(targetGo, TripUIElementIds.DebugGateTargetDropdown);
+
+            BuildTripDebugButton(parent, "DebugAddRegionButton", "지역 추가", TripUIElementIds.DebugAddRegionButton, new Vector2(0.06f, 0.02f), new Vector2(0.16f, 0.075f), new Color(0.6f, 0.85f, 0.6f, 1f));
+            BuildTripDebugButton(parent, "DebugRemoveRegionButton", "지역 삭제", TripUIElementIds.DebugRemoveRegionButton, new Vector2(0.18f, 0.02f), new Vector2(0.28f, 0.075f), new Color(0.9f, 0.6f, 0.6f, 1f));
         }
 
-        private static TripDebugCityMarkerView GetOrCreateCityMarkerPrefab()
+        private static void BuildTripDebugButton(Transform parent, string name, string text, string markerId, Vector2 anchorMin, Vector2 anchorMax, Color color)
         {
-            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(CityMarkerPrefabPath);
-            if (existing != null)
-            {
-                return existing.GetComponent<TripDebugCityMarkerView>();
-            }
-
-            var go = new GameObject("TripDebugCityMarker", typeof(RectTransform));
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(48f, 48f);
-
-            var image = go.AddComponent<Image>();
-            image.sprite = FormationPlaceholderIcons.GetOrCreateCircle();
-            image.color = Color.white;
-            image.raycastTarget = true;
-
-            var markerView = go.AddComponent<TripDebugCityMarkerView>();
-            var so = new SerializedObject(markerView);
-            so.FindProperty("iconImage").objectReferenceValue = image;
-            so.ApplyModifiedProperties();
-
-            var savedPrefab = PrefabUtility.SaveAsPrefabAsset(go, CityMarkerPrefabPath);
-            Object.DestroyImmediate(go);
-
-            return savedPrefab.GetComponent<TripDebugCityMarkerView>();
+            var go = EditorUIBuilder.GetOrCreateUIObject(parent, name);
+            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
+            EditorUIBuilder.EnsureImage(go, color);
+            EditorUIBuilder.EnsureButton(go);
+            EditorUIBuilder.EnsureLabel(go.transform, text, autoSize: true, minFontSize: 8f, maxFontSize: 16f);
+            EditorUIBuilder.EnsureMarker(go, markerId);
         }
 
-        private static TripDebugRoadLineView GetOrCreateRoadLinePrefab()
+        // 지역 삭제 확인·알림 패널(기획 68번 §3.6) - 지도 가운데 위에 겹친다. 평소엔 숨김.
+        private static void BuildTripDebugConfirmPanel(Transform parent)
         {
-            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(RoadLinePrefabPath);
-            if (existing != null)
-            {
-                // 기존 프리팹이라도 최신 필드 연결 상태로 동기화한다(재실행 안전성) - lineImage 연결이
-                // 나중에 추가됐으므로, 예전에 생성된 프리팹에는 누락돼 있을 수 있다.
-                var existingView = existing.GetComponent<TripDebugRoadLineView>();
-                var existingSo = new SerializedObject(existingView);
-                existingSo.FindProperty("lineImage").objectReferenceValue = existing.GetComponent<Image>();
-                existingSo.ApplyModifiedProperties();
-                return existingView;
-            }
+            var root = EditorUIBuilder.GetOrCreateUIObject(parent, "DebugConfirmPanel");
+            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.18f, 0.40f), new Vector2(0.50f, 0.58f));
+            EditorUIBuilder.EnsureImage(root, new Color(1f, 1f, 1f, 0.97f));
+            EditorUIBuilder.EnsureMarker(root, TripUIElementIds.DebugConfirmPanel);
 
-            var go = new GameObject("TripDebugRoadLine", typeof(RectTransform));
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0f, 0.5f);
-            rect.sizeDelta = new Vector2(100f, 6f);
+            var messageGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "Message");
+            EditorUIBuilder.SetAnchors(messageGo.GetComponent<RectTransform>(), new Vector2(0.05f, 0.42f), new Vector2(0.95f, 0.95f));
+            var message = EditorUIBuilder.EnsureLabel(messageGo.transform, string.Empty, autoSize: true, minFontSize: 10f, maxFontSize: 20f);
+            EditorUIBuilder.EnsureMarker(message.gameObject, TripUIElementIds.DebugConfirmMessage);
 
-            var image = go.AddComponent<Image>();
-            image.color = new Color(0.3f, 0.3f, 0.3f, 0.9f);
-            image.raycastTarget = true;
+            BuildTripDebugButton(root.transform, "OkButton", "확인", TripUIElementIds.DebugConfirmOkButton, new Vector2(0.08f, 0.08f), new Vector2(0.46f, 0.36f), new Color(0.6f, 0.85f, 0.6f, 1f));
+            BuildTripDebugButton(root.transform, "CancelButton", "취소", TripUIElementIds.DebugConfirmCancelButton, new Vector2(0.54f, 0.08f), new Vector2(0.92f, 0.36f), new Color(0.85f, 0.85f, 0.85f, 1f));
 
-            var lineView = go.AddComponent<TripDebugRoadLineView>();
-            var so = new SerializedObject(lineView);
-            so.FindProperty("lineImage").objectReferenceValue = image;
-            so.ApplyModifiedProperties();
-
-            var savedPrefab = PrefabUtility.SaveAsPrefabAsset(go, RoadLinePrefabPath);
-            Object.DestroyImmediate(go);
-
-            return savedPrefab.GetComponent<TripDebugRoadLineView>();
+            root.transform.SetAsLastSibling();
+            root.SetActive(false);
         }
 
         // ==================== Hub↔Field 전환 연출용 ContentRoot ====================

@@ -10,43 +10,33 @@ using UnityEngine;
 namespace Game.Core.DebugTools
 {
     /// <summary>
-    /// "저장" 버튼이 배치된 도시/경로를 엑셀 워크북으로 내보내고(Save), 임포트된 결과(TripCityMapAsset/
-    /// TripCityStringsTableAsset)를 되읽는다(TryLoad/TryLoadStrings, Docs/기획/15번 §7/§8, 설계 20번).
-    /// 엑셀 쓰기는 ClosedXML(Assets/Plugins/Editor/ClosedXML/)이 담당 - ExcelDataReader는 읽기 전용이라
-    /// 쓰기에 못 쓴다(설계 20번 §3). "에셋 직렬화/워크북 쓰기"라는 별도 관심사를 TripMapInteractionCoordinator
-    /// (이미 드래그 배선/마커·선 생성/출발·도착 연동을 지고 있음)에 얹지 않기 위해 분리했다(SRP).
+    /// 지도 디버그 "저장" 버튼이 월드 지도 모델을 엑셀 워크북(City.xlsx)으로 내보낸다(Docs/설계/69번 §6, 기획 15번 §7). 엑셀 쓰기는
+    /// ClosedXML이 담당한다 - ExcelDataReader는 읽기 전용이라 쓸 수 없다(설계 20번 §3). 쓴 뒤에는 CityTableImporter(Play 시 자동
+    /// 임포트)가 자산으로 반영한다.
     ///
-    /// Save()는 더 이상 TripCityMapAsset을 직접 쓰지 않는다 - 엑셀(City.xlsx, 설계 58번 §4)에 쓰고, CityTableImporter
-    /// (Assets/Scripts/Editor/, TableAutoImportOnPlay에 연결됨)가 그 엑셀을 읽어 에셋을 채운다. 좌표는
-    /// 엑셀에 쓸 때 정규화(TripCityMapCoordinateConverter.ToNormalized)한다 - 콘텐츠 좌표(중심 기준,
-    /// 음수 포함)를 사람이 그대로 보면 감을 잡기 어렵기 때문(기획 15번 §7.2).
+    /// 다시 쓰는 시트: RegionData·CityData·GateData·RoadData(옛 CityDetailData는 지운다). 사람이 채우는 값은 보존한다 - CityData의
+    /// 규모(Scale)는 옛 시트에서 도시 Id별로 읽어 되돌려 쓰고, CityStrings·RegionStrings는 기존 행을 건드리지 않고 새 도시·지역에만
+    /// 자리표시자 행을 덧붙인다(설계 20번 §9.5, 2026-09-03 사용자 피드백). 좌표는 지역 지도 크기 기준으로 정규화해 쓴다.
     /// </summary>
     internal static class TripCityMapPersistence
     {
-        // 워크북(사람이 편집하는 원본)과 컴파일된 SO 에셋(임포터 산출물)은 다른 데이터 테이블과 같은
-        // 관례로 분리한다 - Assets/Table/ = 워크북, Assets/Prefabs/ScriptableObejct/ = 컴파일된 SO
-        // (설계 20번 §4, 기획 14번 §6.3의 도메인 폴더 관례와 통일). SO 에셋 경로는 TableAssetPaths(단일
-        // 소스, Core/Table/)를 참조한다 - 예전엔 여기 따로 하드코딩돼 있었다(Docs/Refactor/
-        // 2026-08-26-리팩토링_점검_컨벤션.md 다음 라운드 후보).
         private const string WorkbookRelativePath = "City/City.xlsx";
+        private const string RegionSheetName = "RegionData";
+        private const string RegionStringsSheetName = "RegionStrings";
         private const string CitySheetName = "CityData";
-        private const string RouteSheetName = "CityDetailData";
-        private const string StringsSheetName = "CityStrings";
+        private const string CityStringsSheetName = "CityStrings";
+        private const string GateSheetName = "GateData";
+        private const string RoadSheetName = "RoadData";
+        private const string LegacyRoadSheetName = "CityDetailData";
 
-        public static void Save(ITripCityReader cities, ITripRouteRepository routes)
+        public static void Save(IWorldMapReader map)
         {
-            var allCities = cities.GetAll();
-            var allRoutes = routes.GetAllRoutes();
             var workbookPath = Path.Combine(Application.dataPath, "Table", WorkbookRelativePath);
 
-            // 워크북을 열고(기존 파일 있으면 로드) 쓰는 전체 구간을 하나로 묶어 예외를 처리한다 - 이
-            // 파일은 "사람이 엑셀에서 직접 편집"하는 게 기능의 전제라(기획 §7.1-1), Excel이 그 파일을
-            // 열어둔 채로 저장 버튼을 누르는 상황이 실제로 자주 생긴다(IOException: Sharing violation,
-            // 2026-09-03 실사용 중 발생 확인) - 데이터 테이블 임포트 때 겪은 것과 같은 종류의 파일
-            // 잠금 문제이지 코드 버그가 아니다. 원인을 곧장 알 수 있게 안내 로그로 바꿔서 던진다.
+            // Excel이 파일을 열어 둔 채 저장 버튼을 누르는 경우가 실제로 잦다(2026-09-03 확인) - 원인을 바로 알 수 있게 안내한다.
             try
             {
-                SaveInternal(allCities, allRoutes, workbookPath);
+                SaveInternal(map, workbookPath);
             }
             catch (IOException ex)
             {
@@ -54,69 +44,88 @@ namespace Game.Core.DebugTools
                 return;
             }
 
-            AssetDatabase.Refresh(); // 다음 Import 메뉴/자동 임포트가 방금 쓴 파일을 바로 찾을 수 있게 갱신.
-            Debug.Log($"{nameof(TripCityMapPersistence)}: 도시 {allCities.Count}개, 경로 {allRoutes.Count}개를 '{WorkbookRelativePath}'로 내보냈다. Tools/Game/Table/Import City Table로 지도에 반영하거나, 다음 플레이 진입 시 자동 반영된다.");
+            AssetDatabase.Refresh();
+            Debug.Log($"{nameof(TripCityMapPersistence)}: 지역 {map.Regions.Count}개, 도시 {map.AllCities.Count()}개, 관문 {map.AllGates.Count()}개, 도로 {map.AllRoads.Count()}개를 '{WorkbookRelativePath}'로 내보냈다. 다음 플레이 진입 시 자동 반영된다.");
         }
 
-        // CityStrings는 사람이 엑셀에서 직접 채우는 시트라(입력 UI 없음, 기획 §8.1) 저장 버튼이
-        // 기존에 입력된 이름/설명을 알지 못한다 - 기존 파일이 있으면 열어서 CityData/CityDetailData만
-        // 새로 쓰고, CityStrings의 기존 행은 손대지 않는다(설계 20번 §9.5). CityData의 규모(Scale)도 사람이
-        // 채우는 열이라 다시 쓰기 전에 도시 Id별로 읽어 두고 되돌려 쓴다(설계 58번 §4) - 새로 배치한 도시는 빈칸. 다만 드래그로 새로
-        // 배치한 도시(String 시트에 아직 행이 없는 Id)는 자리표시자 행을 추가해준다 - 안 그러면
-        // 새 도시의 이름을 어디서 채워야 하는지 사람이 알 방법이 없다(2026-09-03 사용자 피드백).
-        private static void SaveInternal(IReadOnlyList<TripCity> allCities, IReadOnlyCollection<(int CityIdA, int CityIdB)> allRoutes, string workbookPath)
+        private static void SaveInternal(IWorldMapReader map, string workbookPath)
         {
             using var workbook = File.Exists(workbookPath) ? new XLWorkbook(workbookPath) : new XLWorkbook();
 
             var scaleByCityId = new Dictionary<int, string>();
-            if (workbook.Worksheets.TryGetWorksheet(CitySheetName, out var oldCitySheet))
+            if (workbook.Worksheets.TryGetWorksheet(CitySheetName, out var oldCitySheet)) ReadScales(oldCitySheet, scaleByCityId);
+            foreach (var name in new[] { RegionSheetName, CitySheetName, GateSheetName, RoadSheetName, LegacyRoadSheetName })
             {
-                ReadScales(oldCitySheet, scaleByCityId);
-                oldCitySheet.Delete();
-            }
-            if (workbook.Worksheets.TryGetWorksheet(RouteSheetName, out var oldRouteSheet))
-            {
-                oldRouteSheet.Delete();
+                if (workbook.Worksheets.TryGetWorksheet(name, out var old)) old.Delete();
             }
 
-            AppendPlaceholderStringRowsForNewCities(workbook, allCities);
-
-            var citySheet = workbook.Worksheets.Add(CitySheetName);
-            citySheet.Cell(1, 1).Value = "Id";
-            citySheet.Cell(1, 2).Value = "X";
-            citySheet.Cell(1, 3).Value = "Y";
-            citySheet.Cell(1, 4).Value = "Scale";
-            for (var i = 0; i < allCities.Count; i++)
+            var regionSheet = AddSheet(workbook, RegionSheetName, "Id", "Width", "Height");
+            var row = 2;
+            foreach (var region in map.Regions)
             {
-                var normalized = TripCityMapCoordinateConverter.ToNormalized(allCities[i].MapPosition);
-                citySheet.Cell(i + 2, 1).Value = allCities[i].Id;
-                // ClosedXML의 Cell.Value(XLCellValue)는 float용 암시적 변환이 따로 없다 - double로
-                // 명시 캐스팅해서 float→double(표준 변환)→XLCellValue(사용자 정의 변환) 경로를 확실히 탄다.
-                citySheet.Cell(i + 2, 2).Value = (double)normalized.x;
-                citySheet.Cell(i + 2, 3).Value = (double)normalized.y;
-                citySheet.Cell(i + 2, 4).Value = scaleByCityId.TryGetValue(allCities[i].Id, out var scale) ? scale : string.Empty;
-            }
-
-            var routeSheet = workbook.Worksheets.Add(RouteSheetName);
-            routeSheet.Cell(1, 1).Value = "CityIdA";
-            routeSheet.Cell(1, 2).Value = "CityIdB";
-            var row = 0;
-            foreach (var route in allRoutes)
-            {
-                routeSheet.Cell(row + 2, 1).Value = route.CityIdA;
-                routeSheet.Cell(row + 2, 2).Value = route.CityIdB;
+                regionSheet.Cell(row, 1).Value = region.Id;
+                regionSheet.Cell(row, 2).Value = (double)region.Size.x;
+                regionSheet.Cell(row, 3).Value = (double)region.Size.y;
                 row++;
             }
 
+            var citySheet = AddSheet(workbook, CitySheetName, "Id", "RegionId", "X", "Y", "Scale");
+            row = 2;
+            foreach (var city in map.AllCities.OrderBy(city => city.Id))
+            {
+                var normalized = Normalize(map, city.RegionId, city.Position);
+                citySheet.Cell(row, 1).Value = city.Id;
+                citySheet.Cell(row, 2).Value = city.RegionId;
+                // ClosedXML의 Cell.Value는 float용 암시적 변환이 없다 - double로 명시 캐스팅한다.
+                citySheet.Cell(row, 3).Value = (double)normalized.x;
+                citySheet.Cell(row, 4).Value = (double)normalized.y;
+                citySheet.Cell(row, 5).Value = scaleByCityId.TryGetValue(city.Id, out var scale) ? scale : city.Scale;
+                row++;
+            }
+
+            var gateSheet = AddSheet(workbook, GateSheetName, "Id", "RegionId", "X", "Y", "PairGateId");
+            row = 2;
+            foreach (var gate in map.AllGates.OrderBy(gate => gate.Id))
+            {
+                var normalized = Normalize(map, gate.RegionId, gate.Position);
+                gateSheet.Cell(row, 1).Value = gate.Id;
+                gateSheet.Cell(row, 2).Value = gate.RegionId;
+                gateSheet.Cell(row, 3).Value = (double)normalized.x;
+                gateSheet.Cell(row, 4).Value = (double)normalized.y;
+                gateSheet.Cell(row, 5).Value = gate.PairGateId;
+                row++;
+            }
+
+            var roadSheet = AddSheet(workbook, RoadSheetName, "NodeA", "NodeB");
+            row = 2;
+            foreach (var (a, b) in map.AllRoads)
+            {
+                roadSheet.Cell(row, 1).Value = a.ToString();
+                roadSheet.Cell(row, 2).Value = b.ToString();
+                row++;
+            }
+
+            AppendMissingRows(workbook, CityStringsSheetName, new[] { "Id", "Name", "Description" }, map.AllCities.Select(city => city.Id), id => new object[] { id, $"디버그 도시 {id}", "값 없음" });
+            AppendMissingRows(workbook, RegionStringsSheetName, new[] { "Id", "Name" }, map.Regions.Select(region => region.Id), id => new object[] { id, map.TryGetRegion(id, out var region) ? region.Name : $"지역{id}" });
+
             workbook.SaveAs(workbookPath);
+        }
+
+        private static Vector2 Normalize(IWorldMapReader map, int regionId, Vector2 position)
+            => TripCityMapCoordinateConverter.ToNormalized(position, map.TryGetRegion(regionId, out var region) ? region.Size : WorldMap.DefaultRegionSize);
+
+        private static IXLWorksheet AddSheet(XLWorkbook workbook, string name, params string[] headers)
+        {
+            var sheet = workbook.Worksheets.Add(name);
+            for (var i = 0; i < headers.Length; i++) sheet.Cell(1, i + 1).Value = headers[i];
+            return sheet;
         }
 
         // 머리글에서 Id·Scale 열 위치를 찾아 읽는다 - 사람이 열 순서를 바꿔도 값이 어긋나지 않게 한다.
         private static void ReadScales(IXLWorksheet sheet, Dictionary<int, string> scaleByCityId)
         {
-            var header = sheet.Row(1);
             int idColumn = 0, scaleColumn = 0;
-            foreach (var cell in header.CellsUsed())
+            foreach (var cell in sheet.Row(1).CellsUsed())
             {
                 var name = cell.GetString();
                 if (name == "Id") idColumn = cell.Address.ColumnNumber;
@@ -124,7 +133,7 @@ namespace Game.Core.DebugTools
             }
             if (idColumn == 0 || scaleColumn == 0) return;
 
-            foreach (var usedRow in sheet.RowsUsed().Skip(1)) // 1행은 헤더 - 건너뛴다.
+            foreach (var usedRow in sheet.RowsUsed().Skip(1))
             {
                 var idCell = usedRow.Cell(idColumn);
                 if (idCell.IsEmpty()) continue;
@@ -132,57 +141,29 @@ namespace Game.Core.DebugTools
             }
         }
 
-        // 드래그로 배치된 도시 중 CityStrings에 아직 행이 없는 Id에는 자리표시자 행을 추가한다 -
-        // 시트 자체가 없으면 헤더까지 새로 만든다. 이미 있는 행(사람이 입력했을 수 있는 값)은 절대
-        // 건드리지 않는다 - 그래서 "Id가 이미 있는지"만 보고 없는 것만 덧붙인다.
-        private static void AppendPlaceholderStringRowsForNewCities(XLWorkbook workbook, IReadOnlyList<TripCity> allCities)
+        // 사람이 입력한 스트링 행은 절대 건드리지 않고, 시트에 없는 Id에만 자리표시자 행을 덧붙인다.
+        private static void AppendMissingRows(XLWorkbook workbook, string sheetName, string[] headers, IEnumerable<int> ids, System.Func<int, object[]> buildRow)
         {
-            var stringsSheet = workbook.Worksheets.TryGetWorksheet(StringsSheetName, out var existing) ? existing : null;
-            if (stringsSheet == null)
-            {
-                stringsSheet = workbook.Worksheets.Add(StringsSheetName);
-                stringsSheet.Cell(1, 1).Value = "Id";
-                stringsSheet.Cell(1, 2).Value = "Name";
-                stringsSheet.Cell(1, 3).Value = "Description";
-            }
+            var sheet = workbook.Worksheets.TryGetWorksheet(sheetName, out var existing) ? existing : AddSheet(workbook, sheetName, headers);
 
             var knownIds = new HashSet<int>();
-            foreach (var usedRow in stringsSheet.RowsUsed().Skip(1)) // 1행은 헤더 - 건너뛴다.
+            foreach (var usedRow in sheet.RowsUsed().Skip(1))
             {
                 var idCell = usedRow.Cell(1);
-                if (!idCell.IsEmpty())
-                {
-                    knownIds.Add(idCell.GetValue<int>());
-                }
+                if (!idCell.IsEmpty()) knownIds.Add(idCell.GetValue<int>());
             }
 
-            var nextRow = (stringsSheet.LastRowUsed()?.RowNumber() ?? 1) + 1;
-            foreach (var city in allCities)
+            var nextRow = (sheet.LastRowUsed()?.RowNumber() ?? 1) + 1;
+            foreach (var id in ids)
             {
-                if (knownIds.Contains(city.Id))
+                if (knownIds.Contains(id)) continue;
+                var values = buildRow(id);
+                for (var i = 0; i < values.Length; i++)
                 {
-                    continue;
+                    sheet.Cell(nextRow, i + 1).Value = XLCellValue.FromObject(values[i]);
                 }
-
-                // 기존 BuildLocationInfo의 자동 생성 문구와 동일하게 맞춘다(TripMapInteractionCoordinator
-                // 참고) - 사람이 엑셀에서 이 값을 보고 바로 고쳐 쓸 수 있게, 창작하지 않고 같은 자리표시자를 쓴다.
-                stringsSheet.Cell(nextRow, 1).Value = city.Id;
-                stringsSheet.Cell(nextRow, 2).Value = $"디버그 도시 {city.Id}";
-                stringsSheet.Cell(nextRow, 3).Value = "값 없음";
                 nextRow++;
             }
-        }
-
-        public static bool TryLoad(out TripCityMapAsset asset)
-        {
-            asset = AssetDatabase.LoadAssetAtPath<TripCityMapAsset>(TableAssetPaths.TripCityMap);
-            return asset != null;
-        }
-
-        public static bool TryLoadStrings(out TripCityStringsTableAsset asset)
-        {
-            asset = AssetDatabase.LoadAssetAtPath<TripCityStringsTableAsset>(TableAssetPaths.TripCityStringsTable);
-            return asset != null;
         }
     }
 }

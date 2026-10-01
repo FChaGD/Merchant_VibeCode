@@ -1110,6 +1110,7 @@ MonoBehaviour:
   - {fileID: 1325062939}
   - {fileID: 1621465529}
   - {fileID: 1707920027}
+  - {fileID: 1291961381}
   - {fileID: 1393312301}
   - {fileID: 1730478252}
   - {fileID: 864792254}
@@ -1300,6 +1301,7 @@ Transform:
   - {fileID: 1136290632}
   - {fileID: 1804540254}
   - {fileID: 864792253}
+  - {fileID: 1291961380}
   m_Father: {fileID: 900000001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &900004002
@@ -1339,8 +1341,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d3ca058f7c94d47b84c74b49e9786a6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.TripPanel
-  debugCityMarkerPrefab: {fileID: 7233336327583180505, guid: d04f47bd859fdd84b90e5656937dfc0a, type: 3}
-  debugRoadLinePrefab: {fileID: 3467082046620142997, guid: 5a1a6186e004b88459eea902182c6c3e, type: 3}
+  cityMarkerPrefab: {fileID: 7233336327583180505, guid: d04f47bd859fdd84b90e5656937dfc0a, type: 3}
+  gateMarkerPrefab: {fileID: 4729949333663477680, guid: 2ac544e8d04ded04699ffc2e5fba8143, type: 3}
+  roadLinePrefab: {fileID: 3467082046620142997, guid: 5a1a6186e004b88459eea902182c6c3e, type: 3}
 --- !u!114 &900004006
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1925,6 +1928,53 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1213019814}
   m_CullTransparentMesh: 1
+--- !u!1 &1291961379
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1291961380}
+  - component: {fileID: 1291961381}
+  m_Layer: 0
+  m_Name: WorldMapProvider
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1291961380
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1291961379}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900004001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1291961381
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1291961379}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4048aa5818ac9e449b512e8244553212, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.WorldMapProvider
+  cityMap: {fileID: 11400000, guid: 97db78d423f2fce46888ee1d35e6c40d, type: 2}
+  cityStrings: {fileID: 11400000, guid: eed406d33fd9c1146b10a6094e45874b, type: 2}
+  regionStrings: {fileID: 11400000, guid: fa0db9fec0ea6ec47bbad18c52cd867f, type: 2}
 --- !u!1 &1325062937
 GameObject:
   m_ObjectHideFlags: 0

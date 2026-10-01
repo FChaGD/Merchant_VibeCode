@@ -31,6 +31,7 @@ namespace Game.Core.Editor
             nameof(PlaceholderTripInfoProvider),
             nameof(InMemoryTripCurrentLocationRepository),
             nameof(TripDestinationAssigner),
+            nameof(WorldMapProvider),
             nameof(InMemoryFieldFormationActivityRepository),
             nameof(InMemoryPlayerCurrencyWallet),
             nameof(PlaceholderTradeGoodsInventoryRepository),
@@ -165,7 +166,7 @@ namespace Game.Core.Editor
             EditorUIBuilder.GetOrAddComponent<InventoryPopupCoordinator>(uiManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<HubFormationPanel>(uiManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<FieldFormationPanel>(uiManager.gameObject);
-            EditorUIBuilder.GetOrAddComponent<TripPanel>(uiManager.gameObject);
+            WireTripMapPrefabs(EditorUIBuilder.GetOrAddComponent<TripPanel>(uiManager.gameObject));
             var tacticsPanel = EditorUIBuilder.GetOrAddComponent<TacticsPanel>(uiManager.gameObject);
             WirePartyPolicyCatalog(tacticsPanel);
             WireRoleGroupCatalog(tacticsPanel);
@@ -219,6 +220,10 @@ namespace Game.Core.Editor
             // 저장소.
             var tripCurrentLocationRepository = EditorUIBuilder.GetOrCreateManager<InMemoryTripCurrentLocationRepository>(uiManager.transform, nameof(InMemoryTripCurrentLocationRepository));
             var tripDestinationAssigner = EditorUIBuilder.GetOrCreateManager<TripDestinationAssigner>(uiManager.transform, nameof(TripDestinationAssigner));
+
+            // 월드 지도(지역·도시·관문·도로, Docs/설계/69번 §4.3) - 지도 표시·도착지 도달 판정·디버그 편집이 DI로 찾는다.
+            var worldMapProvider = EditorUIBuilder.GetOrCreateManager<WorldMapProvider>(uiManager.transform, nameof(WorldMapProvider));
+            WireWorldMapTables(worldMapProvider);
 
             // 상행 중(Field) 정비창 배치/이동 소요시간 진행 상태(기획 20번, 설계 25번) - formationRepository와
             // 같은 성격의 인메모리 저장소.
@@ -276,6 +281,7 @@ namespace Game.Core.Editor
                 placeholderTripInfoProvider,
                 tripCurrentLocationRepository,
                 tripDestinationAssigner,
+                worldMapProvider,
                 fieldFormationActivityRepository,
                 playerCurrencyWallet,
                 townFacilityAvailabilityProvider,
@@ -289,6 +295,25 @@ namespace Game.Core.Editor
                 caravanAssetCatalogProvider,
                 caravanAssetCandidateProvider,
             };
+        }
+
+        private static void WireWorldMapTables(WorldMapProvider provider)
+        {
+            var so = new SerializedObject(provider);
+            so.FindProperty("cityMap").objectReferenceValue = LoadImportedTable<TripCityMapAsset>(TableAssetPaths.TripCityMap);
+            so.FindProperty("cityStrings").objectReferenceValue = LoadImportedTable<TripCityStringsTableAsset>(TableAssetPaths.TripCityStringsTable);
+            so.FindProperty("regionStrings").objectReferenceValue = LoadImportedTable<TripRegionStringsTableAsset>(TableAssetPaths.TripRegionStringsTable);
+            so.ApplyModifiedProperties();
+        }
+
+        // 지도 마커·선 프리팹을 TripPanel에 연결한다(설계 69번 §7) - 예전엔 Hub 인스톨러 로그로 수동 연결을 안내했다.
+        private static void WireTripMapPrefabs(TripPanel tripPanel)
+        {
+            var so = new SerializedObject(tripPanel);
+            so.FindProperty("cityMarkerPrefab").objectReferenceValue = TripMapPrefabs.GetOrCreateCityMarker();
+            so.FindProperty("gateMarkerPrefab").objectReferenceValue = TripMapPrefabs.GetOrCreateGateMarker();
+            so.FindProperty("roadLinePrefab").objectReferenceValue = TripMapPrefabs.GetOrCreateRoadLine();
+            so.ApplyModifiedProperties();
         }
 
         // 규모 목록·시설 최소 규모를 기본값(TownScaleDefaults)과 맞춘다(설계 58번 §5.2). 사용자가 인스펙터에서 바꾼 값은 유지한다(재실행

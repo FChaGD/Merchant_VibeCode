@@ -5,35 +5,55 @@ using UnityEngine;
 namespace Game.Core
 {
     [Serializable]
+    public struct TripCityMapRegionEntry
+    {
+        public int RegionId;
+        public Vector2 Size; // 지역 지도 크기(Docs/기획/68번 §4-2 — 전 지역 2400 × 2400으로 시작)
+    }
+
+    [Serializable]
     public struct TripCityMapCityEntry
     {
         public int CityId;
-        public Vector2 MapPosition;
+        public int RegionId;
+        public Vector2 MapPosition; // 그 지역 지도 콘텐츠 좌표(중심 기준)
         public string Scale; // 마을 규모 Id(Docs/기획/57번). 빈 값 = 미지정 - 판정은 TownScaleFacilityRule이 가장 작은 규모로 처리한다
     }
 
     [Serializable]
-    public struct TripCityMapRouteEntry
+    public struct TripCityMapGateEntry
     {
-        public int CityIdA;
-        public int CityIdB;
+        public int GateId;
+        public int RegionId;
+        public Vector2 MapPosition;
+        public int PairGateId; // 다른 지역에 있는 짝 관문 - 둘이 서로를 가리킨다(Docs/기획/68번 §3.5)
+    }
+
+    [Serializable]
+    public struct TripCityMapRoadEntry
+    {
+        public MapNodeId A;
+        public MapNodeId B;
     }
 
     /// <summary>
-    /// 도시 좌표+경로 연결의 저장된 스냅샷(Docs/기획/15번, Docs/설계/19번 §4) - 배치 도구(팔레트 드래그
-    /// 등)는 디버그 성격을 유지하지만, 이 에셋 타입 자체는 향후 정식 지역 시스템이 이어받을 "기본 도시
-    /// 지도" 데이터라 #if UNITY_EDITOR로 감싸지 않는다. TripCity(디버그 전용 struct)를 그대로 쓰지
-    /// 않고 독립된 직렬화 구조체를 쓴다 - 에셋이 디버그 어셈블리 경계에 묶이지 않게 하기 위함.
-    /// 에디터에선 TripCityMapPersistence(Core/Debug/Trip/)가, 런타임에선 마을 규모 판정(TownScaleFacilityAvailabilityProvider)이
-    /// 읽는다. 원본은 Assets/Table/City/City.xlsx(CityData/CityDetailData 시트, Docs/설계/58번 §2).
+    /// 월드 지도 데이터의 컴파일된 스냅샷(Docs/설계/69번 §3.3) - 지역·도시·관문(지역 아이콘)·도로. 원본은
+    /// Assets/Table/City/City.xlsx(RegionData/CityData/GateData/RoadData 시트)이고 CityTableImporter가 채운다. 런타임에서는
+    /// WorldMapProvider(지도 모델)와 마을 규모 판정(TownScaleFacilityAvailabilityProvider)이 읽는다. 타입 이름은 기존(TripCityMap)을
+    /// 유지한다 - 규모 판정의 인스펙터 배선을 그대로 두기 위함(설계 69번 §9-1).
+    /// 도로 끝점은 도시·관문을 모두 가리킬 수 있어 MapNodeId로 둔다(예전엔 도시 Id 쌍).
     /// </summary>
     [CreateAssetMenu(fileName = "TripCityMap", menuName = "Game/Trip/Trip City Map")]
     public class TripCityMapAsset : ScriptableObject
     {
+        [SerializeField] private List<TripCityMapRegionEntry> regions = new();
         [SerializeField] private List<TripCityMapCityEntry> cities = new();
-        [SerializeField] private List<TripCityMapRouteEntry> routes = new();
+        [SerializeField] private List<TripCityMapGateEntry> gates = new();
+        [SerializeField] private List<TripCityMapRoadEntry> roads = new();
 
+        public IReadOnlyList<TripCityMapRegionEntry> Regions => regions;
         public IReadOnlyList<TripCityMapCityEntry> Cities => cities;
-        public IReadOnlyList<TripCityMapRouteEntry> Routes => routes;
+        public IReadOnlyList<TripCityMapGateEntry> Gates => gates;
+        public IReadOnlyList<TripCityMapRoadEntry> Roads => roads;
     }
 }

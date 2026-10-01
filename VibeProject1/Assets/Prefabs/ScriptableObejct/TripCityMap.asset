@@ -12,53 +12,175 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a58bb68c6c102d048affc4fc36c4dc8a, type: 3}
   m_Name: TripCityMap
   m_EditorClassIdentifier: Game.Core::Game.Core.TripCityMapAsset
+  regions:
+  - RegionId: 1
+    Size: {x: 2400, y: 2400}
+  - RegionId: 2
+    Size: {x: 2400, y: 2400}
+  - RegionId: 3
+    Size: {x: 2400, y: 2400}
   cities:
   - CityId: 1
+    RegionId: 1
     MapPosition: {x: 715.3938, y: 357.71008}
     Scale: Village
   - CityId: 2
-    MapPosition: {x: 343.411, y: 698.03455}
+    RegionId: 1
+    MapPosition: {x: 355.71045, y: 688.4076}
     Scale: City
   - CityId: 3
+    RegionId: 1
     MapPosition: {x: -499.48572, y: 678.2483}
     Scale: Village
   - CityId: 4
+    RegionId: 1
     MapPosition: {x: -238.30646, y: 183.59058}
     Scale: Metropolis
   - CityId: 5
+    RegionId: 1
     MapPosition: {x: -780.45123, y: 318.13745}
     Scale: Village
   - CityId: 6
+    RegionId: 1
     MapPosition: {x: 109.93262, y: -18.229736}
     Scale: City
   - CityId: 7
+    RegionId: 1
     MapPosition: {x: -657.7762, y: -477.2721}
     Scale: City
   - CityId: 8
+    RegionId: 1
     MapPosition: {x: 446.2998, y: -346.68237}
     Scale: Village
   - CityId: 9
+    RegionId: 1
     MapPosition: {x: 588.76135, y: 9.471069}
     Scale: Village
   - CityId: 10
+    RegionId: 1
     MapPosition: {x: -119.58862, y: -560.3745}
     Scale: City
-  routes:
-  - CityIdA: 1
-    CityIdB: 3
-  - CityIdA: 2
-    CityIdB: 3
-  - CityIdA: 2
-    CityIdB: 4
-  - CityIdA: 4
-    CityIdB: 6
-  - CityIdA: 4
-    CityIdB: 10
-  - CityIdA: 4
-    CityIdB: 7
-  - CityIdA: 5
-    CityIdB: 7
-  - CityIdA: 6
-    CityIdB: 9
-  - CityIdA: 6
-    CityIdB: 8
+  - CityId: 11
+    RegionId: 2
+    MapPosition: {x: -261.24115, y: -453.96484}
+    Scale: 
+  - CityId: 12
+    RegionId: 2
+    MapPosition: {x: 56.1958, y: -367.74506}
+    Scale: 
+  - CityId: 15
+    RegionId: 3
+    MapPosition: {x: -233.51385, y: 585.281}
+    Scale: 
+  - CityId: 16
+    RegionId: 3
+    MapPosition: {x: 321.037, y: 109.090576}
+    Scale: 
+  gates:
+  - GateId: 3
+    RegionId: 2
+    MapPosition: {x: -340.80713, y: -728.8292}
+    PairGateId: 4
+  - GateId: 4
+    RegionId: 1
+    MapPosition: {x: 40.145264, y: 1065.023}
+    PairGateId: 3
+  - GateId: 7
+    RegionId: 3
+    MapPosition: {x: 104.03882, y: 1055.4438}
+    PairGateId: 8
+  - GateId: 8
+    RegionId: 1
+    MapPosition: {x: -974.9244, y: -203.59686}
+    PairGateId: 7
+  roads:
+  - A:
+      Kind: 0
+      Id: 1
+    B:
+      Kind: 0
+      Id: 3
+  - A:
+      Kind: 0
+      Id: 2
+    B:
+      Kind: 0
+      Id: 3
+  - A:
+      Kind: 0
+      Id: 2
+    B:
+      Kind: 0
+      Id: 4
+  - A:
+      Kind: 0
+      Id: 4
+    B:
+      Kind: 0
+      Id: 6
+  - A:
+      Kind: 0
+      Id: 4
+    B:
+      Kind: 0
+      Id: 10
+  - A:
+      Kind: 0
+      Id: 4
+    B:
+      Kind: 0
+      Id: 7
+  - A:
+      Kind: 0
+      Id: 5
+    B:
+      Kind: 0
+      Id: 7
+  - A:
+      Kind: 0
+      Id: 6
+    B:
+      Kind: 0
+      Id: 9
+  - A:
+      Kind: 0
+      Id: 6
+    B:
+      Kind: 0
+      Id: 8
+  - A:
+      Kind: 0
+      Id: 11
+    B:
+      Kind: 0
+      Id: 12
+  - A:
+      Kind: 0
+      Id: 3
+    B:
+      Kind: 1
+      Id: 4
+  - A:
+      Kind: 0
+      Id: 11
+    B:
+      Kind: 1
+      Id: 3
+  - A:
+      Kind: 0
+      Id: 15
+    B:
+      Kind: 0
+      Id: 16
+  - A:
+      Kind: 0
+      Id: 15
+    B:
+      Kind: 1
+      Id: 7
+  - A:
+      Kind: 0
+      Id: 5
+    B:
+      Kind: 1
+      Id: 8

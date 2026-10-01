@@ -20,5 +20,15 @@ namespace Game.Core
         public const string DebugCityBulkDeleteButton = "Trip.DebugCityBulkDeleteButton";
         public const string DebugRoadBulkDeleteButton = "Trip.DebugRoadBulkDeleteButton";
         public const string DebugMapSaveButton = "Trip.DebugMapSaveButton";
+        // 지역 시스템(Docs/설계/69번 §5·§6)
+        public const string RegionDropdown = "Trip.RegionDropdown";
+        public const string DebugGatePaletteRoot = "Trip.DebugGatePaletteRoot";
+        public const string DebugGateTargetDropdown = "Trip.DebugGateTargetDropdown";
+        public const string DebugAddRegionButton = "Trip.DebugAddRegionButton";
+        public const string DebugRemoveRegionButton = "Trip.DebugRemoveRegionButton";
+        public const string DebugConfirmPanel = "Trip.DebugConfirmPanel";
+        public const string DebugConfirmMessage = "Trip.DebugConfirmMessage";
+        public const string DebugConfirmOkButton = "Trip.DebugConfirmOkButton";
+        public const string DebugConfirmCancelButton = "Trip.DebugConfirmCancelButton";
     }
 }

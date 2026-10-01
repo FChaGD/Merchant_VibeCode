@@ -87,6 +87,9 @@ namespace Game.Core
             // 같은 판단 기준) 그 타입으로 조회해 읽기 전용 매개변수에 넘긴다.
             registrar.TryResolve<ITripCurrentLocationRepository>(out var currentLocationRepository);
             registrar.TryResolve<ITripDestinationAssigner>(out var destinationAssigner);
+            // 월드 지도(Docs/설계/69번 §4.3) - 지역 지도 표시와 도착지 도달 판정.
+            registrar.TryResolve<IWorldMapReader>(out var worldMap);
+            registrar.TryResolve<ITripRouteReader>(out var routeReader);
             // IPlayerCurrencyWallet으로 등록되어 있다(InMemoryPlayerCurrencyWallet.RegisterSelf) - 이
             // 컨트롤러는 조회 전용만 필요하므로 IPlayerCurrencyReader 타입으로만 넘긴다(ISP).
             registrar.TryResolve<IPlayerCurrencyWallet>(out var currencyWallet);
@@ -133,7 +136,10 @@ namespace Game.Core
             formationPanel.RegisterFormationUI(sceneUIRoot, caravanRosterProvider, formationRepository, unitConditionRepository, uiManager);
             panelRegistrar.RegisterPopupPanel(formationPanel);
 
-            tripPanel.RegisterTripUI(sceneUIRoot, uiManager, gameManager, formationRepository, tripInfoProvider, sceneRevealSignal, currentLocationRepository, destinationAssigner, inventoryStagingReaders);
+            tripPanel.RegisterTripUI(sceneUIRoot, uiManager, gameManager, formationRepository, tripInfoProvider, sceneRevealSignal, currentLocationRepository, destinationAssigner, inventoryStagingReaders, worldMap, routeReader);
+#if UNITY_EDITOR
+            if (registrar.TryResolve<IWorldMapEditor>(out var worldMapEditor)) tripPanel.RegisterDebugMapEditor(worldMapEditor);
+#endif
             panelRegistrar.RegisterPopupPanel(tripPanel);
 
             tacticsPanel.RegisterTacticsUI(sceneUIRoot, tacticsRepository, uiManager);
