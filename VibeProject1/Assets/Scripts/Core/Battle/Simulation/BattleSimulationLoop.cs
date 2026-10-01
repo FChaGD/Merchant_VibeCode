@@ -3,15 +3,16 @@ using System.Collections.Generic;
 namespace Game.Core
 {
     /// <summary>
-    /// 순수 C# 합성 객체. 아군/적/보호 목표 리스트를 들고 매 틱 각 유닛의 Tick을 돌리고, 전멸·보호
-    /// 목표 파괴 여부를 노출한다. 생존 수는 매 프레임 리스트를 다시 스캔하지 않고 OnDied/OnFled
-    /// 이벤트로 카운터를 유지한다.
+    /// 순수 C# 합성 객체. 아군/적/보호 목표 리스트를 들고 매 틱 각 유닛의 Tick을 돌리고, 전멸·패배
+    /// 여부를 노출한다. 생존 수는 매 프레임 리스트를 다시 스캔하지 않고 OnDied/OnFled
+    /// 이벤트로 카운터를 유지한다. 보호 목표는 마차·시설을 따로 센다 - 패배 조건이 둘을 다르게 본다(Docs/기획/73번).
     /// </summary>
     public class BattleSimulationLoop
     {
         private readonly List<IBattleCombatant> allies;
         private readonly List<IBattleCombatant> enemies;
-        private readonly List<IDamageable> protectedUnits;
+        // 종류(마차/시설)를 읽어야 해서 구체 타입으로 받는다. 외부 노출(ProtectedUnits)은 IDamageable 그대로.
+        private readonly List<BattleProtectedUnit> protectedUnits;
         // 방진 형성 조율자(Docs/설계/12번 §12.2) - PartyMorale과 같은 자리, 전투마다 새로 만들어진다.
         // null 가능성 없음 - tacticsReader가 없어 방향성 지시가 전부 비활성화된 전투에서도 코디네이터
         // 자체는 만들어지지만, Blocking 전열 후보가 하나도 없어(모든 RoleGroup이 null) Update가
@@ -25,7 +26,9 @@ namespace Game.Core
         private readonly MoraleWaveCoordinator enemyWaveCoordinator;
         private int aliveAllyCount;
         private int aliveEnemyCount;
-        private int aliveProtectedCount;
+        private readonly int totalWagonCount;
+        private int aliveWagonCount;
+        private int aliveFacilityCount;
 
         // 이번 전투의 전장 반지름(BattleFieldLayout 기준) - BattleViewPresenter가 전투 뷰 카메라의
         // 시야 경계를 잡을 때 쓴다(Docs/설계/13-2026-08-29-전투뷰_월드오브젝트_전환_아키텍처.md). 시뮬레이션
@@ -37,7 +40,7 @@ namespace Game.Core
         public float SpawnRadius { get; }
 
         public BattleSimulationLoop(
-            List<IBattleCombatant> allies, List<IBattleCombatant> enemies, List<IDamageable> protectedUnits,
+            List<IBattleCombatant> allies, List<IBattleCombatant> enemies, List<BattleProtectedUnit> protectedUnits,
             float fieldRadius, float spawnRadius, FrontlineFormationCoordinator frontlineCoordinator, RangedSurroundCoordinator rangedSurroundCoordinator,
             MoraleWaveCoordinator allyWaveCoordinator, MoraleWaveCoordinator enemyWaveCoordinator)
         {
@@ -52,12 +55,24 @@ namespace Game.Core
             SpawnRadius = spawnRadius;
             aliveAllyCount = allies.Count;
             aliveEnemyCount = enemies.Count;
-            aliveProtectedCount = protectedUnits.Count;
 
             // 사망(OnDied)과 도주(OnFled) 둘 다 "전장에서 사라짐"이므로 둘 다 카운트를 줄인다(기획 §7.4).
             foreach (var ally in allies) SubscribeDeathAndFlee(ally, isAlly: true);
             foreach (var enemy in enemies) SubscribeDeathAndFlee(enemy, isAlly: false);
-            foreach (var unit in protectedUnits) unit.OnDied += () => aliveProtectedCount--;
+            foreach (var unit in protectedUnits)
+            {
+                if (unit.Kind == ProtectedUnitKind.Wagon)
+                {
+                    totalWagonCount++;
+                    unit.OnDied += () => aliveWagonCount--;
+                }
+                else
+                {
+                    unit.OnDied += () => aliveFacilityCount--;
+                }
+            }
+            aliveWagonCount = totalWagonCount;
+            aliveFacilityCount = protectedUnits.Count - totalWagonCount;
         }
 
         private void SubscribeDeathAndFlee(IBattleCombatant unit, bool isAlly)
@@ -110,9 +125,8 @@ namespace Game.Core
 
         public bool IsAllyWiped => aliveAllyCount <= 0;
         public bool IsEnemyWiped => aliveEnemyCount <= 0;
-        // 전체가 아니라 "하나라도" 파괴되면 true - 기획 §9. 보호 목표가 0개(빈 슬롯)여도
-        // aliveProtectedCount(0) < protectedUnits.Count(0)은 거짓이라 안전하다.
-        public bool IsProtectionTargetDestroyed => aliveProtectedCount < protectedUnits.Count;
+        // 패배 = 모든 마차 파괴 또는 전투 가능 아군(캐릭터+시설) 없음(Docs/기획/73번, 설계 74번 §2.3).
+        public bool IsDefeated => BattleDefeatRule.IsDefeated(totalWagonCount, aliveWagonCount, aliveAllyCount, aliveFacilityCount);
 
         public void Tick(float deltaTime)
         {

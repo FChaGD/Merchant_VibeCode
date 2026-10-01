@@ -7,7 +7,7 @@ namespace Game.Core
     /// 기획 §4/§9 - Wagon/Facility. 이동/공격하지 않고 피해만 받는다. IBattleCombatant가 아니라
     /// IDamageable만 구현한다 - Tick(이동/공격) 계약을 억지로 채울 필요가 없다(LSP).
     /// PartyMorale을 받지 않는다 - 기획 §7.2는 Character 유닛의 손실만 사기를 깎는다고 정의했다.
-    /// Wagon/Facility 파괴는 사기와 무관하게 즉시 Defeat로 직결된다(BattleSimulationLoop).
+    /// 파괴가 곧 패배는 아니다 - 마차 전부 파괴, 또는 캐릭터·시설 전부 상실일 때만 패배다(Docs/기획/73번, BattleDefeatRule).
     /// </summary>
     public class BattleProtectedUnit : IDamageable
     {
@@ -24,15 +24,17 @@ namespace Game.Core
         // 크기의 절반(월드 유닛). 뷰 표시 크기와 장애물 회피 반경의 공통 근거(Docs/설계/72번 §3.1) - 크기는 마차·시설만
         // 가지므로 IDamageable이 아니라 여기 둔다.
         public float HalfSize { get; }
+        public ProtectedUnitKind Kind { get; }
         public event Action OnDied;
         public event Action<float> OnDamaged;
 
         private float currentHp;
 
-        public BattleProtectedUnit(Vector2 position, float maxHp, Sprite icon, float halfSize)
+        public BattleProtectedUnit(Vector2 position, float maxHp, Sprite icon, float halfSize, ProtectedUnitKind kind)
         {
             Position = position;
             HalfSize = halfSize;
+            Kind = kind;
             MaxHp = maxHp;
             Icon = icon;
             currentHp = maxHp;

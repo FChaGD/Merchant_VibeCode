@@ -61,8 +61,9 @@ namespace Game.Core
     }
 
     /// <summary>
-    /// 전투 하나의 마차·시설 장애물 정보 + 조향 계산(Docs/기획/71번, 설계 72번). 전투 시작 때 한 번 만들고 바뀌지 않는다 -
-    /// 마차·시설은 움직이지 않고, 하나라도 파괴되면 전투가 패배로 끝난다(기획 71번 §4-9).
+    /// 전투 하나의 마차·시설 장애물 정보 + 조향 계산(Docs/기획/71번, 설계 72번). 전투 시작 때 한 번 만든다 - 마차·시설은
+    /// 움직이지 않는다. 파괴돼도 전투가 계속되므로(Docs/기획/73번) 조회할 때마다 살아 있는지 보고 파괴된 것은 건너뛴다 -
+    /// 목록을 다시 만들면 캐릭터가 기억한 장애물 Id(ObstacleAvoidanceState)가 어긋난다(설계 74번 §2.6).
     /// 마차·시설 하나하나만 피하고, 붙은 둘 사이는 지나갈 수 있되 느려진다(2026-10-01 전제 변경, 설계 72번 §12) - 붙은 마차를
     /// 하나로 묶어 바깥으로 돌게 했더니 ㄷ자 안쪽에 들어간 캐릭터가 빠져나오지 못했고, 막으려면 길 찾기가 필요해 구조가 커졌다.
     /// "붙은" = 정비창 칸 8방향 이웃(마차·시설 구분 없음). 한 칸 이상 떨어진 둘 사이는 보통 길이다.
@@ -71,11 +72,15 @@ namespace Game.Core
     {
         private readonly ObstacleShape[] obstacles;
         private readonly IDamageable[] owners;
-        // 붙은 두 마차·시설 중심을 잇는 감속 구역(반폭 = 둘 중 큰 장애물 반경).
+        // 붙은 두 마차·시설 중심을 잇는 감속 구역(반폭 = 둘 중 큰 장애물 반경). 양 끝이 모두 살아 있을 때만 유효.
         private readonly ObstacleShape[] passages;
+        private readonly (int A, int B)[] passageEnds;
 
         public IReadOnlyList<ObstacleShape> Obstacles => obstacles;
         public IReadOnlyList<ObstacleShape> Passages => passages;
+
+        public bool IsObstacleActive(int index) => owners[index].IsAlive;
+        public bool IsPassageActive(int index) => owners[passageEnds[index].A].IsAlive && owners[passageEnds[index].B].IsAlive;
 
         /// <summary>장애물이 없으면 NullObstacleNavigator를 돌려준다 - 마차 없는 전투에서 계산 비용이 없다.</summary>
         public static IObstacleNavigator Create(IReadOnlyList<ProtectedPlacement> placements) =>
@@ -95,7 +100,7 @@ namespace Game.Core
                     ObstacleAvoidanceTuning.ComputeObstacleRadius(unit.HalfSize),
                     ObstacleAvoidanceTuning.ComputeClearance(unit.HalfSize));
             }
-            passages = BuildPassages(placements, obstacles);
+            (passages, passageEnds) = BuildPassages(placements, obstacles);
         }
 
         public Vector2 CorrectDestination(Vector2 position, Vector2 destination)
@@ -103,9 +108,10 @@ namespace Game.Core
             // 장애물끼리 회피 반경이 겹치면 한 번 옮긴 점이 다른 장애물 안일 수 있어 한 번 더 돈다.
             for (var pass = 0; pass < 2; pass++)
             {
-                foreach (var shape in obstacles)
+                for (var i = 0; i < obstacles.Length; i++)
                 {
-                    if (!shape.IsWithin(destination, shape.AvoidRadius)) continue;
+                    var shape = obstacles[i];
+                    if (!owners[i].IsAlive || !shape.IsWithin(destination, shape.AvoidRadius)) continue;
                     destination = PushOutTo(shape, destination, shape.AvoidRadius, fallbackFrom: position);
                 }
             }
@@ -138,9 +144,10 @@ namespace Game.Core
 
         public Vector2 ResolvePenetration(Vector2 position)
         {
-            foreach (var shape in obstacles)
+            for (var i = 0; i < obstacles.Length; i++)
             {
-                if (shape.IsWithin(position, shape.Radius))
+                var shape = obstacles[i];
+                if (owners[i].IsAlive && shape.IsWithin(position, shape.Radius))
                 {
                     position = PushOutTo(shape, position, shape.Radius, fallbackFrom: position + Vector2.right);
                 }
@@ -150,15 +157,15 @@ namespace Game.Core
 
         public float GetSpeedMultiplier(Vector2 position)
         {
-            foreach (var passage in passages)
+            for (var i = 0; i < passages.Length; i++)
             {
-                if (passage.IsWithin(position, passage.Radius)) return ObstacleAvoidanceTuning.PassageSpeedMultiplier;
+                if (IsPassageActive(i) && passages[i].IsWithin(position, passages[i].Radius)) return ObstacleAvoidanceTuning.PassageSpeedMultiplier;
             }
             return 1f;
         }
 
-        // 이동 선분을 회피 반경 안으로 지나가는 장애물 중 가장 가까운 것. 공격 대상, 멀리 있는 것(가장자리까지 감지 거리 초과),
-        // 이미 멀어지는 방향인 것은 무시한다.
+        // 이동 선분을 회피 반경 안으로 지나가는 장애물 중 가장 가까운 것. 파괴된 것, 공격 대상, 멀리 있는 것(가장자리까지 감지
+        // 거리 초과), 이미 멀어지는 방향인 것은 무시한다.
         private bool TryFindBlockingObstacle(Vector2 position, Vector2 destination, Vector2 direction, IDamageable ignored, out ObstacleShape blocking)
         {
             blocking = default;
@@ -166,7 +173,7 @@ namespace Game.Core
             var nearest = float.MaxValue;
             for (var i = 0; i < obstacles.Length; i++)
             {
-                if (owners[i] == ignored) continue;
+                if (owners[i] == ignored || !owners[i].IsAlive) continue;
 
                 var shape = obstacles[i];
                 var offset = position - shape.Center;
@@ -229,9 +236,10 @@ namespace Game.Core
 
         // 칸 8방향으로 붙은 두 마차·시설마다 중심을 잇는 감속 구역 하나. 대각선으로 붙은 두 마차 사이 빈 칸 중심은 이 선분에서
         // 약 0.71이라 감속 구역(반폭 0.5) 밖이다 - 그 칸에 서 있는 캐릭터는 느려지지 않는다.
-        private static ObstacleShape[] BuildPassages(IReadOnlyList<ProtectedPlacement> placements, ObstacleShape[] obstacles)
+        private static (ObstacleShape[] passages, (int A, int B)[] ends) BuildPassages(IReadOnlyList<ProtectedPlacement> placements, ObstacleShape[] obstacles)
         {
             var result = new List<ObstacleShape>();
+            var ends = new List<(int A, int B)>();
             for (var i = 0; i < placements.Count; i++)
             {
                 for (var j = i + 1; j < placements.Count; j++)
@@ -241,9 +249,10 @@ namespace Game.Core
                     result.Add(ObstacleShape.Segment(
                         obstacles.Length + result.Count, obstacles[i].Center, obstacles[j].Center,
                         Mathf.Max(obstacles[i].Radius, obstacles[j].Radius)));
+                    ends.Add((i, j));
                 }
             }
-            return result.ToArray();
+            return (result.ToArray(), ends.ToArray());
         }
     }
 }

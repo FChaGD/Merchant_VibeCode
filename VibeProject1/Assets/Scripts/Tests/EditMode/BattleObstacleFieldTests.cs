@@ -14,7 +14,7 @@ namespace Game.Core.Tests
 
         // 전투 좌표는 x = 행, y = 열(BattleFieldLayout, 간격 1) - 칸과 위치를 같은 규칙으로 맞춘다.
         private static ProtectedPlacement At(int column, int row, float halfSize = StandardHalfSize) =>
-            new(new BattleProtectedUnit(new Vector2(row, column), ProtectedUnitTuning.MaxHp, null, halfSize), column, row);
+            new(new BattleProtectedUnit(new Vector2(row, column), ProtectedUnitTuning.MaxHp, null, halfSize, ProtectedUnitKind.Wagon), column, row);
 
         private static BattleObstacleField Field(params ProtectedPlacement[] placements) => new(placements);
 
@@ -166,6 +166,32 @@ namespace Game.Core.Tests
             var (final, penetrated, _) = Walk(field, new Vector2(1f, 1f), new Vector2(-3f, 1f));
             Assert.IsFalse(penetrated);
             Assert.Less((final - new Vector2(-3f, 1f)).magnitude, 0.1f);
+        }
+
+        [Test]
+        public void DestroyedObstacle_IsIgnored()
+        {
+            // 파괴돼도 전투가 계속되므로(기획 73번) 부서진 마차는 피하지도, 빼내지도 않는다(설계 74번 §2.6).
+            var placement = At(0, 0);
+            var field = Field(placement);
+            placement.Unit.TakeDamage(ProtectedUnitTuning.MaxHp, null);
+
+            var state = default(ObstacleAvoidanceState);
+            Assert.AreEqual(1f, field.Steer(new Vector2(-2f, 0f), new Vector2(3f, 0f), null, ref state).x, Tolerance);
+            Assert.IsFalse(state.HasValue);
+            Assert.AreEqual(new Vector2(0.1f, 0f), field.ResolvePenetration(new Vector2(0.1f, 0f)));
+            Assert.AreEqual(new Vector2(0.3f, 0f), field.CorrectDestination(new Vector2(-3f, 0f), new Vector2(0.3f, 0f)));
+            Assert.IsFalse(field.IsObstacleActive(0));
+        }
+
+        [Test]
+        public void Passage_WithDestroyedEnd_DoesNotSlow()
+        {
+            var a = At(0, 0);
+            var field = Field(a, At(1, 0));
+            a.Unit.TakeDamage(ProtectedUnitTuning.MaxHp, null);
+            Assert.AreEqual(1f, field.GetSpeedMultiplier(new Vector2(0f, 0.5f)), Tolerance);
+            Assert.IsFalse(field.IsPassageActive(0));
         }
 
         [Test]

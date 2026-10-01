@@ -8,8 +8,8 @@ namespace Game.Core
     /// <summary>
     /// PlaceholderBattleResultRule을 대체하는 실제 전투 시뮬레이션. BattleManager가
     /// GetComponent&lt;IBattleResultRule&gt;()로 조회하므로 이 컴포넌트를 붙이는 것만으로 교체된다
-    /// (BattleManager 무변경). 승패 조건: 적 전멸(사망+도주)=Victory, 아군 전멸(사망+도주)
-    /// 또는 보호 목표 파괴=Defeat.
+    /// (BattleManager 무변경). 승패 조건: 적 전멸(사망+도주)=Victory, 모든 마차 파괴 또는 전투 가능 아군
+    /// (캐릭터+시설) 없음=Defeat(Docs/기획/73번).
     /// </summary>
     public class LiveBattleSimulationRule : MonoBehaviour, IBattleResultRule, IRequiresFormationReader, IRequiresCaravanRoster, IRequiresTacticsReader, IRequiresUnitConditionRepository, IRequiresFieldFormationActivityRepository, IBattleSimulationEvents, IPausableBattleSimulation, IObstacleFieldDebugSource
     {
@@ -127,7 +127,7 @@ namespace Game.Core
             NotifyPendingReinforcements();
 
             if (simulation.IsEnemyWiped) Report(BattleOutcome.Victory);
-            else if (simulation.IsAllyWiped || simulation.IsProtectionTargetDestroyed) Report(BattleOutcome.Defeat);
+            else if (simulation.IsDefeated) Report(BattleOutcome.Defeat);
         }
 
         // 전투 중(정비창 UI를 열 수 없는 상태)에도 "곧 합류할 아군"을 알 수 있게, 매 틱 진행 중인
@@ -255,7 +255,7 @@ namespace Game.Core
 
             var allies = hasLayout ? BuildAllies(layout) : new List<IBattleCombatant>();
             var enemies = BuildEnemies(spawnCenter, enemyMorale, enemyWaveCoordinator, midBattleFleeTravelDistance);
-            var protectedUnits = protectedPlacements.Select(placement => (IDamageable)placement.Unit).ToList();
+            var protectedUnits = protectedPlacements.Select(placement => placement.Unit).ToList();
 
             return new BattleSimulationLoop(allies, enemies, protectedUnits, midBattleFieldRadius, spawnRadius, midBattleFrontlineCoordinator, midBattleRangedSurroundCoordinator, midBattleAllyWaveCoordinator, enemyWaveCoordinator);
         }
@@ -383,7 +383,8 @@ namespace Game.Core
                 var column = slotIndex % layout.ColumnCount;
                 var row = slotIndex / layout.ColumnCount;
                 var position = FieldPositionLayout.ComputeAllyPosition(column, row, extent);
-                var unit = new BattleProtectedUnit(position, ProtectedUnitTuning.MaxHp, rosterUnit.Icon, ProtectedUnitTuning.BodySize * 0.5f);
+                var kind = rosterUnit.Kind == FormationUnitKind.Wagon ? ProtectedUnitKind.Wagon : ProtectedUnitKind.Facility;
+                var unit = new BattleProtectedUnit(position, ProtectedUnitTuning.MaxHp, rosterUnit.Icon, ProtectedUnitTuning.BodySize * 0.5f, kind);
                 result.Add(new ProtectedPlacement(unit, column, row));
             }
             return result;

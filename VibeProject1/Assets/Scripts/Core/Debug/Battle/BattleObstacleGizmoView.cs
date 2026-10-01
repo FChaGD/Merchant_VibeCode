@@ -28,8 +28,11 @@ namespace Game.Core.DebugTools
             var field = Application.isPlaying ? source?.DebugObstacleField : null;
             if (field == null) return;
 
-            foreach (var shape in field.Obstacles)
+            // 파괴된 장애물·끊긴 통로는 그리지 않는다 - 조향·감속도 그것들을 무시한다(Docs/설계/74번 §2.6).
+            for (var i = 0; i < field.Obstacles.Count; i++)
             {
+                if (!field.IsObstacleActive(i)) continue;
+                var shape = field.Obstacles[i];
                 Vector3 center = shape.Center;
                 Gizmos.color = RadiusColor;
                 Gizmos.DrawWireSphere(center, shape.Radius);
@@ -38,8 +41,10 @@ namespace Game.Core.DebugTools
             }
 
             Gizmos.color = PassageColor;
-            foreach (var passage in field.Passages)
+            for (var i = 0; i < field.Passages.Count; i++)
             {
+                if (!field.IsPassageActive(i)) continue;
+                var passage = field.Passages[i];
                 DrawPassage(passage.CoreA, passage.CoreB, passage.Radius);
             }
         }

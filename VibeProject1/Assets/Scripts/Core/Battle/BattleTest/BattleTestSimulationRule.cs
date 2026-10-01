@@ -281,7 +281,7 @@ namespace Game.Core
 
             var allies = BuildCombatants(allySide);
             var enemies = BuildCombatants(enemySide);
-            var protectedUnits = new List<IDamageable>(); // 이 씬의 검증 범위 밖(보호 목표 없음).
+            var protectedUnits = new List<BattleProtectedUnit>(); // 이 씬의 검증 범위 밖(보호 목표 없음).
 
             return new BattleSimulationLoop(allies, enemies, protectedUnits, fieldRadius, spawnRadius, frontlineCoordinator, rangedSurroundCoordinator, allySide.WaveCoordinator, enemySide.WaveCoordinator);
         }
