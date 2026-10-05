@@ -74,19 +74,20 @@ namespace Game.Core
 
         /// <summary>팔레트 배치(점유 칸이면 기존 유닛은 배치에서 빠짐).</summary>
         public static FormationEditResult Place(FormationLayout layout, IFormationUnit unit, int targetSlotIndex, Func<string, IFormationUnit> lookup, IReadOnlyList<FormationAreaPin> pins,
-            WagonPlacement wagonPlacement = WagonPlacement.WithinArea)
+            WagonPlacement wagonPlacement = WagonPlacement.WithinArea, ConnectivityRule connectivity = ConnectivityRule.RequireConnected)
         {
-            var placeRejection = CanPlaceAt(FormationArea.Compute(layout, lookup, pins), unit, targetSlotIndex, wagonPlacement);
+            var before = FormationArea.Compute(layout, lookup, pins);
+            var placeRejection = CanPlaceAt(before, unit, targetSlotIndex, wagonPlacement);
             if (placeRejection != FormationEditRejection.None) return FormationEditResult.Reject(placeRejection);
 
             var candidate = layout.Clone();
             candidate.SetUnitId(targetSlotIndex, unit.Id);
-            return Validate(candidate, lookup, pins);
+            return Validate(candidate, lookup, pins, connectivity, before.ComponentCount);
         }
 
         /// <summary>칸 → 칸 이동(목표가 점유돼 있으면 교환). 목표 칸은 편집 전 영역 안이어야 한다(마차 자유 배치면 마차는 예외).</summary>
         public static FormationEditResult Move(FormationLayout layout, int originSlotIndex, int targetSlotIndex, Func<string, IFormationUnit> lookup, IReadOnlyList<FormationAreaPin> pins,
-            WagonPlacement wagonPlacement = WagonPlacement.WithinArea)
+            WagonPlacement wagonPlacement = WagonPlacement.WithinArea, ConnectivityRule connectivity = ConnectivityRule.RequireConnected)
         {
             var unit = lookup?.Invoke(layout.GetUnitId(originSlotIndex));
             if (unit == null) return FormationEditResult.Reject(FormationEditRejection.OutsideArea);
@@ -101,14 +102,17 @@ namespace Game.Core
 
             var candidate = layout.Clone();
             candidate.Swap(originSlotIndex, targetSlotIndex);
-            return Validate(candidate, lookup, pins);
+            return Validate(candidate, lookup, pins, connectivity, before.ComponentCount);
         }
 
-        public static FormationEditResult Remove(FormationLayout layout, int slotIndex, Func<string, IFormationUnit> lookup, IReadOnlyList<FormationAreaPin> pins)
+        public static FormationEditResult Remove(FormationLayout layout, int slotIndex, Func<string, IFormationUnit> lookup, IReadOnlyList<FormationAreaPin> pins,
+            ConnectivityRule connectivity = ConnectivityRule.RequireConnected)
         {
+            // 편집 전 덩어리 수는 NoNewSplit에서만 쓴다 - 기본 기준 호출에 영역 계산을 한 번 더 붙이지 않는다.
+            var beforeComponentCount = connectivity == ConnectivityRule.NoNewSplit ? FormationArea.Compute(layout, lookup, pins).ComponentCount : 1;
             var candidate = layout.Clone();
             candidate.Clear(slotIndex);
-            return Validate(candidate, lookup, pins);
+            return Validate(candidate, lookup, pins, connectivity, beforeComponentCount);
         }
 
         /// <summary>
@@ -116,8 +120,11 @@ namespace Game.Core
         /// 판정한다 - 시설도 마차를 잇기 때문에(기획 59번 §3.3) 시설 해제로 연결이 끊기는지는 해제 후에야 알 수 있다. 끊기면 거부하고, 후보는 사본이라
         /// 해제도 반영되지 않는다. 시설을 해제하면 대열이 줄어 캐릭터가 추가로 밖이 될 수 있어 해제할 유닛이 없을 때까지 반복한다(마차는 자기 칸이 늘
         /// 자기 영역 안이라 해제되지 않는다).
+        /// 연결 기준이 NoNewSplit이면 "모두 연결" 대신 최종 덩어리 수가 beforeComponentCount(편집 전 배치의 덩어리 수) 이하인지 본다(설계 79번 §5.5).
+        /// 편집 전 덩어리 수는 후보 배치로는 알 수 없어 호출자가 넘긴다 - Place/Move/Remove는 원본 배치로 계산해 넘긴다.
         /// </summary>
-        public static FormationEditResult Validate(FormationLayout candidate, Func<string, IFormationUnit> lookup, IReadOnlyList<FormationAreaPin> pins)
+        public static FormationEditResult Validate(FormationLayout candidate, Func<string, IFormationUnit> lookup, IReadOnlyList<FormationAreaPin> pins,
+            ConnectivityRule connectivity = ConnectivityRule.RequireConnected, int beforeComponentCount = 1)
         {
             var released = new List<string>();
             FormationArea area;
@@ -138,7 +145,10 @@ namespace Game.Core
                 if (!releasedThisPass) break;
             }
 
-            if (!area.WagonsConnected) return FormationEditResult.Reject(FormationEditRejection.Disconnected);
+            var connected = connectivity == ConnectivityRule.NoNewSplit
+                ? area.ComponentCount <= Math.Max(1, beforeComponentCount)
+                : area.WagonsConnected;
+            if (!connected) return FormationEditResult.Reject(FormationEditRejection.Disconnected);
 
             return FormationEditResult.Accept(candidate, released);
         }

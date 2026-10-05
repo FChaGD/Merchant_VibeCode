@@ -23,5 +23,18 @@ namespace Game.Core.Tests
 
         [Test]
         public void CharactersRemain_NoFacilities_NotDefeated() => Assert.IsFalse(BattleDefeatRule.IsDefeated(1, 1, 2, 0));
+
+        // 패배 원인(설계 79번 §4.1) - 둘 다 성립하면 마차 전멸이 우선(기획 78번 §4-27).
+        [Test]
+        public void Cause_AllWagons() => Assert.AreEqual(BattleDefeatCause.AllWagonsDestroyed, BattleDefeatRule.ResolveCause(2, 0, 3, 1));
+
+        [Test]
+        public void Cause_NoCombatants() => Assert.AreEqual(BattleDefeatCause.NoCombatants, BattleDefeatRule.ResolveCause(2, 1, 0, 0));
+
+        [Test]
+        public void Cause_Both_PrefersWagons() => Assert.AreEqual(BattleDefeatCause.AllWagonsDestroyed, BattleDefeatRule.ResolveCause(1, 0, 0, 0));
+
+        [Test]
+        public void Cause_NoWagonBattle_Condition1NotApplied() => Assert.AreEqual(BattleDefeatCause.None, BattleDefeatRule.ResolveCause(0, 0, 1, 0));
     }
 }

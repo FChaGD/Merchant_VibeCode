@@ -53,7 +53,7 @@ namespace Game.Core
             AddSection(new InventorySection(DefaultSectionId, string.Empty, InventoryShape.Rectangle(width, height)));
         }
 
-        /// <summary>섹션을 끝에 추가한다. 같은 Id가 이미 있으면 false. 섹션 제거·모양 변경은 지원하지 않는다(마차 판매·손실은 기획 63번 범위 밖).</summary>
+        /// <summary>섹션을 끝에 추가한다. 같은 Id가 이미 있으면 false. 모양 변경은 지원하지 않는다 - 마차가 바뀌면 섹션을 제거하고 새로 추가한다.</summary>
         public bool AddSection(InventorySection section)
         {
             if (section == null || section.Shape == null || sectionsById.ContainsKey(section.Id)) return false;
@@ -63,7 +63,38 @@ namespace Game.Core
             return true;
         }
 
+        /// <summary>
+        /// 섹션을 제거한다(파괴 마차 정리, 기획 77번 §3-8·설계 79번 §5.2). 배치된 아이템이 남아 있으면 false - 아이템을 어디로 보낼지
+        /// (임시 보관·환급 여부)는 저장소의 정책이라, 그리드가 몰래 옮기거나 지우지 않고 호출자가 먼저 비우게 한다.
+        /// </summary>
+        public bool RemoveSection(string sectionId)
+        {
+            if (sectionId == null || !sectionsById.ContainsKey(sectionId)) return false;
+
+            foreach (var item in placedById.Values)
+            {
+                if (item.SectionId == sectionId) return false;
+            }
+
+            sectionsById.Remove(sectionId);
+            sections.RemoveAll(section => section.Id == sectionId);
+            return true;
+        }
+
         public bool HasSection(string sectionId) => sectionId != null && sectionsById.ContainsKey(sectionId);
+
+        /// <summary>
+        /// 새 인스턴스를 임시 보관 끝에 넣는다(전투 회수 물품, 설계 79번 §5.1). 칸을 점유하지 않으므로 실패하지 않는다 - 회수 물품이
+        /// 들어갈 자리가 없어 사라지는 일이 없게, 배치는 플레이어가 적재 단계에서 직접 한다.
+        /// </summary>
+        public InventoryItemInstance StageNew(IInventoryItemDefinition definition)
+        {
+            if (definition == null) throw new ArgumentNullException(nameof(definition));
+
+            var staged = new InventoryItemInstance(Guid.NewGuid().ToString("N"), definition, default, 0, isStaged: true);
+            stagedItems.Add(staged);
+            return staged;
+        }
 
         // quarterTurns: 구매 자동 배치가 회전한 자리를 쓸 수 있도록 받는다(Docs/설계/50번 §5.1).
         public bool TryPlace(IInventoryItemDefinition definition, GridPosition position, out InventoryItemInstance placed, int quarterTurns = 0, string sectionId = null)
@@ -244,7 +275,7 @@ namespace Game.Core
             return true;
         }
 
-        // 섹션은 줄어들지 않고 배치는 항상 FitsAndFree를 거치므로 점유 범위는 늘 섹션 안이다.
+        // 섹션 모양은 바뀌지 않고(제거는 빈 섹션만) 배치는 항상 FitsAndFree를 거치므로 점유 범위는 늘 섹션 안이다.
         private static void Mark(SectionState state, InventoryItemInstance item, string instanceId)
         {
             for (var x = item.Position.X; x < item.Position.X + item.Width; x++)

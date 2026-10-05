@@ -25,14 +25,23 @@ namespace Game.Core
         // 가지므로 IDamageable이 아니라 여기 둔다.
         public float HalfSize { get; }
         public ProtectedUnitKind Kind { get; }
+        // 로스터 Id(= 상단 물류품 섹션 Id, 설계 64번 §3.2). 화물 원장이 "어느 마차의 화물인지" 찾는 키(설계 79번 §3.1).
+        // 화물과 무관한 생성 경로(테스트 등)는 null.
+        public string UnitId { get; }
+        // 마차는 파괴돼도 잔해로 남아 길을 막는다(기획 77번 §4-9). 시설은 지금처럼 파괴되면 장애물에서 빠진다.
+        public bool BlocksMovement => Kind == ProtectedUnitKind.Wagon || IsAlive;
         public event Action OnDied;
         public event Action<float> OnDamaged;
+        // 체력 감소 직후·파괴 판정 전에 발생 - 마지막 일격도 피격 판정(화물 손실)을 먼저 받고 그 뒤 파괴 판정이 남은
+        // 물품에 적용돼야 한다(기획 77번 §4-1·§4-6, 설계 79번 §3.1). OnDamaged와 따로 두는 이유는 공격자(도난 주체)를 넘겨야 해서다.
+        public event Action<BattleProtectedUnit, IBattleCombatant> OnHitBy;
 
         private float currentHp;
 
-        public BattleProtectedUnit(Vector2 position, float maxHp, Sprite icon, float halfSize, ProtectedUnitKind kind)
+        public BattleProtectedUnit(Vector2 position, float maxHp, Sprite icon, float halfSize, ProtectedUnitKind kind, string unitId = null)
         {
             Position = position;
+            UnitId = unitId;
             HalfSize = halfSize;
             Kind = kind;
             MaxHp = maxHp;
@@ -40,13 +49,13 @@ namespace Game.Core
             currentHp = maxHp;
         }
 
-        // attacker는 쓰지 않는다 - 이동/공격하지 않는 대상이라 "누가 때렸는지"를 활용할 주체가
-        // 없다(IDamageable 계약은 지키되 필요 없는 정보는 무시, LSP).
+        // attacker는 반격에 쓰지 않는다(이동/공격하지 않는 대상) - 화물 원장이 도난 주체로 쓰도록 OnHitBy로 넘기기만 한다.
         public void TakeDamage(float amount, IBattleCombatant attacker)
         {
             if (!IsAlive) return;
             currentHp = Mathf.Max(0f, currentHp - amount);
             OnDamaged?.Invoke(amount);
+            OnHitBy?.Invoke(this, attacker);
             if (!IsAlive)
             {
                 OnDied?.Invoke();

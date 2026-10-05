@@ -62,8 +62,9 @@ namespace Game.Core
 
     /// <summary>
     /// 전투 하나의 마차·시설 장애물 정보 + 조향 계산(Docs/기획/71번, 설계 72번). 전투 시작 때 한 번 만든다 - 마차·시설은
-    /// 움직이지 않는다. 파괴돼도 전투가 계속되므로(Docs/기획/73번) 조회할 때마다 살아 있는지 보고 파괴된 것은 건너뛴다 -
-    /// 목록을 다시 만들면 캐릭터가 기억한 장애물 Id(ObstacleAvoidanceState)가 어긋난다(설계 74번 §2.6).
+    /// 움직이지 않는다. 파괴돼도 전투가 계속되므로(Docs/기획/73번) 조회할 때마다 길을 막는지(BlocksMovement) 보고 아닌 것은
+    /// 건너뛴다 - 목록을 다시 만들면 캐릭터가 기억한 장애물 Id(ObstacleAvoidanceState)가 어긋난다(설계 74번 §2.6). 마차는
+    /// 파괴돼도 잔해로 남아 계속 막고, 시설은 파괴되면 빠진다(기획 77번 §4-9, 설계 79번 §3.4).
     /// 마차·시설 하나하나만 피하고, 붙은 둘 사이는 지나갈 수 있되 느려진다(2026-10-01 전제 변경, 설계 72번 §12) - 붙은 마차를
     /// 하나로 묶어 바깥으로 돌게 했더니 ㄷ자 안쪽에 들어간 캐릭터가 빠져나오지 못했고, 막으려면 길 찾기가 필요해 구조가 커졌다.
     /// "붙은" = 정비창 칸 8방향 이웃(마차·시설 구분 없음). 한 칸 이상 떨어진 둘 사이는 보통 길이다.
@@ -71,16 +72,17 @@ namespace Game.Core
     public sealed class BattleObstacleField : IObstacleNavigator
     {
         private readonly ObstacleShape[] obstacles;
-        private readonly IDamageable[] owners;
-        // 붙은 두 마차·시설 중심을 잇는 감속 구역(반폭 = 둘 중 큰 장애물 반경). 양 끝이 모두 살아 있을 때만 유효.
+        // 종류(마차/시설)에 따라 파괴 뒤에도 막는지가 달라 구체 타입으로 보관한다.
+        private readonly BattleProtectedUnit[] owners;
+        // 붙은 두 마차·시설 중심을 잇는 감속 구역(반폭 = 둘 중 큰 장애물 반경). 양 끝이 모두 길을 막을 때만 유효.
         private readonly ObstacleShape[] passages;
         private readonly (int A, int B)[] passageEnds;
 
         public IReadOnlyList<ObstacleShape> Obstacles => obstacles;
         public IReadOnlyList<ObstacleShape> Passages => passages;
 
-        public bool IsObstacleActive(int index) => owners[index].IsAlive;
-        public bool IsPassageActive(int index) => owners[passageEnds[index].A].IsAlive && owners[passageEnds[index].B].IsAlive;
+        public bool IsObstacleActive(int index) => owners[index].BlocksMovement;
+        public bool IsPassageActive(int index) => owners[passageEnds[index].A].BlocksMovement && owners[passageEnds[index].B].BlocksMovement;
 
         /// <summary>장애물이 없으면 NullObstacleNavigator를 돌려준다 - 마차 없는 전투에서 계산 비용이 없다.</summary>
         public static IObstacleNavigator Create(IReadOnlyList<ProtectedPlacement> placements) =>
@@ -90,7 +92,7 @@ namespace Game.Core
         {
             var count = placements.Count;
             obstacles = new ObstacleShape[count];
-            owners = new IDamageable[count];
+            owners = new BattleProtectedUnit[count];
             for (var i = 0; i < count; i++)
             {
                 var unit = placements[i].Unit;
@@ -111,7 +113,7 @@ namespace Game.Core
                 for (var i = 0; i < obstacles.Length; i++)
                 {
                     var shape = obstacles[i];
-                    if (!owners[i].IsAlive || !shape.IsWithin(destination, shape.AvoidRadius)) continue;
+                    if (!owners[i].BlocksMovement || !shape.IsWithin(destination, shape.AvoidRadius)) continue;
                     destination = PushOutTo(shape, destination, shape.AvoidRadius, fallbackFrom: position);
                 }
             }
@@ -147,7 +149,7 @@ namespace Game.Core
             for (var i = 0; i < obstacles.Length; i++)
             {
                 var shape = obstacles[i];
-                if (owners[i].IsAlive && shape.IsWithin(position, shape.Radius))
+                if (owners[i].BlocksMovement && shape.IsWithin(position, shape.Radius))
                 {
                     position = PushOutTo(shape, position, shape.Radius, fallbackFrom: position + Vector2.right);
                 }
@@ -164,8 +166,8 @@ namespace Game.Core
             return 1f;
         }
 
-        // 이동 선분을 회피 반경 안으로 지나가는 장애물 중 가장 가까운 것. 파괴된 것, 공격 대상, 멀리 있는 것(가장자리까지 감지
-        // 거리 초과), 이미 멀어지는 방향인 것은 무시한다.
+        // 이동 선분을 회피 반경 안으로 지나가는 장애물 중 가장 가까운 것. 길을 막지 않는 것(파괴된 시설), 공격 대상, 멀리 있는
+        // 것(가장자리까지 감지 거리 초과), 이미 멀어지는 방향인 것은 무시한다.
         private bool TryFindBlockingObstacle(Vector2 position, Vector2 destination, Vector2 direction, IDamageable ignored, out ObstacleShape blocking)
         {
             blocking = default;
@@ -173,7 +175,7 @@ namespace Game.Core
             var nearest = float.MaxValue;
             for (var i = 0; i < obstacles.Length; i++)
             {
-                if (owners[i] == ignored || !owners[i].IsAlive) continue;
+                if (IsAttackTarget(owners[i], ignored) || !owners[i].BlocksMovement) continue;
 
                 var shape = obstacles[i];
                 var offset = position - shape.Center;
@@ -189,6 +191,11 @@ namespace Game.Core
             }
             return found;
         }
+
+        // 잔해(BattleWagonWreck)는 마차와 별도 객체라 참조 비교만으로는 "공격 대상"으로 걸리지 않는다 - 잔해를 치러 가는 적이
+        // 그 자리 마차를 피해 돌기만 하지 않도록 잔해의 원래 마차도 공격 대상으로 본다(설계 79번 §3.3).
+        private static bool IsAttackTarget(BattleProtectedUnit owner, IDamageable ignored) =>
+            ignored != null && (ReferenceEquals(owner, ignored) || (ignored is BattleWagonWreck wreck && ReferenceEquals(wreck.Wagon, owner)));
 
         // 두 접선 중 목적지 방향에서 덜 벗어나는 쪽. 거의 같으면(정면) 오른쪽(기획 71번 §4-4·5).
         private static int ChooseSide(ObstacleShape shape, Vector2 position, Vector2 direction)

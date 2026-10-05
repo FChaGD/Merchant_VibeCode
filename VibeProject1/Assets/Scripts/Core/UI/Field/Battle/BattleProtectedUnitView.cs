@@ -8,6 +8,8 @@ namespace Game.Core
     /// 그대로 재사용한다 - 배치할 때 본 모양과 전투에서 보는 모양이 일치하도록, 별도의 사각형
     /// Placeholder 도형을 새로 만들지 않는다. 아이콘이 없는 예외적 경우에만 단색 사각형으로 대체한다.
     /// 이동 없음(기획 §4), 파괴 연출만 있다. 월드 오브젝트(SpriteRenderer) 기반이다(Docs/설계/13번).
+    /// 마차는 파괴돼도 잔해로 남아 길을 막고 표적이 될 수 있어(Docs/기획/77번 §4-8) 제거하지 않고 연두색으로 바꾼다 - 잔해 표적
+    /// (BattleWagonWreck)은 별도 뷰 없이 이 뷰가 그대로 보여준다. 시설은 지금처럼 사라진다.
     /// </summary>
     public class BattleProtectedUnitView : MonoBehaviour
     {
@@ -19,6 +21,7 @@ namespace Game.Core
         private const float DeathFadeSeconds = 0.3f;
         private static readonly Color FallbackBodyColor = new(0.85f, 0.75f, 0.3f, 1f);
         private static readonly Color FlashColor = Color.white;
+        private static readonly Color WreckColor = new(0.6f, 0.9f, 0.4f, 1f);
         private const int SortingOrderYScale = 100;
 
         private IDamageable unit;
@@ -55,9 +58,26 @@ namespace Game.Core
         }
 
         private void HandleDamaged(float amount) => StartCoroutine(FlashWhite());
-        private void HandleDestroyed() => StartCoroutine(FadeAndDestroy());
 
-        private IEnumerator FlashWhite() => BattleHitFlash.Run(bodyRenderer, FlashColor, baseColor, HitFlashSeconds);
+        private void HandleDestroyed()
+        {
+            if (unit is BattleProtectedUnit { Kind: ProtectedUnitKind.Wagon })
+            {
+                ShowWreck();
+                return;
+            }
+            StartCoroutine(FadeAndDestroy());
+        }
+
+        // 복원 시점에 살아 있을 때만 원래 색으로 - 마지막 일격의 흰색 플래시가 잔해 색을 덮어쓰지 않게 한다.
+        private IEnumerator FlashWhite() => BattleHitFlash.Run(bodyRenderer, FlashColor, baseColor, HitFlashSeconds, () => unit.IsAlive);
+
+        // 잔해는 체력이 없어 게이지를 숨긴다(설계 79번 §3.4). 뷰는 전투 정리(BattleViewPresenter) 때 다른 뷰와 함께 제거된다.
+        private void ShowWreck()
+        {
+            bodyRenderer.color = WreckColor;
+            gaugeView?.SetAlpha(0f);
+        }
 
         private IEnumerator FadeAndDestroy()
         {

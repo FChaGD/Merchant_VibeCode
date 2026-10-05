@@ -199,5 +199,46 @@ namespace Game.Core.Tests
             Assert.IsFalse(grid.AddSection(new InventorySection("a", string.Empty, InventoryShape.Rectangle(2, 2))));
             Assert.AreEqual(1, grid.Sections.Count);
         }
+
+        [Test]
+        public void StageNew_AddsStagedInstance()
+        {
+            var grid = new InventoryGrid(2, 2);
+
+            var staged = grid.StageNew(OneByOne);
+
+            Assert.IsTrue(staged.IsStaged);
+            Assert.AreEqual(OneByOne, staged.Definition);
+            Assert.AreEqual(1, grid.StagedItems.Count);
+            Assert.AreEqual(staged.InstanceId, grid.StagedItems[0].InstanceId);
+            Assert.AreEqual(0, grid.Items.Count);
+        }
+
+        [Test]
+        public void RemoveSection_EmptySection_Removed()
+        {
+            var grid = new InventoryGrid();
+            grid.AddSection(new InventorySection("a", string.Empty, InventoryShape.Rectangle(1, 1)));
+            grid.AddSection(new InventorySection("b", string.Empty, InventoryShape.Rectangle(1, 1)));
+
+            Assert.IsTrue(grid.RemoveSection("a"));
+
+            Assert.IsFalse(grid.HasSection("a"));
+            Assert.AreEqual(1, grid.Sections.Count);
+            Assert.AreEqual("b", grid.Sections[0].Id);
+        }
+
+        [Test]
+        public void RemoveSection_WithItems_ReturnsFalse()
+        {
+            var grid = new InventoryGrid();
+            grid.AddSection(new InventorySection("a", string.Empty, InventoryShape.Rectangle(1, 1)));
+            grid.TryPlace(OneByOne, new GridPosition(0, 0), out _, 0, "a");
+
+            // 아이템 처리(임시 보관·환급 여부)는 호출자의 정책이다 - 그리드가 몰래 지우지 않는다.
+            Assert.IsFalse(grid.RemoveSection("a"));
+            Assert.IsTrue(grid.HasSection("a"));
+            Assert.IsTrue(grid.TryGetAt("a", new GridPosition(0, 0), out _));
+        }
     }
 }

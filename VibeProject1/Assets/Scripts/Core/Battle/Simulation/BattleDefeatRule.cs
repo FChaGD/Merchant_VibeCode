@@ -6,13 +6,17 @@ namespace Game.Core
     /// </summary>
     public static class BattleDefeatRule
     {
-        public static bool IsDefeated(int totalWagons, int aliveWagons, int aliveCharacters, int aliveFacilities)
+        public static bool IsDefeated(int totalWagons, int aliveWagons, int aliveCharacters, int aliveFacilities) =>
+            ResolveCause(totalWagons, aliveWagons, aliveCharacters, aliveFacilities) != BattleDefeatCause.None;
+
+        // 원인까지 구분한다(설계 79번 §4.1) - 둘 다 성립하면 조건 1(마차 전멸)을 우선한다(기획 78번 §4-27).
+        public static BattleDefeatCause ResolveCause(int totalWagons, int aliveWagons, int aliveCharacters, int aliveFacilities)
         {
             // 조건 1 - 모든 마차 파괴. 마차 0대 전투는 시작부터 참이 되므로 적용하지 않는다(기획 73번 §4-1).
-            var allWagonsDestroyed = totalWagons > 0 && aliveWagons == 0;
+            if (totalWagons > 0 && aliveWagons == 0) return BattleDefeatCause.AllWagonsDestroyed;
             // 조건 2 - 전투 가능 아군 없음. 캐릭터(사망·도주 제외)와 시설(파괴 제외)을 함께 센다.
-            var noFightingAllies = aliveCharacters == 0 && aliveFacilities == 0;
-            return allWagonsDestroyed || noFightingAllies;
+            if (aliveCharacters == 0 && aliveFacilities == 0) return BattleDefeatCause.NoCombatants;
+            return BattleDefeatCause.None;
         }
     }
 }

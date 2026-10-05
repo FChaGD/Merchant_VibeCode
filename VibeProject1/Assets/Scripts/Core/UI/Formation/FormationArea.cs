@@ -28,6 +28,9 @@ namespace Game.Core
     ///   있다(2026-09-29 실전 확인, 사용자 결정).
     /// - 연결 판정(연결 칸): 자리 칸 + 자리 칸 위 시설의 영역(2026-09-29 개정, 기획 59번 §3.3 - 시설도 마차를 잇는다). 4방향으로 맞닿은 칸을
     ///   한 덩어리로 보고, 모든 마차가 한 덩어리에 있으면 연결.
+    /// - 덩어리 라벨링(설계 79번 §5.5): 연결 여부(bool)만으로는 "끊어진 대열을 더 끊지만 않으면 허용"(ConnectivityRule.NoNewSplit)과
+    ///   "가장 큰 덩어리 외 붉은 표시"를 판정할 수 없어, 연결 칸 전체를 덩어리 번호로 나눈다. 번호는 칸 번호가 작은 칸부터 매겨 같은 배치면
+    ///   항상 같은 번호가 나온다(가장 큰 덩어리 동률 판정이 실행마다 달라지지 않게).
     /// - 자리 칸 밖 시설은 대열·연결 어디에도 기여하지 않는다(설계 60번 §14.2) - 곧 해제될 시설이 계산상 연결을 이어 주면 판정 순서에 따라
     ///   결과가 달라진다. 그런 시설은 FormationAreaRules.Validate가 해제한다.
     /// </summary>
@@ -43,13 +46,19 @@ namespace Game.Core
         private readonly HashSet<int> wagonCells = new();
         private readonly HashSet<int> facilityCells = new();
         private readonly List<int> wagonSlots = new();
+        // 연결 칸 → 덩어리 번호. 마차가 없는 덩어리(핀·시설 영역만)도 번호를 받는다.
+        private readonly Dictionary<int, int> componentBySlot = new();
 
         public int ColumnCount { get; }
         public int RowCount { get; }
         public int AnchorSlotIndex { get; }
         public IReadOnlyCollection<int> Cells => cells;
         public int WagonCount => wagonSlots.Count;
-        public bool WagonsConnected { get; }
+        public bool WagonsConnected => ComponentCount <= 1;
+        /// <summary>마차가 속한 덩어리 수. 마차가 0~1대면 1(끊어질 대상이 없음).</summary>
+        public int ComponentCount { get; }
+        /// <summary>마차가 가장 많은 덩어리(동률이면 칸이 많은 쪽, 그래도 같으면 번호가 작은 쪽). 마차가 없으면 -1.</summary>
+        public int LargestComponentId { get; }
         public RectInt Bounds { get; }
         /// <summary>마차 칸 열·행의 평균(마차가 없으면 기준 칸) - 전투 대형 중심(설계 60번 §11-4).</summary>
         public Vector2 WagonCenter { get; }
@@ -115,7 +124,10 @@ namespace Game.Core
             connectCells.UnionWith(hostCells);
             connectCells.UnionWith(facilityCells);
 
-            WagonsConnected = AreAllInOneComponent(wagonSlots, connectCells);
+            var componentCellCounts = LabelComponents();
+            var (componentCount, largestComponentId) = SummarizeWagonComponents(componentCellCounts);
+            ComponentCount = componentCount;
+            LargestComponentId = largestComponentId;
             Bounds = ComputeBounds();
             WagonCenter = ComputeWagonCenter();
         }
@@ -130,6 +142,9 @@ namespace Game.Core
         public bool IsWagonCell(int slotIndex) => wagonCells.Contains(slotIndex);
 
         public bool IsFacilityCell(int slotIndex) => facilityCells.Contains(slotIndex);
+
+        /// <summary>이 칸이 속한 덩어리 번호. 연결 칸이 아니면 -1.</summary>
+        public int GetComponentOf(int slotIndex) => componentBySlot.TryGetValue(slotIndex, out var id) ? id : -1;
 
         /// <summary>이 유닛이 이 칸에 있을 수 있는지 - 시설은 자리 칸(마차·핀 영역) 안만, 나머지는 대열 칸 전체.</summary>
         public bool CanHost(IFormationUnit unit, int slotIndex)
@@ -164,36 +179,77 @@ namespace Game.Core
             target.Add(row * ColumnCount + column);
         }
 
-        private bool AreAllInOneComponent(List<int> anchors, HashSet<int> connectCells)
+        // 연결 칸을 4방향 BFS로 덩어리 번호를 매긴다. 칸 번호 순으로 시작 칸을 골라 번호가 배치에 대해 결정적이다. 반환: 덩어리별 칸 수.
+        private List<int> LabelComponents()
         {
-            if (anchors.Count <= 1) return true;
-
-            var visited = new HashSet<int> { anchors[0] };
+            var cellCounts = new List<int>();
             var queue = new Queue<int>();
-            queue.Enqueue(anchors[0]);
-            while (queue.Count > 0)
+            for (var start = 0; start < ColumnCount * RowCount; start++)
             {
-                var current = queue.Dequeue();
-                var column = current % ColumnCount;
-                var row = current / ColumnCount;
-                Visit(column - 1, row);
-                Visit(column + 1, row);
-                Visit(column, row - 1);
-                Visit(column, row + 1);
-            }
+                if (!connectCells.Contains(start) || componentBySlot.ContainsKey(start)) continue;
 
-            foreach (var anchor in anchors)
-            {
-                if (!visited.Contains(anchor)) return false;
+                var id = cellCounts.Count;
+                var count = 0;
+                componentBySlot[start] = id;
+                queue.Enqueue(start);
+                while (queue.Count > 0)
+                {
+                    var current = queue.Dequeue();
+                    count++;
+                    var column = current % ColumnCount;
+                    var row = current / ColumnCount;
+                    Visit(column - 1, row, id);
+                    Visit(column + 1, row, id);
+                    Visit(column, row - 1, id);
+                    Visit(column, row + 1, id);
+                }
+                cellCounts.Add(count);
             }
-            return true;
+            return cellCounts;
 
-            void Visit(int column, int row)
+            void Visit(int column, int row, int id)
             {
                 if (column < 0 || column >= ColumnCount || row < 0 || row >= RowCount) return;
                 var index = row * ColumnCount + column;
-                if (connectCells.Contains(index) && visited.Add(index)) queue.Enqueue(index);
+                if (connectCells.Contains(index) && !componentBySlot.ContainsKey(index))
+                {
+                    componentBySlot[index] = id;
+                    queue.Enqueue(index);
+                }
             }
+        }
+
+        // 마차 칸의 덩어리 번호로 덩어리 수·가장 큰 덩어리를 구한다. 마차 칸은 자기 모양의 기준 칸이라 항상 연결 칸이지만, 혹시 빠지면
+        // 연결되지 않은 것으로 본다(이전 bool 판정과 같은 결과) - 그 마차 하나만의 덩어리로 센다.
+        private (int count, int largest) SummarizeWagonComponents(List<int> cellCounts)
+        {
+            if (wagonSlots.Count == 0) return (1, -1);
+
+            var wagonsByComponent = new Dictionary<int, int>();
+            var nextIsolatedId = cellCounts.Count;
+            foreach (var slot in wagonSlots)
+            {
+                var id = componentBySlot.TryGetValue(slot, out var labeled) ? labeled : nextIsolatedId++;
+                wagonsByComponent[id] = wagonsByComponent.TryGetValue(id, out var wagons) ? wagons + 1 : 1;
+            }
+
+            var largest = -1;
+            foreach (var pair in wagonsByComponent)
+            {
+                var id = pair.Key;
+                var wagons = pair.Value;
+                if (largest < 0) { largest = id; continue; }
+
+                var largestWagons = wagonsByComponent[largest];
+                var cellsOfId = id < cellCounts.Count ? cellCounts[id] : 1;
+                var cellsOfLargest = largest < cellCounts.Count ? cellCounts[largest] : 1;
+                if (wagons > largestWagons
+                    || (wagons == largestWagons && (cellsOfId > cellsOfLargest || (cellsOfId == cellsOfLargest && id < largest))))
+                {
+                    largest = id;
+                }
+            }
+            return (wagonsByComponent.Count, largest);
         }
 
         private RectInt ComputeBounds()

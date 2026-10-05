@@ -14,5 +14,11 @@ namespace Game.Core
 
         void Begin(float durationSeconds);
         void Resume();
+
+        /// <summary>
+        /// 진행 중인 구간의 소요시간을 늘린다(전투 마차 파괴 지연, Docs/설계/79번 §5.4). 경과는 유지하므로 진행도가 그만큼 뒤로
+        /// 물러난다(§15-11). 이미 도착한 구간이거나 0 이하면 무시한다.
+        /// </summary>
+        void ExtendDuration(float seconds);
     }
 }

@@ -11,7 +11,7 @@ namespace Game.Core
     /// (BattleManager 무변경). 승패 조건: 적 전멸(사망+도주)=Victory, 모든 마차 파괴 또는 전투 가능 아군
     /// (캐릭터+시설) 없음=Defeat(Docs/기획/73번).
     /// </summary>
-    public class LiveBattleSimulationRule : MonoBehaviour, IBattleResultRule, IRequiresFormationReader, IRequiresCaravanRoster, IRequiresTacticsReader, IRequiresUnitConditionRepository, IRequiresFieldFormationActivityRepository, IBattleSimulationEvents, IPausableBattleSimulation, IObstacleFieldDebugSource
+    public class LiveBattleSimulationRule : MonoBehaviour, IBattleResultRule, IRequiresFormationReader, IRequiresCaravanRoster, IRequiresTacticsReader, IRequiresUnitConditionRepository, IRequiresFieldFormationActivityRepository, IRequiresTradeGoodsReader, IBattleSimulationEvents, IPausableBattleSimulation, IObstacleFieldDebugSource
     {
         // 직업→역할군 매핑 - 실제 데이터(직업별 항목)는 에디터에서 에셋을 만들어 채운다
         // (Docs/설계/12번 §2.1). 비어있으면 UnitTacticsProfileResolver가 경고 후 기본값으로 대체한다.
@@ -40,7 +40,11 @@ namespace Game.Core
         private ITacticsReader tacticsReader;
         private IUnitConditionRepository unitConditionRepository;
         private IFieldFormationActivityRepository fieldActivityRepository;
+        // 상단 물류품 조회(설계 79번 §3.2) - 없으면(인스톨러 미실행 등) 원장이 비어 화물 손실 없이 전투만 진행된다.
+        private IInventoryReader tradeGoodsReader;
         private BattleSimulationLoop simulation;
+        // 이번 전투의 화물 기록(설계 79번 §3.2) - BuildSimulation()마다 새로 만들고 Report()에서 보고서로 넘긴다.
+        private BattleCargoLedger cargoLedger;
         private Action<BattleResult> onResult;
         private bool resultReported;
         // 이번 전투에 참여한 아군의 unitId - 전투 종료 시 각자 최종 HP를 unitConditionRepository에
@@ -87,6 +91,7 @@ namespace Game.Core
         public void SetCaravanRoster(ICaravanRosterProvider provider) => rosterProvider = provider;
         public void SetTacticsReader(ITacticsReader reader) => tacticsReader = reader;
         public void SetUnitConditionRepository(IUnitConditionRepository repository) => unitConditionRepository = repository;
+        public void SetTradeGoodsReader(IInventoryReader reader) => tradeGoodsReader = reader;
 
         // BattleManager.ResolveDependencies가 IRequiresFieldFormationActivityRepository로 캐스팅해
         // 호출한다(설계 25번 §6.1). 구독은 여기서 한 번만 건다 - 이 세터 자체가 게임 세션당 1회만
@@ -168,7 +173,9 @@ namespace Game.Core
             fieldActivityRepository?.PauseAll();
             // 전투 종료 즉시 유령 표시를 지운다 - 다음 전투 시작(Present())까지 화면에 남아있지 않게 한다.
             OnPendingReinforcementsChanged?.Invoke(Array.Empty<PendingReinforcementInfo>());
-            onResult(new BattleResult(outcome));
+            // 패배 원인·화물 보고서를 함께 넘긴다 - 저장소 반영은 결과 판정 뒤 정산이 한 번에 한다(설계 79번 §4.2·§15-2).
+            var defeatCause = outcome == BattleOutcome.Defeat ? simulation.DefeatCause : BattleDefeatCause.None;
+            onResult(new BattleResult(outcome, defeatCause, cargoLedger?.BuildReport() ?? BattleCargoReport.Empty));
         }
 
         // 전투 중 Field 배치 타이머가 완료됐을 때 호출된다(IFieldFormationActivityRepository.OnActivityCompleted
@@ -257,7 +264,12 @@ namespace Game.Core
             var enemies = BuildEnemies(spawnCenter, enemyMorale, enemyWaveCoordinator, midBattleFleeTravelDistance);
             var protectedUnits = protectedPlacements.Select(placement => placement.Unit).ToList();
 
-            return new BattleSimulationLoop(allies, enemies, protectedUnits, midBattleFieldRadius, spawnRadius, midBattleFrontlineCoordinator, midBattleRangedSurroundCoordinator, midBattleAllyWaveCoordinator, enemyWaveCoordinator);
+            // 화물 원장은 전투 시작 시점 적재 상태의 스냅샷으로 만든다(설계 79번 §3.2). 마차 피격·파괴 구독은 루프보다 먼저
+            // 걸어도 순서 문제가 없다 - 원장은 루프의 생존 카운터와 독립이다. 잔해 목록은 루프가 매 틱 적 표적 후보에 더한다.
+            cargoLedger = new BattleCargoLedger(tradeGoodsReader?.Items ?? (IEnumerable<InventoryItemInstance>)Array.Empty<InventoryItemInstance>(), () => UnityEngine.Random.value);
+            foreach (var unit in protectedUnits) cargoLedger.RegisterWagon(unit);
+
+            return new BattleSimulationLoop(allies, enemies, protectedUnits, midBattleFieldRadius, spawnRadius, midBattleFrontlineCoordinator, midBattleRangedSurroundCoordinator, midBattleAllyWaveCoordinator, enemyWaveCoordinator, cargoLedger.WreckTargets);
         }
 
         private List<IBattleCombatant> BuildAllies(FormationLayout layout)
@@ -384,7 +396,8 @@ namespace Game.Core
                 var row = slotIndex / layout.ColumnCount;
                 var position = FieldPositionLayout.ComputeAllyPosition(column, row, extent);
                 var kind = rosterUnit.Kind == FormationUnitKind.Wagon ? ProtectedUnitKind.Wagon : ProtectedUnitKind.Facility;
-                var unit = new BattleProtectedUnit(position, ProtectedUnitTuning.MaxHp, rosterUnit.Icon, ProtectedUnitTuning.BodySize * 0.5f, kind);
+                // 로스터 Id = 화물 섹션 Id(설계 64번 §3.2) - 화물 원장이 이 마차의 적재 물품을 찾는 키다.
+                var unit = new BattleProtectedUnit(position, ProtectedUnitTuning.MaxHp, rosterUnit.Icon, ProtectedUnitTuning.BodySize * 0.5f, kind, unitId);
                 result.Add(new ProtectedPlacement(unit, column, row));
             }
             return result;

@@ -24,6 +24,9 @@ namespace Game.Core
         // 사기 파동 조율자(Docs/설계/14번 §6) - 진영별로 하나씩, PartyMorale과 같은 자리.
         private readonly MoraleWaveCoordinator allyWaveCoordinator;
         private readonly MoraleWaveCoordinator enemyWaveCoordinator;
+        // 적 표적 후보에 더할 추가 대상(마차 잔해, 설계 79번 §3.3) - 화물 원장이 들고 있는 살아 있는 목록 참조라 전투 중
+        // 잔해가 생기면 다음 틱부터 자연히 후보가 된다. 배틀 테스트·화물 없는 전투는 빈 목록.
+        private readonly IReadOnlyList<IDamageable> extraEnemyTargets;
         private int aliveAllyCount;
         private int aliveEnemyCount;
         private readonly int totalWagonCount;
@@ -42,8 +45,10 @@ namespace Game.Core
         public BattleSimulationLoop(
             List<IBattleCombatant> allies, List<IBattleCombatant> enemies, List<BattleProtectedUnit> protectedUnits,
             float fieldRadius, float spawnRadius, FrontlineFormationCoordinator frontlineCoordinator, RangedSurroundCoordinator rangedSurroundCoordinator,
-            MoraleWaveCoordinator allyWaveCoordinator, MoraleWaveCoordinator enemyWaveCoordinator)
+            MoraleWaveCoordinator allyWaveCoordinator, MoraleWaveCoordinator enemyWaveCoordinator,
+            IReadOnlyList<IDamageable> extraEnemyTargets = null)
         {
+            this.extraEnemyTargets = extraEnemyTargets ?? System.Array.Empty<IDamageable>();
             this.allies = allies;
             this.enemies = enemies;
             this.protectedUnits = protectedUnits;
@@ -126,7 +131,9 @@ namespace Game.Core
         public bool IsAllyWiped => aliveAllyCount <= 0;
         public bool IsEnemyWiped => aliveEnemyCount <= 0;
         // 패배 = 모든 마차 파괴 또는 전투 가능 아군(캐릭터+시설) 없음(Docs/기획/73번, 설계 74번 §2.3).
-        public bool IsDefeated => BattleDefeatRule.IsDefeated(totalWagonCount, aliveWagonCount, aliveAllyCount, aliveFacilityCount);
+        public bool IsDefeated => DefeatCause != BattleDefeatCause.None;
+        // 패배 원인(설계 79번 §4.1) - 전투 뒤 정산이 유닛 전멸 패배만 추가 화물 손실을 적용하려고 구분한다.
+        public BattleDefeatCause DefeatCause => BattleDefeatRule.ResolveCause(totalWagonCount, aliveWagonCount, aliveAllyCount, aliveFacilityCount);
 
         public void Tick(float deltaTime)
         {
@@ -145,9 +152,11 @@ namespace Game.Core
             // 절대 공격하지 않아 "보호 목표 파괴 = 패배"(기획 §9)가 죽은 코드가 된다 - 아군에게는
             // 보호할 대상이 있지만 적에게는 없으므로(캐러밴만 Wagon/Facility를 가진다) 이 목록은
             // 적 쪽에만 필요하다. 매 틱 재구성하지만 지금 규모(아군+보호목표 최대 18)에선 무시할 만하다.
-            var enemyTargets = new List<IDamageable>(allies.Count + protectedUnits.Count);
+            // 잔해(extraEnemyTargets)도 같은 이유로 적 쪽에만 더한다 - 아군은 잔해를 표적으로 삼지 않는다(기획 77번 §4-13).
+            var enemyTargets = new List<IDamageable>(allies.Count + protectedUnits.Count + extraEnemyTargets.Count);
             enemyTargets.AddRange(allies);
             enemyTargets.AddRange(protectedUnits);
+            enemyTargets.AddRange(extraEnemyTargets);
 
             foreach (var unit in allies)
             {

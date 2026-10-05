@@ -45,6 +45,18 @@ namespace Game.Core
             paused = false;
         }
 
+        public void ExtendDuration(float seconds)
+        {
+            if (arrived || seconds <= 0f)
+            {
+                return;
+            }
+
+            durationSeconds += seconds;
+            Progress = Mathf.Clamp01(elapsed / durationSeconds);
+            OnProgressChanged?.Invoke(Progress);
+        }
+
         private void Update()
         {
             if (paused || arrived)

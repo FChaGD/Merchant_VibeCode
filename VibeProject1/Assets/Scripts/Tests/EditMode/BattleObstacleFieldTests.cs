@@ -13,8 +13,10 @@ namespace Game.Core.Tests
         private const float DeltaTime = 0.02f;
 
         // 전투 좌표는 x = 행, y = 열(BattleFieldLayout, 간격 1) - 칸과 위치를 같은 규칙으로 맞춘다.
-        private static ProtectedPlacement At(int column, int row, float halfSize = StandardHalfSize) =>
-            new(new BattleProtectedUnit(new Vector2(row, column), ProtectedUnitTuning.MaxHp, null, halfSize, ProtectedUnitKind.Wagon), column, row);
+        private static ProtectedPlacement At(int column, int row, float halfSize = StandardHalfSize, ProtectedUnitKind kind = ProtectedUnitKind.Wagon) =>
+            new(new BattleProtectedUnit(new Vector2(row, column), ProtectedUnitTuning.MaxHp, null, halfSize, kind), column, row);
+
+        private static ProtectedPlacement FacilityAt(int column, int row) => At(column, row, kind: ProtectedUnitKind.Facility);
 
         private static BattleObstacleField Field(params ProtectedPlacement[] placements) => new(placements);
 
@@ -169,10 +171,25 @@ namespace Game.Core.Tests
         }
 
         [Test]
-        public void DestroyedObstacle_IsIgnored()
+        public void DestroyedWagon_StillBlocks()
         {
-            // 파괴돼도 전투가 계속되므로(기획 73번) 부서진 마차는 피하지도, 빼내지도 않는다(설계 74번 §2.6).
+            // 마차는 파괴돼도 잔해로 남아 길을 막는다(기획 77번 §4-9, 설계 79번 §3.4).
             var placement = At(0, 0);
+            var field = Field(placement);
+            placement.Unit.TakeDamage(ProtectedUnitTuning.MaxHp, null);
+
+            Assert.IsTrue(field.IsObstacleActive(0));
+            var state = default(ObstacleAvoidanceState);
+            field.Steer(new Vector2(-2f, 0f), new Vector2(3f, 0f), null, ref state);
+            Assert.IsTrue(state.HasValue, "직진 경로에 있으면 회피한다");
+            Assert.AreEqual(field.Obstacles[0].Radius, field.ResolvePenetration(new Vector2(0.1f, 0f)).magnitude, Tolerance);
+        }
+
+        [Test]
+        public void DestroyedFacility_DoesNotBlock()
+        {
+            // 시설은 파괴되면 피하지도, 빼내지도 않는다(설계 74번 §2.6 - 기존 동작 유지).
+            var placement = FacilityAt(0, 0);
             var field = Field(placement);
             placement.Unit.TakeDamage(ProtectedUnitTuning.MaxHp, null);
 
@@ -185,13 +202,50 @@ namespace Game.Core.Tests
         }
 
         [Test]
-        public void Passage_WithDestroyedEnd_DoesNotSlow()
+        public void Passage_WithDestroyedFacilityEnd_DoesNotSlow()
         {
-            var a = At(0, 0);
+            var a = FacilityAt(0, 0);
             var field = Field(a, At(1, 0));
             a.Unit.TakeDamage(ProtectedUnitTuning.MaxHp, null);
             Assert.AreEqual(1f, field.GetSpeedMultiplier(new Vector2(0f, 0.5f)), Tolerance);
             Assert.IsFalse(field.IsPassageActive(0));
+        }
+
+        [Test]
+        public void Passage_WithDestroyedWagonEnd_StillSlows()
+        {
+            var a = At(0, 0);
+            var field = Field(a, At(1, 0));
+            a.Unit.TakeDamage(ProtectedUnitTuning.MaxHp, null);
+            Assert.IsTrue(field.IsPassageActive(0));
+            Assert.AreEqual(ObstacleAvoidanceTuning.PassageSpeedMultiplier, field.GetSpeedMultiplier(new Vector2(0f, 0.5f)), Tolerance);
+        }
+
+        [Test]
+        public void Steer_WreckTarget_ItsWagonIsNotAvoided()
+        {
+            // 잔해는 마차와 별도 객체지만, 잔해를 치러 가는 적은 그 자리 마차를 공격 대상처럼 피하지 않는다(설계 79번 §3.3).
+            var wagon = new BattleProtectedUnit(Vector2.zero, ProtectedUnitTuning.MaxHp, null, StandardHalfSize, ProtectedUnitKind.Wagon, "WagonA");
+            var field = Field(new ProtectedPlacement(wagon, 0, 0));
+            var item = new InventoryItemInstance("i1", new StubItemDefinition(), new GridPosition(0, 0), 0, false, "WagonA");
+            var ledger = new BattleCargoLedger(new[] { item }, () => 0.99f); // 피격 없음, 파괴 시 무방비
+            ledger.RegisterWagon(wagon);
+            wagon.TakeDamage(ProtectedUnitTuning.MaxHp, null);
+
+            var state = default(ObstacleAvoidanceState);
+            var direction = field.Steer(new Vector2(-2f, 0f), Vector2.zero, ledger.WreckTargets[0], ref state);
+            Assert.AreEqual(1f, direction.x, Tolerance);
+            Assert.IsFalse(state.HasValue);
+        }
+
+        private sealed class StubItemDefinition : IInventoryItemDefinition
+        {
+            public string Id => "Stub";
+            public string DisplayName => Id;
+            public string Description => string.Empty;
+            public Sprite Icon => null;
+            public int FootprintWidth => 1;
+            public int FootprintHeight => 1;
         }
 
         [Test]

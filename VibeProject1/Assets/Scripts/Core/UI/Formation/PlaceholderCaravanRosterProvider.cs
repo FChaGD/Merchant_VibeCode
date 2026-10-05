@@ -9,12 +9,13 @@ namespace Game.Core
     /// 대체된다.
     /// - 용병: 캐릭터 카탈로그에서 직업별 테이블 순서 앞 2명으로 시작하고, 고용할 때마다 늘어난다(Docs/기획/53번, 설계 54번 §4.2).
     /// - 마차·시설: 마차·시설 카탈로그에서 종류별 첫 행 1개로 시작하고, 마구간 구매로 늘어난다(기획 55번, 설계 56번 §4).
+    ///   전투에서 파괴된 마차는 정산이 보유 목록에서 제거한다(기획 77번 §3-8, 설계 79번 §5.2).
     /// 로스터 목록은 소비자(정비창 팔레트)가 열릴 때마다 다시 읽으므로 추가 통지가 필요 없다 - 시설 화면만 변경 이벤트를 구독한다.
     /// 목록은 항상 "용병(캐릭터 테이블 순) → 마차 → 시설(마차·시설 테이블 순)"으로 다시 채운다. 팔레트가 첫 등장 순서로 줄을 만들기
     /// 때문에, 추가 위치를 따로 계산하지 않고 테이블 순서로 재구성하는 편이 순서가 어긋날 여지가 없다. 같은 List 인스턴스를 비우고
     /// 다시 채워 이미 참조를 쥔 소비자도 최신 목록을 본다.
     /// </summary>
-    public class PlaceholderCaravanRosterProvider : MonoBehaviour, ICaravanRosterProvider, IHiredCharacterRoster, IMercenaryClassIconReader, IOwnedCaravanAssetRoster, ICaravanAssetIconReader, IManagedComponent
+    public class PlaceholderCaravanRosterProvider : MonoBehaviour, ICaravanRosterProvider, IHiredCharacterRoster, IMercenaryClassIconReader, IOwnedCaravanAssetRoster, IOwnedCaravanAssetRemover, ICaravanAssetIconReader, IManagedComponent
     {
         // 기획 53번 §3.2 확정값 - 직업당 시작 보유 인원(테이블 순서 앞에서부터).
         private const int StartingCharactersPerClass = 2;
@@ -46,6 +47,7 @@ namespace Game.Core
             registrar.Register<IMercenaryClassIconReader>(this);
             registrar.Register<IOwnedCaravanAssetRoster>(this);
             registrar.Register<IOwnedCaravanAssetReader>(this);
+            registrar.Register<IOwnedCaravanAssetRemover>(this);
             registrar.Register<ICaravanAssetIconReader>(this);
         }
 
@@ -105,6 +107,20 @@ namespace Game.Core
         {
             if (!TryOwnAsset(id)) return false;
 
+            RebuildRoster();
+            OnOwnedChanged?.Invoke();
+            return true;
+        }
+
+        // 마차·시설만 제거한다 - 용병 해고는 이 경로의 범위가 아니다. 보유 목록 변경 이벤트로 상단 물류품 저장소가 섹션을 함께 제거한다.
+        public bool TryRemoveOwned(string id)
+        {
+            if (assetCatalog == null || id == null || !ownedById.ContainsKey(id)) return false;
+            if (!assetCatalog.TryGet(id, out var profile)) return false;
+            if (!ownedAssetIdsByKind.TryGetValue(profile.Kind, out var ids) || !ids.Remove(id)) return false;
+
+            ownedById.Remove(id);
+            ownedCountByKind[profile.Kind] = CountOwnedOfKind(profile.Kind) - 1;
             RebuildRoster();
             OnOwnedChanged?.Invoke();
             return true;

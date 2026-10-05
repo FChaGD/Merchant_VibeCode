@@ -21,6 +21,12 @@ namespace Game.Core.Tests
                 wagonIds.Add(wagonId);
                 OnOwnedChanged?.Invoke();
             }
+
+            public void Remove(string wagonId)
+            {
+                wagonIds.Remove(wagonId);
+                OnOwnedChanged?.Invoke();
+            }
         }
 
         private class FakeCaravanCatalog : ICaravanAssetCatalogReader
@@ -276,6 +282,63 @@ namespace Game.Core.Tests
 
             repository.TryApplyPlacements(new[] { new ItemPlacement(goldBox.InstanceId, new GridPosition(1, 0), 0) });
 
+            Assert.AreEqual(1, raised);
+        }
+
+        [Test]
+        public void RemoveWithoutRefund_GoldBox_WalletUnchanged()
+        {
+            repository.TryPlaceItem(GoldBoxDefinition, new GridPosition(0, 0), out var goldBox);
+            var amountAfterPlacing = wallet.CurrentAmount;
+
+            // 전투 손실은 환급 대상이 아니다(기획 77번 §4-19, 설계 79번 §5.1).
+            Assert.IsTrue(repository.RemoveWithoutRefund(goldBox.InstanceId));
+            Assert.AreEqual(amountAfterPlacing, wallet.CurrentAmount);
+            Assert.AreEqual(0, repository.Items.Count);
+        }
+
+        [Test]
+        public void StageWithoutCharge_GoldBox_WalletUnchanged()
+        {
+            var startingAmount = wallet.CurrentAmount;
+
+            // 회수 물품은 구매가 아니다 - 골드 상자여도 차감하지 않는다(기획 77번 §4-16).
+            var staged = repository.StageWithoutCharge(GoldBoxDefinition);
+
+            Assert.AreEqual(startingAmount, wallet.CurrentAmount);
+            Assert.IsTrue(staged.IsStaged);
+            Assert.AreEqual(1, repository.StagedItems.Count);
+            Assert.AreEqual("gold-box", repository.StagedItems[0].Definition.Id);
+        }
+
+        [Test]
+        public void DiscardStaged_ClearsStaging_NoRefund()
+        {
+            repository.StageWithoutCharge(GoldBoxDefinition);
+            repository.TryPlaceItem(GoldBoxDefinition, new GridPosition(0, 0), out var goldBox);
+            repository.TryApplyPlacements(new[] { ItemPlacement.ToStaging(goldBox.InstanceId, 0) });
+            var amountBeforeDiscard = wallet.CurrentAmount;
+            var raised = 0;
+            repository.OnChanged += () => raised++;
+
+            repository.DiscardStaged();
+
+            Assert.AreEqual(0, repository.StagedItems.Count);
+            Assert.AreEqual(amountBeforeDiscard, wallet.CurrentAmount);
+            Assert.AreEqual(1, raised);
+        }
+
+        [Test]
+        public void OwnedWagonRemoved_SectionRemoved()
+        {
+            ownedAssets.Add("W2");
+            var raised = 0;
+            repository.OnChanged += () => raised++;
+
+            ownedAssets.Remove("W1");
+
+            Assert.AreEqual(1, repository.Sections.Count);
+            Assert.AreEqual("W2", repository.Sections[0].Id);
             Assert.AreEqual(1, raised);
         }
     }

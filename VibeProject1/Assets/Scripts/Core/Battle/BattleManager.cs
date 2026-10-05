@@ -85,6 +85,14 @@ namespace Game.Core
                 fieldActivityConsumer.SetFieldFormationActivityRepository(fieldActivityRepository);
             }
 
+            // 상단 물류품(설계 79번 §3.2)도 같은 이유로 TryResolve - 저장소는 ITradeGoodsInventoryRepository로만 등록되므로
+            // 그 타입으로 조회해 IInventoryReader로 업캐스트한다(IFormationReader와 동일 패턴). 없으면 화물 손실 없이 전투만 진행된다.
+            if (resultRule is IRequiresTradeGoodsReader tradeGoodsConsumer
+                && registrar.TryResolve<ITradeGoodsInventoryRepository>(out var tradeGoodsRepository))
+            {
+                tradeGoodsConsumer.SetTradeGoodsReader(tradeGoodsRepository);
+            }
+
             // 규칙이 시뮬레이션 생성 이벤트를 노출하면(IBattleSimulationEvents), 그대로 흘려보낸다 -
             // 뷰 계층(FieldUIController/BattleViewPresenter)은 BattleManager만 알면 되고 규칙의 구체
             // 타입(LiveBattleSimulationRule)을 몰라도 된다(DIP).
