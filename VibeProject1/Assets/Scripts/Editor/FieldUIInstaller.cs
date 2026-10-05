@@ -61,7 +61,11 @@ namespace Game.Core.Editor
 
             // BattleView/ResultPopup은 MovementView와 형제로 ContentRoot 바로 아래 둔다 - 결과 팝업은
             // 이동 뷰(도착)/전투 뷰(승패) 양쪽에서 모두 떠야 해서 어느 한쪽 하위에 종속시키지 않는다.
-            BuildBattleView(contentRoot);
+            var battleView = BuildBattleView(contentRoot);
+            // 전투 뷰는 이동 뷰 바로 뒤 형제로 고정한다 - 전투 뷰에는 드래그팬·휠줌용 투명 전체 화면 입력 배경이 있어, 정비창·방향성 지시·
+            // 결과 팝업 같은 오버레이보다 뒤 형제(=위)에 있으면 화면에는 패널이 보여도 마우스 입력을 전투 뷰가 전부 가져간다(2026-10-05 실전 확인 -
+            // 결과 정리 ③에서 정비창이 전투 뷰 위에 떴을 때 조작 불가). 기존 씬은 정비창이 전투 뷰보다 먼저 만들어져 순서가 뒤집혀 있었다.
+            EditorUIBuilder.PlaceSiblingAfter(battleView, movementViewRoot.transform);
             // 전투 유닛 스프라이트 루트/카메라는 Canvas 밖 별도 하이어라키다(Docs/설계/13번 §2). 조립
             // 로직 자체는 EditorUIBuilder 공용 유틸리티에 있다(BattleTestSceneInstaller와 공유).
             EditorUIBuilder.EnsureBattleWorldRoot().gameObject.SetActive(false); // 평소에는 숨김 - FieldCameraController가 전환 시 활성화.
@@ -230,7 +234,7 @@ namespace Game.Core.Editor
         // 전투 뷰 월드 오브젝트 전환(Docs/설계/13-2026-08-29-전투뷰_월드오브젝트_전환_아키텍처.md) - 실제 유닛은
         // 더 이상 이 파일이 만드는 UI 하이어라키에 없다(EditorUIBuilder.EnsureBattleWorldRoot 참고).
         // BattleView에는 배경/라벨/입력 캡처(드래그팬·휠줌)만 남는다.
-        private static void BuildBattleView(Transform parent)
+        private static Transform BuildBattleView(Transform parent)
         {
             var go = EditorUIBuilder.GetOrCreateUIObject(parent, "BattleView");
             EditorUIBuilder.SetStretch(go.GetComponent<RectTransform>());
@@ -264,6 +268,7 @@ namespace Game.Core.Editor
             EditorUIBuilder.GetOrAddComponent<BattleFieldInputForwarder>(go);
 
             go.SetActive(false); // 평소에는 숨김 - FieldCameraController가 전환 시 활성화
+            return go.transform;
         }
 
         private static Transform BuildResultPopup(Transform parent)

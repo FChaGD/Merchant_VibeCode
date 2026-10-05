@@ -7,19 +7,23 @@ namespace Game.Core
     /// 결과 정리 단계(①팝업 ②회수 적재 ③대열 정리 ④마무리)를 순서대로 돌린다(설계 79번 §6). 조율자(FieldEncounterFlowCoordinator)는
     /// "패배 결과 판정 → 정산 반영 → 플로우 시작"만 하고 단계 진행은 여기서 맡는다(SRP). 단계가 이번 Field 씬의 화면 참조를 쥐므로
     /// 조율자가 씬을 로드할 때마다 새로 만든다 - 플로우는 ④에서 씬 전환·종료로 끝나 씬 재로드를 가로질러 진행되지 않는다.
+    /// ④ 마무리는 플레이어가 조작하는 화면이 아니라 항상 마지막에 한 번 실행되는 처리라 조작 단계 목록과 따로 받는다 - 같은 목록에 두면
+    /// ①의 "다음" 판정이 항상 참인 ④까지 세어 버튼이 늘 "다음"이 된다(2026-10-05 검진 지적).
     /// </summary>
     internal sealed class BattleAftermathFlow
     {
         private readonly IReadOnlyList<IBattleAftermathStep> steps;
+        private readonly IBattleAftermathStep finishStep;
 
-        public BattleAftermathFlow(IReadOnlyList<IBattleAftermathStep> steps)
+        public BattleAftermathFlow(IReadOnlyList<IBattleAftermathStep> steps, IBattleAftermathStep finishStep)
         {
             this.steps = steps;
+            this.finishStep = finishStep;
         }
 
         public void Start(BattleAftermathContext context) => RunFrom(0, context);
 
-        /// <summary>step 뒤에 실행될 단계가 하나라도 있는지 - ① 결과 팝업의 버튼 문구용(설계 79번 §6.1).</summary>
+        /// <summary>step 뒤에 실행될 조작 단계가 하나라도 있는지 - ① 결과 팝업의 버튼 문구용(설계 79번 §6.1). 마무리 단계는 세지 않는다.</summary>
         public bool HasStepAfter(IBattleAftermathStep step, BattleAftermathContext context)
         {
             for (var i = IndexOf(step) + 1; i < steps.Count; i++)
@@ -46,6 +50,8 @@ namespace Game.Core
                 });
                 return;
             }
+
+            finishStep?.Run(context, () => { });
         }
 
         private int IndexOf(IBattleAftermathStep step)

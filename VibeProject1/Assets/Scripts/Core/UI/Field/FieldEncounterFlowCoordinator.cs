@@ -91,9 +91,8 @@ namespace Game.Core
                 new ResultPopupStep(resultPopupView, (step, context) => flow.HasStepAfter(step, context)),
                 new CargoRecoveryStep(uiManager, cargoSettlement, cargoRecoveryPanel),
                 new FormationRepairStep(uiManager, repairMode),
-                new FinishStep(fieldUIController, cameraController, fieldActivityRepository, sessionState, gameManager),
             };
-            flow = new BattleAftermathFlow(steps);
+            flow = new BattleAftermathFlow(steps, new FinishStep(fieldUIController, cameraController, fieldActivityRepository, sessionState, gameManager));
             return flow;
         }
 
