@@ -98,6 +98,22 @@ namespace Game.Core.Tests
         }
 
         [Test]
+        public void ReturnsToOriginalCell_NotRelocated_ActivityKept()
+        {
+            // 시설(25,24)이 (24,24)로 옮겨지며 대열이 다시 열 20~28까지 넓어져, 밖이던 캐릭터(26,24)가 원래 칸에 그대로 놓인다 - 재배치가 아니므로
+            // 목록에 넣지 않고, 대열 안을 향하던 이동 활동도 살려 둔다(2026-10-05 검진 지적 3).
+            var layout = TwoWagons();
+            layout.SetUnitId(Slot(25, 24), "Facility01");
+            layout.SetUnitId(Slot(26, 24), "Warrior01");
+            activities.BeginMove("Warrior01", Slot(26, 24), Slot(22, 24), Enumerable.Range(22, 5).Reverse().Select(c => Slot(c, 24)).ToList(), 4f);
+            var result = Relocate(layout, "Wagon02");
+
+            CollectionAssert.AreEqual(new[] { ("Facility01", Slot(24, 24)) }, result.Relocated);
+            Assert.AreEqual("Warrior01", result.Layout.GetUnitId(Slot(26, 24)));
+            CollectionAssert.DoesNotContain(result.CancelledActivityUnitIds, "Warrior01");
+        }
+
+        [Test]
         public void TieBreak_LowerSlotIndex()
         {
             // (24,24)는 점유 - (24,23)과 (24,25)가 같은 거리, 칸 번호가 작은 (24,23).

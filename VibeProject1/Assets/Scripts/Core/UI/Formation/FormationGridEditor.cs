@@ -79,11 +79,15 @@ namespace Game.Core
 #if UNITY_EDITOR
             if (gridView != null) gridView.ViewChanged -= RenderDebugPins;
 #endif
+            if (gridView != null) gridView.ViewChanged -= TickActivityOverlays;
             if (!sceneUIRoot.TryGetElement<FormationGridView>(FormationUIElementIds.GridRoot, out gridView))
             {
                 WarnMissing(FormationUIElementIds.GridRoot);
                 return false;
             }
+            // 확대/축소 애니메이션은 코루틴이라 패널의 매 프레임 갱신(Update)보다 늦게 칸 좌표를 바꾼다 - 이동선·출발지·도착지·이동 아이콘이 한 프레임
+            // 늦은 좌표로 그려져 줌 동안 흔들리다 자리 잡았다(2026-10-05 실전 확인). 칸 좌표가 바뀐 그 자리에서 다시 그려 같은 프레임에 맞춘다.
+            gridView.ViewChanged += TickActivityOverlays;
 
             if (!sceneUIRoot.TryGetElement<FormationInfoPanelView>(FormationUIElementIds.InfoPanelRoot, out infoPanelView))
             {

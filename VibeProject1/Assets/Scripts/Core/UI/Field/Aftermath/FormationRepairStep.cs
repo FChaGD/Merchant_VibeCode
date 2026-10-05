@@ -19,7 +19,7 @@ namespace Game.Core
         }
 
         public bool AppliesTo(BattleAftermathContext context)
-            => context.ContinuesTrip && context.Summary.FormationDisconnected && repairMode != null;
+            => context.ContinuesTrip && context.Summary.FormationDisconnected && repairMode != null && repairMode.CanRepair;
 
         public void Run(BattleAftermathContext context, Action onDone)
         {

@@ -226,9 +226,11 @@ namespace Game.Core
 
         // 정리 모드 시작(설계 79번 §8). 호출자가 이미 UIManager로 정비창을 연 뒤 부른다 - 열 때는 평소 여백으로 그렸으므로 정책을 바꾼 뒤 다시 그린다.
         // 정리 중에는 닫기 버튼을 숨겨 [완료] 외의 경로로 빠져나갈 수 없게 한다. 화면 요소가 없으면 플로우가 멈추지 않게 곧바로 완료 처리한다.
+        public bool CanRepair => gridEditor != null && closeButton != null && repairGuideLabel != null && repairDoneButton != null && repairPolicy != null;
+
         public void BeginRepair(Action onCompleted)
         {
-            if (gridEditor == null || closeButton == null || repairGuideLabel == null || repairDoneButton == null || repairPolicy == null)
+            if (!CanRepair)
             {
                 Debug.LogWarning($"{nameof(FieldFormationPanel)}: 정비창 정리 모드 화면 요소가 연결되지 않아 정리 단계를 건너뛴다.");
                 onCompleted?.Invoke();

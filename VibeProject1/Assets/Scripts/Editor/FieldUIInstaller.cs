@@ -360,6 +360,11 @@ namespace Game.Core.Editor
             EditorUIBuilder.EnsureLabel(done.transform, "완료", autoSize: true, minFontSize: 12f, maxFontSize: 26f);
             EditorUIBuilder.EnsureMarker(done, FieldCargoRecoveryUIElementIds.DoneButton);
 
+            // 드래그 레이어는 제목 줄·[완료]보다 위에 있어야 끌던 물품이 그 아래로 숨지 않는다. 본문 조립(BuildArrangementBody)이 드래그 레이어를
+            // 맨 뒤로 보낸 "뒤에" 제목·[완료]를 처음 만들면 첫 실행과 재실행의 순서가 달라지므로, 여기서 다시 맨 뒤로 보낸다(2026-10-05 검진 지적 7).
+            var dragLayer = rootRect.Find("DragLayer");
+            if (dragLayer != null) dragLayer.SetAsLastSibling();
+
             // 드래그 레이어보다도 위(마지막 형제)에 둔다 - BuildConfirmDialog가 SetAsLastSibling한다.
             EditorUIBuilder.BuildConfirmDialog(rootRect, "ConfirmDialog", FieldCargoRecoveryUIElementIds.ConfirmDialog);
 

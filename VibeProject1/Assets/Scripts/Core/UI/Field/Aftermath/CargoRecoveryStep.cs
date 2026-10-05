@@ -21,7 +21,7 @@ namespace Game.Core
         }
 
         public bool AppliesTo(BattleAftermathContext context)
-            => context.IsVictory && settlement != null && panel != null && settlement.StagedItems.Count > 0;
+            => context.IsVictory && context.Summary.Recoverable > 0 && settlement != null && panel != null && settlement.StagedItems.Count > 0;
 
         public void Run(BattleAftermathContext context, Action onDone)
         {

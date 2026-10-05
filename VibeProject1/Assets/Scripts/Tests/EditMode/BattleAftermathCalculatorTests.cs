@@ -170,11 +170,14 @@ namespace Game.Core.Tests
                 Is.EqualTo("화물: 파손 2 · 회수 대상 1\n마차: 파괴 1대(보유 목록에서 제거)\n상행 시간 +20초"));
 
             var formationOnly = new BattleAftermathSummary(0, 0, 0, 0, 0, 3, 1, 0f, true);
-            Assert.That(BattleAftermathSummaryFormatter.Format(formationOnly), Is.EqualTo("대열: 재배치 3 · 팔레트 복귀 1"));
+            Assert.That(BattleAftermathSummaryFormatter.Format(formationOnly), Is.EqualTo("대열: 팔레트 복귀 1"));
+
+            var relocatedOnly = new BattleAftermathSummary(0, 0, 0, 0, 0, 3, 0, 0f, false);
+            Assert.That(BattleAftermathSummaryFormatter.Format(relocatedOnly), Is.EqualTo(string.Empty)); // 재배치 수는 표시하지 않는다
 
             var all = new BattleAftermathSummary(1, 2, 3, 4, 2, 5, 6, 40f, true);
             Assert.That(BattleAftermathSummaryFormatter.Format(all), Is.EqualTo(
-                "화물: 파손 1 · 도난 손실 2 · 회수 대상 3 · 패배 손실 4\n마차: 파괴 2대(보유 목록에서 제거)\n대열: 재배치 5 · 팔레트 복귀 6\n상행 시간 +40초"));
+                "화물: 파손 1 · 도난 손실 2 · 회수 대상 3 · 패배 손실 4\n마차: 파괴 2대(보유 목록에서 제거)\n대열: 팔레트 복귀 6\n상행 시간 +40초"));
         }
     }
 }

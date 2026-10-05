@@ -43,12 +43,15 @@ namespace Game.Core
             public readonly string UnitId;
             public readonly IFormationUnit Unit;
             public readonly int OriginSlotIndex;
+            // 배치 중(Adding) 활동에서 온 후보인지 - 이 후보는 어느 칸에 놓이든 활동을 취소해야 한다(배치 완료 상태로 놓으므로).
+            public readonly bool FromAdding;
 
-            public Candidate(string unitId, IFormationUnit unit, int originSlotIndex)
+            public Candidate(string unitId, IFormationUnit unit, int originSlotIndex, bool fromAdding)
             {
                 UnitId = unitId;
                 Unit = unit;
                 OriginSlotIndex = originSlotIndex;
+                FromAdding = fromAdding;
             }
         }
 
@@ -85,7 +88,7 @@ namespace Game.Core
                 if (unit == null || FormationAreaRules.CanPlaceAt(area, unit, activity.TargetSlotIndex) == FormationEditRejection.None) continue;
 
                 cancelled.Add(activity.UnitId);
-                if (activity.Kind == FormationActivityKind.Adding) candidates.Add(new Candidate(activity.UnitId, unit, activity.TargetSlotIndex));
+                if (activity.Kind == FormationActivityKind.Adding) candidates.Add(new Candidate(activity.UnitId, unit, activity.TargetSlotIndex, fromAdding: true));
             }
 
             // 3. 있을 수 없는 칸의 배치 유닛(시설은 자리 칸 밖, 캐릭터는 대열 밖, 마차 0대면 기준 칸 규칙)을 모은다. 이런 유닛은 영역에 기여하지
@@ -99,12 +102,9 @@ namespace Game.Core
                 if (unit == null || unit.Kind == FormationUnitKind.Wagon) continue;
                 if (FormationAreaRules.CanPlaceAt(area, unit, slot) == FormationEditRejection.None) continue;
 
-                candidates.Add(new Candidate(id, unit, slot));
+                candidates.Add(new Candidate(id, unit, slot, fromAdding: false));
                 result.Clear(slot);
             }
-
-            // 옮겨지든 팔레트로 가든 그 유닛의 활동은 취소한다 - 활동이 가리키던 칸·경로가 더는 의미 없다.
-            foreach (var candidate in candidates) cancelled.Add(candidate.UnitId);
 
             candidates.Sort((a, b) =>
             {
@@ -112,11 +112,18 @@ namespace Game.Core
                 return byKind != 0 ? byKind : a.OriginSlotIndex.CompareTo(b.OriginSlotIndex);
             });
 
-            // 남은(취소되지 않은) 활동의 목표 칸 - 완료되면 그 칸을 차지한다.
+            // 남은(2에서 취소되지 않은) 활동의 목표 칸 - 완료되면 그 칸을 차지한다. 배치된 후보 자신의 이동 활동도 여기 포함한다 - 그 유닛이
+            // 원래 칸으로 돌아오면 활동을 살려 두므로, 그 목표 칸을 다른 후보가 차지하면 안 된다.
             var reservedSlots = new HashSet<int>();
             foreach (var activity in activities)
             {
                 if (!cancelled.Contains(activity.UnitId)) reservedSlots.Add(activity.TargetSlotIndex);
+            }
+
+            // 배치 중 후보는 어디에 놓이든 활동을 취소한다(배치 완료 상태로 놓음).
+            foreach (var candidate in candidates)
+            {
+                if (candidate.FromAdding) cancelled.Add(candidate.UnitId);
             }
 
             // 4. 후보마다 영역을 다시 계산해 가장 가까운 칸으로 옮긴다. 없으면 팔레트.
@@ -129,10 +136,16 @@ namespace Game.Core
                 if (target < 0)
                 {
                     released.Add(candidate.UnitId);
+                    cancelled.Add(candidate.UnitId);
                     continue;
                 }
 
                 result.SetUnitId(target, candidate.UnitId);
+                // 시설 재배치로 대열이 다시 넓어져 배치된 유닛이 원래 칸에 그대로 놓이면 재배치가 아니다 - 진행 중 활동도 살려 둔다
+                // (2026-10-05 검진 지적 3 - 재배치 수 부풀림·불필요한 활동 취소).
+                if (!candidate.FromAdding && target == candidate.OriginSlotIndex) continue;
+
+                cancelled.Add(candidate.UnitId);
                 relocated.Add((candidate.UnitId, target));
             }
 

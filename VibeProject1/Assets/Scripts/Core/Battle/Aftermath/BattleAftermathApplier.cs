@@ -57,7 +57,9 @@ namespace Game.Core
                 foreach (var instanceId in plan.RemoveInstanceIds) cargoSettlement.RemoveWithoutRefund(instanceId);
             }
 
-            // 2. 대열 정리 - 보유 마차 제거 전 로스터로 조회 함수를 만든다(요약 주석 참고).
+            // 2. 대열 정리 - 보유 마차 제거 전 로스터로 조회 함수를 만든다(요약 주석 참고). 에디터 전용 디버그 핀은 넘기지 않는다 - 핀은 정비창
+            //    패널의 디버그 도구라 여기서 참조하면 런타임 정산이 디버그 도구에 묶인다. 핀을 쓰면 ③ 진입 판정과 정리 모드의 덩어리 판정이 어긋날 수
+            //    있으나 에디터 전용이라 감수한다(2026-10-05 검진 지적 6).
             int relocated = 0, released = 0;
             var disconnected = false;
             if (formationRepository != null && formationRepository.TryLoadCurrent(out var layout) && layout != null)
