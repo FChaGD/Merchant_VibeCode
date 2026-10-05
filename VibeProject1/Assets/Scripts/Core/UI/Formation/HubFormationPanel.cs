@@ -121,37 +121,24 @@ namespace Game.Core
 
         public IReadOnlyList<FormationAreaPin> GetAreaPins() => debugAreaSource?.Pins;
 
-        // 연결 가능한 가장 먼 칸 = 대열 경계에서 (새 마차 범위 + 1)칸 - 팔레트의 마차까지 포함해 로스터 마차 범위 최댓값으로 정한다(설계 60번 §15.3).
-        // 범위 = 기준 칸에서 가장 먼 대열 칸 거리(기획 65번 §3.4). 방향별로 따로 계산하지 않고 사방에 똑같이 쓴다 - 일부 방향에 칸이 더
-        // 깔리는 대신 규칙이 단순하다.
-        public int GetVisibleMarginCells()
-        {
-            var maxReach = -1;
-            if (rosterProvider != null)
-            {
-                foreach (var unit in rosterProvider.GetRoster())
-                {
-                    if (unit.Kind == FormationUnitKind.Wagon && unit is IAreaAnchorUnit anchor) maxReach = Mathf.Max(maxReach, anchor.AreaShape.MaxReach);
-                }
-            }
-            return maxReach < 0 ? DefaultVisibleMarginCells : Mathf.Max(DefaultVisibleMarginCells, maxReach + 1);
-        }
-
-        private const int DefaultVisibleMarginCells = 2;
+        // 마차 자유 배치라 연결 가능한 칸까지 보여야 한다 - 상행 중 정리 모드와 같은 계산(FormationVisibleMargin).
+        public int GetVisibleMarginCells() => FormationVisibleMargin.ForAnywhereWagons(rosterProvider);
 
         public bool ShowsInPalette(IFormationUnit unit) => true;
 
+        // 연결 기준은 NoNewSplit(설계 79번 §9.3) - 전투로 끊어진 채 돌아온 대열을 한 번에 잇지 못해도 덩어리 수를 늘리지 않는 편집은 허용한다.
+        // 연결된 상태에서는 RequireConnected와 결과가 같다(설계 79번 §5.5).
         // 점유 칸에 드롭하면 기존 유닛은 배치에서 빠진다(상행 관리 데이터 삭제 아님) - 빠지는 유닛이 마차면 연결 판정을 받는다.
         // 마을은 마차 자유 배치(기획 59번 §3.4) - 마차는 판 어디든, 다른 마차가 있으면 연결만 확인.
         public bool HandlePaletteDrop(IFormationUnit unit, int targetSlotIndex)
-            => Commit(FormationAreaRules.Place(currentLayout, unit, targetSlotIndex, FormationAreaRules.LookupFrom(rosterProvider), GetAreaPins(), WagonPlacement.Anywhere));
+            => Commit(FormationAreaRules.Place(currentLayout, unit, targetSlotIndex, FormationAreaRules.LookupFrom(rosterProvider), GetAreaPins(), WagonPlacement.Anywhere, ConnectivityRule.NoNewSplit));
 
         // 목표 칸이 점유돼 있으면 맞바꾼다.
         public bool HandleGridMove(string unitId, int originSlotIndex, int targetSlotIndex)
-            => Commit(FormationAreaRules.Move(currentLayout, originSlotIndex, targetSlotIndex, FormationAreaRules.LookupFrom(rosterProvider), GetAreaPins(), WagonPlacement.Anywhere));
+            => Commit(FormationAreaRules.Move(currentLayout, originSlotIndex, targetSlotIndex, FormationAreaRules.LookupFrom(rosterProvider), GetAreaPins(), WagonPlacement.Anywhere, ConnectivityRule.NoNewSplit));
 
         public bool HandleRemove(string unitId, int slotIndex)
-            => Commit(FormationAreaRules.Remove(currentLayout, slotIndex, FormationAreaRules.LookupFrom(rosterProvider), GetAreaPins()));
+            => Commit(FormationAreaRules.Remove(currentLayout, slotIndex, FormationAreaRules.LookupFrom(rosterProvider), GetAreaPins(), ConnectivityRule.NoNewSplit));
 
         private bool Commit(FormationEditResult result)
         {

@@ -1,3 +1,5 @@
+using System;
+
 namespace Game.Core
 {
     /// <summary>
@@ -8,5 +10,12 @@ namespace Game.Core
     public interface IFormationReader
     {
         bool TryLoadCurrent(out FormationLayout layout);
+
+        /// <summary>
+        /// 배치가 적용될 때마다 발생한다. 상행 준비 UI의 출발 조건(대열 연결)이 정비창에서 돌아올 때 패널이 다시 열린다는
+        /// 보장 없이도 최신 배치를 따라가게 하려는 것(Docs/설계/79번 §15-13). 구독자는 Bootstrap 상주 저장소보다 짧게 살 수 있으니
+        /// 재등록 시 해제 후 구독하고, 처리기에서 파괴된 씬 오브젝트를 확인해야 한다.
+        /// </summary>
+        event Action Changed;
     }
 }

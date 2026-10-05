@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Game.Core
@@ -9,6 +10,8 @@ namespace Game.Core
     public class InMemoryFormationRepository : MonoBehaviour, IFormationRepository, IManagedComponent
     {
         private FormationLayout appliedLayout;
+
+        public event Action Changed;
 
         public void RegisterSelf(IDependencyRegistrar registrar)
         {
@@ -29,6 +32,7 @@ namespace Game.Core
         public void Apply(FormationLayout layout)
         {
             appliedLayout = layout;
+            Changed?.Invoke();
         }
     }
 }

@@ -12,5 +12,8 @@ namespace Game.Core
         public const string ApplyButton = "Formation.ApplyButton";
         public const string CloseButton = "Formation.CloseButton";
         public const string DebugPanelRoot = "Formation.DebugPanelRoot";
+        // 상행 중 정비창 정리 모드(설계 79번 §8) 전용 - 마을 정비창에도 같은 빌더로 만들어지지만 쓰지 않아 비활성으로 남는다.
+        public const string RepairGuideLabel = "Formation.RepairGuideLabel";
+        public const string RepairDoneButton = "Formation.RepairDoneButton";
     }
 }

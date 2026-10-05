@@ -35,6 +35,9 @@ namespace Game.Core
         private Button closeButton;
         private Button openFormationButton;
         private Button startButton;
+        // 선택 요소(인스톨러 미실행이면 없음) - 끊어진 대열 안내와 배치 유닛 0 출발 확인(Docs/설계/79번 §9).
+        private TMP_Text disconnectedNoticeLabel;
+        private ConfirmDialogView departureConfirmDialog;
         private Canvas rootCanvas;
         private SceneUIRoot boundSceneUIRoot;
         private TripMapPresenter mapPresenter;
@@ -53,6 +56,8 @@ namespace Game.Core
         // "상행 시작" 때 구간 계획을 확정한다(Docs/설계/76번 §5). 없으면(인스톨러 미실행) 예전처럼 여정 없이 30초 상행.
         private ITripDeparture tripDeparture;
         private ITripDestinationAssigner destinationAssigner;
+        // 출발 조건(마차 대열 연결) 판정에 배치 Id → 마차·시설 해석이 필요하다(Docs/설계/79번 §9.1). 없으면 유닛을 못 찾아 연결로 본다.
+        private ICaravanRosterProvider rosterProvider;
 
         // 화면(Hub)이 완전히 드러나기 전까지는 "상행 시작"을 막는다(사용자 확정) - 도착지 배정 게이팅과 AND로 합친다.
         private bool sceneRevealed;
@@ -60,11 +65,15 @@ namespace Game.Core
         // 임시 보관 영역에 아이템이 있으면 "상행 시작"을 막는다(Docs/설계/40번 §5.5).
         private IReadOnlyList<IInventoryStagingReader> inventoryStagingReaders = System.Array.Empty<IInventoryStagingReader>();
 
-        public void RegisterTripUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingReader> inventoryStagingReaders, IWorldMapReader worldMap, ITripRouteReader routeReader, ITripDeparture tripDeparture)
+        public void RegisterTripUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingReader> inventoryStagingReaders, IWorldMapReader worldMap, ITripRouteReader routeReader, ITripDeparture tripDeparture, ICaravanRosterProvider rosterProvider)
         {
             this.uiManager = uiManager;
             this.gameManager = gameManager;
+            // 저장소는 Bootstrap 상주라 Hub를 반복 방문해도 구독이 누적되지 않게 이전 구독부터 해제한다.
+            if (this.formationReader != null) this.formationReader.Changed -= RefreshStartButtonInteractable;
             this.formationReader = formationReader;
+            if (formationReader != null) formationReader.Changed += RefreshStartButtonInteractable;
+            this.rosterProvider = rosterProvider;
             this.tripInfoProvider = tripInfoProvider;
             this.sceneRevealSignal = sceneRevealSignal;
             this.currentLocationReader = currentLocationReader;
@@ -164,14 +173,51 @@ namespace Game.Core
         // 지도가 빌드에도 있으므로 빌드에서도 도착지가 있어야 "상행 시작"이 켜진다(Docs/설계/69번 §9-3).
         private void RefreshStartButtonInteractable()
         {
-            // destinationAssigner(Bootstrap 상주)의 Changed는 Hub가 언로드된 상태에서도 발화할 수 있다 - 버튼이 파괴됐으면 무시한다.
+            // destinationAssigner·formationReader(Bootstrap 상주)의 Changed는 Hub가 언로드된 상태에서도 발화할 수 있다 - 버튼이 파괴됐으면 무시한다.
             if (startButton == null)
             {
                 return;
             }
 
+            var connected = IsFormationConnected();
             var hasDestination = destinationAssigner != null && destinationAssigner.IsAssigned;
-            startButton.interactable = sceneRevealed && hasDestination && !HasStagedInventoryItems();
+            startButton.interactable = sceneRevealed && hasDestination && !HasStagedInventoryItems() && connected;
+
+            // 안내 라벨은 선택 요소 - 같은 이유로 파괴됐을 수 있어 Unity null 비교로 걸러낸다.
+            if (disconnectedNoticeLabel != null)
+            {
+                disconnectedNoticeLabel.text = DisconnectedNoticeText;
+                disconnectedNoticeLabel.gameObject.SetActive(!connected);
+            }
+        }
+
+        private const string DisconnectedNoticeText = "대열이 끊어져 있습니다. 정비창에서 마차를 이어 붙이세요.";
+        private const string EmptyFormationWarningText = "상단에 배치된 유닛이 없습니다. 이대로 습격받으면 위험합니다. 그래도 출발하시겠습니까?";
+
+        // 마차 덩어리가 하나 이하여야 출발할 수 있다(기획 78 §4.8). 배치가 없으면 판정할 마차가 없으므로 충족으로 본다.
+        private bool IsFormationConnected()
+        {
+            if (formationReader == null || !formationReader.TryLoadCurrent(out var layout) || layout == null)
+            {
+                return true;
+            }
+
+            return FormationArea.Compute(layout, FormationAreaRules.LookupFrom(rosterProvider)).WagonsConnected;
+        }
+
+        // 마차·시설·캐릭터 구분 없이 배치 칸에 Id가 하나라도 있으면 유닛이 있는 것으로 본다(기획 77 §4-30).
+        private bool HasAnyPlacedUnit()
+        {
+            if (formationReader == null || !formationReader.TryLoadCurrent(out var layout) || layout == null)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < layout.SlotCount; i++)
+            {
+                if (!string.IsNullOrEmpty(layout.GetUnitId(i))) return true;
+            }
+            return false;
         }
 
         private bool HasStagedInventoryItems()
@@ -234,6 +280,21 @@ namespace Game.Core
                 return false;
             }
 
+            // 아래 두 요소는 없어도(인스톨러 미실행) 패널은 동작한다 - 안내 없이 버튼만 비활성, 경고 없이 바로 출발.
+            if (!sceneUIRoot.TryGetElement(TripUIElementIds.DisconnectedNotice, out disconnectedNoticeLabel))
+            {
+                WarnMissing(TripUIElementIds.DisconnectedNotice);
+            }
+
+            if (!sceneUIRoot.TryGetElement(TripUIElementIds.DepartureConfirmDialog, out departureConfirmDialog))
+            {
+                WarnMissing(TripUIElementIds.DepartureConfirmDialog);
+            }
+            else
+            {
+                departureConfirmDialog.Hide();
+            }
+
             // 지역 드롭다운이 없어도(인스톨러 미실행) 지도는 그린다 - 관문 클릭으로만 전환된다.
             if (!sceneUIRoot.TryGetElement(TripUIElementIds.RegionDropdown, out regionDropdown))
             {
@@ -257,6 +318,7 @@ namespace Game.Core
 
             // 출발/도착 정보 패널은 여기서 강제로 비우지 않는다 - 배치 UI를 갔다 와도 배정 상태가 유지된다.
             RefreshSummary();
+            RefreshStartButtonInteractable();
 
             panelRoot.SetActive(true);
 
@@ -274,10 +336,24 @@ namespace Game.Core
             }
 
             mapPresenter?.Hide();
+            if (departureConfirmDialog != null) departureConfirmDialog.Hide();
             panelRoot.SetActive(false);
         }
 
+        // 배치 유닛 0은 출발을 막지 않고 확인만 받는다(기획 77 §4-30) - 연결 조건(버튼 비활성)과는 별개(기획 78 §4-35).
+        // 대화상자가 없으면(인스톨러 미실행) 경고 없이 예전처럼 바로 출발한다.
         private void StartTrip(IGameManager gameManager)
+        {
+            if (!HasAnyPlacedUnit() && departureConfirmDialog != null)
+            {
+                departureConfirmDialog.Show(EmptyFormationWarningText, "출발", "취소", () => Depart(gameManager), null);
+                return;
+            }
+
+            Depart(gameManager);
+        }
+
+        private void Depart(IGameManager gameManager)
         {
             if (tripDeparture != null && currentLocationReader != null && destinationAssigner?.DestinationCityId is { } destinationCityId
                 && !tripDeparture.TryDepart(currentLocationReader.CurrentCityId, destinationCityId))

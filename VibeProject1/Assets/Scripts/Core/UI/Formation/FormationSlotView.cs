@@ -23,6 +23,8 @@ namespace Game.Core
         private Color areaColor;
         private Color outsideColor = Color.clear;
         private bool inArea = true;
+        // 칸 강조 색(정리 모드의 끊어진 덩어리 등, 설계 79번 §8). 알파는 기본 색에 섞는 비율 - 칸을 덮는 별도 오브젝트 없이 배경색만 바꾼다.
+        private Color? tint;
         private Coroutine flashRoutine;
 
         public int SlotIndex { get; private set; }
@@ -58,6 +60,12 @@ namespace Game.Core
             if (flashRoutine == null) ApplyBaseColor();
         }
 
+        public void SetTint(Color? value)
+        {
+            tint = value;
+            if (flashRoutine == null) ApplyBaseColor();
+        }
+
         // 제거·이동이 거부됐음을 알린다(설계 60번 §11-5) - 짧게 붉었다가 원래 색으로 돌아온다.
         public void FlashRejected()
         {
@@ -90,7 +98,15 @@ namespace Game.Core
             ApplyBaseColor();
         }
 
-        private Color BaseColor => inArea ? areaColor : outsideColor;
+        private Color BaseColor
+        {
+            get
+            {
+                var baseColor = inArea ? areaColor : outsideColor;
+                if (tint is not { } t) return baseColor;
+                return Color.Lerp(baseColor, new Color(t.r, t.g, t.b, baseColor.a), t.a);
+            }
+        }
 
         private void ApplyBaseColor()
         {

@@ -108,6 +108,10 @@ namespace Game.Core
 
         public void SetAreaOutline(IFormationAreaOutline outline) => areaOutline = outline;
 
+        // 칸별 배경 강조(설계 79번 §8 정리 모드)를 격자에 넘긴다. 격자가 사전을 칸 번호 기준으로 들고 있다가 전체 다시 그리기(SetView)로 슬롯이
+        // 재배정될 때마다 다시 칠하므로, 편집기는 따로 다시 적용하지 않는다. null = 해제.
+        public void SetCellTints(IReadOnlyDictionary<int, Color> tints) => gridView?.SetCellTints(tints);
+
         public void SetSources(ICaravanRosterProvider rosterProvider, IUnitConditionRepository conditionRepository)
         {
             this.rosterProvider = rosterProvider;

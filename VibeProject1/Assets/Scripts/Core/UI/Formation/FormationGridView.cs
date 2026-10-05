@@ -49,6 +49,9 @@ namespace Game.Core
         private readonly List<Image> travelerIcons = new();
         private readonly List<FormationActivityOverlayView> activityOverlays = new();
         private ScrollRect scrollRect;
+        // 판 칸 번호 → 강조 색(설계 79번 §8 정리 모드). 슬롯 오브젝트는 표시 범위가 바뀔 때마다 다른 판 칸에 재배정되므로, 칸 번호 기준으로
+        // 들고 있다가 SetView가 재배정할 때마다 다시 칠한다. null = 강조 없음.
+        private IReadOnlyDictionary<int, Color> cellTints;
 
         private Action<int> onSlotDropped;
         private Action<IFormationUnit> onIconClicked;
@@ -158,6 +161,7 @@ namespace Game.Core
                 slot.Initialize(boardIndex, onSlotDropped);
                 slot.SetColors(boardCellColor);
                 slot.SetInArea(isInArea(boardIndex));
+                slot.SetTint(GetTint(boardIndex));
                 slotsByBoardIndex[boardIndex] = slot;
             }
 
@@ -258,6 +262,21 @@ namespace Game.Core
                 eventData => onIconDrag?.Invoke(eventData),
                 eventData => onIconEndDrag?.Invoke(eventData));
         }
+
+        /// <summary>
+        /// 칸별 배경 강조(설계 79번 §8 - 정리 모드의 끊어진 덩어리). null이면 전부 해제한다. 사전은 참조로 들고 있어 이후 표시 범위가 바뀌어도
+        /// 같은 강조가 유지된다 - 호출자가 내용을 바꾼 뒤에는 다시 호출해야 화면에 반영된다.
+        /// </summary>
+        public void SetCellTints(IReadOnlyDictionary<int, Color> tints)
+        {
+            cellTints = tints;
+            foreach (var pair in slotsByBoardIndex)
+            {
+                pair.Value.SetTint(GetTint(pair.Key));
+            }
+        }
+
+        private Color? GetTint(int boardIndex) => cellTints != null && cellTints.TryGetValue(boardIndex, out var color) ? color : (Color?)null;
 
         /// <summary>제거·이동이 거부된 칸을 짧게 붉게 깜빡인다(설계 60번 §11-5).</summary>
         public void FlashRejected(int boardIndex)
