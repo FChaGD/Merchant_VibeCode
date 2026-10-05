@@ -383,6 +383,64 @@ namespace Game.Core.Editor
         }
 
         /// <summary>
+        /// 공용 확인 대화상자(ConfirmDialogView, Docs/설계/79번 §7·§9.2)를 parent 아래에 get-or-create로 조립한다.
+        /// Field(회수 적재 완료 확인)와 Hub(출발 경고)가 같은 구조를 씬마다 하나씩 두므로 특정 인스톨러가 아니라 여기에 둔다.
+        /// 루트는 부모 전체를 덮는 반투명 막(뒤 UI 클릭 차단)이고, 문구는 Image가 있는 오브젝트와 분리해 자식 TMP에 둔다.
+        /// 형제 중 마지막에 두어 같은 부모의 다른 요소보다 위에 그리며, 저장 상태는 비활성(Show 호출 시에만 표시)이다.
+        /// </summary>
+        public static ConfirmDialogView BuildConfirmDialog(Transform parent, string objectName, string elementId)
+        {
+            var root = GetOrCreateUIObject(parent, objectName);
+            SetStretch(root.GetComponent<RectTransform>());
+            EnsureImage(root, new Color(0f, 0f, 0f, 0.5f)).raycastTarget = true;
+            EnsureMarker(root, elementId);
+
+            var panel = GetOrCreateUIObject(root.transform, "Panel");
+            SetAnchors(panel.GetComponent<RectTransform>(), new Vector2(0.3f, 0.38f), new Vector2(0.7f, 0.62f));
+            EnsureImage(panel, new Color(0.96f, 0.95f, 0.92f, 1f));
+
+            var message = GetOrCreateUIObject(panel.transform, "Message");
+            SetAnchors(message.GetComponent<RectTransform>(), new Vector2(0.05f, 0.4f), new Vector2(0.95f, 0.95f));
+            var messageLabel = EnsureLabel(message.transform, string.Empty, autoSize: true, minFontSize: 14f, maxFontSize: 26f);
+
+            var confirmButton = BuildDialogButton(panel.transform, "ConfirmButton", new Vector2(0.08f, 0.08f), new Vector2(0.46f, 0.32f), new Color(0.75f, 0.87f, 1f, 1f), out var confirmLabel);
+            var cancelButton = BuildDialogButton(panel.transform, "CancelButton", new Vector2(0.54f, 0.08f), new Vector2(0.92f, 0.32f), new Color(0.85f, 0.85f, 0.85f, 1f), out var cancelLabel);
+
+            var view = GetOrAddComponent<ConfirmDialogView>(root);
+            var so = new SerializedObject(view);
+            so.FindProperty("messageLabel").objectReferenceValue = messageLabel;
+            so.FindProperty("confirmLabel").objectReferenceValue = confirmLabel;
+            so.FindProperty("cancelLabel").objectReferenceValue = cancelLabel;
+            so.FindProperty("confirmButton").objectReferenceValue = confirmButton;
+            so.FindProperty("cancelButton").objectReferenceValue = cancelButton;
+            so.ApplyModifiedProperties();
+
+            root.transform.SetAsLastSibling();
+            root.SetActive(false);
+            return view;
+        }
+
+        private static Button BuildDialogButton(Transform parent, string objectName, Vector2 anchorMin, Vector2 anchorMax, Color color, out TMP_Text label)
+        {
+            var go = GetOrCreateUIObject(parent, objectName);
+            SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
+            EnsureImage(go, color);
+            var button = EnsureButton(go);
+            label = EnsureLabel(go.transform, string.Empty, autoSize: true, minFontSize: 12f, maxFontSize: 24f);
+            return button;
+        }
+
+        /// <summary>
+        /// target을 anchor 바로 뒤 형제로 옮긴다. 먼저 맨 뒤로 보낸 다음 목표 인덱스를 읽는다 - target이 anchor보다 앞에 있는 상태에서
+        /// 인덱스를 읽으면 target이 빠지며 한 칸 어긋난다.
+        /// </summary>
+        public static void PlaceSiblingAfter(Transform target, Transform anchor)
+        {
+            target.SetAsLastSibling();
+            target.SetSiblingIndex(anchor.GetSiblingIndex() + 1);
+        }
+
+        /// <summary>
         /// 스크롤 영역이 공유하는 Viewport(+RectMask2D)/Content 뼈대를 만든다.
         /// 앵커·레이아웃 그룹·ContentSizeFitter는 호출자가 용도에 맞게 이어서 구성한다.
         /// </summary>

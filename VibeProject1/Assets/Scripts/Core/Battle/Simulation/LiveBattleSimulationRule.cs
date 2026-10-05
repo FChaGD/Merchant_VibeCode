@@ -168,8 +168,8 @@ namespace Game.Core
             resultReported = true;
             SyncRosterConditionFromBattle();
             // 전투가 끝나는 순간 Adding도 다시 일시정지한다(기획 20번 §3.2 "전투 종료 시 타이머 재중단") -
-            // 이후 승리/도주는 FieldEncounterFlowCoordinator.ShowResult가 ResumeAll()로, 패배(도주
-            // 제외)는 ShowDefeatConsequence가 ForceCompleteAll()로 마무리한다(설계 25번 §8.3/§8.4).
+            // 이후 결과 정리 플로우의 마무리 단계(FinishStep)가 승리/도주는 ResumeAll()로, 패배(도주
+            // 제외)는 ForceCompleteAll()로 마무리한다(설계 25번 §8.3/§8.4, 설계 79번 §6).
             fieldActivityRepository?.PauseAll();
             // 전투 종료 즉시 유령 표시를 지운다 - 다음 전투 시작(Present())까지 화면에 남아있지 않게 한다.
             OnPendingReinforcementsChanged?.Invoke(Array.Empty<PendingReinforcementInfo>());

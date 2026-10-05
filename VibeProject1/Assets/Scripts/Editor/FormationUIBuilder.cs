@@ -39,6 +39,7 @@ namespace Game.Core.Editor
             BuildGrid(panelRoot.transform, slotPrefab, iconPrefab, pathLinePrefab, travelerIconPrefab, activityOverlayPrefab);
             BuildInfoPanel(panelRoot.transform);
             BuildDebugPanel(panelRoot.transform);
+            BuildRepairControls(panelRoot.transform);
 
             panelRoot.SetActive(false);
         }
@@ -414,6 +415,37 @@ namespace Game.Core.Editor
             so.FindProperty("iconImage").objectReferenceValue = iconImage;
             so.FindProperty("nameText").objectReferenceValue = nameLabel;
             so.ApplyModifiedProperties();
+        }
+
+        /// <summary>
+        /// 상행 중 정비창 정리 모드(Docs/설계/79번 §8)의 안내 라벨·[완료] 버튼. 마을 정비창도 이 빌더를 쓰지만 쓰지 않으므로 둘 다
+        /// 저장 상태는 비활성이고 Field 정리 모드에서만 런타임이 켠다(라벨·버튼 자기 오브젝트를 토글하므로 마커도 그 오브젝트에 둔다).
+        /// 상단은 디버그 핀 패널이 차지해 안내는 격자 바로 아래, [완료]는 정리 모드에서 숨는 Field 닫기 버튼 자리에 둔다.
+        /// 정비창 패널 루트에 배경이 없어 뒤 전투 화면(어두운 배경)이 비치므로 안내 문구는 밝은 색으로 쓴다.
+        /// </summary>
+        private static void BuildRepairControls(Transform parent)
+        {
+            var guideGo = EditorUIBuilder.GetOrCreateUIObject(parent, "RepairGuideLabel");
+            EditorUIBuilder.SetAnchors(guideGo.GetComponent<RectTransform>(), new Vector2(0.08f, 0.22f), new Vector2(0.86f, 0.29f));
+            var guide = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(guideGo);
+            guide.text = string.Empty;
+            guide.alignment = TextAlignmentOptions.Center;
+            guide.enableAutoSizing = true;
+            guide.fontSizeMin = 14f;
+            guide.fontSizeMax = 28f;
+            guide.fontStyle = FontStyles.Bold;
+            guide.color = new Color(1f, 0.85f, 0.35f, 1f);
+            guide.raycastTarget = false;
+            EditorUIBuilder.EnsureMarker(guideGo, FormationUIElementIds.RepairGuideLabel);
+            guideGo.SetActive(false);
+
+            var doneGo = EditorUIBuilder.GetOrCreateUIObject(parent, "RepairDoneButton");
+            EditorUIBuilder.SetAnchors(doneGo.GetComponent<RectTransform>(), new Vector2(0.64f, 0.75f), new Vector2(0.76f, 0.85f));
+            EditorUIBuilder.EnsureImage(doneGo, new Color(0.75f, 0.87f, 1f, 1f));
+            EditorUIBuilder.EnsureButton(doneGo);
+            EditorUIBuilder.EnsureLabel(doneGo.transform, "완료");
+            EditorUIBuilder.EnsureMarker(doneGo, FormationUIElementIds.RepairDoneButton);
+            doneGo.SetActive(false);
         }
 
         /// <summary>

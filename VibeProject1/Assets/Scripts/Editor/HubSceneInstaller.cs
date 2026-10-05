@@ -346,6 +346,9 @@ namespace Game.Core.Editor
             BuildTripStartButton(panelRoot.transform);
             BuildTripDebugMapControls(panelRoot.transform);
             BuildTripDebugConfirmPanel(panelRoot.transform);
+            BuildTripDisconnectedNotice(panelRoot.transform);
+            // 배치 유닛 0 출발 경고(Docs/설계/79번 §9.2) - 상행 준비 화면 전체를 덮는 공용 확인 대화상자, 마지막 형제로 최상단.
+            EditorUIBuilder.BuildConfirmDialog(panelRoot.transform, "DepartureConfirmDialog", TripUIElementIds.DepartureConfirmDialog);
 
             panelRoot.SetActive(false);
         }
@@ -510,6 +513,24 @@ namespace Game.Core.Editor
             label.color = Color.white;
             label.fontStyle = FontStyles.Bold;
             EditorUIBuilder.EnsureMarker(go, TripUIElementIds.StartButton);
+        }
+
+        // 끊어진 대열 안내(Docs/설계/79번 §9.1) - 상행 시작 버튼 오른쪽 빈 구간(요약 패널 아래). 런타임(TripPanel)이 이 라벨
+        // 오브젝트 자체를 토글하므로 마커를 TMP 오브젝트에 직접 두고, 저장 상태는 비활성이다.
+        private static void BuildTripDisconnectedNotice(Transform parent)
+        {
+            var go = EditorUIBuilder.GetOrCreateUIObject(parent, "DisconnectedNotice");
+            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(0.72f, 0.03f), new Vector2(0.94f, 0.14f));
+            var label = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(go);
+            label.text = string.Empty;
+            label.alignment = TextAlignmentOptions.MidlineLeft;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 10f;
+            label.fontSizeMax = 20f;
+            label.color = new Color(0.8f, 0.1f, 0.1f, 1f);
+            label.raycastTarget = false;
+            EditorUIBuilder.EnsureMarker(go, TripUIElementIds.DisconnectedNotice);
+            go.SetActive(false);
         }
 
         /// <summary>

@@ -12,6 +12,10 @@ namespace Game.Core
     {
         public ContentSceneId SceneId => ContentSceneId.Field;
 
+        // 회수 적재 패널(plain C#, 설계 79번 §7)은 Field 로드마다 이번 씬의 화면 요소로 새로 만든다 - 저장소(Bootstrap 상주) 이벤트를
+        // 구독하므로 이전 패널은 Dispose한다(HubUIWiring의 시설 화면과 같은 방식).
+        private FieldCargoRecoveryPanel cargoRecoveryPanel;
+
         public void Wire(IDependencyResolver registrar, IUIManager uiManager, IPanelRegistrar panelRegistrar)
         {
             // 이 씬의 SceneUIRoot를 여기서 한 번만 찾아 아래 3개 컴포넌트 전부에 넘긴다 - 예전엔
@@ -50,6 +54,10 @@ namespace Game.Core
             registrar.TryResolve<IFieldFormationActivityRepository>(out var fieldActivityRepository);
             registrar.TryResolve<ITripItinerary>(out var tripItinerary);
             registrar.TryResolve<IWorldMapReader>(out var worldMap);
+            // 전투 정산·회수 적재(설계 79번 §5·§7) - 없으면 정산 없이 결과 팝업·마무리만 진행한다.
+            registrar.TryResolve<IBattleAftermathApplier>(out var aftermathApplier);
+            registrar.TryResolve<ITradeGoodsCargoSettlement>(out var cargoSettlement);
+            registrar.TryResolve<ITradeGoodsInventoryRepository>(out var tradeGoodsInventory);
 
             var sessionState = registrar.Resolve<ISessionState>();
             var encounterManager = registrar.Resolve<IEncounterManager>();
@@ -68,7 +76,12 @@ namespace Game.Core
             tacticsPanel.RegisterTacticsUI(sceneUIRoot, tacticsRepository, uiManager);
             panelRegistrar.RegisterPopupPanel(tacticsPanel);
 
-            fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository, currentLocationRepository, destinationAssigner, fieldActivityRepository, tripItinerary, worldMap);
+            RegisterCargoRecovery(sceneUIRoot, panelRegistrar, tradeGoodsInventory, cargoSettlement);
+
+            // 대열 정리 모드(설계 79번 §8)는 정비창 패널이 구현한다 - 위에서 이미 확보한 같은 GameObject의 패널에서 꺼낸다.
+            var repairMode = formationPanel.GetComponent<IFormationRepairMode>();
+
+            fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository, currentLocationRepository, destinationAssigner, fieldActivityRepository, tripItinerary, worldMap, aftermathApplier, cargoSettlement, repairMode, cargoRecoveryPanel);
 
             // Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 다음 전환 때 슬라이드시킬 대상을
             // 등록한다. 예전엔 이동 뷰 루트만 등록해 전투 뷰/패널/결과 팝업이 전환 중 제자리에 남았다 - 이제
@@ -80,6 +93,38 @@ namespace Game.Core
                 transitionRoot = fieldUIController.MovementViewRoot;
             }
             registrar.Resolve<ISceneTransitionContentRootRegistry>().RegisterContentRoot(ContentSceneId.Field, transitionRoot);
+        }
+
+        // 모달 팝업 채널에 등록한다(정비창·방향성 지시와 같은 채널) - 결과 정리 단계가 UIManager.Open/Close로만 연다.
+        // 의존성이나 화면 요소가 없으면(인스톨러 미실행) 등록하지 않는다 - ② 회수 적재 단계는 건너뛰고 회수 물품은 임시보관에 남는다.
+        private void RegisterCargoRecovery(SceneUIRoot sceneUIRoot, IPanelRegistrar panelRegistrar, ITradeGoodsInventoryRepository inventory, ITradeGoodsCargoSettlement settlement)
+        {
+            cargoRecoveryPanel?.Dispose();
+            cargoRecoveryPanel = null;
+
+            if (inventory == null || settlement == null)
+            {
+                Debug.LogWarning($"회수 적재 패널에 필요한 {nameof(ITradeGoodsInventoryRepository)}/{nameof(ITradeGoodsCargoSettlement)}가 연결되어 있지 않아 등록하지 못했다 - 전투 후 회수 적재 단계를 건너뛴다(Tools > Game > Build Bootstrap Scene).");
+                return;
+            }
+
+            var spec = InventoryPopupSpecs.TradeGoods;
+            var ok = InventoryArrangementElements.TryBind(sceneUIRoot, FieldCargoRecoveryUIElementIds.InventoryPrefix, spec.HasStaging, spec.HasSections, out var elements)
+                & InventoryArrangementElements.TryGet(sceneUIRoot, FieldCargoRecoveryUIElementIds.DoneButton, out UnityEngine.UI.Button doneButton)
+                & InventoryArrangementElements.TryGet(sceneUIRoot, FieldCargoRecoveryUIElementIds.ConfirmDialog, out ConfirmDialogView dialog);
+            if (!ok)
+            {
+                Debug.LogWarning("회수 적재 패널 화면 요소가 없어 등록하지 못했다 - 전투 후 회수 적재 단계를 건너뛴다(Tools > Game > Build Field Scene).");
+                return;
+            }
+
+            cargoRecoveryPanel = new FieldCargoRecoveryPanel(elements, doneButton, dialog, inventory, settlement);
+            panelRegistrar.RegisterPopupPanel(cargoRecoveryPanel);
+        }
+
+        private void OnDestroy()
+        {
+            cargoRecoveryPanel?.Dispose();
         }
     }
 }

@@ -66,7 +66,9 @@ namespace Game.Core.Editor
             // 로직 자체는 EditorUIBuilder 공용 유틸리티에 있다(BattleTestSceneInstaller와 공유).
             EditorUIBuilder.EnsureBattleWorldRoot().gameObject.SetActive(false); // 평소에는 숨김 - FieldCameraController가 전환 시 활성화.
             EditorUIBuilder.ConfigureBattleCamera();
-            BuildResultPopup(contentRoot);
+            var resultPopup = BuildResultPopup(contentRoot);
+            // 회수 적재 패널(설계 79번 §7) - 결과 팝업과 같이 전투 뷰 위에서 진행하는 결과 정리 단계 화면이라 결과 팝업 바로 뒤 형제로 둔다.
+            BuildCargoRecoveryPanel(contentRoot, resultPopup);
             BuildTransitionCurtain(contentRoot);
 
             // 방향성 지시 UI(정비창 Formation UI와 같은 자리 - MovementView 하위가 아니라 ContentRoot
@@ -264,7 +266,7 @@ namespace Game.Core.Editor
             go.SetActive(false); // 평소에는 숨김 - FieldCameraController가 전환 시 활성화
         }
 
-        private static void BuildResultPopup(Transform parent)
+        private static Transform BuildResultPopup(Transform parent)
         {
             var go = EditorUIBuilder.GetOrCreateUIObject(parent, "ResultPopup");
             EditorUIBuilder.SetStretch(go.GetComponent<RectTransform>());
@@ -273,20 +275,32 @@ namespace Game.Core.Editor
             var dim = EditorUIBuilder.EnsureImage(go, new Color(0f, 0f, 0f, 0.6f));
             dim.raycastTarget = true; // 뒤 UI 클릭을 차단한다.
 
+            // 전투 결과 요약 상세(Docs/설계/79번 §6.1)가 여러 줄 들어가도록 패널을 세로로 키우고 메시지(위)/상세(가운데)/버튼(아래)을
+            // 겹치지 않게 나눈다. 상세가 비면 런타임이 상세 라벨만 숨긴다.
             var panelGo = EditorUIBuilder.GetOrCreateUIObject(go.transform, "Panel");
-            EditorUIBuilder.SetAnchors(panelGo.GetComponent<RectTransform>(), new Vector2(0.3f, 0.4f), new Vector2(0.7f, 0.6f));
+            EditorUIBuilder.SetAnchors(panelGo.GetComponent<RectTransform>(), new Vector2(0.3f, 0.25f), new Vector2(0.7f, 0.75f));
             EditorUIBuilder.EnsureImage(panelGo, new Color(0.95f, 0.95f, 0.95f, 1f));
 
             var messageGo = EditorUIBuilder.GetOrCreateUIObject(panelGo.transform, "Message");
-            EditorUIBuilder.SetAnchors(messageGo.GetComponent<RectTransform>(), new Vector2(0f, 0.4f), new Vector2(1f, 1f));
+            EditorUIBuilder.SetAnchors(messageGo.GetComponent<RectTransform>(), new Vector2(0.05f, 0.78f), new Vector2(0.95f, 0.97f));
             var messageLabel = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(messageGo);
             messageLabel.alignment = TextAlignmentOptions.Center;
             messageLabel.fontSize = 28;
             messageLabel.color = Color.black;
             messageLabel.raycastTarget = false;
 
+            var detailGo = EditorUIBuilder.GetOrCreateUIObject(panelGo.transform, "Detail");
+            EditorUIBuilder.SetAnchors(detailGo.GetComponent<RectTransform>(), new Vector2(0.08f, 0.2f), new Vector2(0.92f, 0.76f));
+            var detailLabel = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(detailGo);
+            detailLabel.alignment = TextAlignmentOptions.Top;
+            detailLabel.enableAutoSizing = true;
+            detailLabel.fontSizeMin = 12f;
+            detailLabel.fontSizeMax = 20f;
+            detailLabel.color = new Color(0.15f, 0.15f, 0.15f, 1f);
+            detailLabel.raycastTarget = false;
+
             var buttonGo = EditorUIBuilder.GetOrCreateUIObject(panelGo.transform, "ConfirmButton");
-            EditorUIBuilder.SetAnchors(buttonGo.GetComponent<RectTransform>(), new Vector2(0.3f, 0.08f), new Vector2(0.7f, 0.32f));
+            EditorUIBuilder.SetAnchors(buttonGo.GetComponent<RectTransform>(), new Vector2(0.3f, 0.04f), new Vector2(0.7f, 0.16f));
             EditorUIBuilder.EnsureImage(buttonGo, new Color(0.75f, 0.87f, 1f, 1f));
             var confirmButton = EditorUIBuilder.EnsureButton(buttonGo);
             var buttonLabel = EditorUIBuilder.EnsureLabel(buttonGo.transform, "확인");
@@ -296,9 +310,56 @@ namespace Game.Core.Editor
             so.FindProperty("messageLabel").objectReferenceValue = messageLabel;
             so.FindProperty("buttonLabel").objectReferenceValue = buttonLabel;
             so.FindProperty("confirmButton").objectReferenceValue = confirmButton;
+            var detailProperty = so.FindProperty("detailLabel");
+            if (detailProperty != null)
+            {
+                detailProperty.objectReferenceValue = detailLabel;
+            }
+            else
+            {
+                Debug.LogWarning($"{nameof(FieldResultPopupView)}에 'detailLabel' 필드가 없어 결과 상세 라벨을 연결하지 못했다 - 스크립트 컴파일 후 다시 실행하라.");
+            }
             so.ApplyModifiedProperties();
 
             go.SetActive(false); // 평소에는 숨김 - FieldResultPopupView.Show() 호출 시에만 표시
+            return go.transform;
+        }
+
+        /// <summary>
+        /// 승리 후 회수 물품 적재 패널(Docs/설계/79번 §7). 무역품 구매 화면과 같은 편집 본문(InventoryPopupUIBuilder.BuildArrangementBody)을 쓴다.
+        /// 패널 루트 마커(FieldCargoRecoveryUIElementIds.Root)와 편집 본문 루트 마커(InventoryPopupUIElementIds.Root(InventoryPrefix))의
+        /// 문자열이 같아("Field.CargoRecovery.Root") 두 루트를 같은 오브젝트로 둔다 - 오브젝트를 나누면 같은 Id 마커가 둘이 되어
+        /// SceneUIRoot가 하나만 수집한다. 편집 본문은 루트 윗부분(0.9 이상)을 제목 줄로 비워 두므로 제목과 [완료]는 그 줄에 둔다.
+        /// 결과 팝업 바로 뒤 형제로 두어 전투 뷰보다 위에 그리고, 확인 대화상자는 패널 자식의 마지막 형제로 패널 위에 그린다.
+        /// </summary>
+        private static void BuildCargoRecoveryPanel(Transform parent, Transform resultPopup)
+        {
+            var root = EditorUIBuilder.GetOrCreateUIObject(parent, "CargoRecoveryPanel");
+            var rootRect = root.GetComponent<RectTransform>();
+            EditorUIBuilder.SetAnchors(rootRect, new Vector2(0.04f, 0.04f), new Vector2(0.96f, 0.96f));
+            EditorUIBuilder.EnsureImage(root, new Color(0.96f, 0.95f, 0.92f, 1f));
+
+            InventoryPopupUIBuilder.BuildArrangementBody(rootRect, FieldCargoRecoveryUIElementIds.InventoryPrefix, hasStaging: true, hasSections: true);
+            // BuildArrangementBody가 붙인 본문 루트 마커와 같은 문자열이지만, 의미상 패널 루트 Id로 한 번 더 명시한다(요약 주석 참고).
+            EditorUIBuilder.EnsureMarker(root, FieldCargoRecoveryUIElementIds.Root);
+
+            var header = EditorUIBuilder.GetOrCreateUIObject(rootRect, "Header");
+            EditorUIBuilder.SetAnchors(header.GetComponent<RectTransform>(), new Vector2(0f, 0.9f), new Vector2(0.8f, 1f));
+            EditorUIBuilder.EnsureImage(header, new Color(0.72f, 0.66f, 0.55f, 1f)).raycastTarget = false;
+            EditorUIBuilder.EnsureLabel(header.transform, "회수 물품 적재", autoSize: true, minFontSize: 12f, maxFontSize: 26f);
+
+            var done = EditorUIBuilder.GetOrCreateUIObject(rootRect, "DoneButton");
+            EditorUIBuilder.SetAnchors(done.GetComponent<RectTransform>(), new Vector2(0.82f, 0.91f), new Vector2(0.98f, 0.99f));
+            EditorUIBuilder.EnsureImage(done, new Color(0.75f, 0.87f, 1f, 1f));
+            EditorUIBuilder.EnsureButton(done);
+            EditorUIBuilder.EnsureLabel(done.transform, "완료", autoSize: true, minFontSize: 12f, maxFontSize: 26f);
+            EditorUIBuilder.EnsureMarker(done, FieldCargoRecoveryUIElementIds.DoneButton);
+
+            // 드래그 레이어보다도 위(마지막 형제)에 둔다 - BuildConfirmDialog가 SetAsLastSibling한다.
+            EditorUIBuilder.BuildConfirmDialog(rootRect, "ConfirmDialog", FieldCargoRecoveryUIElementIds.ConfirmDialog);
+
+            EditorUIBuilder.PlaceSiblingAfter(root.transform, resultPopup);
+            root.SetActive(false); // 평소에는 숨김 - 회수 적재 단계에서 UIManager가 연다.
         }
 
         // sceneUIRoot의 마지막 자식으로 붙여 항상 최상단에 그려지게 한다 - MovementView/BattleView가
