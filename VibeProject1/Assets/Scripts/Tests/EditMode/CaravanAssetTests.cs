@@ -140,60 +140,87 @@ namespace Game.Core.Tests
         }
 
         [Test]
-        public void TryPurchase_Success_DeductsAndAddsToRoster()
+        public void TryPurchase_Success_DeductsAddsAndConsumesStock()
         {
-            var (service, roster) = CreateService();
+            var (service, roster, stock) = CreateService();
             var candidate = Profile(roster, "Wagon02", FormationUnitKind.Wagon, 1000);
+            stock.Remaining[(4, TownStockCategory.Wagon, "Wagon02")] = 1;
             var startingAmount = wallet.CurrentAmount;
 
-            Assert.AreEqual(CaravanAssetPurchaseCheck.Available, service.Evaluate(candidate));
-            Assert.IsTrue(service.TryPurchase(candidate));
+            Assert.AreEqual(CaravanAssetPurchaseCheck.Available, service.Evaluate(candidate, 4));
+            Assert.IsTrue(service.TryPurchase(candidate, 4));
             Assert.AreEqual(startingAmount - 1000, wallet.CurrentAmount);
             Assert.AreEqual(1, roster.CountOwnedOfKind(FormationUnitKind.Wagon));
+            Assert.AreEqual(0, stock.Remaining[(4, TownStockCategory.Wagon, "Wagon02")]);
+            Assert.AreEqual(CaravanAssetPurchaseCheck.SoldOut, service.Evaluate(candidate, 4));
+        }
+
+        [Test]
+        public void Purchase_SameKindTwice_IssuesTwoInstances_NoCap()
+        {
+            var (service, roster, stock) = CreateService();
+            var candidate = Profile(roster, "Wagon01", FormationUnitKind.Wagon, 1);
+            stock.Remaining[(4, TownStockCategory.Wagon, "Wagon01")] = 7;
+
+            for (var i = 0; i < 7; i++) Assert.IsTrue(service.TryPurchase(candidate, 4), $"{i + 1}대째");
+
+            Assert.AreEqual(7, roster.CountOwnedOfKind(FormationUnitKind.Wagon), "예전 보유 상한 5를 넘는다(기획 80번 §3-10)");
+        }
+
+        [Test]
+        public void Evaluate_SoldOut_BeforeFunds()
+        {
+            var (service, roster, _) = CreateService();
+            wallet.TrySpend(wallet.CurrentAmount);
+            var candidate = Profile(roster, "Wagon02", FormationUnitKind.Wagon, 1000);
+
+            Assert.AreEqual(CaravanAssetPurchaseCheck.SoldOut, service.Evaluate(candidate, 4));
         }
 
         [Test]
         public void Evaluate_InsufficientFunds_BlocksPurchase()
         {
-            var (service, roster) = CreateService();
+            var (service, roster, stock) = CreateService();
             wallet.TrySpend(wallet.CurrentAmount - 999);
             var candidate = Profile(roster, "Wagon02", FormationUnitKind.Wagon, 1000);
+            stock.Remaining[(4, TownStockCategory.Wagon, "Wagon02")] = 1;
 
-            Assert.AreEqual(CaravanAssetPurchaseCheck.InsufficientFunds, service.Evaluate(candidate));
-            Assert.IsFalse(service.TryPurchase(candidate));
+            Assert.AreEqual(CaravanAssetPurchaseCheck.InsufficientFunds, service.Evaluate(candidate, 4));
+            Assert.IsFalse(service.TryPurchase(candidate, 4));
             Assert.AreEqual(999, wallet.CurrentAmount);
         }
 
         [Test]
-        public void Evaluate_KindFull_ReportsOwnedFull_OtherKindUnaffected()
+        public void Facility_ConsumesFacilityCategory()
         {
-            var (service, roster) = CreateService();
-            for (var i = 1; i <= CaravanAssetPurchaseService.MaxOwnedPerKind; i++)
-            {
-                Assert.IsTrue(service.TryPurchase(Profile(roster, $"Wagon0{i}", FormationUnitKind.Wagon, 1)));
-            }
+            var (service, roster, stock) = CreateService();
+            var candidate = Profile(roster, "Facility01", FormationUnitKind.Facility, 1);
+            stock.Remaining[(4, TownStockCategory.Facility, "Facility01")] = 1;
 
-            Assert.AreEqual(CaravanAssetPurchaseCheck.OwnedFull, service.Evaluate(Profile(roster, "Wagon06", FormationUnitKind.Wagon, 1)));
-            Assert.AreEqual(CaravanAssetPurchaseCheck.Available, service.Evaluate(Profile(roster, "Facility01", FormationUnitKind.Facility, 1)));
+            Assert.IsTrue(service.TryPurchase(candidate, 4));
+            Assert.AreEqual(0, stock.Remaining[(4, TownStockCategory.Facility, "Facility01")]);
         }
 
         [Test]
-        public void TryPurchase_RosterAddFails_RefundsCurrency()
+        public void TryPurchase_RosterAddFails_RefundsAndKeepsStock()
         {
-            var (service, roster) = CreateService();
+            var (service, roster, stock) = CreateService();
             var candidate = Profile(roster, "Wagon02", FormationUnitKind.Wagon, 1000);
+            stock.Remaining[(4, TownStockCategory.Wagon, "Wagon02")] = 1;
             var startingAmount = wallet.CurrentAmount;
             roster.FailNextAdd = true;
 
-            Assert.IsFalse(service.TryPurchase(candidate));
+            Assert.IsFalse(service.TryPurchase(candidate, 4));
             Assert.AreEqual(startingAmount, wallet.CurrentAmount);
             Assert.AreEqual(0, roster.CountOwnedOfKind(FormationUnitKind.Wagon));
+            Assert.AreEqual(1, stock.Remaining[(4, TownStockCategory.Wagon, "Wagon02")]);
         }
 
-        private (CaravanAssetPurchaseService, FakeRoster) CreateService()
+        private (CaravanAssetPurchaseService, FakeRoster, FakeStock) CreateService()
         {
             var roster = new FakeRoster();
-            return (new CaravanAssetPurchaseService(wallet, roster), roster);
+            var stock = new FakeStock();
+            return (new CaravanAssetPurchaseService(wallet, roster, stock, stock), roster, stock);
         }
 
         private static CaravanAssetProfile Profile(FakeRoster roster, string id, FormationUnitKind kind, int price)

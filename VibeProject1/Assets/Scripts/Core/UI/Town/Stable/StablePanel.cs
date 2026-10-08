@@ -12,10 +12,9 @@ namespace Game.Core
     /// </summary>
     public sealed class StablePanel : IUIPanel, IDisposable
     {
-        private const string EmptyCandidateText = "구매 가능한 마차·시설 없음";
+        private const string EmptyCandidateText = "판매 품목 없음";
+        private const string SoldOutText = "품절";
         private const string InsufficientFundsText = "재화가 부족합니다.";
-        private const string OwnedFullText = "더 보유할 수 없습니다.(최대 5개)";
-        private const string AlreadyOwnedText = "이미 보유한 항목입니다.";
         // 좌측 목록의 종류 순서 - 카탈로그 목록 순서(마차 → 시설)와 같다.
         private static readonly FormationUnitKind[] KindOrder = { FormationUnitKind.Wagon, FormationUnitKind.Facility };
 
@@ -25,7 +24,7 @@ namespace Game.Core
         private readonly IOwnedCaravanAssetRoster roster;
         private readonly ICaravanAssetCatalogReader catalog;
         private readonly ICaravanAssetIconReader iconReader;
-        private readonly ITripCurrentLocationReader currentLocation; // 선택적 - 없으면 마을 Id 0(지금은 무시되는 값)
+        private readonly ITripCurrentLocationReader currentLocation; // 선택적 - 없으면 마을 Id 0(재고가 없는 마을로 취급된다)
         private readonly CaravanAssetPurchaseService purchaseService;
         private readonly RosterShopCandidateList candidateList;
         private readonly StringBuilder ownedText = new();
@@ -36,7 +35,7 @@ namespace Game.Core
 
         public string PanelId => UIPanelIds.Facility(TownFacilityIds.Stable);
 
-        public StablePanel(RosterShopElements elements, IPlayerCurrencyWallet wallet, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, ICaravanAssetCatalogReader catalog, ICaravanAssetIconReader iconReader, ITripCurrentLocationReader currentLocation, IUIManager uiManager)
+        public StablePanel(RosterShopElements elements, IPlayerCurrencyWallet wallet, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, ICaravanAssetCatalogReader catalog, ICaravanAssetIconReader iconReader, ITownStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, IUIManager uiManager)
         {
             this.elements = elements;
             this.wallet = wallet;
@@ -45,7 +44,7 @@ namespace Game.Core
             this.catalog = catalog;
             this.iconReader = iconReader;
             this.currentLocation = currentLocation;
-            purchaseService = new CaravanAssetPurchaseService(wallet, roster);
+            purchaseService = new CaravanAssetPurchaseService(wallet, roster, stockReader, stockConsumer);
             candidateList = new RosterShopCandidateList(elements);
 
             // 나가기는 패널이 자기 Close()를 부르지 않고 UIManager에 위임한다 - 카테고리 depth 복귀가 함께 처리된다.
@@ -56,6 +55,7 @@ namespace Game.Core
 
             wallet.OnAmountChanged += HandleCurrencyChanged;
             roster.OnOwnedChanged += HandleRosterChanged;
+            candidateReader.OnCandidatesChanged += HandleRosterChanged;
             elements.Root.SetActive(false);
         }
 
@@ -77,6 +77,7 @@ namespace Game.Core
         {
             wallet.OnAmountChanged -= HandleCurrencyChanged;
             roster.OnOwnedChanged -= HandleRosterChanged;
+            candidateReader.OnCandidatesChanged -= HandleRosterChanged;
         }
 
         private void HandleCurrencyChanged(int _)
@@ -84,16 +85,18 @@ namespace Game.Core
             if (isOpen) UpdateInfo();
         }
 
-        // 구매한 후보는 목록에서 사라지므로 선택을 해제하고 전부 다시 그린다(용병 화면과 같은 규칙).
+        // 재고 1대 = 1행이고 산 행은 재고 차감으로 사라지므로(설계 81번 §4.3) 선택을 해제하고 전부 다시 그린다(용병 화면과 같은 규칙).
+        // 보유 목록 변경과 재고 변경 둘 다 이 처리기로 온다.
         private void HandleRosterChanged()
         {
             if (isOpen) Refresh();
         }
 
+        private int CityId => currentLocation?.CurrentCityId ?? 0;
+
         private void Refresh()
         {
-            var cityId = currentLocation?.CurrentCityId ?? 0;
-            candidates = candidateReader.GetCandidates(cityId, TownFacilityIds.Stable);
+            candidates = candidateReader.GetCandidates(CityId, TownFacilityIds.Stable);
             selectedIndex = -1;
 
             RenderOwned();
@@ -111,11 +114,11 @@ namespace Game.Core
         {
             if (!TryGetSelected(out var candidate)) return;
 
-            purchaseService.TryPurchase(candidate); // 성공 시 로스터·재화 이벤트로 화면이 갱신된다.
+            purchaseService.TryPurchase(candidate, CityId); // 성공 시 로스터·재고·재화 이벤트로 화면이 갱신된다.
             UpdateInfo();
         }
 
-        // 종류별 제목("마차 1/5")과 보유 개체 "n번 이름"(보유 순서, 기획 80번 §4-1).
+        // 종류별 제목("마차 2", 상한 표기 없음 - 기획 80번 §3-10)과 보유 개체 "n번 이름"(보유 순서, 기획 80번 §4-1).
         private void RenderOwned()
         {
             ownedText.Clear();
@@ -123,7 +126,7 @@ namespace Game.Core
             {
                 if (ownedText.Length > 0) ownedText.AppendLine();
                 ownedText.Append("<b>").Append(catalog.GetKindLabel(kind)).Append(' ')
-                    .Append(roster.CountOwnedOfKind(kind)).Append('/').Append(CaravanAssetPurchaseService.MaxOwnedPerKind).AppendLine("</b>");
+                    .Append(roster.CountOwnedOfKind(kind)).AppendLine("</b>");
 
                 foreach (var instanceId in roster.GetOwnedIds(kind))
                 {
@@ -168,13 +171,12 @@ namespace Game.Core
             elements.InfoKind.text = candidate.KindLabel;
             elements.InfoPrice.text = $"가격 {candidate.Price:N0}";
 
-            var check = purchaseService.Evaluate(candidate);
+            var check = purchaseService.Evaluate(candidate, CityId);
             elements.ActionButton.interactable = check == CaravanAssetPurchaseCheck.Available;
             elements.ReasonLabel.text = check switch
             {
+                CaravanAssetPurchaseCheck.SoldOut => SoldOutText,
                 CaravanAssetPurchaseCheck.InsufficientFunds => InsufficientFundsText,
-                CaravanAssetPurchaseCheck.OwnedFull => OwnedFullText,
-                CaravanAssetPurchaseCheck.AlreadyOwned => AlreadyOwnedText,
                 _ => string.Empty,
             };
         }
