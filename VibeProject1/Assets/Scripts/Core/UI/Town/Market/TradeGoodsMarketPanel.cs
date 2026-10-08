@@ -14,7 +14,8 @@ namespace Game.Core
     /// </summary>
     public sealed class TradeGoodsMarketPanel : IUIPanel, IPanelCloseGuard, IDisposable
     {
-        private const string EmptyStockText = "판매품 없음";
+        private const string EmptyStockText = "판매 품목 없음";
+        private const string SoldOutText = "품절";
         private const string InsufficientFundsText = "재화가 부족합니다.";
         private const string NoSpaceText = "상단 물류품에 놓을 공간이 없습니다. 마차 공간을 정리해주세요.";
         private const string ExitBlockedText = "임시 보관 물품을 넣을 공간이 부족해 나갈 수 없습니다. 물건을 팔거나, 마차에 실어주세요.";
@@ -60,6 +61,7 @@ namespace Game.Core
             elements.BuyButton.onClick.AddListener(Purchase);
 
             wallet.OnAmountChanged += HandleCurrencyChanged;
+            stockReader.OnStockChanged += HandleStockChanged;
             // 교역품 저장소 계약이 조회·임시 보관 조회 두 인터페이스에서 같은 이벤트를 물려받아 이름이 모호하다 - 조회 계약으로 지정한다.
             ((IInventoryReader)inventory).OnChanged += HandleInventoryChanged;
             elements.Root.SetActive(false);
@@ -100,6 +102,7 @@ namespace Game.Core
         public void Dispose()
         {
             wallet.OnAmountChanged -= HandleCurrencyChanged;
+            stockReader.OnStockChanged -= HandleStockChanged;
             ((IInventoryReader)inventory).OnChanged -= HandleInventoryChanged;
             inventoryController.Dispose();
         }
@@ -107,6 +110,15 @@ namespace Game.Core
         private void HandleCurrencyChanged(int _)
         {
             if (isOpen) UpdateInfo();
+        }
+
+        // 행이 사라지지 않으므로 선택을 유지한 채 수량만 다시 그린다(설계 81번 §4.2).
+        private void HandleStockChanged()
+        {
+            if (!isOpen) return;
+            stock = stockReader.GetStock(currentLocation?.CurrentCityId ?? 0, TownFacilityIds.TradeGoodsMarket);
+            RenderStock();
+            UpdateInfo();
         }
 
         private void HandleInventoryChanged()
@@ -191,6 +203,7 @@ namespace Game.Core
             elements.BuyButton.interactable = check == ShopPurchaseCheck.Available;
             elements.ReasonLabel.text = check switch
             {
+                ShopPurchaseCheck.SoldOut => SoldOutText,
                 ShopPurchaseCheck.InsufficientFunds => InsufficientFundsText,
                 ShopPurchaseCheck.NoSpace => NoSpaceText,
                 _ => string.Empty,

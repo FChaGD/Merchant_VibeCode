@@ -128,7 +128,9 @@ namespace Game.Core.Editor
             var swatchImage = EditorUIBuilder.EnsureImage(swatch, Color.white);
             swatchImage.raycastTarget = false;
 
-            var nameLabel = BuildRowLabel(row.transform, "Name", 0.12f, 0.6f, TextAlignmentOptions.MidlineLeft);
+            var nameLabel = BuildRowLabel(row.transform, "Name", 0.12f, 0.45f, TextAlignmentOptions.MidlineLeft);
+            // 남은 수량/품절(설계 81번 §4.2) - 이름 칸을 줄여 자리를 만든다.
+            var remainingLabel = BuildRowLabel(row.transform, "Remaining", 0.45f, 0.6f, TextAlignmentOptions.Center);
             var sizeLabel = BuildRowLabel(row.transform, "Size", 0.6f, 0.75f, TextAlignmentOptions.Center);
             var priceLabel = BuildRowLabel(row.transform, "Price", 0.75f, 0.97f, TextAlignmentOptions.MidlineRight);
 
@@ -139,6 +141,7 @@ namespace Game.Core.Editor
             so.FindProperty("nameLabel").objectReferenceValue = nameLabel;
             so.FindProperty("sizeLabel").objectReferenceValue = sizeLabel;
             so.FindProperty("priceLabel").objectReferenceValue = priceLabel;
+            so.FindProperty("remainingLabel").objectReferenceValue = remainingLabel;
             so.FindProperty("selectionOutline").objectReferenceValue = outline;
             so.ApplyModifiedProperties();
             EditorUIBuilder.EnsureMarker(row, TradeGoodsMarketUIElementIds.StockRowTemplate);
