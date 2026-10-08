@@ -15,7 +15,6 @@ namespace Game.Core
     {
         private const string EmptyCandidateText = "고용 가능한 용병 없음";
         private const string InsufficientFundsText = "재화가 부족합니다.";
-        private const string RosterFullText = "해당 직업은 더 고용할 수 없습니다.(최대 5명)";
         private const string AlreadyHiredText = "이미 고용한 용병입니다.";
 
         private readonly RosterShopElements elements;
@@ -129,7 +128,7 @@ namespace Game.Core
                 var classLabel = catalog.TryGetClassLabel(mercenaryClass, out var label) ? label : mercenaryClass;
                 if (ownedText.Length > 0) ownedText.AppendLine();
                 ownedText.Append("<b>").Append(classLabel).Append(' ')
-                    .Append(roster.CountHiredOfClass(mercenaryClass)).Append('/').Append(MercenaryHiringService.MaxOwnedPerClass).AppendLine("</b>");
+                    .Append(roster.CountHiredOfClass(mercenaryClass)).AppendLine("</b>");
 
                 foreach (var profile in catalog.All)
                 {
@@ -183,7 +182,6 @@ namespace Game.Core
             elements.ReasonLabel.text = check switch
             {
                 MercenaryHireCheck.InsufficientFunds => InsufficientFundsText,
-                MercenaryHireCheck.RosterFull => RosterFullText,
                 MercenaryHireCheck.AlreadyHired => AlreadyHiredText,
                 _ => string.Empty,
             };

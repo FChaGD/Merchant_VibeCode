@@ -93,18 +93,15 @@ namespace Game.Core.Tests
         }
 
         [Test]
-        public void Evaluate_ClassFull_ReportsRosterFull()
+        public void Evaluate_ManyOfSameClass_NoCap()
         {
-            for (var i = 1; i <= MercenaryHiringService.MaxOwnedPerClass; i++)
+            // 예전 직업당 상한 5를 넘겨도 고용된다(기획 80번 §3-10).
+            for (var i = 1; i <= 6; i++)
             {
-                Assert.IsTrue(service.TryHire(Profile($"Archer0{i}", "Archer", 1)));
+                Assert.IsTrue(service.TryHire(Profile($"Archer0{i}", "Archer", 1)), $"{i}명째");
             }
 
-            var sixth = Profile("Archer06", "Archer", 1);
-            Assert.AreEqual(MercenaryHireCheck.RosterFull, service.Evaluate(sixth));
-            Assert.IsFalse(service.TryHire(sixth));
-            // 다른 직업은 영향받지 않는다.
-            Assert.AreEqual(MercenaryHireCheck.Available, service.Evaluate(Profile("Warrior01", "Warrior", 1)));
+            Assert.AreEqual(6, roster.CountHiredOfClass("Archer"));
         }
 
         [Test]

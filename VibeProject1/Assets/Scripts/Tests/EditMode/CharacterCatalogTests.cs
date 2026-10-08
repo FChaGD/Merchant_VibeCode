@@ -100,6 +100,54 @@ namespace Game.Core.Tests
             Assert.AreEqual("전사", roster.GetRoster().First(u => u.Id == "Warrior03").DisplayName);
         }
 
+        private PlaceholderCaravanRosterProvider CreateRoster(DependencyManager dependencyManager)
+        {
+            dependencyManager.Register<ICharacterCatalogReader>(new TableCharacterCatalog(statsTable, nameStrings, classStrings));
+            var roster = dependencyManager.gameObject.AddComponent<PlaceholderCaravanRosterProvider>();
+            roster.ResolveDependencies(dependencyManager);
+            return roster;
+        }
+
+        [Test]
+        public void PlaceholderRoster_TryRemoveHired_RemovesCharacterAndCount()
+        {
+            var go = new GameObject(nameof(CharacterCatalogTests));
+            created.Add(go);
+            var roster = CreateRoster(go.AddComponent<DependencyManager>());
+            var changed = 0;
+            roster.OnHiredChanged += () => changed++;
+
+            Assert.IsTrue(roster.TryRemoveHired("Warrior01"));
+            Assert.IsFalse(roster.TryRemoveHired("Warrior01"));
+            Assert.IsFalse(roster.TryRemoveHired("Warrior03"), "고용하지 않은 캐릭터");
+
+            Assert.AreEqual(1, changed);
+            Assert.IsFalse(roster.IsHired("Warrior01"));
+            Assert.AreEqual(1, roster.CountHiredOfClass("Warrior"));
+            Assert.IsFalse(roster.GetRoster().Any(u => u.Id == "Warrior01"));
+        }
+
+        [Test]
+        public void CandidateProvider_ExcludesHiredAndDeceased()
+        {
+            var go = new GameObject(nameof(CharacterCatalogTests));
+            created.Add(go);
+            var dependencyManager = go.AddComponent<DependencyManager>();
+            var roster = CreateRoster(dependencyManager);
+            dependencyManager.Register<IHiredCharacterRoster>(roster);
+            var deceased = go.AddComponent<InMemoryDeceasedCharacterRepository>();
+            dependencyManager.Register<IDeceasedCharacterReader>(deceased);
+            var provider = go.AddComponent<PlaceholderMercenaryCandidateProvider>();
+            provider.ResolveDependencies(dependencyManager);
+
+            // 고용된 Warrior01이 사망해 상단에서 빠지고 기록되면, 월드에서 다시 고용할 수 없다(기획 80번 §3-2).
+            roster.TryRemoveHired("Warrior01");
+            deceased.Record("Warrior01");
+
+            var ids = provider.GetCandidates(4, TownFacilityIds.MercenaryContact).Select(p => p.CharacterId).ToList();
+            CollectionAssert.AreEqual(new[] { "Warrior03", "Archer03" }, ids);
+        }
+
         private T Create<T>() where T : ScriptableObject
         {
             var asset = ScriptableObject.CreateInstance<T>();

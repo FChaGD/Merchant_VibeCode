@@ -16,7 +16,7 @@ namespace Game.Core
     /// 때문에, 추가 위치를 따로 계산하지 않고 테이블 순서로 재구성하는 편이 순서가 어긋날 여지가 없다. 같은 List 인스턴스를 비우고
     /// 다시 채워 이미 참조를 쥔 소비자도 최신 목록을 본다.
     /// </summary>
-    public class PlaceholderCaravanRosterProvider : MonoBehaviour, ICaravanRosterProvider, IHiredCharacterRoster, IMercenaryClassIconReader, IOwnedCaravanAssetRoster, IOwnedCaravanAssetRemover, ICaravanAssetIconReader, IManagedComponent
+    public class PlaceholderCaravanRosterProvider : MonoBehaviour, ICaravanRosterProvider, IHiredCharacterRoster, IHiredCharacterRemover, IMercenaryClassIconReader, IOwnedCaravanAssetRoster, IOwnedCaravanAssetRemover, ICaravanAssetIconReader, IManagedComponent
     {
         // 기획 53번 §3.2 확정값 - 직업당 시작 보유 인원(테이블 순서 앞에서부터).
         private const int StartingCharactersPerClass = 2;
@@ -46,6 +46,7 @@ namespace Game.Core
         {
             registrar.Register<ICaravanRosterProvider>(this);
             registrar.Register<IHiredCharacterRoster>(this);
+            registrar.Register<IHiredCharacterRemover>(this);
             registrar.Register<IMercenaryClassIconReader>(this);
             registrar.Register<IOwnedCaravanAssetRoster>(this);
             registrar.Register<IOwnedCaravanAssetReader>(this);
@@ -92,6 +93,18 @@ namespace Game.Core
         {
             if (!TryOwnCharacter(characterId)) return false;
 
+            RebuildRoster();
+            OnHiredChanged?.Invoke();
+            return true;
+        }
+
+        // 상행 종료 처리가 사망자를 뺄 때만 쓴다(설계 81번 §6.3). 마차·시설은 이 경로로 빠지지 않는다(TryRemoveOwned). 직업별 카운트도 함께 줄인다.
+        public bool TryRemoveHired(string characterId)
+        {
+            if (characterId == null || !ownedById.TryGetValue(characterId, out var unit) || unit is not PlaceholderMercenaryUnit mercenary) return false;
+
+            ownedById.Remove(characterId);
+            hiredCountByClass[mercenary.Class] = CountHiredOfClass(mercenary.Class) - 1;
             RebuildRoster();
             OnHiredChanged?.Invoke();
             return true;
