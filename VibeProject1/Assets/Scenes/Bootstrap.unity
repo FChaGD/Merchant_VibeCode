@@ -119,6 +119,52 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &17102110
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 17102111}
+  - component: {fileID: 17102112}
+  m_Layer: 0
+  m_Name: TownShopStockProvider
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &17102111
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 17102110}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900004001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &17102112
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 17102110}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 543681d48cac76f41a868da8ceab134e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.TownShopStockProvider
+  tradeGoodsItemTable: {fileID: 11400000, guid: 67d1af2ccb325c34a83f9e49a7c70b88, type: 2}
+  tradeGoodsItemStrings: {fileID: 11400000, guid: a3aee783c5ec85c41883b3da464ca087, type: 2}
 --- !u!1 &77209087
 GameObject:
   m_ObjectHideFlags: 0
@@ -1292,11 +1338,13 @@ MonoBehaviour:
   - {fileID: 434087639}
   - {fileID: 255667641}
   - {fileID: 1473442128}
-  - {fileID: 2031334301}
+  - {fileID: 1325470778}
+  - {fileID: 17102112}
   - {fileID: 603011471}
   - {fileID: 77209089}
+  - {fileID: 2009894051}
   - {fileID: 1136290633}
-  - {fileID: 1804540255}
+  - {fileID: 1801798893}
   - {fileID: 2044761041}
 --- !u!1 &900002000
 GameObject:
@@ -1481,17 +1529,19 @@ Transform:
   - {fileID: 434087638}
   - {fileID: 255667640}
   - {fileID: 1473442127}
-  - {fileID: 2031334300}
   - {fileID: 603011470}
   - {fileID: 77209088}
   - {fileID: 1136290632}
-  - {fileID: 1804540254}
   - {fileID: 864792253}
   - {fileID: 1291961380}
   - {fileID: 188415741}
   - {fileID: 194370872}
   - {fileID: 618500469}
   - {fileID: 2044761040}
+  - {fileID: 1325470777}
+  - {fileID: 17102111}
+  - {fileID: 2009894050}
+  - {fileID: 1801798892}
   m_Father: {fileID: 900000001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &900004002
@@ -2178,6 +2228,51 @@ MonoBehaviour:
   cityMap: {fileID: 11400000, guid: 97db78d423f2fce46888ee1d35e6c40d, type: 2}
   cityStrings: {fileID: 11400000, guid: eed406d33fd9c1146b10a6094e45874b, type: 2}
   regionStrings: {fileID: 11400000, guid: fa0db9fec0ea6ec47bbad18c52cd867f, type: 2}
+--- !u!1 &1325470776
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1325470777}
+  - component: {fileID: 1325470778}
+  m_Layer: 0
+  m_Name: InMemoryTownStockRepository
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1325470777
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1325470776}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900004001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1325470778
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1325470776}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a19a5270006f65e40af71c8c0ab7a9fb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.InMemoryTownStockRepository
+  stockTable: {fileID: 11400000, guid: 3c3c111734861424fac1347e07dde4a6, type: 2}
 --- !u!1 &1393312299
 GameObject:
   m_ObjectHideFlags: 0
@@ -2460,7 +2555,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0755c6258eed866479901d9c2ed935cb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.DebugTools.PlayerCurrencyDebugSpinView
---- !u!1 &1804540253
+--- !u!1 &1801798891
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -2468,22 +2563,22 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1804540254}
-  - component: {fileID: 1804540255}
+  - component: {fileID: 1801798892}
+  - component: {fileID: 1801798893}
   m_Layer: 0
-  m_Name: PlaceholderCaravanAssetCandidateProvider
+  m_Name: CaravanAssetCandidateProvider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &1804540254
+--- !u!4 &1801798892
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1804540253}
+  m_GameObject: {fileID: 1801798891}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -2492,18 +2587,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 900004001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1804540255
+--- !u!114 &1801798893
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1804540253}
+  m_GameObject: {fileID: 1801798891}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8ee9a4b08fd560e4e9d606ceb2045a48, type: 3}
+  m_Script: {fileID: 11500000, guid: 9e8f0cbbc8915324283ae9cc3da457de, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Game.Core::Game.Core.PlaceholderCaravanAssetCandidateProvider
+  m_EditorClassIdentifier: Game.Core::Game.Core.CaravanAssetCandidateProvider
 --- !u!1 &1891997714
 GameObject:
   m_ObjectHideFlags: 0
@@ -2686,7 +2781,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 87f59dc9b0550364c8cf766bd4d598fc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.SceneLoadingCoordinator
---- !u!1 &2031334299
+--- !u!1 &2009894049
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -2694,22 +2789,22 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 2031334300}
-  - component: {fileID: 2031334301}
+  - component: {fileID: 2009894050}
+  - component: {fileID: 2009894051}
   m_Layer: 0
-  m_Name: PlaceholderTownShopStockProvider
+  m_Name: InMemoryDeceasedCharacterRepository
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &2031334300
+--- !u!4 &2009894050
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2031334299}
+  m_GameObject: {fileID: 2009894049}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -2718,21 +2813,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 900004001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2031334301
+--- !u!114 &2009894051
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2031334299}
+  m_GameObject: {fileID: 2009894049}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7d1db23b29f1cb54eb089510b5b38898, type: 3}
+  m_Script: {fileID: 11500000, guid: b2801ec07058d2640a4b57d7b791e7d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Game.Core::Game.Core.PlaceholderTownShopStockProvider
-  tradeGoodsItemTable: {fileID: 11400000, guid: 67d1af2ccb325c34a83f9e49a7c70b88, type: 2}
-  tradeGoodsItemStrings: {fileID: 11400000, guid: a3aee783c5ec85c41883b3da464ca087, type: 2}
-  tradeGoodsKindTable: {fileID: 11400000, guid: 9556c7f29f9708441a293ccdbe8f9081, type: 2}
+  m_EditorClassIdentifier: Game.Core::Game.Core.InMemoryDeceasedCharacterRepository
 --- !u!1 &2040257238
 GameObject:
   m_ObjectHideFlags: 0

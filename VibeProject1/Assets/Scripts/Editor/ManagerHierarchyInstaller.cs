@@ -40,9 +40,11 @@ namespace Game.Core.Editor
             nameof(PlaceholderEquipmentInventoryRepository),
             nameof(PlaceholderConsumableInventoryRepository),
             nameof(PlaceholderPersonalItemInventoryRepository),
+            nameof(InMemoryTownStockRepository),
             nameof(TownShopStockProvider),
             nameof(CharacterCatalogProvider),
             nameof(PlaceholderMercenaryCandidateProvider),
+            nameof(InMemoryDeceasedCharacterRepository),
             nameof(CaravanAssetCatalogProvider),
             nameof(CaravanAssetCandidateProvider),
             nameof(TownScaleFacilityAvailabilityProvider),
@@ -52,6 +54,9 @@ namespace Game.Core.Editor
         private const string RemovedPlaceholderTownFacilityProviderName = "PlaceholderTownFacilityAvailabilityProvider";
         // 상행 계획 기반 요약(TripPlanSummaryProvider)으로 교체되며 삭제된 임시 제공자(Docs/설계/76번 §7.1).
         private const string RemovedPlaceholderTripInfoProviderName = "PlaceholderTripInfoProvider";
+        // 마을 재고 시스템으로 교체되며 삭제된 임시 제공자(Docs/설계/81번 §3.5). 클래스가 없어 nameof를 못 쓴다.
+        private const string RemovedPlaceholderTownShopStockProviderName = "PlaceholderTownShopStockProvider";
+        private const string RemovedPlaceholderCaravanAssetCandidateProviderName = "PlaceholderCaravanAssetCandidateProvider";
 
         [MenuItem("Tools/Game/Build Bootstrap Scene")]
         public static void BuildManagerHierarchy()
@@ -265,6 +270,12 @@ namespace Game.Core.Editor
             // 골드 상자는 기타 카테고리지만 교역품 그리드에 놓인다(Docs/설계/50번 §5.2).
             WireMiscItemCatalog(tradeGoodsInventoryRepository);
 
+            // 마을 재고(설계 81번 §3.4)와 그 소비자 - 무역품 판매 목록·마구간 후보는 재고 저장소를 TryResolve로 찾는다.
+            EditorUIBuilder.DestroyChildIfExists(uiManager.transform, RemovedPlaceholderTownShopStockProviderName);
+            EditorUIBuilder.DestroyChildIfExists(uiManager.transform, RemovedPlaceholderCaravanAssetCandidateProviderName);
+            var townStockRepository = EditorUIBuilder.GetOrCreateManager<InMemoryTownStockRepository>(uiManager.transform, nameof(InMemoryTownStockRepository));
+            WireTownStockTable(townStockRepository);
+
             // 무역품 판매 목록(설계 81번 §3.5) - 마을 재고 저장소를 TryResolve로 찾아 아이템 테이블과 조인한다.
             var townShopStockProvider = EditorUIBuilder.GetOrCreateManager<TownShopStockProvider>(uiManager.transform, nameof(TownShopStockProvider));
             WireTownShopStockTables(townShopStockProvider);
@@ -274,6 +285,8 @@ namespace Game.Core.Editor
             var characterCatalogProvider = EditorUIBuilder.GetOrCreateManager<CharacterCatalogProvider>(uiManager.transform, nameof(CharacterCatalogProvider));
             WireCharacterCatalogTables(characterCatalogProvider);
             var mercenaryCandidateProvider = EditorUIBuilder.GetOrCreateManager<PlaceholderMercenaryCandidateProvider>(uiManager.transform, nameof(PlaceholderMercenaryCandidateProvider));
+            // 사망 기록(설계 81번 §6.2) - 후보 제공자가 사망한 캐릭터를 월드에서 빼는 데 쓴다.
+            var deceasedCharacterRepository = EditorUIBuilder.GetOrCreateManager<InMemoryDeceasedCharacterRepository>(uiManager.transform, nameof(InMemoryDeceasedCharacterRepository));
 
             // 마차·시설 카탈로그와 구매 후보(설계 56번 §8, 81번 §3.5). 후보는 마을 재고를 펼쳐 만든다.
             var caravanAssetCatalogProvider = EditorUIBuilder.GetOrCreateManager<CaravanAssetCatalogProvider>(uiManager.transform, nameof(CaravanAssetCatalogProvider));
@@ -303,9 +316,11 @@ namespace Game.Core.Editor
                 equipmentInventoryRepository,
                 consumableInventoryRepository,
                 personalItemInventoryRepository,
+                townStockRepository,
                 townShopStockProvider,
                 characterCatalogProvider,
                 mercenaryCandidateProvider,
+                deceasedCharacterRepository,
                 caravanAssetCatalogProvider,
                 caravanAssetCandidateProvider,
                 battleAftermathApplier,
@@ -555,6 +570,14 @@ namespace Game.Core.Editor
             var so = new SerializedObject(repository);
             so.FindProperty("miscItemTable").objectReferenceValue = LoadImportedTable<ItemDefinitionTableAsset>(TableAssetPaths.MiscItemTable);
             so.FindProperty("miscItemStrings").objectReferenceValue = LoadImportedTable<ItemStringTableAsset>(TableAssetPaths.MiscItemStrings);
+            so.ApplyModifiedProperties();
+        }
+
+        // 재고 테이블은 설계 81번에서 처음 생기는 자산이라 LoadImportedTable로 누락을 경고한다(Play로 먼저 임포트).
+        private static void WireTownStockTable(InMemoryTownStockRepository repository)
+        {
+            var so = new SerializedObject(repository);
+            so.FindProperty("stockTable").objectReferenceValue = LoadImportedTable<TownStockTableAsset>(TableAssetPaths.TownStockTable);
             so.ApplyModifiedProperties();
         }
 
