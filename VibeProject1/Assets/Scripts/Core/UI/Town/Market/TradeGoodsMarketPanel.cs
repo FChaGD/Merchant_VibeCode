@@ -37,7 +37,7 @@ namespace Game.Core
 
         public string PanelId => UIPanelIds.Facility(TownFacilityIds.TradeGoodsMarket);
 
-        public TradeGoodsMarketPanel(TradeGoodsMarketElements elements, ITradeGoodsInventoryRepository inventory, IPlayerCurrencyWallet wallet, ITownShopStockReader stockReader, ITripCurrentLocationReader currentLocation, IUIManager uiManager)
+        public TradeGoodsMarketPanel(TradeGoodsMarketElements elements, ITradeGoodsInventoryRepository inventory, IPlayerCurrencyWallet wallet, ITownShopStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, IUIManager uiManager)
         {
             this.elements = elements;
             this.inventory = inventory;
@@ -48,7 +48,7 @@ namespace Game.Core
             // 회전·임시 보관 여부는 상단 물류품 팝업과 같은 스펙을 따른다 - 같은 인벤토리를 두 화면이 다른 규칙으로 다루지 않게.
             var spec = InventoryPopupSpecs.TradeGoods;
             inventoryController = new InventoryArrangementController(elements.Inventory, inventory, inventory, spec.AllowsRotation, spec.HasStaging, spec.HasSections);
-            purchaseService = new ShopPurchaseService(wallet, inventory, spec.AllowsRotation);
+            purchaseService = new ShopPurchaseService(wallet, inventory, spec.AllowsRotation, stockConsumer);
 
             elements.StockRowTemplate.gameObject.SetActive(false);
             elements.InfoPreviewCellTemplate.gameObject.SetActive(false);
@@ -119,7 +119,7 @@ namespace Game.Core
             if (!TryGetSelected(out var entry)) return;
 
             // 보이는 마차부터 자리를 찾고, 다른 마차에 들어가면 그 마차를 보여 준다(기획 63번 §3.5). 재화·저장소 이벤트로 화면이 갱신된다.
-            if (purchaseService.TryPurchase(entry, inventoryController.CurrentSection?.Id, out var placedSectionId))
+            if (purchaseService.TryPurchase(entry, currentLocation?.CurrentCityId ?? 0, inventoryController.CurrentSection?.Id, out var placedSectionId))
             {
                 inventoryController.ShowSection(placedSectionId);
             }

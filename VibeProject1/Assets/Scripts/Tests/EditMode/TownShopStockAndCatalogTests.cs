@@ -1,9 +1,7 @@
 using System.Collections.Generic;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 using Game.Core;
 
 namespace Game.Core.Tests
@@ -33,56 +31,61 @@ namespace Game.Core.Tests
             return table;
         }
 
-        private PlaceholderTownShopStockProvider CreateProvider()
+        private class FakeStockReader : ITownStockReader
+        {
+            public event System.Action OnStockChanged;
+            public IReadOnlyList<TownStockLine> GetLines(int cityId, TownStockCategory category)
+                => cityId == 4 && category == TownStockCategory.TradeGoods
+                    ? new[] { new TownStockLine("general-b", 3), new TownStockLine("general-a", 0) }
+                    : new TownStockLine[0];
+            public void Raise() => OnStockChanged?.Invoke();
+        }
+
+        private TownShopStockProvider CreateProvider(FakeStockReader reader)
         {
             var itemTable = CreateItemTable(
                 new ItemDefinitionEntry { Id = "general-a", FootprintWidth = 1, FootprintHeight = 1, Price = 100 },
-                new ItemDefinitionEntry { Id = "specialty-a", FootprintWidth = 1, FootprintHeight = 1, Price = 900 },
                 new ItemDefinitionEntry { Id = "general-b", FootprintWidth = 2, FootprintHeight = 1, Price = 200 });
-            var kindTable = ScriptableObject.CreateInstance<TradeGoodsKindTableAsset>();
-            SetPrivateField(kindTable, "entries", new List<TradeGoodsKindEntry>
-            {
-                new() { Id = "general-a", Kind = TradeGoodsKind.General },
-                new() { Id = "specialty-a", Kind = TradeGoodsKind.Specialty },
-                new() { Id = "general-b", Kind = TradeGoodsKind.General },
-            });
-            created.Add(kindTable);
-
             var gameObject = new GameObject(nameof(TownShopStockAndCatalogTests));
             created.Add(gameObject);
-            var provider = gameObject.AddComponent<PlaceholderTownShopStockProvider>();
+            var provider = gameObject.AddComponent<TownShopStockProvider>();
             SetPrivateField(provider, "tradeGoodsItemTable", itemTable);
-            SetPrivateField(provider, "tradeGoodsKindTable", kindTable);
+            provider.Bind(reader);
             return provider;
         }
 
         [Test]
-        public void GetStock_TradeGoodsMarket_ListsGeneralGoodsInTableOrderWithPrice()
+        public void GetStock_TradeGoodsMarket_FollowsStockOrderWithRemaining()
         {
-            var stock = CreateProvider().GetStock(cityId: 1, TownFacilityIds.TradeGoodsMarket);
+            var stock = CreateProvider(new FakeStockReader()).GetStock(4, TownFacilityIds.TradeGoodsMarket);
 
             Assert.AreEqual(2, stock.Count);
-            Assert.AreEqual("general-a", stock[0].Definition.Id);
-            Assert.AreEqual(100, stock[0].Price);
-            Assert.AreEqual("general-b", stock[1].Definition.Id);
-            Assert.AreEqual(200, stock[1].Price);
+            Assert.AreEqual("general-b", stock[0].Definition.Id);
+            Assert.AreEqual(200, stock[0].Price);
+            Assert.AreEqual(3, stock[0].Remaining);
+            Assert.AreEqual(0, stock[1].Remaining, "품절 행도 남는다");
         }
 
         [Test]
-        public void GetStock_IgnoresCityId()
+        public void GetStock_OtherFacilityOrCity_IsEmpty()
         {
-            var provider = CreateProvider();
+            var provider = CreateProvider(new FakeStockReader());
 
-            Assert.AreEqual(provider.GetStock(1, TownFacilityIds.TradeGoodsMarket).Count, provider.GetStock(7, TownFacilityIds.TradeGoodsMarket).Count);
+            Assert.AreEqual(0, provider.GetStock(4, TownFacilityIds.Blacksmith).Count);
+            Assert.AreEqual(0, provider.GetStock(1, TownFacilityIds.TradeGoodsMarket).Count);
         }
 
         [Test]
-        public void GetStock_UnmappedFacility_ReturnsEmpty()
+        public void OnStockChanged_IsForwarded()
         {
-            var provider = CreateProvider();
+            var reader = new FakeStockReader();
+            var provider = CreateProvider(reader);
+            var raised = 0;
+            provider.OnStockChanged += () => raised++;
 
-            LogAssert.Expect(LogType.Warning, new Regex("판매 대상이 정해지지 않았다"));
-            Assert.AreEqual(0, provider.GetStock(1, TownFacilityIds.Blacksmith).Count);
+            reader.Raise();
+
+            Assert.AreEqual(1, raised);
         }
 
         [Test]

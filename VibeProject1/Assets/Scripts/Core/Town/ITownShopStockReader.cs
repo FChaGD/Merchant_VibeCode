@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Game.Core
@@ -9,5 +10,8 @@ namespace Game.Core
     public interface ITownShopStockReader
     {
         IReadOnlyList<ShopStockEntry> GetStock(int cityId, string facilityId);
+
+        // 재고가 줄면 화면이 다시 그린다(Docs/설계/81번 §4.2).
+        event Action OnStockChanged;
     }
 }

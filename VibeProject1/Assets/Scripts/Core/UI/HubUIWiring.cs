@@ -105,8 +105,9 @@ namespace Game.Core
             registrar.TryResolve<IEquipmentInventoryRepository>(out var equipmentInventory);
             registrar.TryResolve<IConsumableInventoryRepository>(out var consumableInventory);
             registrar.TryResolve<IPersonalItemInventoryRepository>(out var personalItemInventory);
-            // 시설 판매 목록(설계 50번 §5.3) - 마을별 판매 시스템이 아직 Placeholder라 선택적으로 조회한다.
+            // 시설 판매 목록과 마을 재고(설계 81번 §3.5) - 없으면 해당 화면을 등록하지 않거나 재고 차감 없이 동작한다.
             registrar.TryResolve<ITownShopStockReader>(out var townShopStockReader);
+            registrar.TryResolve<ITownStockConsumer>(out var townStockConsumer);
             // 캐릭터 고용(설계 54번 §8.4) - 로스터·후보 시스템이 아직 Placeholder라 선택적으로 조회한다.
             registrar.TryResolve<IMercenaryCandidateReader>(out var mercenaryCandidateReader);
             registrar.TryResolve<IHiredCharacterRoster>(out var hiredCharacterRoster);
@@ -158,7 +159,7 @@ namespace Game.Core
             }
 
             RegisterInventoryPopups(sceneUIRoot, uiManager, panelRegistrar, inventoryPopupSources);
-            RegisterTradeGoodsMarket(sceneUIRoot, uiManager, panelRegistrar, tradeGoodsInventory, currencyWallet, townShopStockReader, currentLocationRepository);
+            RegisterTradeGoodsMarket(sceneUIRoot, uiManager, panelRegistrar, tradeGoodsInventory, currencyWallet, townShopStockReader, townStockConsumer, currentLocationRepository);
             RegisterMercenaryContact(sceneUIRoot, uiManager, panelRegistrar, currencyWallet, mercenaryCandidateReader, hiredCharacterRoster, characterCatalog, mercenaryClassIconReader, currentLocationRepository);
             RegisterStable(sceneUIRoot, uiManager, panelRegistrar, currencyWallet, caravanAssetCandidateReader, ownedCaravanAssetRoster, caravanAssetCatalog, caravanAssetIconReader, currentLocationRepository);
 
@@ -224,7 +225,7 @@ namespace Game.Core
 
         // 시설 화면은 모달 팝업으로 등록한다 - 재화 패널 외 UI 숨김과 카테고리 depth 복귀를 기존 채널이 처리한다(설계 50번 §6.1).
         // 의존성이나 화면 요소가 없으면(인스톨러 미실행) 등록하지 않는다 - 시설 버튼은 "등록되지 않은 패널" 경고만 낸다.
-        private void RegisterTradeGoodsMarket(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, ITradeGoodsInventoryRepository inventory, IPlayerCurrencyWallet wallet, ITownShopStockReader stockReader, ITripCurrentLocationReader currentLocation)
+        private void RegisterTradeGoodsMarket(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, ITradeGoodsInventoryRepository inventory, IPlayerCurrencyWallet wallet, ITownShopStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation)
         {
             tradeGoodsMarketPanel?.Dispose();
             tradeGoodsMarketPanel = null;
@@ -237,7 +238,7 @@ namespace Game.Core
 
             if (!TradeGoodsMarketElements.TryBind(sceneUIRoot, InventoryPopupSpecs.TradeGoods.HasStaging, InventoryPopupSpecs.TradeGoods.HasSections, out var elements)) return;
 
-            tradeGoodsMarketPanel = new TradeGoodsMarketPanel(elements, inventory, wallet, stockReader, currentLocation, uiManager);
+            tradeGoodsMarketPanel = new TradeGoodsMarketPanel(elements, inventory, wallet, stockReader, stockConsumer, currentLocation, uiManager);
             panelRegistrar.RegisterPopupPanel(tradeGoodsMarketPanel);
         }
 

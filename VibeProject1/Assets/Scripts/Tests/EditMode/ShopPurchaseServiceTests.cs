@@ -56,8 +56,19 @@ namespace Game.Core.Tests
             public bool RemoveItem(string instanceId) => grid.Remove(instanceId);
         }
 
+        private class FakeStock : ITownStockConsumer
+        {
+            public readonly List<(int city, TownStockCategory category, string id)> Consumed = new();
+            public bool TryConsume(int cityId, TownStockCategory category, string itemId)
+            {
+                Consumed.Add((cityId, category, itemId));
+                return true;
+            }
+        }
+
         private GameObject gameObject;
         private InMemoryPlayerCurrencyWallet wallet;
+        private FakeStock stock;
 
         [SetUp]
         public void SetUp()
@@ -65,6 +76,7 @@ namespace Game.Core.Tests
             gameObject = new GameObject(nameof(ShopPurchaseServiceTests));
             wallet = gameObject.AddComponent<InMemoryPlayerCurrencyWallet>();
             wallet.ResolveDependencies(null); // 기본 소지 재화 상한만큼 가득 찬 상태로 시작
+            stock = new FakeStock();
         }
 
         [TearDown]
@@ -77,11 +89,11 @@ namespace Game.Core.Tests
         public void TryPurchase_Success_DeductsAndPlacesAtTopLeft()
         {
             var inventory = new GridRepository(4, 2);
-            var service = new ShopPurchaseService(wallet, inventory, allowRotation: true);
-            var entry = new ShopStockEntry(new FakeItemDefinition("a", 2, 1), 300);
+            var service = new ShopPurchaseService(wallet, inventory, allowRotation: true, stock);
+            var entry = new ShopStockEntry(new FakeItemDefinition("a", 2, 1), 300, 5);
             var startingAmount = wallet.CurrentAmount;
 
-            Assert.IsTrue(service.TryPurchase(entry, null, out _));
+            Assert.IsTrue(service.TryPurchase(entry, 4, null, out _));
             Assert.AreEqual(startingAmount - 300, wallet.CurrentAmount);
             Assert.IsTrue(inventory.TryGetItemAt(new GridPosition(0, 0), out var placed));
             Assert.AreEqual("a", placed.Definition.Id);
@@ -90,11 +102,11 @@ namespace Game.Core.Tests
         [Test]
         public void Evaluate_InsufficientFunds()
         {
-            var service = new ShopPurchaseService(wallet, new GridRepository(4, 2), allowRotation: true);
-            var entry = new ShopStockEntry(new FakeItemDefinition("a", 1, 1), wallet.CurrentAmount + 1);
+            var service = new ShopPurchaseService(wallet, new GridRepository(4, 2), allowRotation: true, stock);
+            var entry = new ShopStockEntry(new FakeItemDefinition("a", 1, 1), wallet.CurrentAmount + 1, 5);
 
             Assert.AreEqual(ShopPurchaseCheck.InsufficientFunds, service.Evaluate(entry));
-            Assert.IsFalse(service.TryPurchase(entry, null, out _));
+            Assert.IsFalse(service.TryPurchase(entry, 4, null, out _));
             Assert.AreEqual(wallet.Capacity, wallet.CurrentAmount);
         }
 
@@ -103,11 +115,11 @@ namespace Game.Core.Tests
         {
             var inventory = new GridRepository(1, 1);
             inventory.TryPlaceItem(new FakeItemDefinition("filler", 1, 1), new GridPosition(0, 0), out _);
-            var service = new ShopPurchaseService(wallet, inventory, allowRotation: true);
-            var entry = new ShopStockEntry(new FakeItemDefinition("a", 1, 1), 100);
+            var service = new ShopPurchaseService(wallet, inventory, allowRotation: true, stock);
+            var entry = new ShopStockEntry(new FakeItemDefinition("a", 1, 1), 100, 5);
 
             Assert.AreEqual(ShopPurchaseCheck.NoSpace, service.Evaluate(entry));
-            Assert.IsFalse(service.TryPurchase(entry, null, out _));
+            Assert.IsFalse(service.TryPurchase(entry, 4, null, out _));
             Assert.AreEqual(wallet.Capacity, wallet.CurrentAmount);
         }
 
@@ -116,8 +128,8 @@ namespace Game.Core.Tests
         {
             var inventory = new GridRepository(1, 1);
             inventory.TryPlaceItem(new FakeItemDefinition("filler", 1, 1), new GridPosition(0, 0), out _);
-            var service = new ShopPurchaseService(wallet, inventory, allowRotation: true);
-            var entry = new ShopStockEntry(new FakeItemDefinition("a", 1, 1), wallet.CurrentAmount + 1);
+            var service = new ShopPurchaseService(wallet, inventory, allowRotation: true, stock);
+            var entry = new ShopStockEntry(new FakeItemDefinition("a", 1, 1), wallet.CurrentAmount + 1, 5);
 
             Assert.AreEqual(ShopPurchaseCheck.InsufficientFunds, service.Evaluate(entry));
         }
@@ -126,10 +138,10 @@ namespace Game.Core.Tests
         public void TryPurchase_FitsOnlyRotated_PlacesRotated()
         {
             var inventory = new GridRepository(1, 2); // 세로 2칸 - 2×1 아이템은 회전해야 들어간다
-            var service = new ShopPurchaseService(wallet, inventory, allowRotation: true);
-            var entry = new ShopStockEntry(new FakeItemDefinition("long", 2, 1), 100);
+            var service = new ShopPurchaseService(wallet, inventory, allowRotation: true, stock);
+            var entry = new ShopStockEntry(new FakeItemDefinition("long", 2, 1), 100, 5);
 
-            Assert.IsTrue(service.TryPurchase(entry, null, out _));
+            Assert.IsTrue(service.TryPurchase(entry, 4, null, out _));
             Assert.IsTrue(inventory.TryGetItemAt(new GridPosition(0, 1), out var placed));
             Assert.AreEqual(1, placed.QuarterTurns);
         }
@@ -137,8 +149,8 @@ namespace Game.Core.Tests
         [Test]
         public void Evaluate_RotationNotAllowed_NoSpace()
         {
-            var service = new ShopPurchaseService(wallet, new GridRepository(1, 2), allowRotation: false);
-            var entry = new ShopStockEntry(new FakeItemDefinition("long", 2, 1), 100);
+            var service = new ShopPurchaseService(wallet, new GridRepository(1, 2), allowRotation: false, stock);
+            var entry = new ShopStockEntry(new FakeItemDefinition("long", 2, 1), 100, 5);
 
             Assert.AreEqual(ShopPurchaseCheck.NoSpace, service.Evaluate(entry));
         }
@@ -147,10 +159,10 @@ namespace Game.Core.Tests
         public void TryPurchase_PlacementFails_RefundsWallet()
         {
             var inventory = new GridRepository(2, 2) { FailNextPlacement = true };
-            var service = new ShopPurchaseService(wallet, inventory, allowRotation: true);
-            var entry = new ShopStockEntry(new FakeItemDefinition("a", 1, 1), 100);
+            var service = new ShopPurchaseService(wallet, inventory, allowRotation: true, stock);
+            var entry = new ShopStockEntry(new FakeItemDefinition("a", 1, 1), 100, 5);
 
-            Assert.IsFalse(service.TryPurchase(entry, null, out _));
+            Assert.IsFalse(service.TryPurchase(entry, 4, null, out _));
             Assert.AreEqual(wallet.Capacity, wallet.CurrentAmount);
         }
 
@@ -175,14 +187,43 @@ namespace Game.Core.Tests
             grid.AddSection(new InventorySection("a", string.Empty, InventoryShape.Rectangle(1, 1)));
             grid.AddSection(new InventorySection("b", string.Empty, InventoryShape.Rectangle(1, 1)));
             var inventory = new GridRepository(grid);
-            var service = new ShopPurchaseService(wallet, inventory, allowRotation: true);
-            var entry = new ShopStockEntry(new FakeItemDefinition("item", 1, 1), 100);
+            var service = new ShopPurchaseService(wallet, inventory, allowRotation: true, stock);
+            var entry = new ShopStockEntry(new FakeItemDefinition("item", 1, 1), 100, 5);
 
-            Assert.IsTrue(service.TryPurchase(entry, "b", out var firstSection));
+            Assert.IsTrue(service.TryPurchase(entry, 4, "b", out var firstSection));
             Assert.AreEqual("b", firstSection);
-            Assert.IsTrue(service.TryPurchase(entry, "b", out var secondSection));
+            Assert.IsTrue(service.TryPurchase(entry, 4, "b", out var secondSection));
             Assert.AreEqual("a", secondSection, "우선 섹션이 차면 다음 섹션에 넣는다(기획 63번 §3.5).");
             Assert.AreEqual(ShopPurchaseCheck.NoSpace, service.Evaluate(entry));
+        }
+
+        [Test]
+        public void Evaluate_SoldOut_TakesPriorityOverFunds()
+        {
+            wallet.TrySpend(wallet.CurrentAmount);
+            var service = new ShopPurchaseService(wallet, new GridRepository(4, 4), allowRotation: false, stock);
+
+            Assert.AreEqual(ShopPurchaseCheck.SoldOut, service.Evaluate(new ShopStockEntry(new FakeItemDefinition("a", 1, 1), 100, 0)));
+        }
+
+        [Test]
+        public void TryPurchase_Success_ConsumesTradeGoodsStockOfCity()
+        {
+            var service = new ShopPurchaseService(wallet, new GridRepository(4, 4), allowRotation: false, stock);
+
+            Assert.IsTrue(service.TryPurchase(new ShopStockEntry(new FakeItemDefinition("a", 1, 1), 100, 1), 7, null, out _));
+
+            CollectionAssert.AreEqual(new[] { (7, TownStockCategory.TradeGoods, "a") }, stock.Consumed);
+        }
+
+        [Test]
+        public void TryPurchase_PlacementFails_DoesNotConsumeStock()
+        {
+            var repo = new GridRepository(4, 4) { FailNextPlacement = true };
+            var service = new ShopPurchaseService(wallet, repo, allowRotation: false, stock);
+
+            Assert.IsFalse(service.TryPurchase(new ShopStockEntry(new FakeItemDefinition("a", 1, 1), 100, 1), 7, null, out _));
+            Assert.AreEqual(0, stock.Consumed.Count);
         }
     }
 }

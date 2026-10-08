@@ -40,7 +40,7 @@ namespace Game.Core.Editor
             nameof(PlaceholderEquipmentInventoryRepository),
             nameof(PlaceholderConsumableInventoryRepository),
             nameof(PlaceholderPersonalItemInventoryRepository),
-            nameof(PlaceholderTownShopStockProvider),
+            nameof(TownShopStockProvider),
             nameof(CharacterCatalogProvider),
             nameof(PlaceholderMercenaryCandidateProvider),
             nameof(CaravanAssetCatalogProvider),
@@ -265,8 +265,8 @@ namespace Game.Core.Editor
             // 골드 상자는 기타 카테고리지만 교역품 그리드에 놓인다(Docs/설계/50번 §5.2).
             WireMiscItemCatalog(tradeGoodsInventoryRepository);
 
-            // 시설 판매 목록(설계 50번 §5.3) - 마을별 판매 차별화 시스템이 생기면 이 제공자를 함께 제거한다.
-            var townShopStockProvider = EditorUIBuilder.GetOrCreateManager<PlaceholderTownShopStockProvider>(uiManager.transform, nameof(PlaceholderTownShopStockProvider));
+            // 무역품 판매 목록(설계 81번 §3.5) - 마을 재고 저장소를 TryResolve로 찾아 아이템 테이블과 조인한다.
+            var townShopStockProvider = EditorUIBuilder.GetOrCreateManager<TownShopStockProvider>(uiManager.transform, nameof(TownShopStockProvider));
             WireTownShopStockTables(townShopStockProvider);
 
             // 캐릭터 카탈로그와 고용 후보(설계 54번 §9). 카탈로그는 로스터·후보·고용 화면이 공유하고, 후보 제공자는 마을별 후보
@@ -558,12 +558,11 @@ namespace Game.Core.Editor
             so.ApplyModifiedProperties();
         }
 
-        private static void WireTownShopStockTables(PlaceholderTownShopStockProvider provider)
+        private static void WireTownShopStockTables(TownShopStockProvider provider)
         {
             var so = new SerializedObject(provider);
             so.FindProperty("tradeGoodsItemTable").objectReferenceValue = LoadImportedTable<ItemDefinitionTableAsset>(TableAssetPaths.TradeGoodsItemTable);
             so.FindProperty("tradeGoodsItemStrings").objectReferenceValue = LoadImportedTable<ItemStringTableAsset>(TableAssetPaths.TradeGoodsItemStrings);
-            so.FindProperty("tradeGoodsKindTable").objectReferenceValue = LoadImportedTable<TradeGoodsKindTableAsset>(TableAssetPaths.TradeGoodsKindTable);
             so.ApplyModifiedProperties();
         }
 
