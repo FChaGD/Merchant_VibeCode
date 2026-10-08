@@ -8,23 +8,43 @@ namespace Game.Core.Tests
 {
     public class PlaceholderTradeGoodsInventoryRepositoryTests
     {
-        // 보유 마차 목록(설계 64번 §5) - 저장소는 읽기 계약만 쓴다.
+        // 보유 마차 목록(설계 64번 §5, 81번 §5.2) - 저장소는 읽기 계약만 쓴다. 개체 Id와 종류 Id를 따로 받아 같은 종류 여러 대를 흉내 낸다.
         private class FakeOwnedAssets : IOwnedCaravanAssetReader
         {
             private readonly List<string> wagonIds = new();
+            private readonly Dictionary<string, string> kindIdById = new();
+            private readonly ICaravanAssetCatalogReader catalog;
             public event System.Action OnOwnedChanged;
+
+            public FakeOwnedAssets(ICaravanAssetCatalogReader catalog) => this.catalog = catalog;
 
             public IReadOnlyList<string> GetOwnedIds(FormationUnitKind kind) => kind == FormationUnitKind.Wagon ? wagonIds : System.Array.Empty<string>();
 
-            public void Add(string wagonId)
+            public bool TryGetOwned(string instanceId, out OwnedCaravanAsset asset)
+            {
+                asset = default;
+                if (!kindIdById.TryGetValue(instanceId, out var kindId) || !catalog.TryGet(kindId, out var profile)) return false;
+                var number = 0;
+                foreach (var id in wagonIds)
+                {
+                    if (kindIdById[id] == kindId) number++;
+                    if (id == instanceId) break;
+                }
+                asset = new OwnedCaravanAsset(instanceId, profile, number);
+                return true;
+            }
+
+            public void Add(string wagonId, string kindId = null)
             {
                 wagonIds.Add(wagonId);
+                kindIdById[wagonId] = kindId ?? wagonId;
                 OnOwnedChanged?.Invoke();
             }
 
             public void Remove(string wagonId)
             {
                 wagonIds.Remove(wagonId);
+                kindIdById.Remove(wagonId);
                 OnOwnedChanged?.Invoke();
             }
         }
@@ -69,10 +89,9 @@ namespace Game.Core.Tests
             caravanCatalog = new FakeCaravanCatalog();
             caravanCatalog.AddWagon("W1", "마차1", InventoryShape.Rectangle(5, 4));
             caravanCatalog.AddWagon("W2", "마차2", InventoryShape.Rectangle(2, 1));
-            ownedAssets = new FakeOwnedAssets();
+            ownedAssets = new FakeOwnedAssets(caravanCatalog);
             ownedAssets.Add("W1");
             dependencyManager.Register<IOwnedCaravanAssetReader>(ownedAssets);
-            dependencyManager.Register<ICaravanAssetCatalogReader>(caravanCatalog);
 
             // 골드 상자는 기타 카테고리 테이블의 행이다(33번 §3.4, 설계 50번 §5.2). 테스트용 테이블을 만들어
             // [SerializeField]에 리플렉션으로 주입한다 - 인스펙터/임포터를 거치지 않는 EditMode 테스트 전용 배선.
@@ -119,7 +138,7 @@ namespace Game.Core.Tests
             // 보유 마차 1대 = 섹션 1개, 모양·이름은 마차 테이블 값(기획 63번 §3.2).
             Assert.AreEqual(1, repository.Sections.Count);
             Assert.AreEqual("W1", repository.Sections[0].Id);
-            Assert.AreEqual("마차1", repository.Sections[0].DisplayName);
+            Assert.AreEqual("1번 마차1", repository.Sections[0].DisplayName);
             Assert.AreEqual(5, repository.Sections[0].Shape.Width);
             Assert.AreEqual(4, repository.Sections[0].Shape.Height);
         }
@@ -340,6 +359,19 @@ namespace Game.Core.Tests
             Assert.AreEqual(1, repository.Sections.Count);
             Assert.AreEqual("W2", repository.Sections[0].Id);
             Assert.AreEqual(1, raised);
+        }
+
+        [Test]
+        public void SectionNames_Renumber_WhenEarlierWagonRemoved()
+        {
+            ownedAssets.Add("W1b", "W1");
+            Assert.AreEqual("2번 마차1", repository.Sections[1].DisplayName);
+
+            ownedAssets.Remove("W1");
+
+            Assert.AreEqual(1, repository.Sections.Count);
+            Assert.AreEqual("W1b", repository.Sections[0].Id);
+            Assert.AreEqual("1번 마차1", repository.Sections[0].DisplayName);
         }
     }
 }

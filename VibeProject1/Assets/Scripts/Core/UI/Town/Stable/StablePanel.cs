@@ -115,7 +115,7 @@ namespace Game.Core
             UpdateInfo();
         }
 
-        // 종류별 제목("마차 1/5")과 보유 개체 이름(테이블 행 순서).
+        // 종류별 제목("마차 1/5")과 보유 개체 "n번 이름"(보유 순서, 기획 80번 §4-1).
         private void RenderOwned()
         {
             ownedText.Clear();
@@ -125,12 +125,9 @@ namespace Game.Core
                 ownedText.Append("<b>").Append(catalog.GetKindLabel(kind)).Append(' ')
                     .Append(roster.CountOwnedOfKind(kind)).Append('/').Append(CaravanAssetPurchaseService.MaxOwnedPerKind).AppendLine("</b>");
 
-                foreach (var profile in catalog.All)
+                foreach (var instanceId in roster.GetOwnedIds(kind))
                 {
-                    if (profile.Kind == kind && roster.IsOwned(profile.Id))
-                    {
-                        ownedText.Append("  ").AppendLine(profile.Name);
-                    }
+                    if (roster.TryGetOwned(instanceId, out var asset)) ownedText.Append("  ").AppendLine(OwnedCaravanAssetNames.Format(asset));
                 }
             }
 

@@ -10,8 +10,9 @@ namespace Game.Core
     /// - 용병: 캐릭터 카탈로그에서 직업별 테이블 순서 앞 2명으로 시작하고, 고용할 때마다 늘어난다(Docs/기획/53번, 설계 54번 §4.2).
     /// - 마차·시설: 마차·시설 카탈로그에서 종류별 첫 행 1개로 시작하고, 마구간 구매로 늘어난다(기획 55번, 설계 56번 §4).
     ///   전투에서 파괴된 마차는 정산이 보유 목록에서 제거한다(기획 77번 §3-8, 설계 79번 §5.2).
+    ///   개체 Id는 장부(OwnedCaravanAssetRegistry)가 발급한다 - 같은 종류를 여러 대 가질 수 있다(기획 80번 §3-3, 설계 81번 §5.1).
     /// 로스터 목록은 소비자(정비창 팔레트)가 열릴 때마다 다시 읽으므로 추가 통지가 필요 없다 - 시설 화면만 변경 이벤트를 구독한다.
-    /// 목록은 항상 "용병(캐릭터 테이블 순) → 마차 → 시설(마차·시설 테이블 순)"으로 다시 채운다. 팔레트가 첫 등장 순서로 줄을 만들기
+    /// 목록은 항상 "용병(캐릭터 테이블 순) → 마차 → 시설(각각 보유 순)"으로 다시 채운다. 팔레트가 첫 등장 순서로 줄을 만들기
     /// 때문에, 추가 위치를 따로 계산하지 않고 테이블 순서로 재구성하는 편이 순서가 어긋날 여지가 없다. 같은 List 인스턴스를 비우고
     /// 다시 채워 이미 참조를 쥔 소비자도 최신 목록을 본다.
     /// </summary>
@@ -21,6 +22,8 @@ namespace Game.Core
         private const int StartingCharactersPerClass = 2;
         // 기획 55번 §3 확정값 - 마차·시설 종류별 시작 보유 수(테이블 순서 앞에서부터).
         private const int StartingAssetsPerKind = 1;
+        // 로스터 목록의 마차·시설 순서(카탈로그 목록 순서와 같다).
+        private static readonly FormationUnitKind[] AssetKindOrder = { FormationUnitKind.Wagon, FormationUnitKind.Facility };
 
         [SerializeField] private Sprite warriorIcon;
         [SerializeField] private Sprite archerIcon;
@@ -31,9 +34,8 @@ namespace Game.Core
         private readonly List<IFormationUnit> roster = new();
         private readonly Dictionary<string, IFormationUnit> ownedById = new();
         private readonly Dictionary<string, int> hiredCountByClass = new();
-        private readonly Dictionary<FormationUnitKind, int> ownedCountByKind = new();
-        // 보유 순서(시작 보유 → 구매 순) - ownedById(Dictionary)에는 순서가 없어 따로 둔다(설계 64번 §5).
-        private readonly Dictionary<FormationUnitKind, List<string>> ownedAssetIdsByKind = new();
+        // 마차·시설 개체 장부 - 발급 Id·종류 매핑·보유 순서·번호(설계 81번 §5.1). ownedById(Dictionary)에는 순서가 없어 따로 둔다.
+        private readonly OwnedCaravanAssetRegistry assetRegistry = new();
         private ICharacterCatalogReader characterCatalog;
         private ICaravanAssetCatalogReader assetCatalog;
 
@@ -56,8 +58,7 @@ namespace Game.Core
         {
             ownedById.Clear();
             hiredCountByClass.Clear();
-            ownedCountByKind.Clear();
-            ownedAssetIdsByKind.Clear();
+            assetRegistry.Clear();
 
             characterCatalog = null;
             assetCatalog = null;
@@ -96,16 +97,21 @@ namespace Game.Core
             return true;
         }
 
-        public bool IsOwned(string id) => assetCatalog != null && assetCatalog.TryGet(id, out _) && ownedById.ContainsKey(id);
+        public int CountOwnedOfKind(FormationUnitKind kind) => assetRegistry.Count(kind);
 
-        public int CountOwnedOfKind(FormationUnitKind kind) => ownedCountByKind.TryGetValue(kind, out var count) ? count : 0;
+        public IReadOnlyList<string> GetOwnedIds(FormationUnitKind kind) => assetRegistry.GetIds(kind);
 
-        public IReadOnlyList<string> GetOwnedIds(FormationUnitKind kind)
-            => ownedAssetIdsByKind.TryGetValue(kind, out var ids) ? ids : System.Array.Empty<string>();
-
-        public bool TryAddOwned(string id)
+        public bool TryGetOwned(string instanceId, out OwnedCaravanAsset asset)
         {
-            if (!TryOwnAsset(id)) return false;
+            asset = default;
+            if (assetCatalog == null || !assetRegistry.TryGetKindId(instanceId, out var kindId) || !assetCatalog.TryGet(kindId, out var profile)) return false;
+            asset = new OwnedCaravanAsset(instanceId, profile, assetRegistry.NumberOf(instanceId));
+            return true;
+        }
+
+        public bool TryAddOwned(string kindId, out string instanceId)
+        {
+            if (!TryOwnAsset(kindId, out instanceId)) return false;
 
             RebuildRoster();
             OnOwnedChanged?.Invoke();
@@ -115,12 +121,9 @@ namespace Game.Core
         // 마차·시설만 제거한다 - 용병 해고는 이 경로의 범위가 아니다. 보유 목록 변경 이벤트로 상단 물류품 저장소가 섹션을 함께 제거한다.
         public bool TryRemoveOwned(string id)
         {
-            if (assetCatalog == null || id == null || !ownedById.ContainsKey(id)) return false;
-            if (!assetCatalog.TryGet(id, out var profile)) return false;
-            if (!ownedAssetIdsByKind.TryGetValue(profile.Kind, out var ids) || !ids.Remove(id)) return false;
+            if (assetCatalog == null || !assetRegistry.Remove(id)) return false;
 
             ownedById.Remove(id);
-            ownedCountByKind[profile.Kind] = CountOwnedOfKind(profile.Kind) - 1;
             RebuildRoster();
             OnOwnedChanged?.Invoke();
             return true;
@@ -159,7 +162,7 @@ namespace Game.Core
             foreach (var profile in assetCatalog.All)
             {
                 if (CountOwnedOfKind(profile.Kind) >= StartingAssetsPerKind) continue;
-                TryOwnAsset(profile.Id);
+                TryOwnAsset(profile.Id, out _);
             }
         }
 
@@ -173,16 +176,16 @@ namespace Game.Core
             return true;
         }
 
-        // 인스턴스 Id = 개체 Id(설계 56번 §4). 표시명은 개체 이름이 아니라 종류명이다 - 정비창 팔레트는 이름을 표시하지 않는다.
-        private bool TryOwnAsset(string id)
+        // 개체 Id는 장부가 발급한다(설계 81번 §5.1). 표시명은 종류명 - 팔레트 카테고리 이름으로 쓰인다. 개체 이름은 정보 패널이 InstanceName으로 읽는다.
+        private bool TryOwnAsset(string kindId, out string instanceId)
         {
-            if (assetCatalog == null || ownedById.ContainsKey(id)) return false;
-            if (!assetCatalog.TryGet(id, out var profile)) return false;
+            instanceId = null;
+            if (assetCatalog == null || kindId == null || !assetCatalog.TryGet(kindId, out var profile)) return false;
 
-            ownedById[id] = new PlaceholderFormationUnit(profile.Id, profile.KindLabel, GetKindIcon(profile.Kind), profile.Kind, profile.AreaShape);
-            ownedCountByKind[profile.Kind] = CountOwnedOfKind(profile.Kind) + 1;
-            if (!ownedAssetIdsByKind.TryGetValue(profile.Kind, out var ids)) ownedAssetIdsByKind[profile.Kind] = ids = new List<string>();
-            ids.Add(id);
+            var id = assetRegistry.Add(kindId, profile.Kind);
+            ownedById[id] = new CaravanAssetFormationUnit(id, profile.KindLabel, GetKindIcon(profile.Kind), profile.Kind, profile.AreaShape,
+                () => TryGetOwned(id, out var asset) ? OwnedCaravanAssetNames.Format(asset) : profile.Name);
+            instanceId = id;
             return true;
         }
 
@@ -196,12 +199,9 @@ namespace Game.Core
                     if (ownedById.TryGetValue(profile.CharacterId, out var unit)) roster.Add(unit);
                 }
             }
-            if (assetCatalog != null)
+            foreach (var kind in AssetKindOrder)
             {
-                foreach (var profile in assetCatalog.All)
-                {
-                    if (ownedById.TryGetValue(profile.Id, out var unit)) roster.Add(unit);
-                }
+                foreach (var id in assetRegistry.GetIds(kind)) roster.Add(ownedById[id]);
             }
         }
     }

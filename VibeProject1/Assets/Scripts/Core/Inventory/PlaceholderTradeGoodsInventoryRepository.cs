@@ -6,7 +6,7 @@ namespace Game.Core
 {
     /// <summary>
     /// 보유 마차 1대 = 그리드 섹션 1개(Docs/기획/63번 §3.2, 설계 64번 §5). 모양은 마차 테이블의 적재 모양(CargoShape)이고,
-    /// 섹션 Id는 마차 Id, 순서는 보유 순서다. 섹션은 보유 목록 변경 때마다 맞춘다 - 마구간 구매로 늘어난 마차는 추가하고, 전투에서
+    /// 섹션 Id는 마차 개체 Id(설계 81번 §5.1), 이름은 "n번 이름", 순서는 보유 순서다. 섹션은 보유 목록 변경 때마다 맞춘다 - 마구간 구매로 늘어난 마차는 추가하고, 전투에서
     /// 파괴돼 보유 목록에서 빠진 마차는 제거한다(기획 77번 §3-8, 설계 79번 §5.2). 보유 목록 쪽이 시작 보유분을 넣은 뒤 변경 이벤트를
     /// 내므로 DI 해결 순서와 무관하게 맞춰진다.
     ///
@@ -43,7 +43,6 @@ namespace Game.Core
 
         private IPlayerCurrencyWallet currencyWallet;
         private IOwnedCaravanAssetReader ownedAssets;
-        private ICaravanAssetCatalogReader assetCatalog;
         private InventoryGrid grid = new();
         private IItemCatalogReader catalog;
         private bool seeded;
@@ -77,10 +76,9 @@ namespace Game.Core
 
             if (ownedAssets != null) ownedAssets.OnOwnedChanged -= HandleOwnedChanged;
             ownedAssets = null;
-            assetCatalog = null;
-            if (registrar == null || !registrar.TryResolve(out ownedAssets) || !registrar.TryResolve(out assetCatalog))
+            if (registrar == null || !registrar.TryResolve(out ownedAssets))
             {
-                Debug.LogWarning($"{nameof(PlaceholderTradeGoodsInventoryRepository)}: {nameof(IOwnedCaravanAssetReader)}/{nameof(ICaravanAssetCatalogReader)}가 없어 마차 적재 공간 없이 시작한다(Tools > Game > Build Bootstrap Scene).");
+                Debug.LogWarning($"{nameof(PlaceholderTradeGoodsInventoryRepository)}: {nameof(IOwnedCaravanAssetReader)}가 없어 마차 적재 공간 없이 시작한다(Tools > Game > Build Bootstrap Scene).");
                 return;
             }
 
@@ -179,14 +177,16 @@ namespace Game.Core
             var added = false;
             foreach (var wagonId in ownedAssets.GetOwnedIds(FormationUnitKind.Wagon))
             {
-                if (grid.HasSection(wagonId)) continue;
-                if (!assetCatalog.TryGet(wagonId, out var profile) || profile.CargoShape == null)
+                if (!ownedAssets.TryGetOwned(wagonId, out var asset) || asset.Profile.CargoShape == null)
                 {
                     Debug.LogWarning($"{nameof(PlaceholderTradeGoodsInventoryRepository)}: 마차 '{wagonId}'의 적재 모양(CargoShape)이 없어 적재 공간을 만들지 않았다(Wagon.xlsx 확인 후 Play).");
                     continue;
                 }
 
-                added |= grid.AddSection(new InventorySection(wagonId, profile.Name, profile.CargoShape));
+                var name = OwnedCaravanAssetNames.Format(asset);
+                // 재번호(설계 81번 §5.3) - 이미 있는 섹션도 이름을 다시 맞춘다. 이름만 바뀌어도 변경 이벤트를 내야 팝업이 다시 그린다.
+                if (grid.HasSection(wagonId)) added |= grid.TrySetSectionDisplayName(wagonId, name);
+                else added |= grid.AddSection(new InventorySection(wagonId, name, asset.Profile.CargoShape));
             }
 
             if (!seeded && grid.Sections.Count > 0)

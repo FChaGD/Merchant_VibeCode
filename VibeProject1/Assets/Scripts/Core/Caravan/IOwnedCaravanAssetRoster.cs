@@ -8,8 +8,9 @@ namespace Game.Core
     /// </summary>
     public interface IOwnedCaravanAssetRoster : IOwnedCaravanAssetReader
     {
-        bool IsOwned(string id);
         int CountOwnedOfKind(FormationUnitKind kind);
-        bool TryAddOwned(string id);
+
+        /// <summary>종류 Id로 개체를 하나 새로 발급해 보유에 추가한다. 같은 종류도 몇 대든 추가된다(기획 80번 §3-3).</summary>
+        bool TryAddOwned(string kindId, out string instanceId);
     }
 }

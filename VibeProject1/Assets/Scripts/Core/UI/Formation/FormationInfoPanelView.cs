@@ -29,7 +29,8 @@ namespace Game.Core
 
             if (nameText != null)
             {
-                nameText.text = unit.DisplayName;
+                // 마차·시설은 개체 이름(n번 이름, 설계 81번 §5.3), 나머지는 기존 표시명.
+                nameText.text = unit is IInstanceNamedUnit named ? named.InstanceName : unit.DisplayName;
             }
         }
 

@@ -29,7 +29,6 @@ namespace Game.Core
         // 재화 부족을 먼저 알린다(다른 시설과 같은 순서).
         public CaravanAssetPurchaseCheck Evaluate(CaravanAssetProfile candidate)
         {
-            if (roster.IsOwned(candidate.Id)) return CaravanAssetPurchaseCheck.AlreadyOwned;
             if (wallet.CurrentAmount < candidate.Price) return CaravanAssetPurchaseCheck.InsufficientFunds;
             if (roster.CountOwnedOfKind(candidate.Kind) >= MaxOwnedPerKind) return CaravanAssetPurchaseCheck.OwnedFull;
             return CaravanAssetPurchaseCheck.Available;
@@ -40,7 +39,7 @@ namespace Game.Core
             if (Evaluate(candidate) != CaravanAssetPurchaseCheck.Available) return false;
             if (!wallet.TrySpend(candidate.Price)) return false;
 
-            if (!roster.TryAddOwned(candidate.Id))
+            if (!roster.TryAddOwned(candidate.Id, out _))
             {
                 wallet.Add(candidate.Price); // 로스터 추가 실패 롤백
                 return false;

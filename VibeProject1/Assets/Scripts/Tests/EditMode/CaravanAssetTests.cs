@@ -16,21 +16,28 @@ namespace Game.Core.Tests
         {
             private readonly Dictionary<string, FormationUnitKind> kindById = new();
             private readonly Dictionary<string, FormationUnitKind> knownKinds = new();
+            private int serial;
             public bool FailNextAdd { get; set; }
             public event Action OnOwnedChanged;
 
             public void Know(CaravanAssetProfile profile) => knownKinds[profile.Id] = profile.Kind;
 
-            public bool IsOwned(string id) => kindById.ContainsKey(id);
-
             public int CountOwnedOfKind(FormationUnitKind kind) => kindById.Values.Count(k => k == kind);
 
             public IReadOnlyList<string> GetOwnedIds(FormationUnitKind kind) => kindById.Where(pair => pair.Value == kind).Select(pair => pair.Key).ToList();
 
-            public bool TryAddOwned(string id)
+            public bool TryGetOwned(string instanceId, out OwnedCaravanAsset asset)
             {
-                if (FailNextAdd || IsOwned(id) || !knownKinds.TryGetValue(id, out var kind)) return false;
-                kindById[id] = kind;
+                asset = default;
+                return false;
+            }
+
+            public bool TryAddOwned(string kindId, out string instanceId)
+            {
+                instanceId = null;
+                if (FailNextAdd || !knownKinds.TryGetValue(kindId, out var kind)) return false;
+                instanceId = $"{kindId}#{++serial}";
+                kindById[instanceId] = kind;
                 OnOwnedChanged?.Invoke();
                 return true;
             }
@@ -87,20 +94,33 @@ namespace Game.Core.Tests
             var roster = go.AddComponent<PlaceholderCaravanRosterProvider>();
             roster.ResolveDependencies(dependencyManager);
 
-            CollectionAssert.AreEqual(new[] { "Wagon01", "Facility01" }, roster.GetRoster().Select(u => u.Id).ToArray());
+            CollectionAssert.AreEqual(new[] { "Wagon01#1", "Facility01#1" }, roster.GetRoster().Select(u => u.Id).ToArray());
             Assert.AreEqual(1, roster.CountOwnedOfKind(FormationUnitKind.Wagon));
 
             var changed = 0;
             roster.OnOwnedChanged += () => changed++;
-            Assert.IsTrue(roster.TryAddOwned("Wagon03"));
-            Assert.IsFalse(roster.TryAddOwned("Wagon03"));
-            Assert.AreEqual(1, changed);
+            // 같은 종류도 여러 대 보유한다(기획 80번 §3-3) - 개체 Id는 발급 Id다(설계 81번 §5.1).
+            Assert.IsTrue(roster.TryAddOwned("Wagon03", out var first));
+            Assert.IsTrue(roster.TryAddOwned("Wagon03", out var second));
+            Assert.IsFalse(roster.TryAddOwned("Missing", out _));
+            Assert.AreEqual(2, changed);
+            Assert.AreEqual("Wagon03#1", first);
+            Assert.AreEqual("Wagon03#2", second);
 
-            CollectionAssert.AreEqual(new[] { "Wagon01", "Wagon03", "Facility01" }, roster.GetRoster().Select(u => u.Id).ToArray());
-            // 정비창 팔레트는 개체 이름이 아니라 종류명을 표시한다(기획 55번 §3).
-            var wagon = roster.GetRoster().First(u => u.Id == "Wagon03");
+            CollectionAssert.AreEqual(new[] { "Wagon01#1", "Wagon03#1", "Wagon03#2", "Facility01#1" }, roster.GetRoster().Select(u => u.Id).ToArray());
+            // 정비창 팔레트는 개체 이름이 아니라 종류명을 표시한다(기획 55번 §3). 개체 이름은 정보 패널용 InstanceName.
+            var wagon = roster.GetRoster().First(u => u.Id == second);
             Assert.AreEqual("마차", wagon.DisplayName);
             Assert.AreEqual(FormationUnitKind.Wagon, wagon.Kind);
+            Assert.AreEqual("2번 마차이름3", ((IInstanceNamedUnit)wagon).InstanceName);
+
+            Assert.IsTrue(roster.TryGetOwned(second, out var asset));
+            Assert.AreEqual("Wagon03", asset.Profile.Id);
+            Assert.AreEqual(2, asset.Number);
+
+            // 앞 개체가 빠지면 번호가 당겨진다(기획 80번 §4-1).
+            Assert.IsTrue(roster.TryRemoveOwned(first));
+            Assert.AreEqual("1번 마차이름3", ((IInstanceNamedUnit)wagon).InstanceName);
         }
 
         [Test]
@@ -113,8 +133,7 @@ namespace Game.Core.Tests
             Assert.AreEqual(CaravanAssetPurchaseCheck.Available, service.Evaluate(candidate));
             Assert.IsTrue(service.TryPurchase(candidate));
             Assert.AreEqual(startingAmount - 1000, wallet.CurrentAmount);
-            Assert.IsTrue(roster.IsOwned("Wagon02"));
-            Assert.AreEqual(CaravanAssetPurchaseCheck.AlreadyOwned, service.Evaluate(candidate));
+            Assert.AreEqual(1, roster.CountOwnedOfKind(FormationUnitKind.Wagon));
         }
 
         [Test]
@@ -152,7 +171,7 @@ namespace Game.Core.Tests
 
             Assert.IsFalse(service.TryPurchase(candidate));
             Assert.AreEqual(startingAmount, wallet.CurrentAmount);
-            Assert.IsFalse(roster.IsOwned("Wagon02"));
+            Assert.AreEqual(0, roster.CountOwnedOfKind(FormationUnitKind.Wagon));
         }
 
         private (CaravanAssetPurchaseService, FakeRoster) CreateService()

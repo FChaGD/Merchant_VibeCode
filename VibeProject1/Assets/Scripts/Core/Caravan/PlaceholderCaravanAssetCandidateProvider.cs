@@ -32,7 +32,6 @@ namespace Game.Core
             var candidates = new List<CaravanAssetProfile>();
             foreach (var profile in catalog.All)
             {
-                if (roster != null && roster.IsOwned(profile.Id)) continue;
                 candidates.Add(profile);
             }
             return candidates;

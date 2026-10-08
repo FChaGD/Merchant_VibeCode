@@ -83,6 +83,15 @@ namespace Game.Core
 
         public bool HasSection(string sectionId) => sectionId != null && sectionsById.ContainsKey(sectionId);
 
+        /// <summary>이름이 실제로 바뀌면 true. 칸·아이템에는 영향이 없다(설계 81번 §5.3 재번호).</summary>
+        public bool TrySetSectionDisplayName(string sectionId, string displayName)
+        {
+            if (sectionId == null || !sectionsById.TryGetValue(sectionId, out var state)) return false;
+            if (state.Section.DisplayName == (displayName ?? string.Empty)) return false;
+            state.Section.Rename(displayName);
+            return true;
+        }
+
         /// <summary>
         /// 새 인스턴스를 임시 보관 끝에 넣는다(전투 회수 물품, 설계 79번 §5.1). 칸을 점유하지 않으므로 실패하지 않는다 - 회수 물품이
         /// 들어갈 자리가 없어 사라지는 일이 없게, 배치는 플레이어가 적재 단계에서 직접 한다.
