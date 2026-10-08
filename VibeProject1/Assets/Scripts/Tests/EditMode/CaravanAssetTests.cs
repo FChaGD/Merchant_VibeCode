@@ -43,6 +43,22 @@ namespace Game.Core.Tests
             }
         }
 
+        private class FakeStock : ITownStockReader, ITownStockConsumer
+        {
+            public readonly Dictionary<(int, TownStockCategory, string), int> Remaining = new();
+            public event Action OnStockChanged;
+            public IReadOnlyList<TownStockLine> GetLines(int cityId, TownStockCategory category)
+                => Remaining.Where(p => p.Key.Item1 == cityId && p.Key.Item2 == category).Select(p => new TownStockLine(p.Key.Item3, p.Value)).ToList();
+            public bool TryConsume(int cityId, TownStockCategory category, string itemId)
+            {
+                var key = (cityId, category, itemId);
+                if (!Remaining.TryGetValue(key, out var n) || n <= 0) return false;
+                Remaining[key] = n - 1;
+                OnStockChanged?.Invoke();
+                return true;
+            }
+        }
+
         private readonly List<Object> created = new();
         private InMemoryPlayerCurrencyWallet wallet;
         private CaravanAssetTableAsset wagonTable;
@@ -213,6 +229,29 @@ namespace Game.Core.Tests
             var field = target.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
             Assert.IsNotNull(field, $"{target.GetType().Name}.{fieldName}");
             field.SetValue(target, value);
+        }
+
+        [Test]
+        public void Candidates_ExpandPerUnit_DecreaseByOne()
+        {
+            var stock = new FakeStock();
+            stock.Remaining[(4, TownStockCategory.Wagon, "Wagon01")] = 2;
+            stock.Remaining[(4, TownStockCategory.Facility, "Facility02")] = 1;
+            var go = new GameObject("candidates");
+            created.Add(go);
+            var provider = go.AddComponent<CaravanAssetCandidateProvider>();
+            provider.Bind(stock, CreateCatalog());
+            var changed = 0;
+            provider.OnCandidatesChanged += () => changed++;
+
+            CollectionAssert.AreEqual(new[] { "Wagon01", "Wagon01", "Facility02" }, provider.GetCandidates(4, TownFacilityIds.Stable).Select(p => p.Id).ToArray());
+
+            stock.TryConsume(4, TownStockCategory.Wagon, "Wagon01");
+
+            CollectionAssert.AreEqual(new[] { "Wagon01", "Facility02" }, provider.GetCandidates(4, TownFacilityIds.Stable).Select(p => p.Id).ToArray());
+            Assert.AreEqual(1, changed);
+            Assert.AreEqual(0, provider.GetCandidates(4, TownFacilityIds.TradeGoodsMarket).Count);
+            Assert.AreEqual(0, provider.GetCandidates(1, TownFacilityIds.Stable).Count);
         }
     }
 }

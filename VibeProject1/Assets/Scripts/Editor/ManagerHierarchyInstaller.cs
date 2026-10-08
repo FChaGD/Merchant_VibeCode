@@ -44,7 +44,7 @@ namespace Game.Core.Editor
             nameof(CharacterCatalogProvider),
             nameof(PlaceholderMercenaryCandidateProvider),
             nameof(CaravanAssetCatalogProvider),
-            nameof(PlaceholderCaravanAssetCandidateProvider),
+            nameof(CaravanAssetCandidateProvider),
             nameof(TownScaleFacilityAvailabilityProvider),
         };
 
@@ -275,10 +275,10 @@ namespace Game.Core.Editor
             WireCharacterCatalogTables(characterCatalogProvider);
             var mercenaryCandidateProvider = EditorUIBuilder.GetOrCreateManager<PlaceholderMercenaryCandidateProvider>(uiManager.transform, nameof(PlaceholderMercenaryCandidateProvider));
 
-            // 마차·시설 카탈로그와 구매 후보(설계 56번 §8). 후보 제공자는 마을별 판매 시스템이 생기면 함께 제거한다.
+            // 마차·시설 카탈로그와 구매 후보(설계 56번 §8, 81번 §3.5). 후보는 마을 재고를 펼쳐 만든다.
             var caravanAssetCatalogProvider = EditorUIBuilder.GetOrCreateManager<CaravanAssetCatalogProvider>(uiManager.transform, nameof(CaravanAssetCatalogProvider));
             WireCaravanAssetCatalogTables(caravanAssetCatalogProvider);
-            var caravanAssetCandidateProvider = EditorUIBuilder.GetOrCreateManager<PlaceholderCaravanAssetCandidateProvider>(uiManager.transform, nameof(PlaceholderCaravanAssetCandidateProvider));
+            var caravanAssetCandidateProvider = EditorUIBuilder.GetOrCreateManager<CaravanAssetCandidateProvider>(uiManager.transform, nameof(CaravanAssetCandidateProvider));
 
             // 전투 결과 반영(설계 79번 §5) - 반영 대상 저장소들(인벤토리·로스터·대열·활동·세션)을 TryResolve로만 찾는다. DependencyManager가
             // RegisterSelf를 전부 끝낸 뒤 ResolveDependencies를 돌리는 2단계 구조라 목록 순서와 무관하지만, 읽기 쉽게 소비자로서 맨 뒤에 둔다.

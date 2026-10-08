@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Game.Core
@@ -8,6 +9,10 @@ namespace Game.Core
     /// </summary>
     public interface ICaravanAssetCandidateReader
     {
+        // 재고 1대 = 후보 1개(Docs/설계/81번 §3.5) - 같은 프로필이 남은 수량만큼 반복된다.
         IReadOnlyList<CaravanAssetProfile> GetCandidates(int cityId, string facilityId);
+
+        // 재고가 줄면 화면이 다시 그린다.
+        event Action OnCandidatesChanged;
     }
 }
