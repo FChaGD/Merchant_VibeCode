@@ -31,6 +31,8 @@ namespace Game.Core.Editor
             CityTableImporter.Import();
             ItemTableImporter.Import();
             CaravanAssetTableImporter.Import();
+            // 재고 검증이 다른 테이블의 원본 엑셀을 직접 읽으므로 순서와 무관하지만, 참조 대상 뒤에 둔다(설계 81번 §3.2).
+            TownStockTableImporter.Import();
         }
     }
 }

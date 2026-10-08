@@ -54,6 +54,9 @@ namespace Game.Core
         public const string WagonStrings = Folder + "/WagonStrings.asset";
         public const string FacilityTable = Folder + "/FacilityTable.asset";
         public const string FacilityStrings = Folder + "/FacilityStrings.asset";
+
+        // 마을-구매아이템 재고(Docs/설계/81번 §3.1).
+        public const string TownStockTable = Folder + "/TownStockTable.asset";
     }
 }
 #endif
