@@ -53,6 +53,7 @@ namespace Game.Core
                 cameraController.TransitionToMovement(onComplete: () =>
                 {
                     onDone();
+                    fieldUIController.FinishTrip(); // 궤주 귀환도 상행 종료다(설계 81번 §6.4)
                     gameManager.RequestSceneTransition(ContentSceneId.Hub);
                 });
                 return;

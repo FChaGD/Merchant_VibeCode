@@ -56,8 +56,10 @@ namespace Game.Core
         // 그러지 않으면 이동 중이던 유닛의 FormationLayout이 여전히 출발 슬롯에 남아 있어(설계 25번 §3.2)
         // Hub 진입 시 출발지로 되돌아간 것처럼 보이는 버그가 있었다(실전 확인, 2026-09-06).
         private IFieldFormationActivityRepository fieldActivityRepository;
+        // 상행 종료 처리(설계 81번 §6.4) - 사망 캐릭터 영구 제거 + 상태 초기화. null이면 초기화만 한다.
+        private TripEndProcessor tripEndProcessor;
 
-        public void RegisterFieldUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository, ITripCurrentLocationRepository currentLocationRepository, ITripDestinationAssigner destinationAssigner, IFieldFormationActivityRepository fieldActivityRepository, ITripItinerary itinerary, IWorldMapReader worldMap, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, FieldCargoRecoveryPanel cargoRecoveryPanel)
+        public void RegisterFieldUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository, ITripCurrentLocationRepository currentLocationRepository, ITripDestinationAssigner destinationAssigner, IFieldFormationActivityRepository fieldActivityRepository, ITripItinerary itinerary, IWorldMapReader worldMap, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, FieldCargoRecoveryPanel cargoRecoveryPanel, TripEndProcessor tripEndProcessor)
         {
             if (!TryBind(sceneUIRoot))
             {
@@ -71,6 +73,7 @@ namespace Game.Core
             this.currentLocationRepository = currentLocationRepository;
             this.destinationAssigner = destinationAssigner;
             this.fieldActivityRepository = fieldActivityRepository;
+            this.tripEndProcessor = tripEndProcessor;
             legCoordinator = new FieldTripLegCoordinator(sessionState, itinerary, currentLocationRepository, worldMap, gaugeView, legArrivalNoticeView, HandleTripArrived);
 
             formationButton.onClick.RemoveAllListeners();
@@ -126,6 +129,12 @@ namespace Game.Core
             legCoordinator.BeginFirstLeg(); // 구간마다 소요시간이 다르다(Docs/설계/76번 §6.2)
         }
 
+        public void FinishTrip()
+        {
+            if (tripEndProcessor != null) tripEndProcessor.Finish();
+            else unitConditionRepository?.ResetAllToFull(); // 처리기 없이도 기존 상행 종료 회복은 유지한다(기획 13번 §4-3).
+        }
+
         public void SetTopLevelButtonsInteractable(bool interactable)
         {
             if (formationButton != null)
@@ -152,7 +161,7 @@ namespace Game.Core
         private void HandleTripArrived()
         {
             fieldActivityRepository?.ForceCompleteAll(); // 이동 중이던 배치를 도착지로 즉시 확정(위 필드 선언부 주석 참고)
-            unitConditionRepository?.ResetAllToFull(); // 상행 종료(허브 복귀) = 전원 회복(기획 13번 §4-3, 사용자 확정)
+            FinishTrip(); // 상행 종료 = 사망 제거 + 전원 회복(기획 13번 §4-3, 설계 81번 §6.4)
 
             // "현재 위치"를 이번 상행의 도착지로 갱신한다(기획 16번 §4) - 빌드에서는 도착지를 고를
             // 방법이 없어 DestinationCityId가 항상 null이므로 자연히 아무 일도 일어나지 않는다.

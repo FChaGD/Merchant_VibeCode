@@ -10,9 +10,9 @@ namespace Game.Core
         /// 결과 처리 흐름 연결을 처리한다. 씬 전환 커튼이 완전히 걷힐 때까지는 정비창 버튼을 막고
         /// 상행 진행(Begin)도 시작하지 않는다(사용자 확정) - sceneRevealSignal이 걷힘을 알려준다.
         /// 전투 정산·회수 적재·대열 정리 의존성(aftermathApplier, cargoSettlement, repairMode, cargoRecoveryPanel)은 전부 선택적이다 -
-        /// null이면 정산 없이 진행하거나 해당 결과 정리 단계를 건너뛴다(설계 79번 §6).
+        /// null이면 정산 없이 진행하거나 해당 결과 정리 단계를 건너뛴다(설계 79번 §6). tripEndProcessor가 null이면 상행 종료 시 상태 초기화만 한다.
         /// </summary>
-        void RegisterFieldUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository, ITripCurrentLocationRepository currentLocationRepository, ITripDestinationAssigner destinationAssigner, IFieldFormationActivityRepository fieldActivityRepository, ITripItinerary itinerary, IWorldMapReader worldMap, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, FieldCargoRecoveryPanel cargoRecoveryPanel);
+        void RegisterFieldUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository, ITripCurrentLocationRepository currentLocationRepository, ITripDestinationAssigner destinationAssigner, IFieldFormationActivityRepository fieldActivityRepository, ITripItinerary itinerary, IWorldMapReader worldMap, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, FieldCargoRecoveryPanel cargoRecoveryPanel, TripEndProcessor tripEndProcessor);
 
         /// <summary>Hub↔Field 씬 전환 연출이 슬라이드시킬 대상. RegisterFieldUI 이후에만 유효하다.</summary>
         RectTransform MovementViewRoot { get; }
@@ -24,5 +24,11 @@ namespace Game.Core
         /// true로 되돌리는 데 쓴다.
         /// </summary>
         void SetTopLevelButtonsInteractable(bool interactable);
+
+        /// <summary>
+        /// 상행 종료(마을 도착) 처리 - 사망 캐릭터 영구 제거 + 전원 상태 초기화(Docs/설계/81번 §6.4). 정상 도착은 내부에서, 궤주 귀환은
+        /// FinishStep이 Hub 전환 직전에 부른다.
+        /// </summary>
+        void FinishTrip();
     }
 }

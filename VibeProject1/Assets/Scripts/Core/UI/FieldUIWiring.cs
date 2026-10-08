@@ -81,7 +81,12 @@ namespace Game.Core
             // 대열 정리 모드(설계 79번 §8)는 정비창 패널이 구현한다 - 위에서 이미 확보한 같은 GameObject의 패널에서 꺼낸다.
             var repairMode = formationPanel.GetComponent<IFormationRepairMode>();
 
-            fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository, currentLocationRepository, destinationAssigner, fieldActivityRepository, tripItinerary, worldMap, aftermathApplier, cargoSettlement, repairMode, cargoRecoveryPanel);
+            // 상행 종료 처리(설계 81번 §6.4) - 의존성이 없으면 그 단계만 건너뛴다.
+            registrar.TryResolve<IHiredCharacterRemover>(out var hiredCharacterRemover);
+            registrar.TryResolve<IDeceasedCharacterRecorder>(out var deceasedRecorder);
+            var tripEndProcessor = new TripEndProcessor(caravanRosterProvider, unitConditionRepository, formationRepository, hiredCharacterRemover, deceasedRecorder);
+
+            fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository, currentLocationRepository, destinationAssigner, fieldActivityRepository, tripItinerary, worldMap, aftermathApplier, cargoSettlement, repairMode, cargoRecoveryPanel, tripEndProcessor);
 
             // Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 다음 전환 때 슬라이드시킬 대상을
             // 등록한다. 예전엔 이동 뷰 루트만 등록해 전투 뷰/패널/결과 팝업이 전환 중 제자리에 남았다 - 이제
