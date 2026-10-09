@@ -443,7 +443,7 @@ namespace Game.Core.Editor
 
             var nameGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "NameLabel");
             EditorUIBuilder.SetAnchors(nameGo.GetComponent<RectTransform>(), new Vector2(0.36f, 0.55f), new Vector2(0.96f, 0.92f));
-            var nameLabel = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(nameGo);
+            var nameLabel = EditorUIBuilder.EnsureText(nameGo);
             nameLabel.fontSize = 20;
             nameLabel.color = Color.black;
             nameLabel.alignment = TextAlignmentOptions.MidlineLeft;
@@ -451,7 +451,7 @@ namespace Game.Core.Editor
 
             var descriptionGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "DescriptionLabel");
             EditorUIBuilder.SetAnchors(descriptionGo.GetComponent<RectTransform>(), new Vector2(0.06f, 0.06f), new Vector2(0.96f, 0.48f));
-            var descriptionLabel = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(descriptionGo);
+            var descriptionLabel = EditorUIBuilder.EnsureText(descriptionGo);
             descriptionLabel.fontSize = 16;
             descriptionLabel.color = Color.black;
             descriptionLabel.raycastTarget = false;
@@ -494,7 +494,7 @@ namespace Game.Core.Editor
 
             var go = EditorUIBuilder.GetOrCreateUIObject(parent, name);
             EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(0.06f, bottom + 0.02f), new Vector2(0.94f, top - 0.02f));
-            var label = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(go);
+            var label = EditorUIBuilder.EnsureText(go);
             label.fontSize = 16;
             label.color = Color.black;
             label.alignment = TextAlignmentOptions.MidlineLeft;
@@ -521,7 +521,7 @@ namespace Game.Core.Editor
         {
             var go = EditorUIBuilder.GetOrCreateUIObject(parent, "DisconnectedNotice");
             EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(0.72f, 0.03f), new Vector2(0.94f, 0.14f));
-            var label = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(go);
+            var label = EditorUIBuilder.EnsureText(go);
             label.text = string.Empty;
             label.alignment = TextAlignmentOptions.MidlineLeft;
             label.enableAutoSizing = true;

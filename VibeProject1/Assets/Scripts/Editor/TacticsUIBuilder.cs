@@ -40,7 +40,7 @@ namespace Game.Core.Editor
         {
             var titleGo = EditorUIBuilder.GetOrCreateUIObject(card, "Title");
             EditorUIBuilder.SetAnchors(titleGo.GetComponent<RectTransform>(), new Vector2(0.05f, 0.90f), new Vector2(0.45f, 0.98f));
-            var titleLabel = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(titleGo);
+            var titleLabel = EditorUIBuilder.EnsureText(titleGo);
             titleLabel.text = "방향성 지시";
             titleLabel.alignment = TextAlignmentOptions.MidlineLeft;
             titleLabel.fontSize = 26;
@@ -92,7 +92,7 @@ namespace Game.Core.Editor
         {
             var labelGo = EditorUIBuilder.GetOrCreateUIObject(parent, name + "Label");
             EditorUIBuilder.SetAnchors(labelGo.GetComponent<RectTransform>(), new Vector2(0.00f, bottom), new Vector2(0.28f, top));
-            var label = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(labelGo);
+            var label = EditorUIBuilder.EnsureText(labelGo);
             label.text = labelText;
             label.alignment = TextAlignmentOptions.MidlineLeft;
             label.fontSize = 18;
@@ -139,7 +139,7 @@ namespace Game.Core.Editor
 
             var labelGo = EditorUIBuilder.GetOrCreateUIObject(headerGo.transform, "Label");
             EditorUIBuilder.SetAnchors(labelGo.GetComponent<RectTransform>(), new Vector2(0.00f, 0.00f), new Vector2(0.45f, 1.00f));
-            var label = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(labelGo);
+            var label = EditorUIBuilder.EnsureText(labelGo);
             label.text = roleGroupLabel;
             label.alignment = TextAlignmentOptions.MidlineLeft;
             label.fontSize = 20;
@@ -153,7 +153,7 @@ namespace Game.Core.Editor
 
             var toggleLabelGo = EditorUIBuilder.GetOrCreateUIObject(headerGo.transform, "OverrideLabel");
             EditorUIBuilder.SetAnchors(toggleLabelGo.GetComponent<RectTransform>(), new Vector2(0.68f, 0.00f), new Vector2(1.00f, 1.00f));
-            var toggleLabel = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(toggleLabelGo);
+            var toggleLabel = EditorUIBuilder.EnsureText(toggleLabelGo);
             toggleLabel.text = "상단 지침";
             toggleLabel.alignment = TextAlignmentOptions.MidlineLeft;
             toggleLabel.fontSize = 14;
@@ -183,7 +183,7 @@ namespace Game.Core.Editor
 
             var labelGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "PlaceholderLabel");
             EditorUIBuilder.SetStretch(labelGo.GetComponent<RectTransform>());
-            var label = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(labelGo);
+            var label = EditorUIBuilder.EnsureText(labelGo);
             label.text = "개체별 방향성은 이번 버전에서 지원하지 않습니다\n(향후 확장 예정)";
             label.alignment = TextAlignmentOptions.Center;
             label.fontSize = 18;

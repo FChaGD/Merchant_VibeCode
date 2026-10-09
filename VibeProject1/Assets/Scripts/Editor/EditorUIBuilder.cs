@@ -356,7 +356,7 @@ namespace Game.Core.Editor
         {
             var labelGo = GetOrCreateUIObject(parent, "Label");
             SetStretch(labelGo.GetComponent<RectTransform>());
-            var label = GetOrAddComponent<TextMeshProUGUI>(labelGo);
+            var label = EnsureText(labelGo);
             label.text = text;
             label.alignment = TextAlignmentOptions.Center;
             label.color = Color.black;
@@ -372,6 +372,31 @@ namespace Game.Core.Editor
                 label.fontSize = maxFontSize;
             }
             return label;
+        }
+
+        // 인스톨러에서 TMP를 붙일 때는 GetOrAddComponent<TextMeshProUGUI> 대신 이것을 쓴다.
+        // 비활성 계층(템플릿·닫힌 팝업)에 붙인 TMP는 Awake가 돌지 않아 미초기화 표시(글자 크기 -99)와 빈 폰트로 저장되고,
+        // 런타임에 처음 켜질 때 TMP가 기본 설정을 다시 적용해 인스톨러가 넣은 자동 크기 범위·줄바꿈·raycastTarget을
+        // 덮어쓴다(무역품 남은 수량 칸이 18~72로 커진 사례). 활성 상태에서 붙였을 때와 같은 기본값을 여기서 채워
+        // 미초기화 표시를 없앤 뒤 호출자가 값을 덮어쓰게 한다.
+        public static TextMeshProUGUI EnsureText(GameObject go)
+        {
+            var text = GetOrAddComponent<TextMeshProUGUI>(go);
+            if (text.fontSize < 0f)
+            {
+                text.textWrappingMode = TMP_Settings.textWrappingMode;
+                text.fontFeatures = new List<UnityEngine.TextCore.OTL_FeatureTag>(TMP_Settings.fontFeatures);
+                text.extraPadding = TMP_Settings.enableExtraPadding;
+                text.tintAllSprites = TMP_Settings.enableTintAllSprites;
+                text.parseCtrlCharacters = TMP_Settings.enableParseEscapeCharacters;
+                text.isTextObjectScaleStatic = TMP_Settings.isTextObjectScaleStatic;
+                text.raycastTarget = TMP_Settings.enableRaycastTarget;
+                text.fontSize = TMP_Settings.defaultFontSize;
+                text.fontSizeMin = TMP_Settings.defaultFontSize * TMP_Settings.defaultTextAutoSizingMinRatio;
+                text.fontSizeMax = TMP_Settings.defaultFontSize * TMP_Settings.defaultTextAutoSizingMaxRatio;
+            }
+            if (text.font == null) text.font = TMP_Settings.defaultFontAsset;
+            return text;
         }
 
         public static void EnsureMarker(GameObject go, string id)

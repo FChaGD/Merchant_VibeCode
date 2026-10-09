@@ -462,7 +462,7 @@ namespace Game.Core.Editor.DebugTools
 
             var labelGo = EditorUIBuilder.GetOrCreateUIObject(go.transform, "Label");
             EditorUIBuilder.SetAnchors(labelGo.GetComponent<RectTransform>(), new Vector2(0f, 0.55f), new Vector2(1f, 1f));
-            var labelText = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(labelGo);
+            var labelText = EditorUIBuilder.EnsureText(labelGo);
             labelText.text = label;
             labelText.fontSize = 14;
             labelText.color = Color.black;
@@ -476,7 +476,7 @@ namespace Game.Core.Editor.DebugTools
 
             var textGo = EditorUIBuilder.GetOrCreateUIObject(textAreaRect, "Text");
             EditorUIBuilder.SetStretch(textGo.GetComponent<RectTransform>());
-            var textComponent = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(textGo);
+            var textComponent = EditorUIBuilder.EnsureText(textGo);
             textComponent.fontSize = 16;
             textComponent.color = Color.black;
             textComponent.alignment = TextAlignmentOptions.MidlineLeft;
@@ -586,7 +586,7 @@ namespace Game.Core.Editor.DebugTools
 
             var titleGo = EditorUIBuilder.GetOrCreateUIObject(panelGo.transform, "Title");
             EditorUIBuilder.SetAnchors(titleGo.GetComponent<RectTransform>(), new Vector2(0.05f, 0.90f), new Vector2(0.95f, 0.99f));
-            var titleLabel = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(titleGo);
+            var titleLabel = EditorUIBuilder.EnsureText(titleGo);
             titleLabel.fontSize = 20;
             titleLabel.color = Color.white;
             titleLabel.alignment = TextAlignmentOptions.Center;
@@ -669,7 +669,7 @@ namespace Game.Core.Editor.DebugTools
 
             var titleGo = EditorUIBuilder.GetOrCreateUIObject(panelGo.transform, "Title");
             EditorUIBuilder.SetAnchors(titleGo.GetComponent<RectTransform>(), new Vector2(0.05f, 0.86f), new Vector2(0.95f, 0.99f));
-            var titleLabel = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(titleGo);
+            var titleLabel = EditorUIBuilder.EnsureText(titleGo);
             titleLabel.fontSize = 16;
             titleLabel.color = Color.white;
             titleLabel.alignment = TextAlignmentOptions.Center;

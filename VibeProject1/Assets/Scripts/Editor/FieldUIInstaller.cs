@@ -288,7 +288,7 @@ namespace Game.Core.Editor
 
             var messageGo = EditorUIBuilder.GetOrCreateUIObject(panelGo.transform, "Message");
             EditorUIBuilder.SetAnchors(messageGo.GetComponent<RectTransform>(), new Vector2(0.05f, 0.78f), new Vector2(0.95f, 0.97f));
-            var messageLabel = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(messageGo);
+            var messageLabel = EditorUIBuilder.EnsureText(messageGo);
             messageLabel.alignment = TextAlignmentOptions.Center;
             messageLabel.fontSize = 28;
             messageLabel.color = Color.black;
@@ -296,7 +296,7 @@ namespace Game.Core.Editor
 
             var detailGo = EditorUIBuilder.GetOrCreateUIObject(panelGo.transform, "Detail");
             EditorUIBuilder.SetAnchors(detailGo.GetComponent<RectTransform>(), new Vector2(0.08f, 0.2f), new Vector2(0.92f, 0.76f));
-            var detailLabel = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(detailGo);
+            var detailLabel = EditorUIBuilder.EnsureText(detailGo);
             detailLabel.alignment = TextAlignmentOptions.Top;
             detailLabel.enableAutoSizing = true;
             detailLabel.fontSizeMin = 12f;

@@ -51,7 +51,7 @@ namespace Game.Core.Editor
             labelRect.pivot = new Vector2(0.5f, 1f);
             labelRect.sizeDelta = new Vector2(160f, 28f);
             labelRect.anchoredPosition = new Vector2(0f, -2f);
-            var label = labelGo.AddComponent<TextMeshProUGUI>();
+            var label = EditorUIBuilder.EnsureText(labelGo);
             label.fontSize = 18f;
             label.color = Color.black;
             label.alignment = TextAlignmentOptions.Top;

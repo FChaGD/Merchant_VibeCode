@@ -130,7 +130,9 @@ namespace Game.Core.Editor
 
             var nameLabel = BuildRowLabel(row.transform, "Name", 0.12f, 0.45f, TextAlignmentOptions.MidlineLeft);
             // 남은 수량/품절(설계 81번 §4.2) - 이름 칸을 줄여 자리를 만든다.
-            var remainingLabel = BuildRowLabel(row.transform, "Remaining", 0.45f, 0.6f, TextAlignmentOptions.Center);
+            // 최대 크기는 "남은 수량 10"이 한 줄로 들어가는 값 - 22면 칸을 넘쳐 자동 축소되고 "품절"만 커져 크기가 어긋난다.
+            var remainingLabel = BuildRowLabel(row.transform, "Remaining", 0.45f, 0.6f, TextAlignmentOptions.Center, RemainingFontSizeMax);
+            remainingLabel.textWrappingMode = TextWrappingModes.NoWrap;
             var sizeLabel = BuildRowLabel(row.transform, "Size", 0.6f, 0.75f, TextAlignmentOptions.Center);
             var priceLabel = BuildRowLabel(row.transform, "Price", 0.75f, 0.97f, TextAlignmentOptions.MidlineRight);
 
@@ -148,11 +150,14 @@ namespace Game.Core.Editor
             row.SetActive(false);
         }
 
-        private static TMP_Text BuildRowLabel(Transform row, string name, float minX, float maxX, TextAlignmentOptions alignment)
+        private const float RowFontSizeMax = 22f;
+        private const float RemainingFontSizeMax = 20f;
+
+        private static TMP_Text BuildRowLabel(Transform row, string name, float minX, float maxX, TextAlignmentOptions alignment, float maxFontSize = RowFontSizeMax)
         {
             var go = EditorUIBuilder.GetOrCreateUIObject(row, name);
             EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(minX, 0f), new Vector2(maxX, 1f));
-            var label = EditorUIBuilder.EnsureLabel(go.transform, string.Empty, autoSize: true, minFontSize: 10f, maxFontSize: 22f);
+            var label = EditorUIBuilder.EnsureLabel(go.transform, string.Empty, autoSize: true, minFontSize: 10f, maxFontSize: maxFontSize);
             label.alignment = alignment;
             return label;
         }

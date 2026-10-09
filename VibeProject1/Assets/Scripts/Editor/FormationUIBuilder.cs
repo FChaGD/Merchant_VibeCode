@@ -123,7 +123,7 @@ namespace Game.Core.Editor
             countRect.anchorMax = new Vector2(1f, 0.2f);
             countRect.offsetMin = Vector2.zero;
             countRect.offsetMax = Vector2.zero;
-            var countLabel = countGo.AddComponent<TextMeshProUGUI>();
+            var countLabel = EditorUIBuilder.EnsureText(countGo);
             countLabel.alignment = TextAlignmentOptions.Center;
             countLabel.fontSize = 16;
             countLabel.color = Color.black;
@@ -210,7 +210,7 @@ namespace Game.Core.Editor
             textRect.anchorMax = new Vector2(1f, 0.4f);
             textRect.offsetMin = Vector2.zero;
             textRect.offsetMax = Vector2.zero;
-            var text = textGo.AddComponent<TextMeshProUGUI>();
+            var text = EditorUIBuilder.EnsureText(textGo);
             text.alignment = TextAlignmentOptions.Center;
             text.fontSize = 20;
             text.color = Color.black;
@@ -427,7 +427,7 @@ namespace Game.Core.Editor
         {
             var guideGo = EditorUIBuilder.GetOrCreateUIObject(parent, "RepairGuideLabel");
             EditorUIBuilder.SetAnchors(guideGo.GetComponent<RectTransform>(), new Vector2(0.08f, 0.22f), new Vector2(0.86f, 0.29f));
-            var guide = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(guideGo);
+            var guide = EditorUIBuilder.EnsureText(guideGo);
             guide.text = string.Empty;
             guide.alignment = TextAlignmentOptions.Center;
             guide.enableAutoSizing = true;
@@ -501,7 +501,7 @@ namespace Game.Core.Editor
         {
             var go = EditorUIBuilder.GetOrCreateUIObject(parent, name);
             EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
-            var label = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(go);
+            var label = EditorUIBuilder.EnsureText(go);
             label.text = text;
             label.alignment = TextAlignmentOptions.MidlineRight;
             label.fontSize = 18;
@@ -524,7 +524,7 @@ namespace Game.Core.Editor
 
             var textGo = EditorUIBuilder.GetOrCreateUIObject(textAreaRect, "Text");
             EditorUIBuilder.SetStretch(textGo.GetComponent<RectTransform>());
-            var textComponent = EditorUIBuilder.GetOrAddComponent<TextMeshProUGUI>(textGo);
+            var textComponent = EditorUIBuilder.EnsureText(textGo);
             textComponent.fontSize = 18;
             textComponent.color = Color.black;
             textComponent.alignment = TextAlignmentOptions.MidlineLeft;
