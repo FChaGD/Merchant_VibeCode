@@ -7,7 +7,7 @@ namespace Game.Core
     /// <summary>
     /// 무역품 구매 화면(Docs/기획/48번, 설계 50번 §6.5). 모달 팝업 채널에 등록된다 - 모달 팝업이 열리면 재화 패널 외 Hub UI가
     /// 숨고, 닫으면 카테고리 depth가 그대로 남아 있어 "재화 패널만 남김"과 "나가면 시장 지구로 복귀"가 새 코드 없이 성립한다
-    /// (설계 50번 §2.3). MonoBehaviour가 아닌 plain C#이며 HubUIWiring이 Hub 로드마다 새로 만든다 - 재화 지갑·저장소(Bootstrap
+    /// (설계 50번 §2.3). MonoBehaviour가 아닌 plain C#이며 HubUIWiring이 Hub 로드마다 새로 만든다 - 골드 보유·저장소(Bootstrap
     /// 상주) 이벤트를 구독하므로 교체 시 반드시 Dispose한다.
     /// 좌측 상단 물류품은 인벤토리 팝업과 같은 편집 본문(InventoryArrangementController)을 고정 패널로 쓴다. 임시 보관 상태는
     /// 저장소에 있으므로 팝업에서 남겨 둔 임시 보관 아이템이 그대로 이어진다(설계 50번 §6.2).
@@ -24,7 +24,7 @@ namespace Game.Core
 
         private readonly TradeGoodsMarketElements elements;
         private readonly ITradeGoodsInventoryRepository inventory;
-        private readonly IPlayerCurrencyWallet wallet;
+        private readonly IGoldSpender gold;
         private readonly ITownShopStockReader stockReader;
         private readonly ITripCurrentLocationReader currentLocation; // 선택적 - 없으면 마을 Id 0(지금은 무시되는 값)
         private readonly InventoryArrangementController inventoryController;
@@ -38,18 +38,18 @@ namespace Game.Core
 
         public string PanelId => UIPanelIds.Facility(TownFacilityIds.TradeGoodsMarket);
 
-        public TradeGoodsMarketPanel(TradeGoodsMarketElements elements, ITradeGoodsInventoryRepository inventory, IPlayerCurrencyWallet wallet, ITownShopStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, IUIManager uiManager)
+        public TradeGoodsMarketPanel(TradeGoodsMarketElements elements, ITradeGoodsInventoryRepository inventory, IGoldSpender gold, ITownShopStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, IUIManager uiManager)
         {
             this.elements = elements;
             this.inventory = inventory;
-            this.wallet = wallet;
+            this.gold = gold;
             this.stockReader = stockReader;
             this.currentLocation = currentLocation;
 
             // 회전·임시 보관 여부는 상단 물류품 팝업과 같은 스펙을 따른다 - 같은 인벤토리를 두 화면이 다른 규칙으로 다루지 않게.
             var spec = InventoryPopupSpecs.TradeGoods;
             inventoryController = new InventoryArrangementController(elements.Inventory, inventory, inventory, spec.AllowsRotation, spec.HasStaging, spec.HasSections);
-            purchaseService = new ShopPurchaseService(wallet, inventory, spec.AllowsRotation, stockConsumer);
+            purchaseService = new ShopPurchaseService(gold, inventory, inventory, spec.AllowsRotation, stockConsumer);
 
             elements.StockRowTemplate.gameObject.SetActive(false);
             elements.InfoPreviewCellTemplate.gameObject.SetActive(false);
@@ -60,7 +60,7 @@ namespace Game.Core
             elements.BuyButton.onClick.RemoveAllListeners();
             elements.BuyButton.onClick.AddListener(Purchase);
 
-            wallet.OnAmountChanged += HandleCurrencyChanged;
+            gold.Changed += HandleCurrencyChanged;
             stockReader.OnStockChanged += HandleStockChanged;
             // 교역품 저장소 계약이 조회·임시 보관 조회 두 인터페이스에서 같은 이벤트를 물려받아 이름이 모호하다 - 조회 계약으로 지정한다.
             ((IInventoryReader)inventory).OnChanged += HandleInventoryChanged;
@@ -101,13 +101,13 @@ namespace Game.Core
 
         public void Dispose()
         {
-            wallet.OnAmountChanged -= HandleCurrencyChanged;
+            gold.Changed -= HandleCurrencyChanged;
             stockReader.OnStockChanged -= HandleStockChanged;
             ((IInventoryReader)inventory).OnChanged -= HandleInventoryChanged;
             inventoryController.Dispose();
         }
 
-        private void HandleCurrencyChanged(int _)
+        private void HandleCurrencyChanged()
         {
             if (isOpen) UpdateInfo();
         }

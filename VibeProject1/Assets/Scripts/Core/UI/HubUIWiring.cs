@@ -92,8 +92,12 @@ namespace Game.Core
             registrar.TryResolve<ITripRouteReader>(out var routeReader);
             // 상행 구간 계획 확정(Docs/설계/76번 §5).
             registrar.TryResolve<ITripDeparture>(out var tripDeparture);
-            // IPlayerCurrencyWallet으로 등록되어 있다(InMemoryPlayerCurrencyWallet.RegisterSelf) - 이
-            // 컨트롤러는 조회 전용만 필요하므로 IPlayerCurrencyReader 타입으로만 넘긴다(ISP).
+            // 골드 보유(설계 83번 §3.3) - 계약마다 따로 등록되어 있어 소비자가 쓰는 타입으로 각각 조회한다.
+            registrar.TryResolve<IGoldHoldingsReader>(out var goldHoldings);
+            registrar.TryResolve<IGoldSpender>(out var goldSpender);
+            registrar.TryResolve<IGoldBoxConverter>(out var goldConverter);
+            registrar.TryResolve<IGoldDepartureSettlement>(out var goldDeparture);
+            // 재화 HUD는 Task 9에서 골드 보유 조회로 바뀐다 - 그전까지 지갑을 임시로 넘긴다.
             registrar.TryResolve<IPlayerCurrencyWallet>(out var currencyWallet);
             // 마을별 시설 데이터 시스템이 아직 없어(Placeholder) 선택적으로 조회한다 - 없으면 전부 제공으로
             // 간주한다(CurrentTownFacilityFilter 참고).
@@ -160,7 +164,7 @@ namespace Game.Core
             }
 
             RegisterInventoryPopups(sceneUIRoot, uiManager, panelRegistrar, inventoryPopupSources);
-            RegisterTradeGoodsMarket(sceneUIRoot, uiManager, panelRegistrar, tradeGoodsInventory, currencyWallet, townShopStockReader, townStockConsumer, currentLocationRepository);
+            RegisterTradeGoodsMarket(sceneUIRoot, uiManager, panelRegistrar, tradeGoodsInventory, goldSpender, townShopStockReader, townStockConsumer, currentLocationRepository);
             RegisterMercenaryContact(sceneUIRoot, uiManager, panelRegistrar, currencyWallet, mercenaryCandidateReader, hiredCharacterRoster, characterCatalog, mercenaryClassIconReader, currentLocationRepository);
             RegisterStable(sceneUIRoot, uiManager, panelRegistrar, currencyWallet, caravanAssetCandidateReader, ownedCaravanAssetRoster, caravanAssetCatalog, caravanAssetIconReader, townStockReader, townStockConsumer, currentLocationRepository);
 
@@ -226,20 +230,20 @@ namespace Game.Core
 
         // 시설 화면은 모달 팝업으로 등록한다 - 재화 패널 외 UI 숨김과 카테고리 depth 복귀를 기존 채널이 처리한다(설계 50번 §6.1).
         // 의존성이나 화면 요소가 없으면(인스톨러 미실행) 등록하지 않는다 - 시설 버튼은 "등록되지 않은 패널" 경고만 낸다.
-        private void RegisterTradeGoodsMarket(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, ITradeGoodsInventoryRepository inventory, IPlayerCurrencyWallet wallet, ITownShopStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation)
+        private void RegisterTradeGoodsMarket(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, ITradeGoodsInventoryRepository inventory, IGoldSpender gold, ITownShopStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation)
         {
             tradeGoodsMarketPanel?.Dispose();
             tradeGoodsMarketPanel = null;
 
-            if (inventory == null || wallet == null || stockReader == null)
+            if (inventory == null || gold == null || stockReader == null)
             {
-                Debug.LogWarning($"무역품 구매 화면에 필요한 {nameof(ITradeGoodsInventoryRepository)}/{nameof(IPlayerCurrencyWallet)}/{nameof(ITownShopStockReader)}가 연결되어 있지 않아 등록하지 못했다(Tools > Game > Build Bootstrap Scene).");
+                Debug.LogWarning($"무역품 구매 화면에 필요한 {nameof(ITradeGoodsInventoryRepository)}/{nameof(IGoldSpender)}/{nameof(ITownShopStockReader)}가 연결되어 있지 않아 등록하지 못했다(Tools > Game > Build Bootstrap Scene).");
                 return;
             }
 
             if (!TradeGoodsMarketElements.TryBind(sceneUIRoot, InventoryPopupSpecs.TradeGoods.HasStaging, InventoryPopupSpecs.TradeGoods.HasSections, out var elements)) return;
 
-            tradeGoodsMarketPanel = new TradeGoodsMarketPanel(elements, inventory, wallet, stockReader, stockConsumer, currentLocation, uiManager);
+            tradeGoodsMarketPanel = new TradeGoodsMarketPanel(elements, inventory, gold, stockReader, stockConsumer, currentLocation, uiManager);
             panelRegistrar.RegisterPopupPanel(tradeGoodsMarketPanel);
         }
 
