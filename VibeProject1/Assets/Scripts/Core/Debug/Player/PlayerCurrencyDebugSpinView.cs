@@ -5,7 +5,7 @@ using UnityEngine.SceneManagement;
 namespace Game.Core.DebugTools
 {
     /// <summary>
-    /// 디버깅 전용 - 재화 패널 바로 아래에 "[-1000] [-100] 현재 금액 [+100] [+1000]" 한 줄을 그린다(OnGUI).
+    /// 디버깅 전용 - 재화 패널 왼쪽 같은 줄에 "[-1000] [-100] 현재 금액 [+100] [+1000]" 한 줄을 그린다(OnGUI).
     /// 무역품 구매의 재화 부족/잔여 같은 경계 상황을 실행 중에 바로 만들기 위한 도구(Docs/기획/51번,
     /// Docs/설계/52번). 재화 지갑과 같은 GameObject(Bootstrap 씬 상주)에 부착된 형제 컴포넌트지만 마을(Hub)이
     /// 로드된 동안에만 그린다. 전역 DI 대상이 아니고(Awake에서 같은 오브젝트의 지갑 인터페이스를 직접 조회),
@@ -25,8 +25,9 @@ namespace Game.Core.DebugTools
         private const float HudMarginTop = 32f;
         // 재화 패널 높이는 콘텐츠 맞춤이라 추정값(아이콘 32 + 상하 패딩 8) - 겹치면 이 값만 조정한다.
         private const float HudEstimatedHeight = 40f;
-        // 재화 패널 바로 아래 띠로 뜨는 툴팁(설계 83번 §6.1, 간격 4 + 높이 36)을 피한다 - OnGUI는 uGUI 위에 그려져 겹치면 툴팁이 가려진다.
-        private const float TooltipBand = 40f;
+        // 줄은 재화 패널 왼쪽, 같은 높이에 둔다. 패널 아래는 호버 툴팁 띠(설계 83번 §6.1)와 상단 물류품 버튼이 빈틈없이
+        // 이어져 놓을 자리가 없다(2026-10-10 실측, 1920x1080). OnGUI는 uGUI 위에 그려져 겹치면 아래 UI가 가려진다.
+        // 이 자리도 배치(Formation) 화면 상단 디버그 패널과는 겹친다(같은 실측).
         private const float RowGap = 8f;
         private const float RowHeight = 32f;
         private const float CellPadding = 2f;
@@ -80,7 +81,7 @@ namespace Game.Core.DebugTools
             EnsureStyles();
 
             var width = Screen.width * HudWidthRatio;
-            var row = new Rect(Screen.width - HudMarginRight - width, HudMarginTop + HudEstimatedHeight + TooltipBand + RowGap, width, RowHeight);
+            var row = new Rect(Screen.width - HudMarginRight - width - RowGap - width, HudMarginTop + (HudEstimatedHeight - RowHeight) / 2f, width, RowHeight);
             GUI.Box(row, GUIContent.none);
 
             var cellWidth = width / 5f;
