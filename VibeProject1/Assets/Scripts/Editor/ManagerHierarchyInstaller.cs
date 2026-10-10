@@ -269,6 +269,8 @@ namespace Game.Core.Editor
             WireItemCatalog(personalItemInventoryRepository, TableAssetPaths.PersonalItemItemTable, TableAssetPaths.PersonalItemItemStrings);
             // 골드 상자는 기타 카테고리지만 교역품 그리드에 놓인다(Docs/설계/50번 §5.2).
             WireMiscItemCatalog(tradeGoodsInventoryRepository);
+            // 골드 보유(설계 83번 §3.2) - 지갑(개인 골드)과 교역품 저장소(적재 골드)를 함께 읽는 유일한 곳. 둘 다 TryResolve로 찾는다.
+            var goldHoldingsService = EditorUIBuilder.GetOrCreateManager<GoldHoldingsService>(uiManager.transform, nameof(GoldHoldingsService));
 
             // 마을 재고(설계 81번 §3.4)와 그 소비자 - 무역품 판매 목록·마구간 후보는 재고 저장소를 TryResolve로 찾는다.
             EditorUIBuilder.DestroyChildIfExists(uiManager.transform, RemovedPlaceholderTownShopStockProviderName);
@@ -316,6 +318,7 @@ namespace Game.Core.Editor
                 equipmentInventoryRepository,
                 consumableInventoryRepository,
                 personalItemInventoryRepository,
+                goldHoldingsService,
                 townStockRepository,
                 townShopStockProvider,
                 characterCatalogProvider,
