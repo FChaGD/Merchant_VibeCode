@@ -25,6 +25,8 @@ namespace Game.Core.DebugTools
         private const float HudMarginTop = 32f;
         // 재화 패널 높이는 콘텐츠 맞춤이라 추정값(아이콘 32 + 상하 패딩 8) - 겹치면 이 값만 조정한다.
         private const float HudEstimatedHeight = 40f;
+        // 재화 패널 바로 아래 띠로 뜨는 툴팁(설계 83번 §6.1, 간격 4 + 높이 36)을 피한다 - OnGUI는 uGUI 위에 그려져 겹치면 툴팁이 가려진다.
+        private const float TooltipBand = 40f;
         private const float RowGap = 8f;
         private const float RowHeight = 32f;
         private const float CellPadding = 2f;
@@ -78,7 +80,7 @@ namespace Game.Core.DebugTools
             EnsureStyles();
 
             var width = Screen.width * HudWidthRatio;
-            var row = new Rect(Screen.width - HudMarginRight - width, HudMarginTop + HudEstimatedHeight + RowGap, width, RowHeight);
+            var row = new Rect(Screen.width - HudMarginRight - width, HudMarginTop + HudEstimatedHeight + TooltipBand + RowGap, width, RowHeight);
             GUI.Box(row, GUIContent.none);
 
             var cellWidth = width / 5f;
@@ -90,7 +92,7 @@ namespace Game.Core.DebugTools
         }
 
         // 지갑의 차감은 부족하면 전부 거부하므로, 가능한 만큼으로 줄여 0에서 멈추게 한다(기획 51번 §4).
-        // 늘리기는 지갑이 이미 상한까지만 반영하므로 그대로 호출한다.
+        // 늘리기는 지갑에 획득 상한이 없으므로(설계 83번 §3.1) 그대로 호출한다.
         private void Decrease(int step)
         {
             var amount = Mathf.Min(step, wallet.CurrentAmount);
