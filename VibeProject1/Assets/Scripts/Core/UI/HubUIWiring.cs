@@ -270,7 +270,6 @@ namespace Game.Core
         private void RegisterStable(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IGoldSpender gold, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, ICaravanAssetCatalogReader catalog, ICaravanAssetIconReader iconReader, ITownStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation)
         {
             stablePanel?.Dispose();
-            goldConversionPanel?.Dispose();
             stablePanel = null;
 
             if (gold == null || candidateReader == null || roster == null || catalog == null || stockReader == null || stockConsumer == null)
