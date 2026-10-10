@@ -12,6 +12,7 @@ namespace Game.Core
     ///
     /// 섹션 모양의 막힌 칸은 계산용 점유 배열을 만들 때 미리 "차 있음"으로 표시한다(설계 64번 §4.2) - 채우기 알고리즘을
     /// 바꾸지 않고 모양을 반영하기 위함이다. 여러 섹션을 보는 계산은 섹션 순서 목록(OrderFrom)을 받아 앞에서부터 채운다.
+    /// 구매 재배치 계획(CargoPurchasePlanner, 설계 83번 §5.1)이 같은 점유 배열·자리 탐색 규칙을 쓰도록 보조 함수 일부를 internal로 연다.
     /// </summary>
     public static class InventoryAutoSorter
     {
@@ -95,13 +96,13 @@ namespace Game.Core
         }
 
         // 점유 칸 수 내림차순 → 정의 Id → InstanceId 순서로 결과가 매번 같게 한다.
-        private static IEnumerable<InventoryItemInstance> Order(IEnumerable<InventoryItemInstance> items)
+        internal static IEnumerable<InventoryItemInstance> Order(IEnumerable<InventoryItemInstance> items)
             => items
                 .OrderByDescending(item => item.Definition.FootprintWidth * item.Definition.FootprintHeight)
                 .ThenBy(item => item.Definition.Id, StringComparer.Ordinal)
                 .ThenBy(item => item.InstanceId, StringComparer.Ordinal);
 
-        private static List<bool[,]> CreateOccupancies(IReadOnlyList<InventorySection> sections, IEnumerable<InventoryItemInstance> placedItems)
+        internal static List<bool[,]> CreateOccupancies(IReadOnlyList<InventorySection> sections, IEnumerable<InventoryItemInstance> placedItems)
         {
             var occupancies = new List<bool[,]>(sections.Count);
             var indexById = new Dictionary<string, int>();
@@ -132,7 +133,7 @@ namespace Game.Core
             return occupied;
         }
 
-        private static bool TryFindSlot(IReadOnlyList<InventorySection> sections, List<bool[,]> occupancies, IInventoryItemDefinition definition, int currentTurns, bool allowRotation, out int sectionIndex, out GridPosition position, out int quarterTurns)
+        internal static bool TryFindSlot(IReadOnlyList<InventorySection> sections, List<bool[,]> occupancies, IInventoryItemDefinition definition, int currentTurns, bool allowRotation, out int sectionIndex, out GridPosition position, out int quarterTurns)
         {
             for (sectionIndex = 0; sectionIndex < sections.Count; sectionIndex++)
             {
@@ -189,7 +190,7 @@ namespace Game.Core
             return true;
         }
 
-        private static void MarkFootprint(bool[,] occupied, IInventoryItemDefinition definition, GridPosition position, int quarterTurns)
+        internal static void MarkFootprint(bool[,] occupied, IInventoryItemDefinition definition, GridPosition position, int quarterTurns)
         {
             var width = quarterTurns % 2 == 1 ? definition.FootprintHeight : definition.FootprintWidth;
             var height = quarterTurns % 2 == 1 ? definition.FootprintWidth : definition.FootprintHeight;
@@ -197,7 +198,7 @@ namespace Game.Core
         }
 
         // 저장소 상태가 섹션 모양과 어긋나는 일은 없지만(배치는 항상 모양 검사를 거침), 계산용 배열이라 방어적으로 자른다.
-        private static void MarkRect(bool[,] occupied, GridPosition position, int width, int height)
+        internal static void MarkRect(bool[,] occupied, GridPosition position, int width, int height)
         {
             var maxX = Math.Min(position.X + width, occupied.GetLength(0));
             var maxY = Math.Min(position.Y + height, occupied.GetLength(1));
