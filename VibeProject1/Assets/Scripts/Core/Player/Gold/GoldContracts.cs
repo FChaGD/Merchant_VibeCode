@@ -17,7 +17,7 @@ namespace Game.Core
         int CarryCapacity { get; }
         /// <summary>출발 시 버려질 골드 = max(0, 개인 골드 − 개인 소유 가능량).</summary>
         int ExcessGold { get; }
-        /// <summary>지갑·교역품 저장소 중 어느 쪽이 바뀌어도 발생한다.</summary>
+        /// <summary>지갑·교역품 저장소 중 어느 쪽이 바뀌어도 발생한다. 지출·변환처럼 여러 번 바꾸는 연산은 끝난 뒤 한 번만 발생한다.</summary>
         event Action Changed;
     }
 
@@ -34,6 +34,7 @@ namespace Game.Core
         bool TrySpend(int amount);
         /// <summary>지출 후 지급 실패 롤백 - 개인 골드로만 돌려준다(인출한 상자는 복원하지 않음).</summary>
         void Refund(int amount);
+        /// <summary>IGoldHoldingsReader.Changed와 같은 이벤트다 - 교역품 저장소 변경도 포함하므로 소비자가 저장소를 따로 구독할 필요가 없다.</summary>
         event Action Changed;
     }
 

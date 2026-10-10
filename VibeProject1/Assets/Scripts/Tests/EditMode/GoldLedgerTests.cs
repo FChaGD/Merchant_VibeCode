@@ -213,6 +213,61 @@ namespace Game.Core.Tests
         }
 
         [Test]
+        public void TrySpend_WithWithdrawal_RaisesChangedOnce()
+        {
+            var wallet = new GoldTestWallet(0);
+            var inventory = Inventory(GoldTestInventory.Section("A", 2, 1));
+            inventory.Place(Gold, 0, 0, "A");
+            inventory.Place(Gold, 1, 0, "A");
+            var ledger = Ledger(wallet, inventory);
+            var raised = 0;
+            ledger.Changed += () => raised++;
+
+            Assert.IsTrue(ledger.TrySpend(800));    // 상자 2개 인출 + 지갑 증가 + 지출
+            Assert.AreEqual(1, raised);
+        }
+
+        [Test]
+        public void Convert_MultipleBoxes_RaisesChangedOnce()
+        {
+            var wallet = new GoldTestWallet(1500);
+            var ledger = Ledger(wallet, Inventory(GoldTestInventory.Section("A", 3, 1)));
+            var raised = 0;
+            ledger.Changed += () => raised++;
+
+            Assert.AreEqual(3, ledger.Convert(3));
+            Assert.AreEqual(1, raised);
+        }
+
+        [Test]
+        public void Changed_ReadsFinalStateInsideHandler()
+        {
+            var wallet = new GoldTestWallet(0);
+            var inventory = Inventory(GoldTestInventory.Section("A", 1, 1));
+            inventory.Place(Gold, 0, 0, "A");
+            var ledger = Ledger(wallet, inventory);
+            var seenPersonal = -1;
+            ledger.Changed += () => seenPersonal = ledger.PersonalGold;
+
+            Assert.IsTrue(ledger.TrySpend(300));
+            Assert.AreEqual(200, seenPersonal);     // 인출 직후(500)가 아니라 지출 후 값
+        }
+
+        [Test]
+        public void FailedOperations_RaiseNothing()
+        {
+            var wallet = new GoldTestWallet(100);
+            var ledger = Ledger(wallet, Inventory(GoldTestInventory.Section("A", 1, 1)));
+            var raised = 0;
+            ledger.Changed += () => raised++;
+
+            Assert.IsFalse(ledger.TrySpend(1000));
+            Assert.AreEqual(0, ledger.Convert(1));
+            Assert.AreEqual(0, ledger.DiscardExcess());
+            Assert.AreEqual(0, raised);
+        }
+
+        [Test]
         public void WithoutInventory_ActsAsPersonalOnly()
         {
             var wallet = new GoldTestWallet(700);

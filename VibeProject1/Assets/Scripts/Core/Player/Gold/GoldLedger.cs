@@ -7,6 +7,8 @@ namespace Game.Core
     /// 골드 보유 장부(Docs/설계/83번 §3.2·§4). MonoBehaviour와 분리한 이유는 Unity 없이 테스트하기 위해서다 - GoldHoldingsService가
     /// DI 배선만 맡고 이 클래스를 감싼다. 지갑과 교역품 저장소는 서로를 모르고, 둘을 함께 읽고 쓰는 곳은 이 클래스뿐이다.
     /// 교역품 저장소가 없으면 개인 골드만 다룬다(인스톨러 미실행 등). 골드 아이템 정의가 카탈로그에 없으면 여유 공간 환산·변환이 0이다.
+    /// 지출·변환·버림은 지갑과 저장소를 여러 번 바꾸지만 변경 이벤트는 연산이 끝난 뒤 한 번만 낸다 - 구독자(HUD·시설 화면·변환 모달)가
+    /// 중간 상태를 읽고 매번 다시 그리는 비용(무역품 화면은 구매 판정까지 다시 계산한다)을 없애기 위함이다.
     /// </summary>
     public sealed class GoldLedger : IGoldHoldingsReader, IGoldSpender, IGoldBoxConverter, IGoldDepartureSettlement, IDisposable
     {
@@ -14,6 +16,8 @@ namespace Game.Core
         private readonly ITradeGoodsInventoryRepository inventory;
         private readonly string goldItemId;
         private readonly int goldValue;
+        private int batchDepth;
+        private bool changedInBatch;
 
         public event Action Changed;
 
@@ -26,13 +30,13 @@ namespace Game.Core
 
             wallet.OnAmountChanged += HandleWalletChanged;
             // 교역품 저장소 계약이 조회·임시 보관 조회 두 인터페이스에서 같은 이벤트를 물려받아 이름이 모호하다 - 조회 계약으로 지정한다.
-            if (inventory != null) ((IInventoryReader)inventory).OnChanged += RaiseChanged;
+            if (inventory != null) ((IInventoryReader)inventory).OnChanged += HandleSourceChanged;
         }
 
         public void Dispose()
         {
             wallet.OnAmountChanged -= HandleWalletChanged;
-            if (inventory != null) ((IInventoryReader)inventory).OnChanged -= RaiseChanged;
+            if (inventory != null) ((IInventoryReader)inventory).OnChanged -= HandleSourceChanged;
         }
 
         public int PersonalGold => wallet.CurrentAmount;
@@ -58,7 +62,9 @@ namespace Game.Core
             return GoldHoldingsCalculator.SelectWithdrawal(inventory.Sections, inventory.Items, inventory.StagedItems, goldItemId, GoldHoldingsCalculator.CeilDiv(shortfall, goldValue));
         }
 
-        public bool TrySpend(int amount)
+        public bool TrySpend(int amount) => Batch(() => SpendCore(amount));
+
+        private bool SpendCore(int amount)
         {
             if (amount <= 0) return true;
             if (!CanAfford(amount)) return false;
@@ -74,7 +80,9 @@ namespace Game.Core
 
         public void Refund(int amount) => wallet.Add(amount);
 
-        public int Convert(int boxCount)
+        public int Convert(int boxCount) => Batch(() => ConvertCore(boxCount));
+
+        private int ConvertCore(int boxCount)
         {
             var target = Math.Min(boxCount, MaxConvertibleBoxes);
             if (target <= 0 || !IsSingleCellGold(out var definition)) return 0;
@@ -118,8 +126,31 @@ namespace Game.Core
                 && definition.FootprintWidth == 1 && definition.FootprintHeight == 1;
         }
 
-        private void HandleWalletChanged(int _) => RaiseChanged();
+        private void HandleWalletChanged(int _) => HandleSourceChanged();
 
-        private void RaiseChanged() => Changed?.Invoke();
+        private void HandleSourceChanged()
+        {
+            if (batchDepth > 0) changedInBatch = true;
+            else Changed?.Invoke();
+        }
+
+        // 연산 중 바뀐 게 있으면 끝난 뒤(최종 상태에서) 한 번만 알린다. 아무것도 바뀌지 않았으면 알리지 않는다.
+        private T Batch<T>(Func<T> operation)
+        {
+            batchDepth++;
+            try
+            {
+                return operation();
+            }
+            finally
+            {
+                batchDepth--;
+                if (batchDepth == 0 && changedInBatch)
+                {
+                    changedInBatch = false;
+                    Changed?.Invoke();
+                }
+            }
+        }
     }
 }

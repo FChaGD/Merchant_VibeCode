@@ -60,10 +60,9 @@ namespace Game.Core
             elements.BuyButton.onClick.RemoveAllListeners();
             elements.BuyButton.onClick.AddListener(Purchase);
 
+            // 골드 보유 변경은 교역품 저장소 변경도 포함한다(설계 83번 §3.3) - 저장소를 따로 구독하면 같은 변경에 정보 영역(구매 판정 포함)을 두 번 다시 그린다.
             gold.Changed += HandleCurrencyChanged;
             stockReader.OnStockChanged += HandleStockChanged;
-            // 교역품 저장소 계약이 조회·임시 보관 조회 두 인터페이스에서 같은 이벤트를 물려받아 이름이 모호하다 - 조회 계약으로 지정한다.
-            ((IInventoryReader)inventory).OnChanged += HandleInventoryChanged;
             elements.Root.SetActive(false);
         }
 
@@ -103,7 +102,6 @@ namespace Game.Core
         {
             gold.Changed -= HandleCurrencyChanged;
             stockReader.OnStockChanged -= HandleStockChanged;
-            ((IInventoryReader)inventory).OnChanged -= HandleInventoryChanged;
             inventoryController.Dispose();
         }
 
@@ -119,11 +117,6 @@ namespace Game.Core
             stock = stockReader.GetStock(currentLocation?.CurrentCityId ?? 0, TownFacilityIds.TradeGoodsMarket);
             RenderStock();
             UpdateInfo();
-        }
-
-        private void HandleInventoryChanged()
-        {
-            if (isOpen) UpdateInfo();
         }
 
         private void Purchase()
