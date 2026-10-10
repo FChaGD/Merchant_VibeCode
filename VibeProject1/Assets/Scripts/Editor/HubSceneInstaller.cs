@@ -79,6 +79,8 @@ namespace Game.Core.Editor
             TradeGoodsMarketUIBuilder.Build(layers.ModalPopups);
             RosterShopUIBuilder.Build(layers.ModalPopups, RosterShopUIBuilder.MercenaryContact);
             RosterShopUIBuilder.Build(layers.ModalPopups, RosterShopUIBuilder.Stable);
+            // 골드 변환 모달(설계 83번 §6.2) - HUD 짧은 클릭으로 연다.
+            GoldConversionUIBuilder.Build(layers.ModalPopups);
 
             EditorUIBuilder.WarnIfOutsideTransitionRoot(sceneUIRoot.transform, contentRoot, "Hub");
 

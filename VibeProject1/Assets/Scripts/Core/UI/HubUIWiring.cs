@@ -24,6 +24,8 @@ namespace Game.Core
         private MercenaryContactPanel mercenaryContactPanel;
         // 마구간 화면(Docs/설계/56번 §7.2) - 같은 이유로 Hub 로드마다 새로 만들고 이전 것은 Dispose한다.
         private StablePanel stablePanel;
+        // 골드 변환 모달(설계 83번 §6.2) - 시설 화면과 같은 이유로 Hub 로드마다 새로 만들고 이전 것은 Dispose한다.
+        private GoldConversionPanel goldConversionPanel;
 
         public void Wire(IDependencyResolver registrar, IUIManager uiManager, IPanelRegistrar panelRegistrar)
         {
@@ -165,6 +167,7 @@ namespace Game.Core
             RegisterTradeGoodsMarket(sceneUIRoot, uiManager, panelRegistrar, tradeGoodsInventory, goldSpender, townShopStockReader, townStockConsumer, currentLocationRepository);
             RegisterMercenaryContact(sceneUIRoot, uiManager, panelRegistrar, goldSpender, mercenaryCandidateReader, hiredCharacterRoster, characterCatalog, mercenaryClassIconReader, currentLocationRepository);
             RegisterStable(sceneUIRoot, uiManager, panelRegistrar, goldSpender, caravanAssetCandidateReader, ownedCaravanAssetRoster, caravanAssetCatalog, caravanAssetIconReader, townStockReader, townStockConsumer, currentLocationRepository);
+            RegisterGoldConversion(sceneUIRoot, uiManager, panelRegistrar, goldHoldings, goldConverter);
 
             // 팝업 축(Docs/설계/38번 §5·§6) - 모달 팝업이 열리면 DepthLayer/PersistentLayer를 숨긴다.
             // PersistentLayer에는 인벤토리 버튼이 있다. PopupExemptLayer(재화 HUD)와 PopupLayer는 대상이 아니다.
@@ -267,6 +270,7 @@ namespace Game.Core
         private void RegisterStable(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IGoldSpender gold, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, ICaravanAssetCatalogReader catalog, ICaravanAssetIconReader iconReader, ITownStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation)
         {
             stablePanel?.Dispose();
+            goldConversionPanel?.Dispose();
             stablePanel = null;
 
             if (gold == null || candidateReader == null || roster == null || catalog == null || stockReader == null || stockConsumer == null)
@@ -281,11 +285,30 @@ namespace Game.Core
             panelRegistrar.RegisterPopupPanel(stablePanel);
         }
 
+        // 시설 화면과 같은 등록 방식(모달 팝업 채널). 의존성이나 요소가 없으면 등록하지 않는다 - HUD 클릭은 "등록되지 않은 패널" 경고만 낸다.
+        private void RegisterGoldConversion(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IGoldHoldingsReader holdings, IGoldBoxConverter converter)
+        {
+            goldConversionPanel?.Dispose();
+            goldConversionPanel = null;
+
+            if (holdings == null || converter == null)
+            {
+                Debug.LogWarning($"골드 변환 모달에 필요한 {nameof(IGoldHoldingsReader)}/{nameof(IGoldBoxConverter)}가 연결되어 있지 않아 등록하지 못했다(Tools > Game > Build Bootstrap Scene).");
+                return;
+            }
+
+            if (!GoldConversionElements.TryBind(sceneUIRoot, out var elements)) return;
+
+            goldConversionPanel = new GoldConversionPanel(elements, holdings, converter, uiManager);
+            panelRegistrar.RegisterPopupPanel(goldConversionPanel);
+        }
+
         private void OnDestroy()
         {
             tradeGoodsMarketPanel?.Dispose();
             mercenaryContactPanel?.Dispose();
             stablePanel?.Dispose();
+            goldConversionPanel?.Dispose();
             foreach (var popup in inventoryPopups) popup.Dispose();
             inventoryPopups.Clear();
             inventoryPopupFocus?.Dispose();
