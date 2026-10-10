@@ -6,8 +6,7 @@ namespace Game.Core
     /// </summary>
     public interface IPlayerCurrencyWallet : IPlayerCurrencyReader
     {
-        // 상한을 넘는 만큼은 손실된다(23번 §3.1 "상한 초과 시 처리") - 실제로 반영된 양을 반환해
-        // 호출자가 손실분을 알 수 있게 한다.
+        // 획득 상한은 없다(기획 82번 C4) - 0 이하는 무시하고, 실제로 더한 양을 반환한다.
         int Add(int amount);
 
         // 부족하면 아무 것도 차감하지 않고 false. 소요시간 증가 등 대체 페널티는 두지 않는다(22번 §3.3

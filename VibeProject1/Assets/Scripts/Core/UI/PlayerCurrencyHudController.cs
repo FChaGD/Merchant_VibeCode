@@ -60,7 +60,7 @@ namespace Game.Core
 
         private void ShowCapacityTooltip()
         {
-            capacityTooltipText.text = $"상한 {currencyReader.Capacity:N0}";
+            capacityTooltipText.text = $"개인 소유 가능량 {currencyReader.PersonalLimit:N0}";
             capacityTooltipRoot.SetActive(true);
         }
 

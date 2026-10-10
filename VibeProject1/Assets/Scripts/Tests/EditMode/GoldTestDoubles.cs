@@ -23,6 +23,35 @@ namespace Game.Core.Tests
         }
     }
 
+    internal sealed class GoldTestWallet : IPlayerCurrencyWallet
+    {
+        public int CurrentAmount { get; private set; }
+        public int PersonalLimit { get; }
+        public event Action<int> OnAmountChanged;
+
+        public GoldTestWallet(int amount, int personalLimit = 500)
+        {
+            CurrentAmount = amount;
+            PersonalLimit = personalLimit;
+        }
+
+        public int Add(int amount)
+        {
+            if (amount <= 0) return 0;
+            CurrentAmount += amount;
+            OnAmountChanged?.Invoke(CurrentAmount);
+            return amount;
+        }
+
+        public bool TrySpend(int amount)
+        {
+            if (amount > CurrentAmount) return false;
+            CurrentAmount -= amount;
+            OnAmountChanged?.Invoke(CurrentAmount);
+            return true;
+        }
+    }
+
     internal sealed class GoldTestInventory : ITradeGoodsInventoryRepository
     {
         private readonly InventoryGrid grid;

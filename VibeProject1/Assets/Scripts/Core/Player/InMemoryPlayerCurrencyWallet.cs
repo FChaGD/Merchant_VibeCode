@@ -1,22 +1,25 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Game.Core
 {
     /// <summary>
-    /// 기본 소지 재화만 관리한다(Docs/기획/26번 §4) - 적재 재화(마차 연동)는 마차/인벤토리
-    /// 시스템 설계 후 Capacity 계산에 합산 지점을 추가한다(Docs/설계/29번 §5 확장 지점).
+    /// 개인 골드만 관리하는 저수준 저장소(Docs/설계/83번 §3.1). 적재 골드·소지 가능량은 이 클래스가 모른다 - 골드 보유 서비스가
+    /// 이 지갑과 교역품 저장소를 함께 읽어 계산한다. 획득 상한은 폐기됐고(기획 82번 C4), 출발 시 버림이 사실상의 상한 역할을 한다.
     /// </summary>
     public class InMemoryPlayerCurrencyWallet : MonoBehaviour, IPlayerCurrencyWallet, IManagedComponent
     {
-        // 23번 §3.1 기본 수치(잠정 1,000)를 무역품 구매 검증용으로 10,000으로 올렸다(사용자 지시, 2026-09-27) - 상한이자
-        // 시작 금액이다. 가격 체계 정의 후 재검토 대상.
-        [SerializeField] private int basicCapacity = 10000;
+        // 개인 소유 가능량(기획 82번 A1).
+        [SerializeField] private int personalLimit = 500;
+        // 시작 금액(기획 82번 A4) - 검증용 10,000. 예전 상한 겸 시작 금액(basicCapacity)의 저장값을 이어받는다.
+        [FormerlySerializedAs("basicCapacity")]
+        [SerializeField] private int startingAmount = 10000;
 
         private int currentAmount;
 
         public int CurrentAmount => currentAmount;
-        public int Capacity => basicCapacity;
+        public int PersonalLimit => personalLimit;
         public event Action<int> OnAmountChanged;
 
         public void RegisterSelf(IDependencyRegistrar registrar)
@@ -26,18 +29,16 @@ namespace Game.Core
 
         public void ResolveDependencies(IDependencyResolver registrar)
         {
-            // 게임 시작 시 상한만큼 가득 채운 상태로 시작(23번 §3.1). 다른 매니저에 대한 의존성은 없다.
-            currentAmount = basicCapacity;
+            currentAmount = startingAmount;
         }
 
         public int Add(int amount)
         {
-            var applied = Mathf.Clamp(amount, 0, Capacity - currentAmount);
-            if (applied <= 0) return 0;
+            if (amount <= 0) return 0;
 
-            currentAmount += applied;
+            currentAmount += amount;
             OnAmountChanged?.Invoke(currentAmount);
-            return applied;
+            return amount;
         }
 
         public bool TrySpend(int amount)

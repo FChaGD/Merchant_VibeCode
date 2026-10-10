@@ -24,58 +24,58 @@ namespace Game.Core.Tests
         }
 
         [Test]
-        public void ResolveDependencies_StartsFullyFilled()
+        public void ResolveDependencies_StartsWithStartingAmount_SeparateFromLimit()
         {
-            Assert.AreEqual(wallet.Capacity, wallet.CurrentAmount);
+            Assert.AreEqual(10000, wallet.CurrentAmount);
+            Assert.AreEqual(500, wallet.PersonalLimit);
         }
 
         [Test]
-        public void Add_ClampsAtCapacity_ReturnsActuallyAppliedAmount()
+        public void Add_HasNoCap_ReturnsFullAmount()
         {
-            var applied = wallet.Add(500); // 이미 가득 찬 상태
+            var applied = wallet.Add(500);
 
-            Assert.AreEqual(0, applied);
-            Assert.AreEqual(wallet.Capacity, wallet.CurrentAmount);
+            Assert.AreEqual(500, applied);
+            Assert.AreEqual(10500, wallet.CurrentAmount);
         }
 
         [Test]
-        public void TrySpend_ThenAdd_ClampsOnlyExcess()
+        public void Add_NonPositive_IgnoredWithoutEvent()
         {
-            wallet.TrySpend(300);
+            var fired = false;
+            wallet.OnAmountChanged += _ => fired = true;
 
-            var applied = wallet.Add(1000);
-
-            Assert.AreEqual(300, applied);
-            Assert.AreEqual(wallet.Capacity, wallet.CurrentAmount);
+            Assert.AreEqual(0, wallet.Add(0));
+            Assert.AreEqual(0, wallet.Add(-5));
+            Assert.AreEqual(10000, wallet.CurrentAmount);
+            Assert.IsFalse(fired);
         }
 
         [Test]
         public void TrySpend_ReturnsFalseWhenInsufficient()
         {
-            var result = wallet.TrySpend(wallet.Capacity + 1);
-
-            Assert.IsFalse(result);
-            Assert.AreEqual(wallet.Capacity, wallet.CurrentAmount);
+            Assert.IsFalse(wallet.TrySpend(10001));
+            Assert.AreEqual(10000, wallet.CurrentAmount);
         }
 
         [Test]
         public void TrySpend_ReturnsTrueAndDeducts()
         {
-            var result = wallet.TrySpend(200);
-
-            Assert.IsTrue(result);
-            Assert.AreEqual(wallet.Capacity - 200, wallet.CurrentAmount);
+            Assert.IsTrue(wallet.TrySpend(200));
+            Assert.AreEqual(9800, wallet.CurrentAmount);
         }
 
         [Test]
-        public void OnAmountChanged_FiresWithNewAmount_OnSpend()
+        public void OnAmountChanged_FiresWithNewAmount_OnSpendAndAdd()
         {
             int? notified = null;
             wallet.OnAmountChanged += amount => notified = amount;
 
             wallet.TrySpend(150);
+            Assert.AreEqual(9850, notified);
 
-            Assert.AreEqual(wallet.CurrentAmount, notified);
+            wallet.Add(1000);
+            Assert.AreEqual(10850, notified);
         }
 
         [Test]
@@ -84,18 +84,7 @@ namespace Game.Core.Tests
             var fired = false;
             wallet.OnAmountChanged += _ => fired = true;
 
-            wallet.TrySpend(wallet.Capacity + 1);
-
-            Assert.IsFalse(fired);
-        }
-
-        [Test]
-        public void OnAmountChanged_DoesNotFire_WhenAddHasNoRoom()
-        {
-            var fired = false;
-            wallet.OnAmountChanged += _ => fired = true;
-
-            wallet.Add(10); // 이미 가득 찬 상태라 반영될 여지가 없다.
+            wallet.TrySpend(10001);
 
             Assert.IsFalse(fired);
         }

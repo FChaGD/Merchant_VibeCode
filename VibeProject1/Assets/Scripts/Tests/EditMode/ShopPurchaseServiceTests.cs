@@ -107,7 +107,7 @@ namespace Game.Core.Tests
 
             Assert.AreEqual(ShopPurchaseCheck.InsufficientFunds, service.Evaluate(entry));
             Assert.IsFalse(service.TryPurchase(entry, 4, null, out _));
-            Assert.AreEqual(wallet.Capacity, wallet.CurrentAmount);
+            Assert.AreEqual(10000, wallet.CurrentAmount);
         }
 
         [Test]
@@ -120,7 +120,7 @@ namespace Game.Core.Tests
 
             Assert.AreEqual(ShopPurchaseCheck.NoSpace, service.Evaluate(entry));
             Assert.IsFalse(service.TryPurchase(entry, 4, null, out _));
-            Assert.AreEqual(wallet.Capacity, wallet.CurrentAmount);
+            Assert.AreEqual(10000, wallet.CurrentAmount);
         }
 
         [Test]
@@ -163,7 +163,7 @@ namespace Game.Core.Tests
             var entry = new ShopStockEntry(new FakeItemDefinition("a", 1, 1), 100, 5);
 
             Assert.IsFalse(service.TryPurchase(entry, 4, null, out _));
-            Assert.AreEqual(wallet.Capacity, wallet.CurrentAmount);
+            Assert.AreEqual(10000, wallet.CurrentAmount);
         }
 
         [Test]
