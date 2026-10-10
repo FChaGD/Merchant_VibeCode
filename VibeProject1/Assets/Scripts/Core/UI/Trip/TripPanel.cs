@@ -58,6 +58,9 @@ namespace Game.Core
         private ITripDestinationAssigner destinationAssigner;
         // 출발 조건(마차 대열 연결) 판정에 배치 Id → 마차·시설 해석이 필요하다(Docs/설계/79번 §9.1). 없으면 유닛을 못 찾아 연결로 본다.
         private ICaravanRosterProvider rosterProvider;
+        // 출발 시 골드 경고·초과분 버림(Docs/설계/83번 §6.3). 없으면(인스톨러 미실행) 골드 경고 없이 출발한다.
+        private IGoldHoldingsReader goldHoldings;
+        private IGoldDepartureSettlement goldDeparture;
 
         // 화면(Hub)이 완전히 드러나기 전까지는 "상행 시작"을 막는다(사용자 확정) - 도착지 배정 게이팅과 AND로 합친다.
         private bool sceneRevealed;
@@ -65,7 +68,7 @@ namespace Game.Core
         // 임시 보관 영역에 아이템이 있으면 "상행 시작"을 막는다(Docs/설계/40번 §5.5).
         private IReadOnlyList<IInventoryStagingReader> inventoryStagingReaders = System.Array.Empty<IInventoryStagingReader>();
 
-        public void RegisterTripUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingReader> inventoryStagingReaders, IWorldMapReader worldMap, ITripRouteReader routeReader, ITripDeparture tripDeparture, ICaravanRosterProvider rosterProvider)
+        public void RegisterTripUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingReader> inventoryStagingReaders, IWorldMapReader worldMap, ITripRouteReader routeReader, ITripDeparture tripDeparture, ICaravanRosterProvider rosterProvider, IGoldHoldingsReader goldHoldings, IGoldDepartureSettlement goldDeparture)
         {
             this.uiManager = uiManager;
             this.gameManager = gameManager;
@@ -79,6 +82,8 @@ namespace Game.Core
             this.currentLocationReader = currentLocationReader;
             this.tripDeparture = tripDeparture;
             this.destinationAssigner = destinationAssigner;
+            this.goldHoldings = goldHoldings;
+            this.goldDeparture = goldDeparture;
 
             // 저장소는 Bootstrap 상주라 Hub를 반복 방문해도 구독이 누적되지 않게 이전 구독부터 해제한다.
             foreach (var reader in this.inventoryStagingReaders) reader.OnChanged -= RefreshStartButtonInteractable;
@@ -192,7 +197,6 @@ namespace Game.Core
         }
 
         private const string DisconnectedNoticeText = "대열이 끊어져 있습니다. 정비창에서 마차를 이어 붙이세요.";
-        private const string EmptyFormationWarningText = "상단에 배치된 유닛이 없습니다. 이대로 습격받으면 위험합니다. 그래도 출발하시겠습니까?";
 
         // 마차 덩어리가 하나 이하여야 출발할 수 있다(기획 78 §4.8). 배치가 없으면 판정할 마차가 없으므로 충족으로 본다.
         private bool IsFormationConnected()
@@ -340,17 +344,24 @@ namespace Game.Core
             panelRoot.SetActive(false);
         }
 
-        // 배치 유닛 0은 출발을 막지 않고 확인만 받는다(기획 77 §4-30) - 연결 조건(버튼 비활성)과는 별개(기획 78 §4-35).
-        // 대화상자가 없으면(인스톨러 미실행) 경고 없이 예전처럼 바로 출발한다.
+        // 경고는 독립 판정·순차 표시한다(기획 82번 E4·E5, 설계 83번 §6.3). 모두 확인해야 초과분을 버리고 출발하며, 어느 단계든 취소하면
+        // 아무것도 바꾸지 않는다. 연결 조건(버튼 비활성)과는 별개다(기획 78 §4-35). 대화상자가 없으면(인스톨러 미실행) 경고 없이 출발한다.
         private void StartTrip(IGameManager gameManager)
         {
-            if (!HasAnyPlacedUnit() && departureConfirmDialog != null)
+            var warnings = TripDepartureWarnings.Collect(HasAnyPlacedUnit(), goldHoldings?.ExcessGold ?? 0, goldHoldings?.PersonalLimit ?? 0);
+            ConfirmWarningsThenDepart(warnings, 0, gameManager);
+        }
+
+        private void ConfirmWarningsThenDepart(IReadOnlyList<string> warnings, int index, IGameManager gameManager)
+        {
+            if (index >= warnings.Count || departureConfirmDialog == null)
             {
-                departureConfirmDialog.Show(EmptyFormationWarningText, "출발", "취소", () => Depart(gameManager), null);
+                goldDeparture?.DiscardExcess();
+                Depart(gameManager);
                 return;
             }
 
-            Depart(gameManager);
+            departureConfirmDialog.Show(warnings[index], "출발", "취소", () => ConfirmWarningsThenDepart(warnings, index + 1, gameManager), null);
         }
 
         private void Depart(IGameManager gameManager)
