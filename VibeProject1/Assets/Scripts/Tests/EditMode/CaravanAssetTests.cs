@@ -72,7 +72,7 @@ namespace Game.Core.Tests
             var go = new GameObject(nameof(CaravanAssetTests));
             created.Add(go);
             wallet = go.AddComponent<InMemoryPlayerCurrencyWallet>();
-            wallet.ResolveDependencies(null); // 기본 소지 재화 상한만큼 가득 찬 상태로 시작
+            wallet.ResolveDependencies(null); // 시작 금액 10,000으로 시작
 
             (wagonTable, wagonStrings) = CreateTables("Wagon", "마차이름", 3);
             (facilityTable, facilityStrings) = CreateTables("Facility", "시설이름", 3);
@@ -220,7 +220,7 @@ namespace Game.Core.Tests
         {
             var roster = new FakeRoster();
             var stock = new FakeStock();
-            return (new CaravanAssetPurchaseService(wallet, roster, stock, stock), roster, stock);
+            return (new CaravanAssetPurchaseService(new GoldLedger(wallet, null, "gold-box", 500), roster, stock, stock), roster, stock);
         }
 
         private static CaravanAssetProfile Profile(FakeRoster roster, string id, FormationUnitKind kind, int price)

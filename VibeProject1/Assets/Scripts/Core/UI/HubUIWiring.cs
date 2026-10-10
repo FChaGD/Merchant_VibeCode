@@ -165,8 +165,8 @@ namespace Game.Core
 
             RegisterInventoryPopups(sceneUIRoot, uiManager, panelRegistrar, inventoryPopupSources);
             RegisterTradeGoodsMarket(sceneUIRoot, uiManager, panelRegistrar, tradeGoodsInventory, goldSpender, townShopStockReader, townStockConsumer, currentLocationRepository);
-            RegisterMercenaryContact(sceneUIRoot, uiManager, panelRegistrar, currencyWallet, mercenaryCandidateReader, hiredCharacterRoster, characterCatalog, mercenaryClassIconReader, currentLocationRepository);
-            RegisterStable(sceneUIRoot, uiManager, panelRegistrar, currencyWallet, caravanAssetCandidateReader, ownedCaravanAssetRoster, caravanAssetCatalog, caravanAssetIconReader, townStockReader, townStockConsumer, currentLocationRepository);
+            RegisterMercenaryContact(sceneUIRoot, uiManager, panelRegistrar, goldSpender, mercenaryCandidateReader, hiredCharacterRoster, characterCatalog, mercenaryClassIconReader, currentLocationRepository);
+            RegisterStable(sceneUIRoot, uiManager, panelRegistrar, goldSpender, caravanAssetCandidateReader, ownedCaravanAssetRoster, caravanAssetCatalog, caravanAssetIconReader, townStockReader, townStockConsumer, currentLocationRepository);
 
             // 팝업 축(Docs/설계/38번 §5·§6) - 모달 팝업이 열리면 DepthLayer/PersistentLayer를 숨긴다.
             // PersistentLayer에는 인벤토리 버튼이 있다. PopupExemptLayer(재화 HUD)와 PopupLayer는 대상이 아니다.
@@ -248,38 +248,38 @@ namespace Game.Core
         }
 
         // 무역품 구매 화면과 같은 등록 방식(모달 팝업 채널). 직업 아이콘 제공자는 없어도 된다(아이콘 없이 표시).
-        private void RegisterMercenaryContact(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IPlayerCurrencyWallet wallet, IMercenaryCandidateReader candidateReader, IHiredCharacterRoster roster, ICharacterCatalogReader catalog, IMercenaryClassIconReader iconReader, ITripCurrentLocationReader currentLocation)
+        private void RegisterMercenaryContact(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IGoldSpender gold, IMercenaryCandidateReader candidateReader, IHiredCharacterRoster roster, ICharacterCatalogReader catalog, IMercenaryClassIconReader iconReader, ITripCurrentLocationReader currentLocation)
         {
             mercenaryContactPanel?.Dispose();
             mercenaryContactPanel = null;
 
-            if (wallet == null || candidateReader == null || roster == null || catalog == null)
+            if (gold == null || candidateReader == null || roster == null || catalog == null)
             {
-                Debug.LogWarning($"용병단 접촉 화면에 필요한 {nameof(IPlayerCurrencyWallet)}/{nameof(IMercenaryCandidateReader)}/{nameof(IHiredCharacterRoster)}/{nameof(ICharacterCatalogReader)}가 연결되어 있지 않아 등록하지 못했다(Tools > Game > Build Bootstrap Scene).");
+                Debug.LogWarning($"용병단 접촉 화면에 필요한 {nameof(IGoldSpender)}/{nameof(IMercenaryCandidateReader)}/{nameof(IHiredCharacterRoster)}/{nameof(ICharacterCatalogReader)}가 연결되어 있지 않아 등록하지 못했다(Tools > Game > Build Bootstrap Scene).");
                 return;
             }
 
             if (!RosterShopElements.TryBind(sceneUIRoot, RosterShopUIElementIds.MercenaryContactPrefix, out var elements)) return;
 
-            mercenaryContactPanel = new MercenaryContactPanel(elements, wallet, candidateReader, roster, catalog, iconReader, currentLocation, uiManager);
+            mercenaryContactPanel = new MercenaryContactPanel(elements, gold, candidateReader, roster, catalog, iconReader, currentLocation, uiManager);
             panelRegistrar.RegisterPopupPanel(mercenaryContactPanel);
         }
 
         // 용병단 접촉 화면과 같은 등록 방식(모달 팝업 채널, 목록형 구매 화면 요소 공유). 종류 아이콘 제공자는 없어도 된다.
-        private void RegisterStable(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IPlayerCurrencyWallet wallet, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, ICaravanAssetCatalogReader catalog, ICaravanAssetIconReader iconReader, ITownStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation)
+        private void RegisterStable(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IGoldSpender gold, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, ICaravanAssetCatalogReader catalog, ICaravanAssetIconReader iconReader, ITownStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation)
         {
             stablePanel?.Dispose();
             stablePanel = null;
 
-            if (wallet == null || candidateReader == null || roster == null || catalog == null || stockReader == null || stockConsumer == null)
+            if (gold == null || candidateReader == null || roster == null || catalog == null || stockReader == null || stockConsumer == null)
             {
-                Debug.LogWarning($"마구간 화면에 필요한 {nameof(IPlayerCurrencyWallet)}/{nameof(ICaravanAssetCandidateReader)}/{nameof(IOwnedCaravanAssetRoster)}/{nameof(ICaravanAssetCatalogReader)}/{nameof(ITownStockReader)}/{nameof(ITownStockConsumer)}가 연결되어 있지 않아 등록하지 못했다(Tools > Game > Build Bootstrap Scene).");
+                Debug.LogWarning($"마구간 화면에 필요한 {nameof(IGoldSpender)}/{nameof(ICaravanAssetCandidateReader)}/{nameof(IOwnedCaravanAssetRoster)}/{nameof(ICaravanAssetCatalogReader)}/{nameof(ITownStockReader)}/{nameof(ITownStockConsumer)}가 연결되어 있지 않아 등록하지 못했다(Tools > Game > Build Bootstrap Scene).");
                 return;
             }
 
             if (!RosterShopElements.TryBind(sceneUIRoot, RosterShopUIElementIds.StablePrefix, out var elements)) return;
 
-            stablePanel = new StablePanel(elements, wallet, candidateReader, roster, catalog, iconReader, stockReader, stockConsumer, currentLocation, uiManager);
+            stablePanel = new StablePanel(elements, gold, candidateReader, roster, catalog, iconReader, stockReader, stockConsumer, currentLocation, uiManager);
             panelRegistrar.RegisterPopupPanel(stablePanel);
         }
 

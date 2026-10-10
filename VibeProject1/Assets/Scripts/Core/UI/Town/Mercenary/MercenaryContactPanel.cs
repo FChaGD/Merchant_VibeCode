@@ -7,7 +7,7 @@ namespace Game.Core
     /// <summary>
     /// 용병단 접촉(캐릭터 고용) 화면(Docs/기획/53번, 설계 54번 §8). 무역품 구매 화면과 같이 모달 팝업 채널에 등록된다 - 재화 패널 외
     /// Hub UI 숨김과 "나가면 주점 지구로 복귀"를 기존 채널이 처리한다. MonoBehaviour가 아닌 plain C#이며 HubUIWiring이 Hub 로드마다
-    /// 새로 만든다 - 재화 지갑·로스터(Bootstrap 상주) 이벤트를 구독하므로 교체 시 반드시 Dispose한다.
+    /// 새로 만든다 - 골드 보유·로스터(Bootstrap 상주) 이벤트를 구독하므로 교체 시 반드시 Dispose한다.
     /// 화면 요소와 후보 목록 처리는 마구간과 공유한다(RosterShopElements/RosterShopCandidateList, 설계 56번 §7.1). 좌측 보유 목록은
     /// 텍스트 블록 하나로 그린다(설계 54번 §11) - 직업 수가 바뀌어도 레이아웃을 고치지 않기 위해서다.
     /// </summary>
@@ -18,7 +18,7 @@ namespace Game.Core
         private const string AlreadyHiredText = "이미 고용한 용병입니다.";
 
         private readonly RosterShopElements elements;
-        private readonly IPlayerCurrencyWallet wallet;
+        private readonly IGoldSpender gold;
         private readonly IMercenaryCandidateReader candidateReader;
         private readonly IHiredCharacterRoster roster;
         private readonly ICharacterCatalogReader catalog;
@@ -34,16 +34,16 @@ namespace Game.Core
 
         public string PanelId => UIPanelIds.Facility(TownFacilityIds.MercenaryContact);
 
-        public MercenaryContactPanel(RosterShopElements elements, IPlayerCurrencyWallet wallet, IMercenaryCandidateReader candidateReader, IHiredCharacterRoster roster, ICharacterCatalogReader catalog, IMercenaryClassIconReader iconReader, ITripCurrentLocationReader currentLocation, IUIManager uiManager)
+        public MercenaryContactPanel(RosterShopElements elements, IGoldSpender gold, IMercenaryCandidateReader candidateReader, IHiredCharacterRoster roster, ICharacterCatalogReader catalog, IMercenaryClassIconReader iconReader, ITripCurrentLocationReader currentLocation, IUIManager uiManager)
         {
             this.elements = elements;
-            this.wallet = wallet;
+            this.gold = gold;
             this.candidateReader = candidateReader;
             this.roster = roster;
             this.catalog = catalog;
             this.iconReader = iconReader;
             this.currentLocation = currentLocation;
-            hiringService = new MercenaryHiringService(wallet, roster);
+            hiringService = new MercenaryHiringService(gold, roster);
             candidateList = new RosterShopCandidateList(elements);
 
             // 나가기는 패널이 자기 Close()를 부르지 않고 UIManager에 위임한다 - 카테고리 depth 복귀가 함께 처리된다.
@@ -52,7 +52,7 @@ namespace Game.Core
             elements.ActionButton.onClick.RemoveAllListeners();
             elements.ActionButton.onClick.AddListener(Hire);
 
-            wallet.OnAmountChanged += HandleCurrencyChanged;
+            gold.Changed += HandleCurrencyChanged;
             roster.OnHiredChanged += HandleRosterChanged;
             elements.Root.SetActive(false);
         }
@@ -73,11 +73,11 @@ namespace Game.Core
 
         public void Dispose()
         {
-            wallet.OnAmountChanged -= HandleCurrencyChanged;
+            gold.Changed -= HandleCurrencyChanged;
             roster.OnHiredChanged -= HandleRosterChanged;
         }
 
-        private void HandleCurrencyChanged(int _)
+        private void HandleCurrencyChanged()
         {
             if (isOpen) UpdateInfo();
         }

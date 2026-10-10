@@ -44,20 +44,23 @@ namespace Game.Core.Tests
         private InMemoryPlayerCurrencyWallet wallet;
         private FakeRoster roster;
         private MercenaryHiringService service;
+        private GoldLedger gold;
 
         [SetUp]
         public void SetUp()
         {
             gameObject = new GameObject(nameof(MercenaryHiringServiceTests));
             wallet = gameObject.AddComponent<InMemoryPlayerCurrencyWallet>();
-            wallet.ResolveDependencies(null); // 기본 소지 재화 상한만큼 가득 찬 상태로 시작
+            wallet.ResolveDependencies(null); // 시작 금액 10,000으로 시작
             roster = new FakeRoster();
-            service = new MercenaryHiringService(wallet, roster);
+            gold = new GoldLedger(wallet, null, "gold-box", 500);
+            service = new MercenaryHiringService(gold, roster);
         }
 
         [TearDown]
         public void TearDown()
         {
+            gold.Dispose();
             Object.DestroyImmediate(gameObject);
         }
 
@@ -124,6 +127,24 @@ namespace Game.Core.Tests
             Assert.IsFalse(service.TryHire(candidate));
             Assert.AreEqual(startingAmount, wallet.CurrentAmount);
             Assert.IsFalse(roster.IsHired("Warrior03"));
+        }
+
+        [Test]
+        public void TryHire_UsesLoadedGold_WhenPersonalShort()
+        {
+            var cargoWallet = new GoldTestWallet(0);
+            var inventory = new GoldTestInventory(2, 1);
+            var goldBox = new GoldTestItem("gold-box", 1, 1);
+            inventory.AddDefinition(goldBox);
+            inventory.Place(goldBox, 0, 0);
+            inventory.Place(goldBox, 1, 0);
+            var cargoService = new MercenaryHiringService(new GoldLedger(cargoWallet, inventory, "gold-box", 500), roster);
+            var candidate = Profile("Warrior03", "Warrior", 1000);
+
+            Assert.AreEqual(MercenaryHireCheck.Available, cargoService.Evaluate(candidate));
+            Assert.IsTrue(cargoService.TryHire(candidate));
+            Assert.AreEqual(0, inventory.Items.Count);
+            Assert.AreEqual(0, cargoWallet.CurrentAmount);
         }
     }
 }

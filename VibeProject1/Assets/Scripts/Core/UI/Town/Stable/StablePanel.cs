@@ -7,7 +7,7 @@ namespace Game.Core
     /// <summary>
     /// 마구간(마차·시설 구매) 화면(Docs/기획/55번, 설계 56번 §7.2). 용병단 접촉 화면과 같은 목록형 구매 화면 요소를 쓰고
     /// (RosterShopElements), 모달 팝업 채널에 등록되어 재화 패널 외 숨김·공업 지구 복귀를 기존 채널이 처리한다. plain C#이며
-    /// HubUIWiring이 Hub 로드마다 새로 만든다 - 재화 지갑·로스터 이벤트를 구독하므로 교체 시 반드시 Dispose한다.
+    /// HubUIWiring이 Hub 로드마다 새로 만든다 - 골드 보유·로스터 이벤트를 구독하므로 교체 시 반드시 Dispose한다.
     /// 마차는 교역품이 아니므로 인벤토리 그리드가 아니라 좌측 목록으로 소유 현황을 보여 준다(기획 55번 §3).
     /// </summary>
     public sealed class StablePanel : IUIPanel, IDisposable
@@ -19,7 +19,7 @@ namespace Game.Core
         private static readonly FormationUnitKind[] KindOrder = { FormationUnitKind.Wagon, FormationUnitKind.Facility };
 
         private readonly RosterShopElements elements;
-        private readonly IPlayerCurrencyWallet wallet;
+        private readonly IGoldSpender gold;
         private readonly ICaravanAssetCandidateReader candidateReader;
         private readonly IOwnedCaravanAssetRoster roster;
         private readonly ICaravanAssetCatalogReader catalog;
@@ -35,16 +35,16 @@ namespace Game.Core
 
         public string PanelId => UIPanelIds.Facility(TownFacilityIds.Stable);
 
-        public StablePanel(RosterShopElements elements, IPlayerCurrencyWallet wallet, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, ICaravanAssetCatalogReader catalog, ICaravanAssetIconReader iconReader, ITownStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, IUIManager uiManager)
+        public StablePanel(RosterShopElements elements, IGoldSpender gold, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, ICaravanAssetCatalogReader catalog, ICaravanAssetIconReader iconReader, ITownStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, IUIManager uiManager)
         {
             this.elements = elements;
-            this.wallet = wallet;
+            this.gold = gold;
             this.candidateReader = candidateReader;
             this.roster = roster;
             this.catalog = catalog;
             this.iconReader = iconReader;
             this.currentLocation = currentLocation;
-            purchaseService = new CaravanAssetPurchaseService(wallet, roster, stockReader, stockConsumer);
+            purchaseService = new CaravanAssetPurchaseService(gold, roster, stockReader, stockConsumer);
             candidateList = new RosterShopCandidateList(elements);
 
             // 나가기는 패널이 자기 Close()를 부르지 않고 UIManager에 위임한다 - 카테고리 depth 복귀가 함께 처리된다.
@@ -53,7 +53,7 @@ namespace Game.Core
             elements.ActionButton.onClick.RemoveAllListeners();
             elements.ActionButton.onClick.AddListener(Purchase);
 
-            wallet.OnAmountChanged += HandleCurrencyChanged;
+            gold.Changed += HandleCurrencyChanged;
             roster.OnOwnedChanged += HandleRosterChanged;
             candidateReader.OnCandidatesChanged += HandleRosterChanged;
             elements.Root.SetActive(false);
@@ -75,12 +75,12 @@ namespace Game.Core
 
         public void Dispose()
         {
-            wallet.OnAmountChanged -= HandleCurrencyChanged;
+            gold.Changed -= HandleCurrencyChanged;
             roster.OnOwnedChanged -= HandleRosterChanged;
             candidateReader.OnCandidatesChanged -= HandleRosterChanged;
         }
 
-        private void HandleCurrencyChanged(int _)
+        private void HandleCurrencyChanged()
         {
             if (isOpen) UpdateInfo();
         }
