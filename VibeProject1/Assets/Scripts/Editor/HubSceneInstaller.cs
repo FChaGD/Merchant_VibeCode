@@ -255,7 +255,10 @@ namespace Game.Core.Editor
             EditorUIBuilder.EnsureMarker(root, HubUIElementIds.CurrencyPanelRoot);
             // 패널 배경 - 이게 없으면 아이콘/텍스트만 화면에 떠 있는 것처럼 보여 "패널 형태"로 보이지
             // 않는다(2026-09-21 실전 확인).
-            EditorUIBuilder.EnsureImage(root, new Color(0f, 0f, 0f, 0.6f));
+            // 패널 배경이 입력 대상이다(기획 82번 B2 "골드 표시 패널") - 짧은 클릭=변환 모달, 호버·길게 누름=툴팁(설계 83번 §6.1).
+            EditorUIBuilder.EnsureImage(root, new Color(0f, 0f, 0f, 0.6f)).raycastTarget = true;
+            EditorUIBuilder.GetOrAddComponent<PointerHoverRelay>(root);
+            EditorUIBuilder.GetOrAddComponent<PointerPressRelay>(root);
 
             var layout = EditorUIBuilder.GetOrAddComponent<HorizontalLayoutGroup>(root);
             layout.childAlignment = TextAnchor.MiddleLeft;
@@ -281,10 +284,10 @@ namespace Game.Core.Editor
 
             var amountLabel = EditorUIBuilder.EnsureLabel(root.transform, "0");
             EditorUIBuilder.EnsureMarker(amountLabel.gameObject, HubUIElementIds.CurrencyAmountText);
-            EditorUIBuilder.GetOrAddComponent<PointerHoverRelay>(amountLabel.gameObject);
-            // EnsureLabel은 기본적으로 raycastTarget=false로 만든다(장식용 텍스트 기준) - 이 텍스트는
-            // 호버 대상이라 포인터 이벤트를 받아야 하므로 켜야 한다.
-            amountLabel.raycastTarget = true;
+            // 예전엔 금액 텍스트가 호버 대상이었다 - 입력 대상이 패널 배경으로 옮겨져 텍스트의 중계·레이캐스트를 제거한다.
+            var legacyHoverRelay = amountLabel.GetComponent<PointerHoverRelay>();
+            if (legacyHoverRelay != null) Object.DestroyImmediate(legacyHoverRelay);
+            amountLabel.raycastTarget = false;
             // EnsureLabel 기본 색상은 검정이다(밝은 배경 버튼 기준) - 이 패널은 어두운 배경이라
             // 흰색으로 바꿔야 보인다(2026-09-21 실전 확인).
             amountLabel.color = Color.white;
@@ -296,17 +299,23 @@ namespace Game.Core.Editor
             // 붙이면 AddComponent가 실패해 NullReferenceException으로 이어진 적이 있어(2026-09-21
             // 실전 확인) 이 구조로 되돌렸다. 컨트롤러는 프레임(tooltipGo)을 SetActive로 토글하고,
             // 텍스트(tooltipLabel)는 내용만 갱신한다.
-            // 실제 원인 발견(2026-09-21): anchorMin=(0,0)/anchorMax=(1,0)은 위아래 앵커가 같은 y=0
-            // 지점이라 sizeDelta 없이는 높이가 0이다 - 알파를 1로 올려도 덮을 영역 자체가 없어 수치가
-            // 그대로 다 보였다. 부모(amountLabel)와 완전히 같은 영역을 덮도록 SetStretch로 바꾼다.
-            var tooltipGo = EditorUIBuilder.GetOrCreateUIObject(amountLabel.transform, "CapacityTooltip");
-            EditorUIBuilder.SetStretch(tooltipGo.GetComponent<RectTransform>());
-            EditorUIBuilder.EnsureImage(tooltipGo, new Color(0f, 0f, 0f, 1f));
+            // 툴팁 문구(설계 83번 §6.1)가 금액 칸보다 길어 패널 바로 아래 띠로 옮긴다. 패널의 가로 레이아웃에 끼지 않도록 무시 표시한다.
+            // 위아래 앵커가 같은 y=0 지점이라 높이는 sizeDelta.y로 직접 준다(0이면 덮을 영역이 없다, 2026-09-21 실전 확인).
+            EditorUIBuilder.DestroyChildIfExists(amountLabel.transform, "CapacityTooltip");
+            var tooltipGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "CapacityTooltip");
+            EditorUIBuilder.GetOrAddComponent<LayoutElement>(tooltipGo).ignoreLayout = true;
+            var tooltipRect = tooltipGo.GetComponent<RectTransform>();
+            tooltipRect.anchorMin = new Vector2(0f, 0f);
+            tooltipRect.anchorMax = new Vector2(1f, 0f);
+            tooltipRect.pivot = new Vector2(0.5f, 1f);
+            tooltipRect.sizeDelta = new Vector2(0f, 36f);
+            tooltipRect.anchoredPosition = new Vector2(0f, -4f);
+            EditorUIBuilder.EnsureImage(tooltipGo, new Color(0f, 0f, 0f, 1f)).raycastTarget = false;
             EditorUIBuilder.EnsureMarker(tooltipGo, HubUIElementIds.CurrencyCapacityTooltip);
 
-            var tooltipLabel = EditorUIBuilder.EnsureLabel(tooltipGo.transform, "상한 -");
+            var tooltipLabel = EditorUIBuilder.EnsureLabel(tooltipGo.transform, "최대량 -", autoSize: true, minFontSize: 10f, maxFontSize: 18f);
             EditorUIBuilder.EnsureMarker(tooltipLabel.gameObject, HubUIElementIds.CurrencyCapacityTooltipText);
-            tooltipLabel.color = Color.white; // 어두운 배경(§ 위) 기준 - EnsureLabel 기본 검정이면 안 보인다.
+            tooltipLabel.color = Color.white; // 어두운 배경 기준 - EnsureLabel 기본 검정이면 안 보인다.
 
             tooltipGo.SetActive(false);
         }

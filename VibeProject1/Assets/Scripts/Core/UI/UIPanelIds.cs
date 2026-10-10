@@ -10,6 +10,8 @@ namespace Game.Core
         public const string Tactics = "Tactics";
         /// <summary>전투 후 회수 적재 패널(Field, 설계 79번 §7).</summary>
         public const string CargoRecovery = "CargoRecovery";
+        /// <summary>개인 골드 → 골드 상자 변환 모달(Hub, 설계 83번 §6.2).</summary>
+        public const string GoldConversion = "GoldConversion";
 
         /// <summary>마을 카테고리 depth(TownCategoryPanel) - 카테고리마다 별도 패널이라 Id를 조립한다.</summary>
         public static string TownCategory(string categoryId) => $"Town.{categoryId}";

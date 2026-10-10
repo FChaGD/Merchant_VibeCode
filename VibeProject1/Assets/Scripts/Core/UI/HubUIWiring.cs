@@ -97,8 +97,6 @@ namespace Game.Core
             registrar.TryResolve<IGoldSpender>(out var goldSpender);
             registrar.TryResolve<IGoldBoxConverter>(out var goldConverter);
             registrar.TryResolve<IGoldDepartureSettlement>(out var goldDeparture);
-            // 재화 HUD는 Task 9에서 골드 보유 조회로 바뀐다 - 그전까지 지갑을 임시로 넘긴다.
-            registrar.TryResolve<IPlayerCurrencyWallet>(out var currencyWallet);
             // 마을별 시설 데이터 시스템이 아직 없어(Placeholder) 선택적으로 조회한다 - 없으면 전부 제공으로
             // 간주한다(CurrentTownFacilityFilter 참고).
             registrar.TryResolve<ITownFacilityAvailabilityReader>(out var townFacilityAvailability);
@@ -138,7 +136,7 @@ namespace Game.Core
             }
 
             hubUIController.RegisterHubUI(sceneUIRoot, uiManager, sceneRevealSignal, townFacilityFilter);
-            currencyHudController.RegisterCurrencyUI(sceneUIRoot, currencyWallet);
+            currencyHudController.RegisterCurrencyUI(sceneUIRoot, goldHoldings, uiManager);
             HubInventoryShortcutBinder.Bind(sceneUIRoot, uiManager);
 
             formationPanel.RegisterFormationUI(sceneUIRoot, caravanRosterProvider, formationRepository, unitConditionRepository, uiManager);
