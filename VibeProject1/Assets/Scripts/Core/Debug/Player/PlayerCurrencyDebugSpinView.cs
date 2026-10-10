@@ -27,7 +27,8 @@ namespace Game.Core.DebugTools
         private const float HudEstimatedHeight = 40f;
         // 줄은 재화 패널 왼쪽, 같은 높이에 둔다. 패널 아래는 호버 툴팁 띠(설계 83번 §6.1)와 상단 물류품 버튼이 빈틈없이
         // 이어져 놓을 자리가 없다(2026-10-10 실측, 1920x1080). OnGUI는 uGUI 위에 그려져 겹치면 아래 UI가 가려진다.
-        // 이 자리도 배치(Formation) 화면 상단 디버그 패널과는 겹친다(같은 실측).
+        // 이 자리도 배치(Formation) 화면 상단 디버그 패널과는 겹쳐서(같은 실측) 그 패널이 보이는 동안은 줄을 숨긴다
+        // (사용자 결정, 2026-10-10) - 이 줄은 골드 경계 상황을 만드는 도구라 배치 화면에서는 쓸 일이 없다.
         private const float RowGap = 8f;
         private const float RowHeight = 32f;
         private const float CellPadding = 2f;
@@ -37,6 +38,7 @@ namespace Game.Core.DebugTools
 
         private IPlayerCurrencyWallet wallet;
         private bool isHubLoaded;
+        private GameObject formationDebugPanel;
         private GUIStyle buttonStyle;
         private GUIStyle amountStyle;
 
@@ -54,7 +56,9 @@ namespace Game.Core.DebugTools
         // 않고 로드/언로드 이벤트로 갱신한다.
         private void OnEnable()
         {
-            isHubLoaded = SceneManager.GetSceneByName(SceneNames.Hub).isLoaded;
+            var hub = SceneManager.GetSceneByName(SceneNames.Hub);
+            isHubLoaded = hub.isLoaded;
+            if (isHubLoaded) CacheFormationDebugPanel(hub);
             SceneManager.sceneLoaded += HandleSceneLoaded;
             SceneManager.sceneUnloaded += HandleSceneUnloaded;
         }
@@ -67,17 +71,37 @@ namespace Game.Core.DebugTools
 
         private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (scene.name == SceneNames.Hub) isHubLoaded = true;
+            if (scene.name != SceneNames.Hub) return;
+            isHubLoaded = true;
+            CacheFormationDebugPanel(scene);
         }
 
         private void HandleSceneUnloaded(Scene scene)
         {
-            if (scene.name == SceneNames.Hub) isHubLoaded = false;
+            if (scene.name != SceneNames.Hub) return;
+            isHubLoaded = false;
+            formationDebugPanel = null;
+        }
+
+        // OnGUI에서 매번 UI 트리를 훑지 않도록 Hub 로드 시 한 번만 찾는다. 못 찾으면(배치 UI 미설치) 숨김 조건 없이 그린다.
+        private void CacheFormationDebugPanel(Scene hub)
+        {
+            formationDebugPanel = null;
+            foreach (var root in hub.GetRootGameObjects())
+            {
+                var sceneUIRoot = root.GetComponentInChildren<SceneUIRoot>(true);
+                if (sceneUIRoot != null && sceneUIRoot.TryGetElement<RectTransform>(FormationUIElementIds.DebugPanelRoot, out var panel))
+                {
+                    formationDebugPanel = panel.gameObject;
+                    return;
+                }
+            }
         }
 
         private void OnGUI()
         {
             if (!Application.isPlaying || wallet == null || !isHubLoaded) return;
+            if (formationDebugPanel != null && formationDebugPanel.activeInHierarchy) return;
             EnsureStyles();
 
             var width = Screen.width * HudWidthRatio;
