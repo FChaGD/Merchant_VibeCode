@@ -127,7 +127,7 @@ namespace Game.Core.Tests
         {
             get
             {
-                repository.TryGetGoldBoxDefinition(out var definition);
+                repository.TryGetDefinition("gold-box", out var definition);
                 return definition;
             }
         }
@@ -172,49 +172,25 @@ namespace Game.Core.Tests
         }
 
         [Test]
-        public void TryPlaceItem_GoldBox_DeductsWallet()
+        public void TryPlaceItem_GoldBox_IsPlainItem_WalletUntouched()
         {
-            var startingAmount = wallet.CurrentAmount;
+            // 골드 상자 차감은 변환 서비스가 한다(설계 83번 §3.4) - 저장소는 골드 상자도 일반 아이템처럼 놓기만 한다.
+            wallet.TrySpend(wallet.CurrentAmount);
 
-            var placed = repository.TryPlaceItem(GoldBoxDefinition, new GridPosition(0, 0), out _);
-
-            Assert.IsTrue(placed);
-            Assert.AreEqual(startingAmount - 500, wallet.CurrentAmount);
+            Assert.IsTrue(repository.TryPlaceItem(GoldBoxDefinition, new GridPosition(0, 0), out _));
+            Assert.AreEqual(0, wallet.CurrentAmount);
+            Assert.AreEqual(1, repository.Items.Count);
         }
 
         [Test]
-        public void TryPlaceItem_GoldBox_InsufficientFunds_Fails_AndDoesNotPlace()
+        public void RemoveItem_GoldBox_DoesNotRefund()
         {
-            wallet.TrySpend(wallet.CurrentAmount); // 잔액을 0으로 만든다.
-
-            var placed = repository.TryPlaceItem(GoldBoxDefinition, new GridPosition(0, 0), out _);
-
-            Assert.IsFalse(placed);
-            Assert.AreEqual(0, repository.Items.Count);
-        }
-
-        [Test]
-        public void TryPlaceItem_GoldBox_PlacementFailure_RollsBackWallet()
-        {
-            // 그리드 범위 밖 좌표를 지정해 배치 자체를 실패시킨다 - 이미 차감된 재화가 롤백돼야 한다.
-            var startingAmount = wallet.CurrentAmount;
-
-            var placed = repository.TryPlaceItem(GoldBoxDefinition, new GridPosition(repository.Sections[0].Shape.Width, 0), out _);
-
-            Assert.IsFalse(placed);
-            Assert.AreEqual(startingAmount, wallet.CurrentAmount);
-        }
-
-        [Test]
-        public void RemoveItem_GoldBox_RefundsWallet()
-        {
+            // 그리드 제거 환급 폐기(기획 82번 B7).
             repository.TryPlaceItem(GoldBoxDefinition, new GridPosition(0, 0), out var placedItem);
             var amountAfterPlacing = wallet.CurrentAmount;
 
-            var removed = repository.RemoveItem(placedItem.InstanceId);
-
-            Assert.IsTrue(removed);
-            Assert.AreEqual(amountAfterPlacing + 500, wallet.CurrentAmount);
+            Assert.IsTrue(repository.RemoveItem(placedItem.InstanceId));
+            Assert.AreEqual(amountAfterPlacing, wallet.CurrentAmount);
         }
 
         [Test]
