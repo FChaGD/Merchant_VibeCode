@@ -95,6 +95,14 @@ UIManager/배치(Formation) UI/상행 준비(Trip) UI 작업(`Assets/Scripts/Cor
 - 화면상 UI 요소는 `UIElementMarker(id)`를 붙이고 `SceneUIRoot.TryGetElement<T>(id)`로 조회한다. ID 문자열은 매직스트링으로 흩어놓지 않고 기능별 `XxxUIElementIds` 정적 클래스(`HubUIElementIds`, `FormationUIElementIds`, `TripUIElementIds`)에 상수로 모은다.
 - 패널 로직 컴포넌트는 Bootstrap 씬(영속)에, 실제 시각 요소는 콘텐츠 씬(Hub 등)의 `SceneUIRoot` 하위에 둔다. `RegisterXxxUI(...)`에서 `SceneManager.GetSceneByName`으로 대상 씬을 찾아 바인딩하고, 요소를 못 찾으면 `Debug.LogWarning`으로 조기에 드러낸다.
 
+## UI 배치 겹침 점검
+
+- 디버그 UI(OnGUI 포함)든 일반 UI든 새로 배치하거나 위치를 옮길 때는, 배치를 확정하기 전에 기존 UI와 겹치는지 먼저 점검한다(사용자 지시, 2026-10-10 - 디버그 버튼 줄이 HUD 툴팁·상단 물류품 버튼과 연달아 겹친 사례).
+- 점검 대상은 평상시 화면만이 아니다. 호버 툴팁처럼 조건부로 뜨는 요소, 팝업·모달이 열린 상태, 같은 레이어를 쓰는 다른 화면도 포함한다.
+- 비율 앵커 요소와 픽셀 고정 요소(ConstantPixelSize, OnGUI)는 해상도마다 상대 위치가 달라진다. 기준 해상도 하나만 보지 말고 Game 뷰의 실제 해상도에서 확인한다.
+- 방법: Play 중 화면 좌표로 후보 사각형과 활성 UI 요소(`Graphic`)의 사각형을 비교해 겹치는 요소 목록을 뽑는다(Unity CLI `eval_file`). 정적 계산만으로는 중첩된 레이아웃·콘텐츠 맞춤 높이를 놓치므로 실측을 우선한다. 실측이 불가능하면(사용자가 Play 중 등) 계산 근거와 "실측 미확인"을 보고한다.
+- 점검 결과(겹치는 요소 유무, 확인한 화면 상태·해상도)를 제작 보고에 적는다.
+
 ## 인터페이스 설계 (SOLID)
 
 - **ISP**: 소비자가 실제로 쓰는 조작만 볼 수 있게 인터페이스를 쪼갠다. 읽기만 필요한 소비자에게 쓰기 메서드까지 포함된 인터페이스를 그대로 주입하지 않는다 — 읽기 전용 상위 인터페이스를 추출한다(`IFormationReader` ← `IFormationRepository` 사례).
