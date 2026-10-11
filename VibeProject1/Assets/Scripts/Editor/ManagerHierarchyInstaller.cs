@@ -170,6 +170,7 @@ namespace Game.Core.Editor
 
             EditorUIBuilder.GetOrAddComponent<HubUIController>(uiManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<PlayerCurrencyHudController>(uiManager.gameObject);
+            EditorUIBuilder.GetOrAddComponent<GameDateHudController>(uiManager.gameObject);
             // 모달 팝업 동안 depth/상시 레이어를 숨기는 팝업 축 게이트(Docs/설계/38번 §6).
             EditorUIBuilder.GetOrAddComponent<PopupLayerGate>(uiManager.gameObject);
 

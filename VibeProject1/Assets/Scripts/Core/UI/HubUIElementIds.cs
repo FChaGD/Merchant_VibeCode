@@ -35,5 +35,9 @@ namespace Game.Core
         public const string CurrencyAmountText = "Hub.CurrencyAmountText";
         public const string CurrencyCapacityTooltip = "Hub.CurrencyCapacityTooltip"; // 프레임(표시/숨김 토글 대상)
         public const string CurrencyCapacityTooltipText = "Hub.CurrencyCapacityTooltipText"; // 텍스트 내용
+
+        // 게임 날짜 HUD(Docs/설계/85번 §4.1) - 상단 중앙, PopupExemptLayer.
+        public const string DatePanelRoot = "Hub.DatePanelRoot";
+        public const string DateText = "Hub.DateText";
     }
 }

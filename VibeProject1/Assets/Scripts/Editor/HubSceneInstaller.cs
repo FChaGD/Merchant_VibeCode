@@ -68,6 +68,7 @@ namespace Game.Core.Editor
             BuildTownCategoryColumn(layers.RootDepth);
             BuildTownCategoryDepth(layers.DepthLayer);
             BuildPlayerCurrencyHud(layers.PopupExemptLayer);
+            BuildGameDateHud(layers.PopupExemptLayer);
             BuildInventoryShortcuts(sceneUIRoot, layers.PersistentLayer);
             // 비모달 인벤토리 팝업(Docs/설계/40번 §7, 42번 §4.4, 44번 §3). 형제 순서 = 렌더 순서라 계단식 배치에서
             // 뒤에 만든 팝업이 위에 그려진다(열 때는 패널이 맨 앞으로 올린다).
@@ -320,6 +321,27 @@ namespace Game.Core.Editor
             tooltipLabel.color = Color.white; // 어두운 배경 기준 - EnsureLabel 기본 검정이면 안 보인다.
 
             tooltipGo.SetActive(false);
+        }
+
+        // ==================== 날짜 HUD ====================
+        // 상단 중앙(사용자 결정 2026-10-11, 설계 85번 §4.1). 재화 HUD와 같은 PopupExemptLayer라 모달 팝업이 열려도 보인다.
+        // 배경(Image)과 문구(TMP)는 부모/자식으로 나눈다 - 같은 오브젝트에 함께 붙이면 AddComponent가 실패한다(2026-09-21 사례).
+        // 입력 대상이 아니므로 레이캐스트를 끈다 - 아래 UI 클릭을 막지 않게.
+        private static void BuildGameDateHud(Transform popupExemptLayer)
+        {
+            var root = EditorUIBuilder.GetOrCreateUIObject(popupExemptLayer, "GameDateHud");
+            var rootRect = root.GetComponent<RectTransform>();
+            rootRect.anchorMin = new Vector2(0.5f, 1f);
+            rootRect.anchorMax = new Vector2(0.5f, 1f);
+            rootRect.pivot = new Vector2(0.5f, 1f);
+            rootRect.anchoredPosition = new Vector2(0f, -32f); // 재화 HUD와 같은 위 여백
+            rootRect.sizeDelta = new Vector2(200f, 40f);
+            EditorUIBuilder.EnsureImage(root, new Color(0f, 0f, 0f, 0.6f)).raycastTarget = false;
+            EditorUIBuilder.EnsureMarker(root, HubUIElementIds.DatePanelRoot);
+
+            var label = EditorUIBuilder.EnsureLabel(root.transform, "1월 1일", autoSize: true, minFontSize: 14f, maxFontSize: 26f);
+            EditorUIBuilder.EnsureMarker(label.gameObject, HubUIElementIds.DateText);
+            label.color = Color.white; // 어두운 배경 기준
         }
 
         // ==================== 배치(Formation) UI ====================

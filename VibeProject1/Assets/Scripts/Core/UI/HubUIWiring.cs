@@ -67,6 +67,12 @@ namespace Game.Core
                 throw new InvalidOperationException($"{nameof(HubUIWiring)}와 같은 GameObject에 {nameof(IPlayerCurrencyHudController)} 구현체가 없다.");
             }
 
+            var dateHudController = GetComponent<IGameDateHudController>();
+            if (dateHudController == null)
+            {
+                throw new InvalidOperationException($"{nameof(HubUIWiring)}와 같은 GameObject에 {nameof(IGameDateHudController)} 구현체가 없다.");
+            }
+
             var popupLayerGate = GetComponent<IPopupLayerGate>();
             if (popupLayerGate == null)
             {
@@ -99,6 +105,7 @@ namespace Game.Core
             registrar.TryResolve<IGoldSpender>(out var goldSpender);
             registrar.TryResolve<IGoldBoxConverter>(out var goldConverter);
             registrar.TryResolve<IGoldDepartureSettlement>(out var goldDeparture);
+            registrar.TryResolve<IDateReader>(out var dateReader); // 게임 날짜(설계 85번 §4.1)
             // 마을별 시설 데이터 시스템이 아직 없어(Placeholder) 선택적으로 조회한다 - 없으면 전부 제공으로
             // 간주한다(CurrentTownFacilityFilter 참고).
             registrar.TryResolve<ITownFacilityAvailabilityReader>(out var townFacilityAvailability);
@@ -139,6 +146,7 @@ namespace Game.Core
 
             hubUIController.RegisterHubUI(sceneUIRoot, uiManager, sceneRevealSignal, townFacilityFilter);
             currencyHudController.RegisterCurrencyUI(sceneUIRoot, goldHoldings, uiManager);
+            dateHudController.RegisterDateUI(sceneUIRoot, dateReader);
             HubInventoryShortcutBinder.Bind(sceneUIRoot, uiManager);
 
             formationPanel.RegisterFormationUI(sceneUIRoot, caravanRosterProvider, formationRepository, unitConditionRepository, uiManager);
