@@ -724,6 +724,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.Core::Game.Core.TripItineraryState
   settings:
     DifficultyTimeSeconds: 36
+    SecondsPerDay: 30
+    RoutDayMultiplier: 1.5
     DistanceBands:
     - Name: "\uC9E7\uC74C"
       MinSeconds: 60
@@ -1299,6 +1301,7 @@ Transform:
   - {fileID: 1639453059}
   - {fileID: 1891997715}
   - {fileID: 1955798570}
+  - {fileID: 1828231286}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &900000002
@@ -1366,6 +1369,7 @@ MonoBehaviour:
   - {fileID: 900005002}
   - {fileID: 900006002}
   - {fileID: 900007002}
+  - {fileID: 1828231288}
   - {fileID: 900002003}
   - {fileID: 684925344}
   - {fileID: 812193435}
@@ -1544,6 +1548,7 @@ GameObject:
   - component: {fileID: 900004014}
   - component: {fileID: 900004016}
   - component: {fileID: 900004017}
+  - component: {fileID: 900004018}
   m_Layer: 0
   m_Name: UIManager
   m_TagString: Untagged
@@ -1778,6 +1783,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f39af10ecc74e9f47be30f0ccf9a1baa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.DebugTools.FormationDebugPinStore
+--- !u!114 &900004018
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900004000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b11f4784bf96b1d4583dfb326351abb0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.GameDateHudController
 --- !u!1 &900005000
 GameObject:
   m_ObjectHideFlags: 0
@@ -2651,6 +2668,63 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9e8f0cbbc8915324283ae9cc3da457de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.CaravanAssetCandidateProvider
+--- !u!1 &1828231285
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1828231286}
+  - component: {fileID: 1828231288}
+  - component: {fileID: 1828231287}
+  m_Layer: 0
+  m_Name: DateManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1828231286
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1828231285}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 900000001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1828231287
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1828231285}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc39628f6905b1f40acc388c93c60ce5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.DebugTools.GameDateDebugView
+--- !u!114 &1828231288
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1828231285}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: de76e43582389564b8b7bbc28b96d62e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.DateManager
 --- !u!1 &1891997714
 GameObject:
   m_ObjectHideFlags: 0
