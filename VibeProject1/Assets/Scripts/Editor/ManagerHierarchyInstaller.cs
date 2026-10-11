@@ -69,6 +69,8 @@ namespace Game.Core.Editor
             var sceneLoader = WireGameManagerDependents(gameManager);
             // 씬 로딩 절차 조율자(Docs/설계/67번 §4.5) - 준비 작업 등록(UIManager)·진행 보고(SceneLoader)·연출이 모두 DI로 찾는다.
             var sceneLoadingCoordinator = EditorUIBuilder.GetOrCreateManager<SceneLoadingCoordinator>(root.transform, nameof(SceneLoadingCoordinator));
+            // 게임 날짜(Docs/설계/85번 §3.1) - 다른 매니저에 의존하지 않아 배열 위치는 무관하다.
+            var dateManager = EditorUIBuilder.GetOrCreateManager<DateManager>(root.transform, nameof(DateManager));
             WireBattleManagerDependents(battleManager);
             WireUIManagerPanels(uiManager);
             var dataRepositories = BuildUIManagerDataRepositories(root, uiManager);
@@ -91,6 +93,7 @@ namespace Game.Core.Editor
                 battleManager,
                 aiManager,
                 encounterManager,
+                dateManager,
                 sceneLoader,
             };
 
