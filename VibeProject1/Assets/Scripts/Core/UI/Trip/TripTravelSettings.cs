@@ -50,15 +50,23 @@ namespace Game.Core
     {
         public const float LegacyDurationSeconds = 30f;
         public const int DefaultRoadDifficulty = 50;
+        public const float DefaultSecondsPerDay = 30f;
+        public const float DefaultRoutDayMultiplier = 1.5f;
 
         [Tooltip("난이도가 늘릴 수 있는 최대 시간(초) - 모든 거리 구분 공통. 가장 작은 시간 폭을 넘으면 안 된다.")]
         public float DifficultyTimeSeconds = 36f;
+        [Tooltip("이동 몇 초가 게임 하루인지(Docs/기획/84번 §4-2). 가산 시점마다 나머지는 버린다.")]
+        public float SecondsPerDay = DefaultSecondsPerDay;
+        [Tooltip("궤주 시 직전 도시부터 이동한 시간에 곱하는 배율(Docs/기획/84번 §4-6).")]
+        public float RoutDayMultiplier = DefaultRoutDayMultiplier;
         public List<TripDistanceBand> DistanceBands = new();
         public List<TripDifficultyGrade> DifficultyGrades = new();
 
         public static TripTravelSettings Default() => new()
         {
             DifficultyTimeSeconds = 36f,
+            SecondsPerDay = DefaultSecondsPerDay,
+            RoutDayMultiplier = DefaultRoutDayMultiplier,
             DistanceBands = new List<TripDistanceBand>
             {
                 new("짧음", 60f, 120f, 0f, 600f),
