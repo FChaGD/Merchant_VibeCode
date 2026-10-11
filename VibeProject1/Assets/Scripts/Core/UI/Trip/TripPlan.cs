@@ -17,11 +17,12 @@ namespace Game.Core
         public string GradeName { get; }
         public float DurationSeconds { get; }
         public float EncountersPerFiveMinutes { get; }
-        // 패널 예상 일수 - 출발 시점 소요시간 기준(파괴 지연·궤주 미반영, Docs/기획/84번 §4.3).
+        // 패널 예상 일수 - 출발 시점 소요시간 기준(파괴 지연·궤주 미반영, Docs/기획/84번 §4.3). 생성자에서 필수로 받는다 - 기본값을 두면
+        // 새 생성 경로가 값을 빠뜨려도 컴파일되고 패널에 "약 0일"이 조용히 뜬다.
         public int EstimatedDays { get; }
 
         public TripLeg(int fromCityId, int toCityId, float distance, int difficulty, bool crossesRegion,
-            string bandName, string gradeName, float durationSeconds, float encountersPerFiveMinutes, int estimatedDays = 0)
+            string bandName, string gradeName, float durationSeconds, float encountersPerFiveMinutes, int estimatedDays)
         {
             EstimatedDays = estimatedDays;
             FromCityId = fromCityId;
