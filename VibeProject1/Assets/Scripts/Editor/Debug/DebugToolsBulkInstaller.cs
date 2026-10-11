@@ -25,6 +25,7 @@ namespace Game.Core.Editor.DebugTools
             FormationDebugPinInstaller.InstallPins();
             FormationAreaOutlineDebugInstaller.InstallOutline();
             TripDebugInstaller.InstallTripDebugButtons();
+            GameDateDebugInstaller.InstallDateButtons();
 
             Debug.Log("디버그 도구 전체 설치/동기화 완료.");
         }
@@ -39,6 +40,7 @@ namespace Game.Core.Editor.DebugTools
             FormationDebugPinInstaller.RemovePins();
             FormationAreaOutlineDebugInstaller.RemoveOutline();
             TripDebugInstaller.RemoveTripDebugButtons();
+            GameDateDebugInstaller.RemoveDateButtons();
 
             Debug.Log("디버그 도구 전체 제거 완료.");
         }

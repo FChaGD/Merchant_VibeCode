@@ -7,6 +7,8 @@ namespace Game.Core.DebugTools
     /// <summary>
     /// 디버깅 전용 - Field 화면 좌상단, 전투 강제 승패 버튼(BattleDebugResultView, y 10~80) 아래에 상행 디버그 버튼을 그린다(OnGUI, Docs/설계/76번 §8).
     /// 1줄: 시간 배속(1× / 10× / 60×). 2줄: 인카운터 즉시 발생 / 상행 즉시 완료. 긴 거리 구간(15분 이상)·난이도별 전투를 검증하는 부담을 줄인다.
+    /// 3줄: 게임 날짜 정산 미리보기(구간 경과·소요, 도착 시·궤주 시 가산 일수, Docs/설계/85번 §5).
+    /// - 상행 완료는 정상 완료와 같은 일수를 날짜에 더한 뒤 끝낸다(사용자 결정 2026-10-11).
     /// - 배속: Time.timeScale을 바꾼다 - 진행·인카운터 판정·정비창 타이머·전투가 같은 비율로 빨라진다. Field를 벗어나면 1×로 되돌린다.
     /// - 인카운터: EncounterManager의 에디터 전용 진입점으로 정상 인카운터 흐름(경고 → 전투)을 그대로 탄다(적 구성도 평소와 같다).
     /// - 상행 완료: 여정을 마지막 구간으로 넘기고 그 구간을 즉시 끝낸다 - 최종 도착 흐름(현재 위치 = 도착지, 도착 팝업)이 그대로 실행된다.
@@ -28,10 +30,12 @@ namespace Game.Core.DebugTools
         private const float Gap = 4f;
         // 상행 완료로 남은 구간을 넘길 때 마지막 구간에 주는 시간 - 다음 프레임에 바로 도착 처리된다.
         private const float InstantArrivalSeconds = 0.01f;
+        private const float AccrualLabelWidth = 420f;
 
         private ISessionState sessionState;
         private EncounterManager encounterManager;
         private ITripItinerary itinerary;
+        private DateManager dateManager; // 상행 완료 시 남은 일수 가산 - 없으면 날짜 없이 기존 동작
         private bool isFieldLoaded;
         private bool isMoving;
 
@@ -40,6 +44,7 @@ namespace Game.Core.DebugTools
             sessionState = GetComponent<ISessionState>();
             encounterManager = FindFirstObjectByType<EncounterManager>(FindObjectsInactive.Include);
             itinerary = FindFirstObjectByType<TripItineraryState>(FindObjectsInactive.Include);
+            dateManager = FindFirstObjectByType<DateManager>(FindObjectsInactive.Include);
         }
 
         private void OnEnable()
@@ -101,14 +106,36 @@ namespace Game.Core.DebugTools
                 CompleteTrip();
             }
             GUI.enabled = enabled;
+
+            y += ButtonHeight + Gap;
+            if (sessionState != null) GUI.Box(new Rect(Left, y, AccrualLabelWidth, ButtonHeight), AccrualPreview());
         }
 
+        // 3줄: 현재 구간 정산 미리보기(Docs/설계/85번 §5) - 도착·궤주 때 실제 가산과 같은 환산(TravelDayRules)을 쓴다.
+        private string AccrualPreview()
+        {
+            var settings = TravelSettings;
+            return $"구간 경과 {sessionState.ElapsedSeconds:0}초 / 소요 {sessionState.DurationSeconds:0}초 · 도착 시 +{TravelDayRules.ToDays(settings, sessionState.DurationSeconds)}일 · 궤주 시 +{TravelDayRules.ToRoutDays(settings, sessionState.ElapsedSeconds)}일";
+        }
+
+        // 여정 상태가 이동 수치 조회 계약도 구현한다(TripItineraryState) - 못 찾으면 기본값.
+        private TripTravelSettings TravelSettings => (itinerary as ITripTravelSettingsReader)?.Settings ?? TripTravelSettings.Default();
+
+        // 상행 완료도 정상 완료와 같은 일수가 흘러야 한다(사용자 결정 2026-10-11, 설계 85번 §5). 건너뛰기 전에 남은 일수를 더한다 -
+        // 현재 구간은 소요시간 전체(파괴 지연 반영), 이후 구간은 각 구간 예상 일수. 마지막 구간은 0.01초로 끝나 도착 정산이 0일이라
+        // 이중 가산이 없다. 버튼은 이동 중에만 눌리므로(구간 도착 알림 중엔 비활성) 이미 정산된 구간을 다시 더하지 않는다.
         private void CompleteTrip()
         {
+            var days = TravelDayRules.ToDays(TravelSettings, sessionState.DurationSeconds);
             if (itinerary != null)
             {
-                while (itinerary.HasNextLeg) itinerary.AdvanceLeg();
+                while (itinerary.HasNextLeg)
+                {
+                    itinerary.AdvanceLeg();
+                    days += itinerary.CurrentLeg.EstimatedDays;
+                }
             }
+            if (dateManager != null) dateManager.AdvanceDays(days);
             isMoving = false;
             sessionState.Begin(InstantArrivalSeconds);
         }
