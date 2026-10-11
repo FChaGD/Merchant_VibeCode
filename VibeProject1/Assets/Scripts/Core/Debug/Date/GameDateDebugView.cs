@@ -5,7 +5,7 @@ using UnityEngine.SceneManagement;
 namespace Game.Core.DebugTools
 {
     /// <summary>
-    /// 디버깅 전용 - Hub 날짜 HUD 바로 아래에 [+1일] [+10일] [+30일]을 그린다(OnGUI, Docs/설계/85번 §5). 월 넘김(+30)·해 넘김(반복)을
+    /// 디버깅 전용 - Hub 날짜 HUD 오른쪽에 [+1] [+10] [+30](일)을 그린다(OnGUI, Docs/설계/85번 §5). 월 넘김(+30)·해 넘김(반복)을
     /// 상행 없이 확인하기 위한 도구. DateManager와 같은 GameObject(Bootstrap 상주)에 붙고 Hub가 로드된 동안에만 그린다.
     /// 날짜는 진행 계약으로만 바꾼다 - 날짜 매니저에 디버그 전용 기능을 추가하지 않아야 이 파일을 지우는 것만으로 걷어낼 수 있다.
     /// 걷어낼 때는 Remove 메뉴를 먼저 실행한 뒤 이 파일·GameDateDebugInstaller.cs(+.meta)를 지우고 DebugToolsBulkInstaller의 두 줄을 지운다.
@@ -13,15 +13,19 @@ namespace Game.Core.DebugTools
     public class GameDateDebugView : MonoBehaviour
     {
         private static readonly int[] Steps = { 1, 10, 30 };
+        private static readonly string[] Labels = { "+1", "+10", "+30" }; // OnGUI 호출마다 문자열을 만들지 않게 미리 둔다
         // HubSceneInstaller.BuildGameDateHud 배치(상단 중앙, 위 여백 32, 높이 40)와 맞춘 값. 게임 코드와 상수를 공유하지 않는 이유는
         // 이 디버그 코드를 걷어낼 때 게임 코드를 고치지 않기 위해서다 - 어긋나도 버튼 위치만 틀어진다. Hub 캔버스가 ConstantPixelSize라
         // OnGUI 픽셀 좌표와 단위가 같다.
         private const float DatePanelTop = 32f;
+        private const float DatePanelWidth = 200f;
         private const float DatePanelHeight = 40f;
-        private const float RowGap = 8f;
-        private const float ButtonWidth = 72f;
+        // 날짜 패널 오른쪽 같은 줄에 둔다 - 패널 아래 줄은 720p에서 시설 화면 헤더·전술 카드와 겹쳤다(2026-10-11 실측). 오른쪽은
+        // 재화 HUD(화면 우측 30%)까지 1280x720 기준 약 116px뿐이라 버튼을 좁히고 문구를 "+N"으로 줄였다.
+        private const float RowGap = 6f;
+        private const float ButtonWidth = 36f;
         private const float ButtonHeight = 28f;
-        private const float Gap = 4f;
+        private const float Gap = 2f;
 
         private IDateAdvancer dateAdvancer;
         private bool isHubLoaded;
@@ -63,12 +67,11 @@ namespace Game.Core.DebugTools
         {
             if (!Application.isPlaying || dateAdvancer == null || !isHubLoaded) return;
 
-            var rowWidth = Steps.Length * ButtonWidth + (Steps.Length - 1) * Gap;
-            var x = (Screen.width - rowWidth) / 2f;
-            var y = DatePanelTop + DatePanelHeight + RowGap;
+            var x = (Screen.width + DatePanelWidth) / 2f + RowGap;
+            var y = DatePanelTop + (DatePanelHeight - ButtonHeight) / 2f;
             for (var i = 0; i < Steps.Length; i++)
             {
-                if (GUI.Button(new Rect(x + i * (ButtonWidth + Gap), y, ButtonWidth, ButtonHeight), $"+{Steps[i]}일")) dateAdvancer.AdvanceDays(Steps[i]);
+                if (GUI.Button(new Rect(x + i * (ButtonWidth + Gap), y, ButtonWidth, ButtonHeight), Labels[i])) dateAdvancer.AdvanceDays(Steps[i]);
             }
         }
     }
