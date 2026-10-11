@@ -14,9 +14,11 @@ namespace Game.Core
         private readonly IFieldFormationActivityRepository fieldActivityRepository; // 선택적 - 없으면 null-조건부 호출로 건너뜀
         private readonly ISessionState sessionState;
         private readonly IGameManager gameManager;
+        private readonly TripDateAccrual dateAccrual; // 선택적 - 없으면 날짜 없이 진행
 
-        public FinishStep(IFieldUIController fieldUIController, FieldCameraController cameraController, IFieldFormationActivityRepository fieldActivityRepository, ISessionState sessionState, IGameManager gameManager)
+        public FinishStep(IFieldUIController fieldUIController, FieldCameraController cameraController, IFieldFormationActivityRepository fieldActivityRepository, ISessionState sessionState, IGameManager gameManager, TripDateAccrual dateAccrual)
         {
+            this.dateAccrual = dateAccrual;
             this.fieldUIController = fieldUIController;
             this.cameraController = cameraController;
             this.fieldActivityRepository = fieldActivityRepository;
@@ -48,6 +50,8 @@ namespace Game.Core
 
             if (context.Consequence == DefeatConsequence.Rout)
             {
+                // 상행 종료(FinishTrip)·씬 전환 전에 정산한다 - 직전 도시부터 경과 × 1.5(Docs/기획/84번 §4-6).
+                dateAccrual?.AccrueRout();
                 // 전투 유닛은 월드 오브젝트라 씬 전환 슬라이드로 함께 밀어낼 수 없다 - 이동 뷰로 먼저 돌아온 뒤 전환해야 "씬 전환은 항상
                 // 이동 뷰에서 시작한다"는 전제가 성립한다(Docs/설계/38번 §10.4 A안). 상행을 재개하지 않으므로 버튼 활성/세션 재개는 없다.
                 cameraController.TransitionToMovement(onComplete: () =>

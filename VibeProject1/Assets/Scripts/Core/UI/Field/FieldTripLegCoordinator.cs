@@ -20,10 +20,12 @@ namespace Game.Core
         private readonly FieldProgressGaugeView gaugeView;
         private readonly FieldLegArrivalNoticeView noticeView;
         private readonly Action onTripArrived;
+        private readonly TripDateAccrual dateAccrual; // 선택적 - 없으면 날짜 없이 진행
 
         public FieldTripLegCoordinator(ISessionState sessionState, ITripItinerary itinerary, ITripCurrentLocationRepository currentLocation, IWorldMapReader worldMap,
-            FieldProgressGaugeView gaugeView, FieldLegArrivalNoticeView noticeView, Action onTripArrived)
+            FieldProgressGaugeView gaugeView, FieldLegArrivalNoticeView noticeView, Action onTripArrived, TripDateAccrual dateAccrual)
         {
+            this.dateAccrual = dateAccrual;
             this.sessionState = sessionState;
             this.itinerary = itinerary;
             this.currentLocation = currentLocation;
@@ -38,6 +40,9 @@ namespace Game.Core
         // SessionStateTracker.OnArrived - 구간 하나가 끝났다(진행은 이미 멈춘 상태).
         public void HandleLegArrived()
         {
+            // 다음 구간 Begin이 경과를 0으로 되돌리기 전에 정산한다 - 중간 도시·최종 도착 공통(Docs/설계/85번 §3.3).
+            dateAccrual?.AccrueLegArrival();
+
             if (itinerary == null || !itinerary.HasItinerary || !itinerary.HasNextLeg)
             {
                 itinerary?.Clear();

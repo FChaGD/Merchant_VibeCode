@@ -15,6 +15,12 @@ namespace Game.Core
         void Begin(float durationSeconds);
         void Resume();
 
+        /// <summary>현재 구간 경과 초 - 전투 중엔 멈춰 있다. 궤주 날짜 정산이 읽는다(Docs/설계/85번 §3.3).</summary>
+        float ElapsedSeconds { get; }
+
+        /// <summary>현재 구간 소요시간 - 파괴 마차 지연이 반영된 값. 구간 도착 날짜 정산이 읽는다(Docs/설계/85번 §3.3).</summary>
+        float DurationSeconds { get; }
+
         /// <summary>
         /// 진행 중인 구간의 소요시간을 늘린다(전투 마차 파괴 지연, Docs/설계/79번 §5.4). 경과는 유지하므로 진행도가 그만큼 뒤로
         /// 물러난다(§15-11). 이미 도착한 구간이거나 0 이하면 무시한다.

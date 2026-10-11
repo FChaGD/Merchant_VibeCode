@@ -16,6 +16,8 @@ namespace Game.Core
         private bool arrived;
 
         public float Progress { get; private set; }
+        public float ElapsedSeconds => elapsed;
+        public float DurationSeconds => durationSeconds;
 
         public event Action<float> OnProgressChanged;
         public event Action OnArrived;

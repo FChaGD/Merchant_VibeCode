@@ -33,6 +33,8 @@ namespace Game.Core
         private IBattleAftermathApplier aftermathApplier;
         private ITradeGoodsCargoSettlement cargoSettlement;
         private IFormationRepairMode repairMode;
+        // 궤주 날짜 정산(Docs/설계/85번 §3.3) - 선택적, FinishStep에 넘긴다.
+        private TripDateAccrual dateAccrual;
 
         private MonoBehaviour coroutineRunner;
         private IFieldUIController fieldUIController;
@@ -49,8 +51,9 @@ namespace Game.Core
         private bool isTransitioning;
         private BattleResult? pendingResult;
 
-        public void Bind(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IGameManager gameManager, IFieldFormationActivityRepository fieldActivityRepository, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode)
+        public void Bind(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IGameManager gameManager, IFieldFormationActivityRepository fieldActivityRepository, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, TripDateAccrual dateAccrual)
         {
+            this.dateAccrual = dateAccrual;
             this.uiManager = uiManager;
             this.sessionState = sessionState;
             this.battleController = battleController;
@@ -92,7 +95,7 @@ namespace Game.Core
                 new CargoRecoveryStep(uiManager, cargoSettlement, cargoRecoveryPanel),
                 new FormationRepairStep(uiManager, repairMode),
             };
-            flow = new BattleAftermathFlow(steps, new FinishStep(fieldUIController, cameraController, fieldActivityRepository, sessionState, gameManager));
+            flow = new BattleAftermathFlow(steps, new FinishStep(fieldUIController, cameraController, fieldActivityRepository, sessionState, gameManager, dateAccrual));
             return flow;
         }
 

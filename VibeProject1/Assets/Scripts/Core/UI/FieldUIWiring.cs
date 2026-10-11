@@ -86,7 +86,12 @@ namespace Game.Core
             registrar.TryResolve<IDeceasedCharacterRecorder>(out var deceasedRecorder);
             var tripEndProcessor = new TripEndProcessor(caravanRosterProvider, unitConditionRepository, formationRepository, hiredCharacterRemover, deceasedRecorder);
 
-            fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository, currentLocationRepository, destinationAssigner, fieldActivityRepository, tripItinerary, worldMap, aftermathApplier, cargoSettlement, repairMode, cargoRecoveryPanel, tripEndProcessor);
+            // 게임 날짜 정산(Docs/설계/85번 §3.3) - 날짜 매니저가 없으면(인스톨러 미실행) 날짜 없이 상행만 진행한다.
+            registrar.TryResolve<IDateAdvancer>(out var dateAdvancer);
+            registrar.TryResolve<ITripTravelSettingsReader>(out var travelSettings);
+            var dateAccrual = new TripDateAccrual(sessionState, dateAdvancer, travelSettings);
+
+            fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository, currentLocationRepository, destinationAssigner, fieldActivityRepository, tripItinerary, worldMap, aftermathApplier, cargoSettlement, repairMode, cargoRecoveryPanel, tripEndProcessor, dateAccrual);
 
             // Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 다음 전환 때 슬라이드시킬 대상을
             // 등록한다. 예전엔 이동 뷰 루트만 등록해 전투 뷰/패널/결과 팝업이 전환 중 제자리에 남았다 - 이제

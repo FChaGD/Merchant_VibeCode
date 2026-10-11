@@ -8,7 +8,7 @@ namespace Game.Core
     /// (IEncounterRateSource)가 모두 이 수치를 쓰므로 한곳에 둔다.
     /// 여정이 없을 때(Field에서 바로 Play 등)는 보통 등급 빈도를 내놓는다.
     /// </summary>
-    public class TripItineraryState : MonoBehaviour, ITripItinerary, ITripDeparture, ITripPlanner, IEncounterRateSource, IManagedComponent
+    public class TripItineraryState : MonoBehaviour, ITripItinerary, ITripDeparture, ITripPlanner, IEncounterRateSource, ITripTravelSettingsReader, IManagedComponent
     {
         [SerializeField] private TripTravelSettings settings = TripTravelSettings.Default();
 
@@ -36,6 +36,8 @@ namespace Game.Core
             // 계획기는 지도 조회 뒤(ResolveDependencies)에 만들어지므로 이 컴포넌트가 대신 등록하고 위임한다 - 정보 패널과 실제 상행이
             // 같은 이동 수치로 계산해야 표시 시간과 실제 시간이 같다.
             registrar.Register<ITripPlanner>(this);
+            // 게임 날짜 정산(Docs/설계/85번 §3.3)이 같은 이동 수치로 초→일 환산을 하도록 조회 계약을 따로 등록한다.
+            registrar.Register<ITripTravelSettingsReader>(this);
         }
 
         public void ResolveDependencies(IDependencyResolver registrar)
