@@ -16,6 +16,18 @@ namespace Game.Core.Editor
     internal static class FormationUIBuilder
     {
         private const string PrefabFolder = "Assets/Prefabs/UI/Formation";
+
+        // 세로 배치(앵커 Y). 위쪽 12%는 비운다 - 상행 준비 UI(TripTopRowMaxY 0.88)와 같은 상단 여백으로, 마을 상단 HUD(날짜·재화)가
+        // 패널 요소를 덮지 않게 한다(사용자 지시, 2026-10-11). 위에서부터 디버그 핀 패널 → 팔레트·버튼 행 → 격자·정보 패널 → 정리 안내.
+        private const float DebugPanelMaxY = 0.88f;
+        private const float DebugPanelMinY = 0.77f;
+        private const float TopRowMaxY = 0.75f;
+        private const float TopRowMinY = 0.65f;
+        private const float ContentMaxY = 0.64f;
+        private const float ContentMinY = 0.20f;
+        private const float RepairGuideMaxY = 0.19f;
+        private const float RepairGuideMinY = 0.12f;
+
         private const string SlotPrefabPath = PrefabFolder + "/FormationSlot.prefab";
         private const string IconPrefabPath = PrefabFolder + "/FormationUnitIcon.prefab";
         private const string RowPrefabPath = PrefabFolder + "/FormationPaletteRow.prefab";
@@ -326,7 +338,7 @@ namespace Game.Core.Editor
         private static void BuildPalette(Transform parent, FormationPaletteRowView rowPrefab)
         {
             var root = EditorUIBuilder.GetOrCreateUIObject(parent, "Palette");
-            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.08f, 0.75f), new Vector2(0.62f, 0.85f));
+            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.08f, TopRowMinY), new Vector2(0.62f, TopRowMaxY));
             EditorUIBuilder.EnsureImage(root, new Color(1f, 0.85f, 0.85f, 1f));
             EditorUIBuilder.EnsureMarker(root, FormationUIElementIds.PaletteRoot);
 
@@ -347,7 +359,7 @@ namespace Game.Core.Editor
             if (includeApplyButton)
             {
                 var applyGo = EditorUIBuilder.GetOrCreateUIObject(parent, "ApplyButton");
-                EditorUIBuilder.SetAnchors(applyGo.GetComponent<RectTransform>(), new Vector2(0.64f, 0.75f), new Vector2(0.76f, 0.85f));
+                EditorUIBuilder.SetAnchors(applyGo.GetComponent<RectTransform>(), new Vector2(0.64f, TopRowMinY), new Vector2(0.76f, TopRowMaxY));
                 EditorUIBuilder.EnsureImage(applyGo, new Color(0.75f, 0.87f, 1f, 1f));
                 EditorUIBuilder.EnsureButton(applyGo);
                 EditorUIBuilder.EnsureLabel(applyGo.transform, "적용");
@@ -361,7 +373,7 @@ namespace Game.Core.Editor
             }
 
             var closeGo = EditorUIBuilder.GetOrCreateUIObject(parent, "CloseButton");
-            EditorUIBuilder.SetAnchors(closeGo.GetComponent<RectTransform>(), includeApplyButton ? new Vector2(0.78f, 0.75f) : new Vector2(0.64f, 0.75f), includeApplyButton ? new Vector2(0.86f, 0.85f) : new Vector2(0.76f, 0.85f));
+            EditorUIBuilder.SetAnchors(closeGo.GetComponent<RectTransform>(), includeApplyButton ? new Vector2(0.78f, TopRowMinY) : new Vector2(0.64f, TopRowMinY), includeApplyButton ? new Vector2(0.86f, TopRowMaxY) : new Vector2(0.76f, TopRowMaxY));
             EditorUIBuilder.EnsureImage(closeGo, new Color(0.85f, 0.85f, 0.85f, 1f));
             EditorUIBuilder.EnsureButton(closeGo);
             EditorUIBuilder.EnsureLabel(closeGo.transform, "닫기");
@@ -371,7 +383,7 @@ namespace Game.Core.Editor
         private static void BuildGrid(Transform parent, FormationSlotView slotPrefab, FormationUnitIconView occupantIconPrefab, FormationPathLineView pathLinePrefab, Image travelerIconPrefab, FormationActivityOverlayView activityOverlayPrefab)
         {
             var root = EditorUIBuilder.GetOrCreateUIObject(parent, "Grid");
-            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.08f, 0.30f), new Vector2(0.64f, 0.74f));
+            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.08f, ContentMinY), new Vector2(0.64f, ContentMaxY));
             // 격자 바탕 = 판 밖(어두운 회색). 민트 판 칸은 FormationGridView/FormationSlotView가 칸마다 칠한다(2026-09-29, 판 경계 구분).
             EditorUIBuilder.EnsureImage(root, new Color(0.25f, 0.25f, 0.27f, 1f));
             EditorUIBuilder.EnsureMarker(root, FormationUIElementIds.GridRoot);
@@ -398,7 +410,7 @@ namespace Game.Core.Editor
         private static void BuildInfoPanel(Transform parent)
         {
             var root = EditorUIBuilder.GetOrCreateUIObject(parent, "InfoPanel");
-            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.66f, 0.30f), new Vector2(0.86f, 0.74f));
+            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.66f, ContentMinY), new Vector2(0.86f, ContentMaxY));
             EditorUIBuilder.EnsureImage(root, new Color(1f, 0.9f, 0.78f, 1f));
             EditorUIBuilder.EnsureMarker(root, FormationUIElementIds.InfoPanelRoot);
 
@@ -426,7 +438,7 @@ namespace Game.Core.Editor
         private static void BuildRepairControls(Transform parent)
         {
             var guideGo = EditorUIBuilder.GetOrCreateUIObject(parent, "RepairGuideLabel");
-            EditorUIBuilder.SetAnchors(guideGo.GetComponent<RectTransform>(), new Vector2(0.08f, 0.22f), new Vector2(0.86f, 0.29f));
+            EditorUIBuilder.SetAnchors(guideGo.GetComponent<RectTransform>(), new Vector2(0.08f, RepairGuideMinY), new Vector2(0.86f, RepairGuideMaxY));
             var guide = EditorUIBuilder.EnsureText(guideGo);
             guide.text = string.Empty;
             guide.alignment = TextAlignmentOptions.Center;
@@ -440,7 +452,7 @@ namespace Game.Core.Editor
             guideGo.SetActive(false);
 
             var doneGo = EditorUIBuilder.GetOrCreateUIObject(parent, "RepairDoneButton");
-            EditorUIBuilder.SetAnchors(doneGo.GetComponent<RectTransform>(), new Vector2(0.64f, 0.75f), new Vector2(0.76f, 0.85f));
+            EditorUIBuilder.SetAnchors(doneGo.GetComponent<RectTransform>(), new Vector2(0.64f, TopRowMinY), new Vector2(0.76f, TopRowMaxY));
             EditorUIBuilder.EnsureImage(doneGo, new Color(0.75f, 0.87f, 1f, 1f));
             EditorUIBuilder.EnsureButton(doneGo);
             EditorUIBuilder.EnsureLabel(doneGo.transform, "완료");
@@ -456,7 +468,7 @@ namespace Game.Core.Editor
         private static void BuildDebugPanel(Transform parent)
         {
             var root = EditorUIBuilder.GetOrCreateUIObject(parent, "DebugPanel");
-            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.08f, 0.87f), new Vector2(0.86f, 0.98f));
+            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.08f, DebugPanelMinY), new Vector2(0.86f, DebugPanelMaxY));
             EditorUIBuilder.EnsureImage(root, new Color(0f, 0f, 0f, 0.15f));
             EditorUIBuilder.EnsureMarker(root, FormationUIElementIds.DebugPanelRoot);
 
