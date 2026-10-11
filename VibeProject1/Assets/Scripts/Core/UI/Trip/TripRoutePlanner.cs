@@ -124,7 +124,8 @@ namespace Game.Core
             var band = travel.DistanceBands[TripTravelRules.ResolveBandIndex(travel, distance, crossesRegion)];
             var grade = TripTravelRules.ResolveGrade(travel, difficulty);
             var duration = TripTravelRules.ComputeDurationSeconds(travel, distance, difficulty, crossesRegion);
-            return new TripLeg(path[startIndex].Id, path[endIndex].Id, distance, difficulty, crossesRegion, band.Name, grade.Name, duration, grade.EncountersPerFiveMinutes);
+            return new TripLeg(path[startIndex].Id, path[endIndex].Id, distance, difficulty, crossesRegion, band.Name, grade.Name, duration, grade.EncountersPerFiveMinutes,
+                TravelDayRules.ToDays(travel, duration));
         }
 
         private bool IsGatePair(MapNodeId a, MapNodeId b) => map.TryGetGate(a.Id, out var gate) && gate.PairGateId == b.Id;

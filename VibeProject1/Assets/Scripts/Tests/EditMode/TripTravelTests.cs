@@ -108,6 +108,20 @@ namespace Game.Core.Tests
         }
 
         [Test]
+        public void EstimatedDays_FloorPerLeg_TotalIsSumOfLegs()
+        {
+            Assert.IsTrue(Planner(LineMap()).TryPlan(1, 3, out var plan));
+            var settings = TripTravelSettings.Default();
+            var sum = 0;
+            foreach (var leg in plan.Legs)
+            {
+                Assert.AreEqual(TravelDayRules.ToDays(settings, leg.DurationSeconds), leg.EstimatedDays);
+                sum += leg.EstimatedDays;
+            }
+            Assert.AreEqual(sum, plan.TotalEstimatedDays, "합계는 총 초가 아니라 구간 일수의 합");
+        }
+
+        [Test]
         public void LegDifficulty_ComesFromItsRoad()
         {
             var difficulty = new FixedDifficulty().Set(MapNodeId.City(1), MapNodeId.City(2), 10).Set(MapNodeId.City(2), MapNodeId.City(3), 90);

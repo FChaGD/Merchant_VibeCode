@@ -17,10 +17,13 @@ namespace Game.Core
         public string GradeName { get; }
         public float DurationSeconds { get; }
         public float EncountersPerFiveMinutes { get; }
+        // 패널 예상 일수 - 출발 시점 소요시간 기준(파괴 지연·궤주 미반영, Docs/기획/84번 §4.3).
+        public int EstimatedDays { get; }
 
         public TripLeg(int fromCityId, int toCityId, float distance, int difficulty, bool crossesRegion,
-            string bandName, string gradeName, float durationSeconds, float encountersPerFiveMinutes)
+            string bandName, string gradeName, float durationSeconds, float encountersPerFiveMinutes, int estimatedDays = 0)
         {
+            EstimatedDays = estimatedDays;
             FromCityId = fromCityId;
             ToCityId = toCityId;
             Distance = distance;
@@ -38,13 +41,21 @@ namespace Game.Core
     {
         public IReadOnlyList<TripLeg> Legs { get; }
         public float TotalDurationSeconds { get; }
+        // 합계는 총 초를 환산하지 않고 구간 일수를 더한다 - 실제 가산도 구간마다 버림이라 같은 값이 된다(기획 84번 §4-9).
+        public int TotalEstimatedDays { get; }
 
         public TripPlan(IReadOnlyList<TripLeg> legs)
         {
             Legs = legs;
             var total = 0f;
-            foreach (var leg in legs) total += leg.DurationSeconds;
+            var days = 0;
+            foreach (var leg in legs)
+            {
+                total += leg.DurationSeconds;
+                days += leg.EstimatedDays;
+            }
             TotalDurationSeconds = total;
+            TotalEstimatedDays = days;
         }
     }
 }
