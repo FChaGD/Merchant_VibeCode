@@ -80,6 +80,16 @@ namespace Game.Core
             var placeRejection = CanPlaceAt(before, unit, targetSlotIndex, wagonPlacement);
             if (placeRejection != FormationEditRejection.None) return FormationEditResult.Reject(placeRejection);
 
+            // CanPlaceAt은 편집 전 마차 수로 판정한다 - 점유 칸을 덮어써 마지막 마차가 빠지면 편집 후 마차 0대가 되므로 같은 규칙(마차 없으면
+            // 기준 칸엔 마차만)을 편집 후 마차 수로 한 번 더 본다. 해제로 처리하지 않고 거부하는 이유: 마지막 마차를 캐릭터·시설로 바꾸는 드롭 자체가
+            // 의도된 편집이 아니기 때문(2026-10-12 사용자 결정). Validate는 마차를 해제하지 않으므로 사본 적용 전 계산으로 충분하다.
+            var displaced = lookup?.Invoke(layout.GetUnitId(targetSlotIndex));
+            var wagonsAfter = before.WagonCount
+                - (displaced?.Kind == FormationUnitKind.Wagon ? 1 : 0)
+                + (unit.Kind == FormationUnitKind.Wagon ? 1 : 0);
+            if (wagonsAfter == 0 && unit.Kind != FormationUnitKind.Wagon && !before.IsPinCell(targetSlotIndex))
+                return FormationEditResult.Reject(FormationEditRejection.WagonOnly);
+
             var candidate = layout.Clone();
             candidate.SetUnitId(targetSlotIndex, unit.Id);
             return Validate(candidate, lookup, pins, connectivity, before.ComponentCount);

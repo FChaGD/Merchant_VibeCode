@@ -271,6 +271,33 @@ namespace Game.Core.Tests
         }
 
         [Test]
+        public void Place_OverLastWagon_WithNonWagon_IsRejected()
+        {
+            // 마을 정비창 조건(Anywhere + NoNewSplit) - 팔레트 드롭은 점유 칸을 덮어쓰므로 마지막 마차를 캐릭터·시설로 바꾸면 마차 0대가 된다.
+            var anywhere = WagonPlacement.Anywhere;
+            var split = ConnectivityRule.NoNewSplit;
+
+            var atAnchor = Empty();
+            atAnchor.SetUnitId(Anchor, "Wagon01");
+            Assert.AreEqual(FormationEditRejection.WagonOnly, FormationAreaRules.Place(atAnchor, units["Warrior01"], Anchor, Lookup, null, anywhere, split).Rejection);
+            Assert.AreEqual(FormationEditRejection.WagonOnly, FormationAreaRules.Place(atAnchor, units["Facility01"], Anchor, Lookup, null, anywhere, split).Rejection);
+
+            var awayFromAnchor = Empty();
+            awayFromAnchor.SetUnitId(Slot(10, 10), "Wagon01");
+            Assert.AreEqual(FormationEditRejection.WagonOnly, FormationAreaRules.Place(awayFromAnchor, units["Warrior01"], Slot(10, 10), Lookup, null, anywhere, split).Rejection);
+
+            // 마차를 마차로 바꾸거나, 다른 마차가 남으면 기존대로 허용.
+            Assert.IsTrue(FormationAreaRules.Place(atAnchor, units["Wagon02"], Anchor, Lookup, null, anywhere, split).Accepted);
+            var two = atAnchor.Clone();
+            two.SetUnitId(Slot(28, 24), "Wagon02");
+            Assert.IsTrue(FormationAreaRules.Place(two, units["Warrior01"], Slot(28, 24), Lookup, null, anywhere, split).Accepted);
+
+            // 핀 칸은 마차가 없어도 캐릭터 허용(설계 60번 §11-2).
+            var pins = new[] { new FormationAreaPin(Slot(10, 10), FormationAreaShape.Square(1)) };
+            Assert.IsTrue(FormationAreaRules.Place(awayFromAnchor, units["Warrior01"], Slot(10, 10), Lookup, pins, anywhere, split).Accepted);
+        }
+
+        [Test]
         public void Pins_AllowCharactersWithoutWagon_AndCountForConnectivity()
         {
             var pins = new[] { new FormationAreaPin(Slot(10, 10), FormationAreaShape.Square(2)) };

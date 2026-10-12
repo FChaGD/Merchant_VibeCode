@@ -128,7 +128,8 @@ namespace Game.Core
 
         // 연결 기준은 NoNewSplit(설계 79번 §9.3) - 전투로 끊어진 채 돌아온 대열을 한 번에 잇지 못해도 덩어리 수를 늘리지 않는 편집은 허용한다.
         // 연결된 상태에서는 RequireConnected와 결과가 같다(설계 79번 §5.5).
-        // 점유 칸에 드롭하면 기존 유닛은 배치에서 빠진다(상행 관리 데이터 삭제 아님) - 빠지는 유닛이 마차면 연결 판정을 받는다.
+        // 점유 칸에 드롭하면 기존 유닛은 배치에서 빠진다(상행 관리 데이터 삭제 아님) - 빠지는 유닛이 마차면 연결 판정을 받고,
+        // 마지막 마차를 캐릭터·시설로 덮어쓰는 드롭은 거부된다(FormationAreaRules.Place).
         // 마을은 마차 자유 배치(기획 59번 §3.4) - 마차는 판 어디든, 다른 마차가 있으면 연결만 확인.
         public bool HandlePaletteDrop(IFormationUnit unit, int targetSlotIndex)
             => Commit(FormationAreaRules.Place(currentLayout, unit, targetSlotIndex, FormationAreaRules.LookupFrom(rosterProvider), GetAreaPins(), WagonPlacement.Anywhere, ConnectivityRule.NoNewSplit));
