@@ -43,6 +43,8 @@ namespace Game.Core
         private FieldResultPopupView resultPopupView;
         private FieldTransitionCurtainView transitionCurtain;
         private BattleAftermathFlow aftermathFlow;
+        // 정지 조율·계기 신호(설계 87번 §6) - 없으면(Bootstrap 미재빌드) 예전처럼 활동을 직접 멈춘다.
+        private FieldTripSignals tripSignals;
 
         // 인카운터 발생 시점부터 전투 뷰 전환이 끝날 때까지 true로 유지한다. 전투 시작(StartBattle)
         // 자체를 전환 완료 시점으로 옮겼지만(HandleEncounterTriggered/TransitionAfterWarning 참고),
@@ -51,9 +53,10 @@ namespace Game.Core
         private bool isTransitioning;
         private BattleResult? pendingResult;
 
-        public void Bind(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IGameManager gameManager, IFieldFormationActivityRepository fieldActivityRepository, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, TripDateAccrual dateAccrual)
+        public void Bind(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IGameManager gameManager, IFieldFormationActivityRepository fieldActivityRepository, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, TripDateAccrual dateAccrual, FieldTripSignals tripSignals)
         {
             this.dateAccrual = dateAccrual;
+            this.tripSignals = tripSignals;
             this.uiManager = uiManager;
             this.sessionState = sessionState;
             this.battleController = battleController;
@@ -95,7 +98,7 @@ namespace Game.Core
                 new CargoRecoveryStep(uiManager, cargoSettlement, cargoRecoveryPanel),
                 new FormationRepairStep(uiManager, repairMode),
             };
-            flow = new BattleAftermathFlow(steps, new FinishStep(fieldUIController, cameraController, fieldActivityRepository, sessionState, gameManager, dateAccrual));
+            flow = new BattleAftermathFlow(steps, new FinishStep(fieldUIController, cameraController, fieldActivityRepository, sessionState, gameManager, dateAccrual, tripSignals));
             return flow;
         }
 
@@ -110,7 +113,8 @@ namespace Game.Core
                                                       // 못 누르게 막는다(사용자 확정, 2026-09-07) - 이동 뷰로
                                                       // 복귀하는 슬라이드 전환 직전(결과 정리 플로우의 FinishStep,
                                                       // 승리/도주)에 다시 켠다 - 정리 단계 ①~③ 동안은 계속 꺼 둔다.
-            fieldActivityRepository?.PauseAll();     // Field 배치/이동 전부 일시정지(설계 25번 §8.1) -
+            // 정지 조율자가 있으면 전투 판정 시점에 이미 활동까지 멈췄다(설계 87번 §6.2) - 없을 때만 예전처럼 직접 멈춘다.
+            if (tripSignals?.Halt == null) fieldActivityRepository?.PauseAll(); // Field 배치/이동 전부 일시정지(설계 25번 §8.1) -
                                                       // Adding은 전투 시작 시 LiveBattleSimulationRule.ResumeSimulation()이
                                                       // 다시 재개한다(§8.2), Moving은 전투 종료까지 계속 멈춰 있는다.
             isTransitioning = true;

@@ -58,8 +58,10 @@ namespace Game.Core
         private IFieldFormationActivityRepository fieldActivityRepository;
         // 상행 종료 처리(설계 81번 §6.4) - 사망 캐릭터 영구 제거 + 상태 초기화. null이면 초기화만 한다.
         private TripEndProcessor tripEndProcessor;
+        // 상행 시작·종료 계기 신호(설계 87번 §6.4) - 이번 상행 기록·판정 시계·정지 원인 초기화. 없으면 신호 없이 진행한다.
+        private FieldTripSignals tripSignals;
 
-        public void RegisterFieldUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository, ITripCurrentLocationRepository currentLocationRepository, ITripDestinationAssigner destinationAssigner, IFieldFormationActivityRepository fieldActivityRepository, ITripItinerary itinerary, IWorldMapReader worldMap, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, FieldCargoRecoveryPanel cargoRecoveryPanel, TripEndProcessor tripEndProcessor, TripDateAccrual dateAccrual)
+        public void RegisterFieldUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository, ITripCurrentLocationRepository currentLocationRepository, ITripDestinationAssigner destinationAssigner, IFieldFormationActivityRepository fieldActivityRepository, ITripItinerary itinerary, IWorldMapReader worldMap, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, FieldCargoRecoveryPanel cargoRecoveryPanel, TripEndProcessor tripEndProcessor, TripDateAccrual dateAccrual, FieldTripSignals tripSignals)
         {
             if (!TryBind(sceneUIRoot))
             {
@@ -74,7 +76,8 @@ namespace Game.Core
             this.destinationAssigner = destinationAssigner;
             this.fieldActivityRepository = fieldActivityRepository;
             this.tripEndProcessor = tripEndProcessor;
-            legCoordinator = new FieldTripLegCoordinator(sessionState, itinerary, currentLocationRepository, worldMap, gaugeView, legArrivalNoticeView, HandleTripArrived, dateAccrual);
+            this.tripSignals = tripSignals;
+            legCoordinator = new FieldTripLegCoordinator(sessionState, itinerary, currentLocationRepository, worldMap, gaugeView, legArrivalNoticeView, HandleTripArrived, dateAccrual, tripSignals?.Milestones);
 
             formationButton.onClick.RemoveAllListeners();
             formationButton.onClick.AddListener(() => uiManager.Open(UIPanelIds.Formation));
@@ -101,7 +104,7 @@ namespace Game.Core
             // (Docs/설계/04-2026-08-25-Field씬_아키텍처.md §5.2). cameraController는 이번 Field 씬의 뷰 참조를
             // 담고 있어 매번 새로 만든다.
             flowCoordinator ??= new FieldEncounterFlowCoordinator();
-            flowCoordinator.Bind(uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, gameManager, fieldActivityRepository, aftermathApplier, cargoSettlement, repairMode, dateAccrual);
+            flowCoordinator.Bind(uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, gameManager, fieldActivityRepository, aftermathApplier, cargoSettlement, repairMode, dateAccrual, tripSignals);
             var cameraController = new FieldCameraController(this, movementViewRoot, battleViewRoot, battleWorldRoot.gameObject, battleCameraView, transitionCurtain);
             // 회수 적재 패널도 이번 씬의 화면 요소로 만든 것이라(FieldUIWiring) 뷰와 함께 매번 다시 넘긴다.
             flowCoordinator.RebindViews(this, this, cameraController, warningView, resultPopupView, transitionCurtain, cargoRecoveryPanel);
@@ -126,6 +129,7 @@ namespace Game.Core
 
             SetTopLevelButtonsInteractable(true);
             unitConditionRepository?.ResetAllToFull(); // 상행 시작 = 전원 만피로 출발(기획 13번 §4-1, 설계 15번 §4)
+            tripSignals?.Milestones?.Raise(TripMilestone.TripStarted); // 이번 상행 기록·판정 시계·정지 원인 초기화(설계 87번 §6.4)
             legCoordinator.BeginFirstLeg(); // 구간마다 소요시간이 다르다(Docs/설계/76번 §6.2)
         }
 
@@ -133,6 +137,7 @@ namespace Game.Core
         {
             if (tripEndProcessor != null) tripEndProcessor.Finish();
             else unitConditionRepository?.ResetAllToFull(); // 처리기 없이도 기존 상행 종료 회복은 유지한다(기획 13번 §4-3).
+            tripSignals?.Milestones?.Raise(TripMilestone.TripEnded);
         }
 
         public void SetTopLevelButtonsInteractable(bool interactable)

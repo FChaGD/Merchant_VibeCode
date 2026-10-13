@@ -3,6 +3,8 @@
     "rootNamespace": "Game.Core.Editor",
     "references": [
         "Game.Core",
+        "Game.Core.Yarn",
+        "YarnSpinner.Unity",
         "Unity.TextMeshPro",
         "Unity.InputSystem"
     ],

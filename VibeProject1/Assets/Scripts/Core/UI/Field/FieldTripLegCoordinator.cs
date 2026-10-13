@@ -21,11 +21,13 @@ namespace Game.Core
         private readonly FieldLegArrivalNoticeView noticeView;
         private readonly Action onTripArrived;
         private readonly TripDateAccrual dateAccrual; // 선택적 - 없으면 날짜 없이 진행
+        private readonly ITripMilestoneSink milestones; // 선택적 - 중간 도시 도착 계기(설계 87번 §6.4)
 
         public FieldTripLegCoordinator(ISessionState sessionState, ITripItinerary itinerary, ITripCurrentLocationRepository currentLocation, IWorldMapReader worldMap,
-            FieldProgressGaugeView gaugeView, FieldLegArrivalNoticeView noticeView, Action onTripArrived, TripDateAccrual dateAccrual)
+            FieldProgressGaugeView gaugeView, FieldLegArrivalNoticeView noticeView, Action onTripArrived, TripDateAccrual dateAccrual, ITripMilestoneSink milestones)
         {
             this.dateAccrual = dateAccrual;
+            this.milestones = milestones;
             this.sessionState = sessionState;
             this.itinerary = itinerary;
             this.currentLocation = currentLocation;
@@ -52,6 +54,7 @@ namespace Game.Core
 
             var arrivedCityId = itinerary.CurrentLeg.ToCityId;
             currentLocation?.SetCurrentCity(arrivedCityId); // 구간마다 갱신 - 상행이 도중에 끝나도 실제로 도착한 곳에 있다(기획 75번 §4-18)
+            milestones?.Raise(TripMilestone.MidCityArrived);
             itinerary.AdvanceLeg();
             var message = $"구간 도착: {CityName(arrivedCityId)}";
             if (noticeView != null) noticeView.Show(message, LegArrivalNoticeSeconds, BeginCurrentLeg);

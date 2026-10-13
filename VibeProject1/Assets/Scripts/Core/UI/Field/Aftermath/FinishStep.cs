@@ -15,10 +15,12 @@ namespace Game.Core
         private readonly ISessionState sessionState;
         private readonly IGameManager gameManager;
         private readonly TripDateAccrual dateAccrual; // 선택적 - 없으면 날짜 없이 진행
+        private readonly FieldTripSignals tripSignals; // 정지 조율·계기 신호(설계 87 §6) - 없으면 예전처럼 직접 재개
 
-        public FinishStep(IFieldUIController fieldUIController, FieldCameraController cameraController, IFieldFormationActivityRepository fieldActivityRepository, ISessionState sessionState, IGameManager gameManager, TripDateAccrual dateAccrual)
+        public FinishStep(IFieldUIController fieldUIController, FieldCameraController cameraController, IFieldFormationActivityRepository fieldActivityRepository, ISessionState sessionState, IGameManager gameManager, TripDateAccrual dateAccrual, FieldTripSignals tripSignals)
         {
             this.dateAccrual = dateAccrual;
+            this.tripSignals = tripSignals ?? new FieldTripSignals(null, null);
             this.fieldUIController = fieldUIController;
             this.cameraController = cameraController;
             this.fieldActivityRepository = fieldActivityRepository;
@@ -38,8 +40,11 @@ namespace Game.Core
                 fieldUIController.SetTopLevelButtonsInteractable(true);
                 cameraController.TransitionToMovement(onComplete: () =>
                 {
-                    fieldActivityRepository?.ResumeAll();
-                    sessionState.Resume();
+                    ResumeTrip(tripSignals, () =>
+                    {
+                        fieldActivityRepository?.ResumeAll();
+                        sessionState.Resume();
+                    });
                     onDone();
                 });
                 return;
@@ -66,6 +71,17 @@ namespace Game.Core
             // 사망·포로: 플레이 종료.
             onDone();
             Application.Quit();
+        }
+
+        /// <summary>
+        /// 상행을 이어갈 때의 재개(설계 87 §6.2·§6.4). 정지 조율자가 있으면 "전투" 원인만 푼다 - 다른 원인(이벤트)이 남아 있으면 조율자가 정지를 유지한다.
+        /// 없으면(Bootstrap 미재빌드) 예전처럼 직접 재개한다. 이벤트 전투의 신호 생략은 설계 89에서 이 메서드에 더한다.
+        /// </summary>
+        internal static void ResumeTrip(FieldTripSignals tripSignals, Action legacyResume)
+        {
+            if (tripSignals?.Halt != null) tripSignals.Halt.Release(TripHaltReason.Battle);
+            else legacyResume();
+            tripSignals?.Milestones?.Raise(TripMilestone.BattleEnded);
         }
     }
 }

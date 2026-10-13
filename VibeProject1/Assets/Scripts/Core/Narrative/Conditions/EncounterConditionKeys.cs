@@ -1,0 +1,27 @@
+using System.Collections.Generic;
+
+namespace Game.Core
+{
+    /// <summary>
+    /// 알려진 조건 키의 단일 소스(설계 87 §5.1). 임포터(모르는 키 = 오류)와 실행 쪽 판정기 등록부가 같은 목록을 써야 둘이 어긋나지 않는다.
+    /// 새 조건 종류(퀘스트·스토리, 기획 86 §5.3)는 여기 키를 더하고 판정기를 등록한다.
+    /// </summary>
+    public static class EncounterConditionKeys
+    {
+        public const string Month = "month";
+        public const string Date = "date";
+        public const string Progress = "progress";
+        public const string Region = "region";
+        public const string Road = "road";
+        public const string From = "from";
+        public const string To = "to";
+        public const string Flag = "flag";
+        public const string Seen = "seen";
+
+        private static readonly HashSet<string> Known = new() { Month, Date, Progress, Region, Road, From, To, Flag, Seen };
+
+        public static IReadOnlyCollection<string> All => Known;
+
+        public static bool IsKnown(string key) => key != null && Known.Contains(key);
+    }
+}

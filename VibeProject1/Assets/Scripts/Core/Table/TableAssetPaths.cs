@@ -57,6 +57,9 @@ namespace Game.Core
 
         // 마을-구매아이템 재고(Docs/설계/81번 §3.1).
         public const string TownStockTable = Folder + "/TownStockTable.asset";
+
+        // 이벤트·대화 발생 정보(Docs/설계/87번 §3.1).
+        public const string EncounterTable = Folder + "/EncounterTable.asset";
     }
 }
 #endif

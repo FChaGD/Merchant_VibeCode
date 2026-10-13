@@ -72,8 +72,14 @@ namespace Game.Core.Editor
             // 게임 날짜(Docs/설계/85번 §3.1) - 다른 매니저에 의존하지 않아 배열 위치는 무관하다.
             var dateManager = EditorUIBuilder.GetOrCreateManager<DateManager>(root.transform, nameof(DateManager));
             WireBattleManagerDependents(battleManager);
+            // 상행 중 조율 요소(Docs/설계/87번 §6) - 정지 조율·판정 시계·계기 신호는 FieldManager 하위라 전역 DI 대상이 아니다.
+            var fieldManager = EditorUIBuilder.GetOrCreateManager<FieldManager>(root.transform, nameof(FieldManager));
+            EditorUIBuilder.GetOrAddComponent<TripHaltCoordinator>(fieldManager.gameObject);
+            EditorUIBuilder.GetOrAddComponent<TripCheckClock>(fieldManager.gameObject);
+            EditorUIBuilder.GetOrAddComponent<TripMilestoneSignal>(fieldManager.gameObject);
             WireUIManagerPanels(uiManager);
             var dataRepositories = BuildUIManagerDataRepositories(root, uiManager);
+            var dialogueScriptRunner = WireDialogueRunner(root);
 
             // 전투 디버그 기즈모(포위망/방진선/이동 목적지)는 여기서 설치하지 않는다 - "게임 빌드"와
             // "디버그 도구 켜고 끄기"는 다른 관심사라 DebugBootstrapReentryGuard와 같은 자리
@@ -92,6 +98,8 @@ namespace Game.Core.Editor
                 sceneTransitionEffectController,
                 battleManager,
                 aiManager,
+                // 전투 판정이 판정 시계 신호를 구독한다 - 2단계 초기화라 순서와 무관하지만 읽는 순서를 맞춘다.
+                fieldManager,
                 encounterManager,
                 dateManager,
                 sceneLoader,
@@ -101,7 +109,7 @@ namespace Game.Core.Editor
             // 유지 - RegisterSelf 전부 끝난 뒤 ResolveDependencies를 호출하는 2단계 구조라 실제
             // 순서 의존성은 없다) - coreManagers와 분리된 배열로 두어 "순서에 민감한 부분"과
             // "무관한 부분"의 경계를 코드 구조 자체로 드러낸다.
-            SyncManagedComponents(dependencyManager, coreManagers.Concat(dataRepositories).ToArray());
+            SyncManagedComponents(dependencyManager, coreManagers.Concat(dataRepositories).Append(dialogueScriptRunner).ToArray());
 
             EditorSceneManager.MarkSceneDirty(root.scene);
             Debug.Log("매니저 하이어라키 생성/동기화 완료. 씬을 저장(Ctrl+S)해야 변경사항이 파일에 반영된다.");
@@ -303,6 +311,11 @@ namespace Game.Core.Editor
             // RegisterSelf를 전부 끝낸 뒤 ResolveDependencies를 돌리는 2단계 구조라 목록 순서와 무관하지만, 읽기 쉽게 소비자로서 맨 뒤에 둔다.
             var battleAftermathApplier = EditorUIBuilder.GetOrCreateManager<BattleAftermathApplier>(uiManager.transform, nameof(BattleAftermathApplier));
 
+            // 이벤트·대화 이력과 발생 정보(Docs/설계/87번 §3·§4).
+            var encounterHistoryStore = EditorUIBuilder.GetOrCreateManager<EncounterHistoryStore>(uiManager.transform, nameof(EncounterHistoryStore));
+            var encounterContentProvider = EditorUIBuilder.GetOrCreateManager<EncounterContentProvider>(uiManager.transform, nameof(EncounterContentProvider));
+            WireEncounterTable(encounterContentProvider);
+
             return new MonoBehaviour[]
             {
                 placeholderRosterProvider,
@@ -331,6 +344,8 @@ namespace Game.Core.Editor
                 caravanAssetCatalogProvider,
                 caravanAssetCandidateProvider,
                 battleAftermathApplier,
+                encounterHistoryStore,
+                encounterContentProvider,
             };
         }
 
@@ -341,6 +356,40 @@ namespace Game.Core.Editor
             so.FindProperty("cityStrings").objectReferenceValue = LoadImportedTable<TripCityStringsTableAsset>(TableAssetPaths.TripCityStringsTable);
             so.FindProperty("regionStrings").objectReferenceValue = LoadImportedTable<TripRegionStringsTableAsset>(TableAssetPaths.TripRegionStringsTable);
             so.ApplyModifiedProperties();
+        }
+
+        // 대본 실행(Docs/설계/87번 §7) - Yarn 구성 요소를 한 오브젝트에 모은다. 표시기는 Yarn 실행기의 표시 목록에 하나만 둔다(화면은 88·89가
+        // IDialogueView로 연결). 자동 시작은 끈다 - 대본은 진행자가 고른 노드로만 시작한다. 공개 속성·메서드로 설정해 Yarn의 직렬화 필드 이름에 묶이지 않는다.
+        private static YarnDialogueScriptRunner WireDialogueRunner(GameObject root)
+        {
+            var scriptRunner = EditorUIBuilder.GetOrCreateManager<YarnDialogueScriptRunner>(root.transform, "DialogueRunner");
+            var go = scriptRunner.gameObject;
+            var runner = EditorUIBuilder.GetOrAddComponent<Yarn.Unity.DialogueRunner>(go);
+            var storage = EditorUIBuilder.GetOrAddComponent<YarnEncounterVariableStorage>(go);
+            var bridge = EditorUIBuilder.GetOrAddComponent<YarnDialoguePresenterBridge>(go);
+
+            var project = AssetDatabase.LoadAssetAtPath<Yarn.Unity.YarnProject>("Assets/Content/Dialogue/Encounter.yarnproject");
+            if (project != null) runner.SetProject(project);
+            else Debug.LogWarning("Assets/Content/Dialogue/Encounter.yarnproject가 없어 DialogueRunner에 Yarn 프로젝트를 연결하지 못했다.");
+            runner.VariableStorage = storage;
+            runner.DialoguePresenters = new Yarn.Unity.DialoguePresenterBase[] { bridge };
+            runner.autoStart = false;
+            EditorUtility.SetDirty(runner);
+
+            var so = new SerializedObject(scriptRunner);
+            so.FindProperty("runner").objectReferenceValue = runner;
+            so.FindProperty("storage").objectReferenceValue = storage;
+            so.FindProperty("bridge").objectReferenceValue = bridge;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            return scriptRunner;
+        }
+
+        // 자산이 아직 없으면(첫 실행 - Play로 임포트하기 전) 비워 둔다. 제공자는 경고만 내고 빈 목록으로 동작한다.
+        private static void WireEncounterTable(EncounterContentProvider provider)
+        {
+            var so = new SerializedObject(provider);
+            so.FindProperty("table").objectReferenceValue = AssetDatabase.LoadAssetAtPath<EncounterTableAsset>(TableAssetPaths.EncounterTable);
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         // 지도 마커·선 프리팹을 TripPanel에 연결한다(설계 69번 §7) - 예전엔 Hub 인스톨러 로그로 수동 연결을 안내했다.
