@@ -308,6 +308,9 @@ namespace Game.Core.Editor
             WireCaravanAssetCatalogTables(caravanAssetCatalogProvider);
             var caravanAssetCandidateProvider = EditorUIBuilder.GetOrCreateManager<CaravanAssetCandidateProvider>(uiManager.transform, nameof(CaravanAssetCandidateProvider));
 
+            // 마차·시설 내구도(설계 91번 §3.2) - 보유 목록(IOwnedCaravanAssetReader)을 TryResolve로 찾는다. 전투 규칙·정산·마구간이 소비한다.
+            var caravanAssetDurabilityManager = EditorUIBuilder.GetOrCreateManager<CaravanAssetDurabilityManager>(uiManager.transform, nameof(CaravanAssetDurabilityManager));
+
             // 전투 결과 반영(설계 79번 §5) - 반영 대상 저장소들(인벤토리·로스터·대열·활동·세션)을 TryResolve로만 찾는다. DependencyManager가
             // RegisterSelf를 전부 끝낸 뒤 ResolveDependencies를 돌리는 2단계 구조라 목록 순서와 무관하지만, 읽기 쉽게 소비자로서 맨 뒤에 둔다.
             var battleAftermathApplier = EditorUIBuilder.GetOrCreateManager<BattleAftermathApplier>(uiManager.transform, nameof(BattleAftermathApplier));
@@ -344,6 +347,7 @@ namespace Game.Core.Editor
                 deceasedCharacterRepository,
                 caravanAssetCatalogProvider,
                 caravanAssetCandidateProvider,
+                caravanAssetDurabilityManager,
                 battleAftermathApplier,
                 encounterHistoryStore,
                 encounterContentProvider,

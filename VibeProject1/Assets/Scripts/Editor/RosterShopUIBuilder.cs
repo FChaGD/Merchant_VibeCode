@@ -20,9 +20,12 @@ namespace Game.Core.Editor
             public readonly string CandidateTitle;
             public readonly string EmptyCandidateText;
             public readonly string ActionLabel;
+            // 보유 현황을 텍스트 레이블 하나로 둘지 - 마구간은 전용 조립(StableOwnedUIBuilder)으로 채운다(설계 91번 §5.2).
+            public readonly bool OwnedListAsText;
 
-            public Spec(string objectName, string idPrefix, string ownedTitle, string candidateTitle, string emptyCandidateText, string actionLabel)
+            public Spec(string objectName, string idPrefix, string ownedTitle, string candidateTitle, string emptyCandidateText, string actionLabel, bool ownedListAsText = true)
             {
+                OwnedListAsText = ownedListAsText;
                 ObjectName = objectName;
                 IdPrefix = idPrefix;
                 OwnedTitle = ownedTitle;
@@ -33,7 +36,7 @@ namespace Game.Core.Editor
         }
 
         public static readonly Spec MercenaryContact = new("MercenaryContact", RosterShopUIElementIds.MercenaryContactPrefix, "보유 용병", "용병단 접촉", "고용 가능한 용병 없음", "고용");
-        public static readonly Spec Stable = new("Stable", RosterShopUIElementIds.StablePrefix, "보유 현황", "마구간", "구매 가능한 마차·시설 없음", "구매");
+        public static readonly Spec Stable = new("Stable", RosterShopUIElementIds.StablePrefix, "보유 현황", "마구간", "구매 가능한 마차·시설 없음", "구매", ownedListAsText: false);
 
         private static readonly Color PanelColor = new(0.96f, 0.95f, 0.92f, 1f);
         private static readonly Color HeaderColor = new(0.72f, 0.66f, 0.55f, 1f);
@@ -46,7 +49,8 @@ namespace Game.Core.Editor
         // 우상단 재화 패널(PopupExemptLayer)과 겹치지 않도록 두 패널 윗변을 여기까지로 제한한다(무역품 구매 화면과 같은 값).
         private const float PanelTop = 0.86f;
 
-        public static void Build(Transform modalPopups, Spec spec)
+        // 루트를 돌려준다 - 화면별 추가 조립(마구간 보유 영역)이 같은 루트 아래를 채운다.
+        public static RectTransform Build(Transform modalPopups, Spec spec)
         {
             var root = EditorUIBuilder.GetOrCreateUIObject(modalPopups, spec.ObjectName);
             var rootRect = root.GetComponent<RectTransform>();
@@ -59,6 +63,7 @@ namespace Game.Core.Editor
 
             // 런타임 패널이 등록될 때 숨기지만, 씬 편집 화면에서 다른 UI를 가리지 않도록 저장 상태도 비활성.
             root.SetActive(false);
+            return rootRect;
         }
 
         private static string Id(Spec spec, string element) => RosterShopUIElementIds.Of(spec.IdPrefix, element);
@@ -82,6 +87,13 @@ namespace Game.Core.Editor
             EditorUIBuilder.EnsureImage(panel, PanelColor);
 
             BuildHeader(panelRect, spec.OwnedTitle);
+
+            // 마구간은 보유 영역을 전용 조립(StableOwnedUIBuilder)으로 채운다(설계 91번 §5.2) - 예전 텍스트 레이블은 지운다.
+            if (!spec.OwnedListAsText)
+            {
+                EditorUIBuilder.DestroyChildIfExists(panelRect, "OwnedList");
+                return;
+            }
 
             var body = EditorUIBuilder.GetOrCreateUIObject(panelRect, "OwnedList");
             EditorUIBuilder.SetAnchors(body.GetComponent<RectTransform>(), new Vector2(0.05f, 0.03f), new Vector2(0.95f, 0.88f));

@@ -93,6 +93,13 @@ namespace Game.Core
                 tradeGoodsConsumer.SetTradeGoodsReader(tradeGoodsRepository);
             }
 
+            // 마차·시설 내구도(설계 91번 §4.1)도 같은 이유로 TryResolve - 없으면 테이블 대신 기존 상수 최대치로 꽉 찬 채 시작한다.
+            if (resultRule is IRequiresCaravanAssetDurability durabilityConsumer
+                && registrar.TryResolve<ICaravanAssetDurabilityReader>(out var durabilityReader))
+            {
+                durabilityConsumer.SetCaravanAssetDurabilityReader(durabilityReader);
+            }
+
             // 규칙이 시뮬레이션 생성 이벤트를 노출하면(IBattleSimulationEvents), 그대로 흘려보낸다 -
             // 뷰 계층(FieldUIController/BattleViewPresenter)은 BattleManager만 알면 되고 규칙의 구체
             // 타입(LiveBattleSimulationRule)을 몰라도 된다(DIP).

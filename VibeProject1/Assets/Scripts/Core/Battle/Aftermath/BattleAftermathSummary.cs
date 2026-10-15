@@ -11,18 +11,20 @@ namespace Game.Core
         public int Recoverable { get; }
         public int DefeatLost { get; }
         public int DestroyedWagons { get; }
+        public int DestroyedFacilities { get; }
         public int Relocated { get; }
         public int Released { get; }
         public float ExtraSeconds { get; }
         /// <summary>정산 후 마차 덩어리가 2개 이상 - ③ 대열 정리 단계 대상.</summary>
         public bool FormationDisconnected { get; }
 
-        public bool IsEmpty => Broken == 0 && StolenLost == 0 && Recoverable == 0 && DefeatLost == 0 && DestroyedWagons == 0
+        public bool IsEmpty => Broken == 0 && StolenLost == 0 && Recoverable == 0 && DefeatLost == 0 && DestroyedWagons == 0 && DestroyedFacilities == 0
             && Relocated == 0 && Released == 0 && ExtraSeconds <= 0f && !FormationDisconnected;
 
         public BattleAftermathSummary(int broken, int stolenLost, int recoverable, int defeatLost, int destroyedWagons, int relocated, int released,
-            float extraSeconds, bool formationDisconnected)
+            float extraSeconds, bool formationDisconnected, int destroyedFacilities = 0)
         {
+            DestroyedFacilities = destroyedFacilities;
             Broken = broken;
             StolenLost = stolenLost;
             Recoverable = recoverable;

@@ -186,29 +186,28 @@ namespace Game.Core.Tests
         }
 
         [Test]
-        public void DestroyedFacility_DoesNotBlock()
+        public void DestroyedFacility_StillBlocks()
         {
-            // 시설은 파괴되면 피하지도, 빼내지도 않는다(설계 74번 §2.6 - 기존 동작 유지).
+            // 시설도 파괴되면 잔해로 남아 길을 막는다(기획 90번 §3-7 - 설계 74번 §2.6의 "파괴 시설은 빠짐"을 대체).
             var placement = FacilityAt(0, 0);
             var field = Field(placement);
             placement.Unit.TakeDamage(ProtectedUnitTuning.MaxHp, null);
 
+            Assert.IsTrue(field.IsObstacleActive(0));
             var state = default(ObstacleAvoidanceState);
-            Assert.AreEqual(1f, field.Steer(new Vector2(-2f, 0f), new Vector2(3f, 0f), null, ref state).x, Tolerance);
-            Assert.IsFalse(state.HasValue);
-            Assert.AreEqual(new Vector2(0.1f, 0f), field.ResolvePenetration(new Vector2(0.1f, 0f)));
-            Assert.AreEqual(new Vector2(0.3f, 0f), field.CorrectDestination(new Vector2(-3f, 0f), new Vector2(0.3f, 0f)));
-            Assert.IsFalse(field.IsObstacleActive(0));
+            field.Steer(new Vector2(-2f, 0f), new Vector2(3f, 0f), null, ref state);
+            Assert.IsTrue(state.HasValue, "직진 경로에 있으면 회피한다");
+            Assert.AreEqual(field.Obstacles[0].Radius, field.ResolvePenetration(new Vector2(0.1f, 0f)).magnitude, Tolerance);
         }
 
         [Test]
-        public void Passage_WithDestroyedFacilityEnd_DoesNotSlow()
+        public void Passage_WithDestroyedFacilityEnd_StillSlows()
         {
             var a = FacilityAt(0, 0);
             var field = Field(a, At(1, 0));
             a.Unit.TakeDamage(ProtectedUnitTuning.MaxHp, null);
-            Assert.AreEqual(1f, field.GetSpeedMultiplier(new Vector2(0f, 0.5f)), Tolerance);
-            Assert.IsFalse(field.IsPassageActive(0));
+            Assert.IsTrue(field.IsPassageActive(0));
+            Assert.AreEqual(ObstacleAvoidanceTuning.PassageSpeedMultiplier, field.GetSpeedMultiplier(new Vector2(0f, 0.5f)), Tolerance);
         }
 
         [Test]

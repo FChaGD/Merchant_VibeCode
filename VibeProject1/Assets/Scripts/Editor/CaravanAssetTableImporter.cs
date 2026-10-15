@@ -55,6 +55,7 @@ namespace Game.Core.Editor
                     Price = EditorTableReader.ParseInt(row, "Price"),
                     AreaShape = EditorTableReader.ParseRequiredString(row, "AreaShape"),
                     CargoShape = hasCargoShape ? EditorTableReader.ParseRequiredString(row, "CargoShape") : string.Empty,
+                    MaxDurability = EditorTableReader.ParseInt(row, "MaxDurability"),
                 });
             }
             return entries;
@@ -87,6 +88,11 @@ namespace Game.Core.Editor
                 {
                     throw new FormatException($"{sheetName}의 '{entry.Id}'에 해당하는 이름이 {sheetName}Strings 시트에 없다.");
                 }
+                // 0 이하면 전투 유닛이 시작하자마자 파괴 상태가 되고 수리비가 0으로 나눠진다.
+                if (entry.MaxDurability < 1)
+                {
+                    throw new FormatException($"{sheetName}의 '{entry.Id}' 최대 내구도(MaxDurability)는 1 이상이어야 한다: {entry.MaxDurability}");
+                }
                 // 대열 영역 모양은 런타임 카탈로그와 같은 파서로 검증한다(설계 66번 §3) - 형식이 틀리면 카탈로그가 기준 칸 1칸으로 줄여 버린다.
                 if (!FormationAreaShape.TryParse(entry.AreaShape, out _, out var areaError))
                 {
@@ -112,6 +118,7 @@ namespace Game.Core.Editor
                 element.FindPropertyRelative("Price").intValue = entries[i].Price;
                 element.FindPropertyRelative("AreaShape").stringValue = entries[i].AreaShape;
                 element.FindPropertyRelative("CargoShape").stringValue = entries[i].CargoShape;
+                element.FindPropertyRelative("MaxDurability").intValue = entries[i].MaxDurability;
             }
             so.ApplyModifiedProperties();
             EditorUtility.SetDirty(asset);

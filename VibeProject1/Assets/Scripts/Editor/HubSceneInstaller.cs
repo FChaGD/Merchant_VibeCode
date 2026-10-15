@@ -79,7 +79,8 @@ namespace Game.Core.Editor
             // 시설 화면은 모달 팝업(Docs/설계/50번 §6.1) - 재화 패널 외 UI 숨김·카테고리 depth 복귀를 기존 팝업 축이 처리한다.
             TradeGoodsMarketUIBuilder.Build(layers.ModalPopups);
             RosterShopUIBuilder.Build(layers.ModalPopups, RosterShopUIBuilder.MercenaryContact);
-            RosterShopUIBuilder.Build(layers.ModalPopups, RosterShopUIBuilder.Stable);
+            var stableRoot = RosterShopUIBuilder.Build(layers.ModalPopups, RosterShopUIBuilder.Stable);
+            StableOwnedUIBuilder.Build(stableRoot); // 마구간 보유 영역(설계 91번 §5.2)
             // 골드 변환 모달(설계 83번 §6.2) - HUD 짧은 클릭으로 연다.
             GoldConversionUIBuilder.Build(layers.ModalPopups);
 

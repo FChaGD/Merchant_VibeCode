@@ -130,6 +130,9 @@ namespace Game.Core
             registrar.TryResolve<IOwnedCaravanAssetRoster>(out var ownedCaravanAssetRoster);
             registrar.TryResolve<ICaravanAssetCatalogReader>(out var caravanAssetCatalog);
             registrar.TryResolve<ICaravanAssetIconReader>(out var caravanAssetIconReader);
+            // 마차·시설 내구도(설계 91번 §5.2) - 없으면 마구간 보유 영역이 "값 없음"을 보이고 수리를 막는다.
+            registrar.TryResolve<ICaravanAssetDurabilityReader>(out var caravanAssetDurabilityReader);
+            registrar.TryResolve<ICaravanAssetDurabilityWriter>(out var caravanAssetDurabilityWriter);
             var inventoryPopupSources = new List<InventoryPopupSource>();
             AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.TradeGoods, tradeGoodsInventory, tradeGoodsInventory, nameof(ITradeGoodsInventoryRepository));
             AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.Equipment, equipmentInventory, equipmentInventory, nameof(IEquipmentInventoryRepository));
@@ -174,7 +177,7 @@ namespace Game.Core
             RegisterInventoryPopups(sceneUIRoot, uiManager, panelRegistrar, inventoryPopupSources);
             RegisterTradeGoodsMarket(sceneUIRoot, uiManager, panelRegistrar, tradeGoodsInventory, goldSpender, townShopStockReader, townStockConsumer, currentLocationRepository);
             RegisterMercenaryContact(sceneUIRoot, uiManager, panelRegistrar, goldSpender, mercenaryCandidateReader, hiredCharacterRoster, characterCatalog, mercenaryClassIconReader, currentLocationRepository);
-            RegisterStable(sceneUIRoot, uiManager, panelRegistrar, goldSpender, caravanAssetCandidateReader, ownedCaravanAssetRoster, caravanAssetCatalog, caravanAssetIconReader, townStockReader, townStockConsumer, currentLocationRepository);
+            RegisterStable(sceneUIRoot, uiManager, panelRegistrar, goldSpender, caravanAssetCandidateReader, ownedCaravanAssetRoster, caravanAssetCatalog, caravanAssetIconReader, townStockReader, townStockConsumer, currentLocationRepository, caravanAssetDurabilityReader, caravanAssetDurabilityWriter);
             RegisterGoldConversion(sceneUIRoot, uiManager, panelRegistrar, goldHoldings, goldConverter);
 
             // 팝업 축(Docs/설계/38번 §5·§6) - 모달 팝업이 열리면 DepthLayer/PersistentLayer를 숨긴다.
@@ -275,7 +278,7 @@ namespace Game.Core
         }
 
         // 용병단 접촉 화면과 같은 등록 방식(모달 팝업 채널, 목록형 구매 화면 요소 공유). 종류 아이콘 제공자는 없어도 된다.
-        private void RegisterStable(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IGoldSpender gold, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, ICaravanAssetCatalogReader catalog, ICaravanAssetIconReader iconReader, ITownStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation)
+        private void RegisterStable(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IGoldSpender gold, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, ICaravanAssetCatalogReader catalog, ICaravanAssetIconReader iconReader, ITownStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, ICaravanAssetDurabilityReader durabilityReader, ICaravanAssetDurabilityWriter durabilityWriter)
         {
             stablePanel?.Dispose();
             stablePanel = null;
@@ -286,9 +289,18 @@ namespace Game.Core
                 return;
             }
 
-            if (!RosterShopElements.TryBind(sceneUIRoot, RosterShopUIElementIds.StablePrefix, out var elements)) return;
+            if (!RosterShopElements.TryBind(sceneUIRoot, RosterShopUIElementIds.StablePrefix, out var elements, requireOwnedListLabel: false)) return;
 
-            stablePanel = new StablePanel(elements, gold, candidateReader, roster, catalog, iconReader, stockReader, stockConsumer, currentLocation, uiManager);
+            StableOwnedSection ownedSection = null;
+            if (StableOwnedElements.TryBind(sceneUIRoot, out var ownedElements))
+            {
+                CaravanAssetRepairService repair = null;
+                if (durabilityReader != null && durabilityWriter != null) repair = new CaravanAssetRepairService(gold, roster, durabilityReader, durabilityWriter);
+                else Debug.LogWarning($"마구간 수리에 필요한 {nameof(ICaravanAssetDurabilityReader)}/{nameof(ICaravanAssetDurabilityWriter)}가 없어 수리를 막는다(Tools > Game > Build Bootstrap Scene).");
+                ownedSection = new StableOwnedSection(ownedElements, roster, catalog, durabilityReader, repair, gold);
+            }
+
+            stablePanel = new StablePanel(elements, gold, candidateReader, roster, ownedSection, iconReader, stockReader, stockConsumer, currentLocation, uiManager);
             panelRegistrar.RegisterPopupPanel(stablePanel);
         }
 

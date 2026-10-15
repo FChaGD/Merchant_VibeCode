@@ -24,12 +24,16 @@ namespace Game.Core
         public TMP_Text ReasonLabel { get; private set; }
         public Button ActionButton { get; private set; }
 
-        public static bool TryBind(SceneUIRoot sceneUIRoot, string prefix, out RosterShopElements elements)
+        public static bool TryBind(SceneUIRoot sceneUIRoot, string prefix, out RosterShopElements elements, bool requireOwnedListLabel = true)
         {
             elements = null;
-            var ok = InventoryArrangementElements.TryGet(sceneUIRoot, RosterShopUIElementIds.Of(prefix, RosterShopUIElementIds.Root), out RectTransform root)
+            // 마구간은 보유 영역을 전용 요소(StableOwnedElements)로 바꿔 텍스트 레이블이 없다(설계 91번 §5.2) - 용병 화면만 요구한다.
+            TMP_Text ownedListLabel = null;
+            var ownedOk = !requireOwnedListLabel
+                || InventoryArrangementElements.TryGet(sceneUIRoot, RosterShopUIElementIds.Of(prefix, RosterShopUIElementIds.OwnedListLabel), out ownedListLabel);
+            var ok = ownedOk
+                & InventoryArrangementElements.TryGet(sceneUIRoot, RosterShopUIElementIds.Of(prefix, RosterShopUIElementIds.Root), out RectTransform root)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, RosterShopUIElementIds.Of(prefix, RosterShopUIElementIds.ExitButton), out Button exitButton)
-                & InventoryArrangementElements.TryGet(sceneUIRoot, RosterShopUIElementIds.Of(prefix, RosterShopUIElementIds.OwnedListLabel), out TMP_Text ownedListLabel)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, RosterShopUIElementIds.Of(prefix, RosterShopUIElementIds.CandidateViewport), out RectTransform candidateViewport)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, RosterShopUIElementIds.Of(prefix, RosterShopUIElementIds.CandidateContent), out RectTransform candidateContent)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, RosterShopUIElementIds.Of(prefix, RosterShopUIElementIds.CandidateRowTemplate), out RosterShopCandidateRowView candidateRowTemplate)

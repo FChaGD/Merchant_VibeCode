@@ -101,6 +101,24 @@ namespace Game.Core.Tests
         }
 
         [Test]
+        public void Catalog_MaxDurability_UsesTableValue_FallbackWhenMissing()
+        {
+            SetPrivateField(wagonTable, "entries", new List<CaravanAssetEntry>
+            {
+                new() { Id = "Wagon01", Price = 1001, MaxDurability = 150 },
+                new() { Id = "Wagon02", Price = 1002 },
+            });
+
+            var catalog = CreateCatalog();
+
+            Assert.IsTrue(catalog.TryGet("Wagon01", out var set));
+            Assert.AreEqual(150, set.MaxDurability);
+            // 임포트 전 자산(열 없음 = 0)은 기존 전투 상수와 같은 값으로 대체한다.
+            Assert.IsTrue(catalog.TryGet("Wagon02", out var missing));
+            Assert.AreEqual(CaravanAssetProfile.FallbackMaxDurability, missing.MaxDurability);
+        }
+
+        [Test]
         public void PlaceholderRoster_StartsWithOnePerKind_AndPurchaseKeepsTableOrder()
         {
             var go = new GameObject("Roster");

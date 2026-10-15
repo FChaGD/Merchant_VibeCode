@@ -11,7 +11,7 @@ namespace Game.Core
     /// (BattleManager 무변경). 승패 조건: 적 전멸(사망+도주)=Victory, 모든 마차 파괴 또는 전투 가능 아군
     /// (캐릭터+시설) 없음=Defeat(Docs/기획/73번).
     /// </summary>
-    public class LiveBattleSimulationRule : MonoBehaviour, IBattleResultRule, IRequiresFormationReader, IRequiresCaravanRoster, IRequiresTacticsReader, IRequiresUnitConditionRepository, IRequiresFieldFormationActivityRepository, IRequiresTradeGoodsReader, IBattleSimulationEvents, IPausableBattleSimulation, IObstacleFieldDebugSource
+    public class LiveBattleSimulationRule : MonoBehaviour, IBattleResultRule, IRequiresFormationReader, IRequiresCaravanRoster, IRequiresTacticsReader, IRequiresUnitConditionRepository, IRequiresFieldFormationActivityRepository, IRequiresTradeGoodsReader, IRequiresCaravanAssetDurability, IBattleSimulationEvents, IPausableBattleSimulation, IObstacleFieldDebugSource
     {
         // 직업→역할군 매핑 - 실제 데이터(직업별 항목)는 에디터에서 에셋을 만들어 채운다
         // (Docs/설계/12번 §2.1). 비어있으면 UnitTacticsProfileResolver가 경고 후 기본값으로 대체한다.
@@ -42,6 +42,10 @@ namespace Game.Core
         private IFieldFormationActivityRepository fieldActivityRepository;
         // 상단 물류품 조회(설계 79번 §3.2) - 없으면(인스톨러 미실행 등) 원장이 비어 화물 손실 없이 전투만 진행된다.
         private IInventoryReader tradeGoodsReader;
+        // 마차·시설 내구도(설계 91번 §4.1) - 없으면(Bootstrap 미재빌드) ProtectedUnitTuning.MaxHp로 꽉 찬 채 시작한다.
+        private ICaravanAssetDurabilityReader durabilityReader;
+        // 이번 전투의 마차·시설 - 종료 시 결과 기록(ProtectedUnitRecord)을 만든다. BuildSimulation()마다 새로 채운다.
+        private readonly List<BattleProtectedUnit> battleProtectedUnits = new();
         private BattleSimulationLoop simulation;
         // 이번 전투의 화물 기록(설계 79번 §3.2) - BuildSimulation()마다 새로 만들고 Report()에서 보고서로 넘긴다.
         private BattleCargoLedger cargoLedger;
@@ -92,6 +96,7 @@ namespace Game.Core
         public void SetTacticsReader(ITacticsReader reader) => tacticsReader = reader;
         public void SetUnitConditionRepository(IUnitConditionRepository repository) => unitConditionRepository = repository;
         public void SetTradeGoodsReader(IInventoryReader reader) => tradeGoodsReader = reader;
+        public void SetCaravanAssetDurabilityReader(ICaravanAssetDurabilityReader reader) => durabilityReader = reader;
 
         // BattleManager.ResolveDependencies가 IRequiresFieldFormationActivityRepository로 캐스팅해
         // 호출한다(설계 25번 §6.1). 구독은 여기서 한 번만 건다 - 이 세터 자체가 게임 세션당 1회만
@@ -175,7 +180,7 @@ namespace Game.Core
             OnPendingReinforcementsChanged?.Invoke(Array.Empty<PendingReinforcementInfo>());
             // 패배 원인·화물 보고서를 함께 넘긴다 - 저장소 반영은 결과 판정 뒤 정산이 한 번에 한다(설계 79번 §4.2·§15-2).
             var defeatCause = outcome == BattleOutcome.Defeat ? simulation.DefeatCause : BattleDefeatCause.None;
-            onResult(new BattleResult(outcome, defeatCause, cargoLedger?.BuildReport() ?? BattleCargoReport.Empty));
+            onResult(new BattleResult(outcome, defeatCause, cargoLedger?.BuildReport() ?? BattleCargoReport.Empty, BuildProtectedUnitRecords()));
         }
 
         // 전투 중 Field 배치 타이머가 완료됐을 때 호출된다(IFieldFormationActivityRepository.OnActivityCompleted
@@ -206,6 +211,18 @@ namespace Game.Core
             {
                 unitConditionRepository.ApplyBattleResult(unitId, unit.CurrentHp, died: unit.CurrentHp <= 0f);
             }
+        }
+
+        // 마차·시설 종료 상태(설계 91번 §4.2) - 저장은 정산이 한다. Id 없는 보호 대상(테스트 경로)은 저장할 개체가 없어 뺀다.
+        private List<ProtectedUnitRecord> BuildProtectedUnitRecords()
+        {
+            var records = new List<ProtectedUnitRecord>(battleProtectedUnits.Count);
+            foreach (var unit in battleProtectedUnits)
+            {
+                if (string.IsNullOrEmpty(unit.UnitId)) continue;
+                records.Add(new ProtectedUnitRecord(unit.UnitId, unit.Kind, unit.CurrentHp, !unit.IsAlive));
+            }
+            return records;
         }
 
         private BattleSimulationLoop BuildSimulation()
@@ -263,6 +280,8 @@ namespace Game.Core
             var allies = hasLayout ? BuildAllies(layout) : new List<IBattleCombatant>();
             var enemies = BuildEnemies(spawnCenter, enemyMorale, enemyWaveCoordinator, midBattleFleeTravelDistance);
             var protectedUnits = protectedPlacements.Select(placement => placement.Unit).ToList();
+            battleProtectedUnits.Clear();
+            battleProtectedUnits.AddRange(protectedUnits);
 
             // 화물 원장은 전투 시작 시점 적재 상태의 스냅샷으로 만든다(설계 79번 §3.2). 마차 피격·파괴 구독은 루프보다 먼저
             // 걸어도 순서 문제가 없다 - 원장은 루프의 생존 카운터와 독립이다. 잔해 목록은 루프가 매 틱 적 표적 후보에 더한다.
@@ -397,7 +416,15 @@ namespace Game.Core
                 var position = FieldPositionLayout.ComputeAllyPosition(column, row, extent);
                 var kind = rosterUnit.Kind == FormationUnitKind.Wagon ? ProtectedUnitKind.Wagon : ProtectedUnitKind.Facility;
                 // 로스터 Id = 화물 섹션 Id(설계 64번 §3.2) - 화물 원장이 이 마차의 적재 물품을 찾는 키다.
-                var unit = new BattleProtectedUnit(position, ProtectedUnitTuning.MaxHp, rosterUnit.Icon, ProtectedUnitTuning.BodySize * 0.5f, kind, unitId);
+                // 최대치는 테이블, 시작값은 저장된 현재값(설계 91번 §4.1). 기록이 없으면 지금처럼 상수 최대치로 꽉 찬 채.
+                var maxHp = ProtectedUnitTuning.MaxHp;
+                float? startingHp = null;
+                if (durabilityReader != null && durabilityReader.TryGet(unitId, out var current, out var max))
+                {
+                    maxHp = max;
+                    startingHp = current;
+                }
+                var unit = new BattleProtectedUnit(position, maxHp, rosterUnit.Icon, ProtectedUnitTuning.BodySize * 0.5f, kind, unitId, startingHp);
                 result.Add(new ProtectedPlacement(unit, column, row));
             }
             return result;

@@ -21,6 +21,7 @@ namespace Game.Core
             if (cargo.Count > 0) lines.Add("화물: " + string.Join(" · ", cargo));
 
             if (s.DestroyedWagons > 0) lines.Add($"마차: 파괴 {s.DestroyedWagons}대(보유 목록에서 제거)");
+            if (s.DestroyedFacilities > 0) lines.Add($"시설: 파괴 {s.DestroyedFacilities}개(보유 목록에서 제거)");
 
             var formation = new List<string>(2);
             // 재배치 수는 표시하지 않는다(2026-10-05 사용자 결정, 기획 78번 §4-7 개정) - 팔레트 복귀만 알린다.

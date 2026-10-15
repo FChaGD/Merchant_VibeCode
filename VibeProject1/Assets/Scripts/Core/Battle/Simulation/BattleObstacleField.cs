@@ -166,7 +166,7 @@ namespace Game.Core
             return 1f;
         }
 
-        // 이동 선분을 회피 반경 안으로 지나가는 장애물 중 가장 가까운 것. 길을 막지 않는 것(파괴된 시설), 공격 대상, 멀리 있는
+        // 이동 선분을 회피 반경 안으로 지나가는 장애물 중 가장 가까운 것. 길을 막지 않는 것(BlocksMovement 거짓 - 지금은 없음, 마차·시설 잔해 모두 막는다), 공격 대상, 멀리 있는
         // 것(가장자리까지 감지 거리 초과), 이미 멀어지는 방향인 것은 무시한다.
         private bool TryFindBlockingObstacle(Vector2 position, Vector2 destination, Vector2 direction, IDamageable ignored, out ObstacleShape blocking)
         {

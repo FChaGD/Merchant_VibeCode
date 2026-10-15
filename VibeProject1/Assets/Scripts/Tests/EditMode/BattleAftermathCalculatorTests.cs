@@ -179,5 +179,30 @@ namespace Game.Core.Tests
             Assert.That(BattleAftermathSummaryFormatter.Format(all), Is.EqualTo(
                 "화물: 파손 1 · 도난 손실 2 · 회수 대상 3 · 패배 손실 4\n마차: 파괴 2대(보유 목록에서 제거)\n대열: 팔레트 복귀 6\n상행 시간 +40초"));
         }
+
+        [Test]
+        public void DestroyedFacility_InPlan_NoExtraSeconds()
+        {
+            var result = new BattleResult(BattleOutcome.Victory, BattleDefeatCause.None, BattleCargoReport.Empty, new[]
+            {
+                new ProtectedUnitRecord("Facility01#1", ProtectedUnitKind.Facility, 0f, true),
+                new ProtectedUnitRecord("Facility02#1", ProtectedUnitKind.Facility, 80f, false),
+                new ProtectedUnitRecord("Wagon01#1", ProtectedUnitKind.Wagon, 120f, false),
+            });
+
+            var plan = BattleAftermathCalculator.Plan(result, null, Array.Empty<InventoryItemInstance>(), Rolls());
+
+            CollectionAssert.AreEqual(new[] { "Facility01#1" }, plan.DestroyedFacilityIds);
+            Assert.AreEqual(0, plan.DestroyedWagonIds.Count);
+            Assert.AreEqual(0f, plan.ExtraSeconds); // 시설 파괴는 시간을 늘리지 않는다(기획 90번 §3-7)
+        }
+
+        [Test]
+        public void Formatter_FacilityLine()
+        {
+            var summary = new BattleAftermathSummary(0, 0, 0, 0, 0, 0, 0, 0f, false, destroyedFacilities: 2);
+            Assert.IsFalse(summary.IsEmpty);
+            Assert.AreEqual("시설: 파괴 2개(보유 목록에서 제거)", BattleAftermathSummaryFormatter.Format(summary));
+        }
     }
 }

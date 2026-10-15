@@ -9,6 +9,9 @@ namespace Game.Core
     /// </summary>
     public sealed class CaravanAssetProfile
     {
+        // 테이블 값이 없을 때(임포트 전 자산·테스트) 쓰는 대체값 - 내구도 테이블화 전 전투 상수(ProtectedUnitTuning.MaxHp)와 같다.
+        public const int FallbackMaxDurability = 200;
+
         public string Id { get; }
         public string Name { get; }
         public FormationUnitKind Kind { get; }
@@ -19,8 +22,10 @@ namespace Game.Core
         // 마차 적재 공간 모양(Docs/기획/63번 §3.1). 시설이거나 테이블 값이 형식에 맞지 않으면 null - 임포터가 형식을 막으므로
         // null인 마차는 임포트 전 자산뿐이다.
         public InventoryShape CargoShape { get; }
+        // 최대 내구도(Docs/기획/90번 §3-4). 항상 1 이상이다.
+        public int MaxDurability { get; }
 
-        public CaravanAssetProfile(string id, string name, FormationUnitKind kind, string kindLabel, int price, FormationAreaShape areaShape = null, InventoryShape cargoShape = null)
+        public CaravanAssetProfile(string id, string name, FormationUnitKind kind, string kindLabel, int price, FormationAreaShape areaShape = null, InventoryShape cargoShape = null, int maxDurability = 0)
         {
             Id = id;
             Name = name;
@@ -29,6 +34,7 @@ namespace Game.Core
             Price = price;
             AreaShape = areaShape ?? FormationAreaShape.Single;
             CargoShape = cargoShape;
+            MaxDurability = maxDurability > 0 ? maxDurability : FallbackMaxDurability;
         }
     }
 
@@ -78,7 +84,7 @@ namespace Game.Core
             {
                 var name = strings != null && strings.TryGetLabel(entry.Id, out var ko) ? ko : MissingText;
                 var cargoShape = kind == FormationUnitKind.Wagon && InventoryShape.TryParse(entry.CargoShape, out var parsed, out _) ? parsed : null;
-                var profile = new CaravanAssetProfile(entry.Id, name, kind, GetKindLabel(kind), entry.Price, ParseAreaShape(entry), cargoShape);
+                var profile = new CaravanAssetProfile(entry.Id, name, kind, GetKindLabel(kind), entry.Price, ParseAreaShape(entry), cargoShape, entry.MaxDurability);
                 all.Add(profile);
                 byId[entry.Id] = profile;
             }

@@ -17,19 +17,24 @@ MonoBehaviour:
     Price: 1000
     AreaShape: 1111111/1111111/1111111/1112111/1111111/1111111/1111111
     CargoShape: 
+    MaxDurability: 200
   - Id: Facility02
     Price: 1000
     AreaShape: 1111111/1111111/1111111/1112111/1111111/1111111/1111111
     CargoShape: 
+    MaxDurability: 200
   - Id: Facility03
     Price: 1000
     AreaShape: 1111111/1111111/1111111/1112111/1111111/1111111/1111111
     CargoShape: 
+    MaxDurability: 200
   - Id: Facility04
     Price: 1000
     AreaShape: 1111111/1111111/1111111/1112111/1111111/1111111/1111111
     CargoShape: 
+    MaxDurability: 200
   - Id: Facility05
     Price: 1000
     AreaShape: 1111111/1111111/1111111/1112111/1111111/1111111/1111111
     CargoShape: 
+    MaxDurability: 200

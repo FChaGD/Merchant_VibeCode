@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Game.Core
 {
@@ -8,26 +7,23 @@ namespace Game.Core
     /// 마구간(마차·시설 구매) 화면(Docs/기획/55번, 설계 56번 §7.2). 용병단 접촉 화면과 같은 목록형 구매 화면 요소를 쓰고
     /// (RosterShopElements), 모달 팝업 채널에 등록되어 재화 패널 외 숨김·공업 지구 복귀를 기존 채널이 처리한다. plain C#이며
     /// HubUIWiring이 Hub 로드마다 새로 만든다 - 골드 보유·로스터 이벤트를 구독하므로 교체 시 반드시 Dispose한다.
-    /// 마차는 교역품이 아니므로 인벤토리 그리드가 아니라 좌측 목록으로 소유 현황을 보여 준다(기획 55번 §3).
+    /// 좌측 보유 영역(목록·개별 정보·수리)은 StableOwnedSection에 위임한다(설계 91번 §5.2) - 이 패널은 구매만 맡는다.
     /// </summary>
     public sealed class StablePanel : IUIPanel, IDisposable
     {
         private const string EmptyCandidateText = "판매 품목 없음";
         private const string SoldOutText = "품절";
         private const string InsufficientFundsText = "재화가 부족합니다.";
-        // 좌측 목록의 종류 순서 - 카탈로그 목록 순서(마차 → 시설)와 같다.
-        private static readonly FormationUnitKind[] KindOrder = { FormationUnitKind.Wagon, FormationUnitKind.Facility };
 
         private readonly RosterShopElements elements;
         private readonly IGoldSpender gold;
         private readonly ICaravanAssetCandidateReader candidateReader;
         private readonly IOwnedCaravanAssetRoster roster;
-        private readonly ICaravanAssetCatalogReader catalog;
+        private readonly StableOwnedSection ownedSection; // 선택적 - 요소가 없으면 보유 영역 없이 구매만
         private readonly ICaravanAssetIconReader iconReader;
         private readonly ITripCurrentLocationReader currentLocation; // 선택적 - 없으면 마을 Id 0(재고가 없는 마을로 취급된다)
         private readonly CaravanAssetPurchaseService purchaseService;
         private readonly RosterShopCandidateList candidateList;
-        private readonly StringBuilder ownedText = new();
 
         private IReadOnlyList<CaravanAssetProfile> candidates = Array.Empty<CaravanAssetProfile>();
         private int selectedIndex = -1;
@@ -35,13 +31,13 @@ namespace Game.Core
 
         public string PanelId => UIPanelIds.Facility(TownFacilityIds.Stable);
 
-        public StablePanel(RosterShopElements elements, IGoldSpender gold, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, ICaravanAssetCatalogReader catalog, ICaravanAssetIconReader iconReader, ITownStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, IUIManager uiManager)
+        public StablePanel(RosterShopElements elements, IGoldSpender gold, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, StableOwnedSection ownedSection, ICaravanAssetIconReader iconReader, ITownStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, IUIManager uiManager)
         {
             this.elements = elements;
             this.gold = gold;
             this.candidateReader = candidateReader;
             this.roster = roster;
-            this.catalog = catalog;
+            this.ownedSection = ownedSection;
             this.iconReader = iconReader;
             this.currentLocation = currentLocation;
             purchaseService = new CaravanAssetPurchaseService(gold, roster, stockReader, stockConsumer);
@@ -63,6 +59,7 @@ namespace Game.Core
         {
             isOpen = true;
             elements.Root.SetActive(true);
+            ownedSection?.Open();
             Refresh();
         }
 
@@ -70,6 +67,7 @@ namespace Game.Core
         public void Close()
         {
             isOpen = false;
+            ownedSection?.Close();
             elements.Root.SetActive(false);
         }
 
@@ -78,6 +76,7 @@ namespace Game.Core
             gold.Changed -= HandleCurrencyChanged;
             roster.OnOwnedChanged -= HandleRosterChanged;
             candidateReader.OnCandidatesChanged -= HandleRosterChanged;
+            ownedSection?.Dispose();
         }
 
         private void HandleCurrencyChanged()
@@ -99,7 +98,6 @@ namespace Game.Core
             candidates = candidateReader.GetCandidates(CityId, TownFacilityIds.Stable);
             selectedIndex = -1;
 
-            RenderOwned();
             candidateList.Render(candidates.Count, BindRow, EmptyCandidateText);
             UpdateInfo();
         }
@@ -116,25 +114,6 @@ namespace Game.Core
 
             purchaseService.TryPurchase(candidate, CityId); // 성공 시 로스터·재고·재화 이벤트로 화면이 갱신된다.
             UpdateInfo();
-        }
-
-        // 종류별 제목("마차 2", 상한 표기 없음 - 기획 80번 §3-10)과 보유 개체 "n번 이름"(보유 순서, 기획 80번 §4-1).
-        private void RenderOwned()
-        {
-            ownedText.Clear();
-            foreach (var kind in KindOrder)
-            {
-                if (ownedText.Length > 0) ownedText.AppendLine();
-                ownedText.Append("<b>").Append(catalog.GetKindLabel(kind)).Append(' ')
-                    .Append(roster.CountOwnedOfKind(kind)).AppendLine("</b>");
-
-                foreach (var instanceId in roster.GetOwnedIds(kind))
-                {
-                    if (roster.TryGetOwned(instanceId, out var asset)) ownedText.Append("  ").AppendLine(OwnedCaravanAssetNames.Format(asset));
-                }
-            }
-
-            elements.OwnedListLabel.text = ownedText.ToString();
         }
 
         private void Select(RosterShopCandidateRowView row)

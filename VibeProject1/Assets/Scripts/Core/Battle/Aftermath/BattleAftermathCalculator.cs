@@ -6,13 +6,15 @@ namespace Game.Core
     /// <summary>전투 뒤 화물·시간 정산 계획(설계 79번 §5). 대열·보유 목록 반영은 계획에 담지 않는다 - 저장소 상태가 필요해 반영 컴포넌트가 한다.</summary>
     public sealed class BattleAftermathPlan
     {
-        public static readonly BattleAftermathPlan Empty = new(Array.Empty<string>(), Array.Empty<IInventoryItemDefinition>(), Array.Empty<string>(), 0f, 0, 0, 0, 0);
+        public static readonly BattleAftermathPlan Empty = new(Array.Empty<string>(), Array.Empty<IInventoryItemDefinition>(), Array.Empty<string>(), Array.Empty<string>(), 0f, 0, 0, 0, 0);
 
         /// <summary>환급 없이 제거할 인스턴스 Id.</summary>
         public IReadOnlyList<string> RemoveInstanceIds { get; }
         /// <summary>승리 시 임시보관에 새 인스턴스로 넣을 회수 물품(설계 79번 §15-3).</summary>
         public IReadOnlyList<IInventoryItemDefinition> Recover { get; }
         public IReadOnlyList<string> DestroyedWagonIds { get; }
+        /// <summary>파괴 시설 - 결과의 보호 유닛 기록에서 뽑는다(설계 91번 §4.2). 시간 추가에는 들어가지 않는다.</summary>
+        public IReadOnlyList<string> DestroyedFacilityIds { get; }
         public float ExtraSeconds { get; }
         public int Broken { get; }
         public int StolenLost { get; }
@@ -20,11 +22,12 @@ namespace Game.Core
         public int DefeatLost { get; }
 
         public BattleAftermathPlan(IReadOnlyList<string> removeInstanceIds, IReadOnlyList<IInventoryItemDefinition> recover, IReadOnlyList<string> destroyedWagonIds,
-            float extraSeconds, int broken, int stolenLost, int recoverable, int defeatLost)
+            IReadOnlyList<string> destroyedFacilityIds, float extraSeconds, int broken, int stolenLost, int recoverable, int defeatLost)
         {
             RemoveInstanceIds = removeInstanceIds ?? Array.Empty<string>();
             Recover = recover ?? Array.Empty<IInventoryItemDefinition>();
             DestroyedWagonIds = destroyedWagonIds ?? Array.Empty<string>();
+            DestroyedFacilityIds = destroyedFacilityIds ?? Array.Empty<string>();
             ExtraSeconds = extraSeconds;
             Broken = broken;
             StolenLost = stolenLost;
@@ -105,7 +108,14 @@ namespace Game.Core
             var continues = victory || consequence == DefeatConsequence.Flee;
             var extraSeconds = continues ? report.DestroyedWagonIds.Count * CargoLossTuning.SecondsPerDestroyedWagon : 0f;
 
-            return new BattleAftermathPlan(remove, recover, new List<string>(report.DestroyedWagonIds), extraSeconds, broken, stolenLost, recoverable, defeatLost);
+            // 파괴 시설(설계 91번 §4.2) - 화물이 없어 원장 보고서가 아니라 보호 유닛 기록에서 뽑는다. 시간 추가에는 넣지 않는다(기획 90번 §3-7).
+            var destroyedFacilities = new List<string>();
+            foreach (var unit in result.ProtectedUnits)
+            {
+                if (unit.Destroyed && unit.Kind == ProtectedUnitKind.Facility && !string.IsNullOrEmpty(unit.UnitId)) destroyedFacilities.Add(unit.UnitId);
+            }
+
+            return new BattleAftermathPlan(remove, recover, new List<string>(report.DestroyedWagonIds), destroyedFacilities, extraSeconds, broken, stolenLost, recoverable, defeatLost);
         }
     }
 }

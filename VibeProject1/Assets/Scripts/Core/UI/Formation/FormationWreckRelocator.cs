@@ -28,7 +28,7 @@ namespace Game.Core
     }
 
     /// <summary>
-    /// 전투로 파괴된 마차를 배치에서 빼고, 그 때문에 있을 수 없게 된 유닛을 가까운 칸으로 옮기거나 팔레트로 돌린다(설계 79번 §5.3, 기획 77·78번).
+    /// 전투로 파괴된 마차·시설을 배치에서 빼고, 그 때문에 있을 수 없게 된 유닛을 가까운 칸으로 옮기거나 팔레트로 돌린다(설계 79번 §5.3, 기획 77·78번).
     /// FormationAreaRules.Remove를 쓰지 않는 이유: 그쪽은 연결이 끊기면 편집 자체를 거부하는데, 파괴는 이미 일어난 일이라 거부할 수 없다(강제
     /// 경로). 끊어짐은 덩어리 수로만 돌려주고 ③ 대열 정리 단계(또는 궤주 시 마을 출발 조건)가 처리한다.
     /// - 시설 먼저, 다음 캐릭터: 시설이 대열을 넓혀 캐릭터가 들어갈 칸이 생길 수 있다. 한 유닛을 옮길 때마다 영역을 다시 계산한다.
@@ -55,14 +55,15 @@ namespace Game.Core
             }
         }
 
-        /// <param name="lookup">파괴 마차 Id도 찾을 수 있어야 한다 - 보유 목록에서 마차를 빼기 전에 만든 조회 함수를 넘긴다.</param>
-        public static WreckRelocationResult Relocate(FormationLayout layout, IReadOnlyCollection<string> removedWagonIds, Func<string, IFormationUnit> lookup,
+        /// <param name="removedAssetIds">파괴된 마차·시설 Id(설계 91번 §4.4).</param>
+        /// <param name="lookup">파괴 개체 Id도 찾을 수 있어야 한다 - 보유 목록에서 빼기 전에 만든 조회 함수를 넘긴다.</param>
+        public static WreckRelocationResult Relocate(FormationLayout layout, IReadOnlyCollection<string> removedAssetIds, Func<string, IFormationUnit> lookup,
             IReadOnlyList<FormationActivity> activities, IReadOnlyList<FormationAreaPin> pins = null)
         {
-            var removed = removedWagonIds != null ? new HashSet<string>(removedWagonIds) : new HashSet<string>();
+            var removed = removedAssetIds != null ? new HashSet<string>(removedAssetIds) : new HashSet<string>();
             activities ??= Array.Empty<FormationActivity>();
 
-            // 1. 파괴 마차 칸을 비운다.
+            // 1. 파괴 마차·시설 칸을 비운다.
             var result = layout.Clone();
             for (var slot = 0; slot < result.SlotCount; slot++)
             {
