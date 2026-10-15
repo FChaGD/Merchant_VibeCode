@@ -45,6 +45,7 @@ namespace Game.Core.Tests
             public bool TryGetItemAt(GridPosition position, out InventoryItemInstance item) => Grid.TryGetAt(null, position, out item);
             public bool TryApplyPlacements(IReadOnlyList<ItemPlacement> placements) => Grid.TryApplyPlacements(placements);
             public bool CanApplyPlacements(IReadOnlyList<ItemPlacement> placements) => Grid.CanApplyPlacements(placements);
+            public void DiscardStaged() => Grid.ClearStaged();
             public event Action OnChanged { add { } remove { } }
 
             public InventoryItemInstance Place(IInventoryItemDefinition definition, int x, int y, string sectionId = null)

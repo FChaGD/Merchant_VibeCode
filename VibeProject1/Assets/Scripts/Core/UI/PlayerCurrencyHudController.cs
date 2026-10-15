@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace Game.Core
 {
     /// <summary>
-    /// Hub 골드 HUD(Docs/설계/83번 §6.1) - 소유 골드(개인 + 적재)를 상시 표기하고, 초과 상태를 색으로 알린다. 짧게 누르면 변환 모달,
+    /// Hub 골드 HUD(Docs/설계/83번 §6.1) - 소유 골드(개인 + 적재)와 그중 적재분을 상시 표기하고, 초과 상태를 색으로 알린다. 짧게 누르면 변환 모달,
     /// 호버하거나 길게 누르면 소지 가능량 툴팁을 띄운다. 다른 패널/팝업이 열려도 가려지지 않아야 하므로(27번 §3.5) PopupExemptLayer에
     /// 둔다(설계 38번 §5). 골드 보유 서비스는 Bootstrap 상주라 Hub를 다시 방문할 때마다 이전 구독을 먼저 해제한다.
     /// </summary>
@@ -108,7 +108,8 @@ namespace Game.Core
             // 골드 보유 서비스(Bootstrap 상주)의 Changed는 Hub가 언로드된 상태에서도 발화할 수 있다 - 텍스트가 파괴됐으면 무시한다.
             if (amountText == null || goldHoldings == null) return;
 
-            amountText.text = goldHoldings.OwnedGold.ToString("N0");
+            // 합계만 보이면 개인 골드를 변환 모달까지 가야 알 수 있어 적재분을 함께 적는다(사용자 지시, 2026-10-15).
+            amountText.text = $"{goldHoldings.OwnedGold:N0} (마차 적재량 {goldHoldings.LoadedGold:N0})";
             amountText.color = goldHoldings.OwnedGold > goldHoldings.CarryCapacity ? overCapacityColor
                 : goldHoldings.PersonalGold > goldHoldings.PersonalLimit ? personalExcessColor
                 : normalColor;

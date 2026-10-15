@@ -71,5 +71,10 @@ namespace Game.Core
         }
 
         public bool CanApplyPlacements(IReadOnlyList<ItemPlacement> placements) => grid.CanApplyPlacements(placements);
+
+        public void DiscardStaged()
+        {
+            if (grid.ClearStaged()) OnChanged?.Invoke();
+        }
     }
 }

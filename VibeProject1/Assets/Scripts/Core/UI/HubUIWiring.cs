@@ -139,12 +139,12 @@ namespace Game.Core
             AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.Consumable, consumableInventory, consumableInventory, nameof(IConsumableInventoryRepository));
             AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.PersonalItem, personalItemInventory, personalItemInventory, nameof(IPersonalItemInventoryRepository));
 
-            // 임시 보관이 켜진 팝업의 저장소만 "상행 시작" 활성 조건에 넣는다(설계 40번 §5.5) - 스펙이 조건을 결정하므로
+            // 임시 보관이 켜진 팝업의 저장소만 "상행 시작" 경고·버림 대상에 넣는다(설계 40번 §5.5, 2026-10-15 비활성→경고 전환) - 스펙이 조건을 결정하므로
             // 팝업의 임시 보관 여부가 바뀌어도 여기를 고칠 필요가 없다.
-            var inventoryStagingReaders = new List<IInventoryStagingReader>();
+            var inventoryStaging = new List<IInventoryStagingDiscarder>();
             foreach (var source in inventoryPopupSources)
             {
-                if (source.Spec.HasStaging) inventoryStagingReaders.Add(source.Arrangement);
+                if (source.Spec.HasStaging) inventoryStaging.Add(source.Arrangement);
             }
 
             hubUIController.RegisterHubUI(sceneUIRoot, uiManager, sceneRevealSignal, townFacilityFilter);
@@ -155,7 +155,7 @@ namespace Game.Core
             formationPanel.RegisterFormationUI(sceneUIRoot, caravanRosterProvider, formationRepository, unitConditionRepository, uiManager);
             panelRegistrar.RegisterPopupPanel(formationPanel);
 
-            tripPanel.RegisterTripUI(sceneUIRoot, uiManager, gameManager, formationRepository, tripInfoProvider, sceneRevealSignal, currentLocationRepository, destinationAssigner, inventoryStagingReaders, worldMap, routeReader, tripDeparture, caravanRosterProvider, goldHoldings, goldDeparture);
+            tripPanel.RegisterTripUI(sceneUIRoot, uiManager, gameManager, formationRepository, tripInfoProvider, sceneRevealSignal, currentLocationRepository, destinationAssigner, inventoryStaging, worldMap, routeReader, tripDeparture, caravanRosterProvider, goldHoldings, goldDeparture);
 #if UNITY_EDITOR
             if (registrar.TryResolve<IWorldMapEditor>(out var worldMapEditor)) tripPanel.RegisterDebugMapEditor(worldMapEditor);
 #endif

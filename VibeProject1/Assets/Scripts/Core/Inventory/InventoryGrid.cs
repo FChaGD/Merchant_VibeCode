@@ -139,6 +139,14 @@ namespace Game.Core
             return stagedItems.RemoveAll(staged => staged.InstanceId == instanceId) > 0;
         }
 
+        /// <summary>임시 보관을 전부 비운다. 비울 것이 있었으면 true.</summary>
+        public bool ClearStaged()
+        {
+            if (stagedItems.Count == 0) return false;
+            stagedItems.Clear();
+            return true;
+        }
+
         public bool TryGetAt(string sectionId, GridPosition position, out InventoryItemInstance item)
         {
             if (!TryResolveSection(sectionId, out var state) || !state.Section.Shape.IsUsable(position.X, position.Y)

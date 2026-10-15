@@ -7,7 +7,7 @@ namespace Game.Core
     /// (IInventoryRepository의 TryPlaceItem/RemoveItem - 구매·매각 등 시설 쪽 소비자)과 소비자가 달라
     /// 분리했다(ISP, Docs/설계/40번 §3.3).
     /// </summary>
-    public interface IInventoryArrangement : IInventoryStagingReader
+    public interface IInventoryArrangement : IInventoryStagingDiscarder
     {
         bool TryApplyPlacements(IReadOnlyList<ItemPlacement> placements);
 

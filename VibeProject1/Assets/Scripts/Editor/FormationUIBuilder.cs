@@ -31,6 +31,8 @@ namespace Game.Core.Editor
         private const string SlotPrefabPath = PrefabFolder + "/FormationSlot.prefab";
         private const string IconPrefabPath = PrefabFolder + "/FormationUnitIcon.prefab";
         private const string RowPrefabPath = PrefabFolder + "/FormationPaletteRow.prefab";
+        private const float RowWidth = 96f;
+        private const float RowHeight = 116f;
         private const string PathLinePrefabPath = PrefabFolder + "/FormationPathLine.prefab";
         private const string TravelerIconPrefabPath = PrefabFolder + "/FormationTravelerIcon.prefab";
         private const string ActivityOverlayPrefabPath = PrefabFolder + "/FormationActivityOverlay.prefab";
@@ -107,11 +109,16 @@ namespace Game.Core.Editor
             var existing = AssetDatabase.LoadAssetAtPath<GameObject>(RowPrefabPath);
             if (existing != null)
             {
-                return existing.GetComponent<FormationPaletteRowView>();
+                // 크기 맞춤 설정은 나중에 추가됐다 - 이미 만들어진 프리팹에도 재실행 시 반영한다.
+                var contents = PrefabUtility.LoadPrefabContents(RowPrefabPath);
+                ApplyRowFitToPalette(contents);
+                PrefabUtility.SaveAsPrefabAsset(contents, RowPrefabPath);
+                PrefabUtility.UnloadPrefabContents(contents);
+                return AssetDatabase.LoadAssetAtPath<GameObject>(RowPrefabPath).GetComponent<FormationPaletteRowView>();
             }
 
             var go = new GameObject("FormationPaletteRow", typeof(RectTransform));
-            go.GetComponent<RectTransform>().sizeDelta = new Vector2(96, 116);
+            go.GetComponent<RectTransform>().sizeDelta = new Vector2(RowWidth, RowHeight);
             var canvasGroup = go.AddComponent<CanvasGroup>();
 
             var iconGo = new GameObject("Icon", typeof(RectTransform));
@@ -147,11 +154,33 @@ namespace Game.Core.Editor
             rowSo.FindProperty("countLabel").objectReferenceValue = countLabel;
             rowSo.FindProperty("canvasGroup").objectReferenceValue = canvasGroup;
             rowSo.ApplyModifiedProperties();
+            ApplyRowFitToPalette(go);
 
             var savedRowPrefab = PrefabUtility.SaveAsPrefabAsset(go, RowPrefabPath);
             Object.DestroyImmediate(go);
 
             return savedRowPrefab.GetComponent<FormationPaletteRowView>();
+        }
+
+        /// <summary>
+        /// UI가 ConstantPixelSize라 팔레트 칸 높이(화면의 10%)는 720p에서 72px인데 행은 116px 고정이라 위아래가 잘렸다(2026-10-15 확인).
+        /// 높이는 팔레트 칸에 맞춰 줄이되(가로 레이아웃이 높이를 제어, 선호 높이 116이 상한) 가로는 비율 유지로 따라가게 한다.
+        /// 행이 작아지면 개수 글자가 칸을 넘으므로 자동 크기로 줄인다.
+        /// </summary>
+        private static void ApplyRowFitToPalette(GameObject row)
+        {
+            var layoutElement = EditorUIBuilder.GetOrAddComponent<LayoutElement>(row);
+            layoutElement.preferredHeight = RowHeight;
+
+            var aspectFitter = EditorUIBuilder.GetOrAddComponent<AspectRatioFitter>(row);
+            aspectFitter.aspectMode = AspectRatioFitter.AspectMode.HeightControlsWidth;
+            aspectFitter.aspectRatio = RowWidth / RowHeight;
+
+            var countLabel = row.transform.Find("CountLabel")?.GetComponent<TMP_Text>();
+            if (countLabel == null) return;
+            countLabel.enableAutoSizing = true;
+            countLabel.fontSizeMin = 8f;
+            countLabel.fontSizeMax = 16f;
         }
 
         public static FormationSlotView GetOrCreateSlotPrefab()
@@ -603,14 +632,17 @@ namespace Game.Core.Editor
             contentRect.anchorMax = new Vector2(0f, 1f);
             contentRect.pivot = new Vector2(0f, 0.5f);
             contentRect.anchoredPosition = Vector2.zero;
+            // 세로는 뷰포트에 딱 맞춘다. 씬에 남아 있던 sizeDelta.y(100)로 Content가 뷰포트보다 100px 커서 행이 아래로 밀려 잘렸다(2026-10-15 실측).
+            contentRect.sizeDelta = new Vector2(contentRect.sizeDelta.x, 0f);
 
             var layoutGroup = EditorUIBuilder.GetOrAddComponent<HorizontalLayoutGroup>(contentGo);
             layoutGroup.childForceExpandWidth = false;
-            layoutGroup.childForceExpandHeight = true;
+            // 높이만 레이아웃이 제어해 행을 칸 높이에 맞춘다(ApplyRowFitToPalette). 가로는 행의 비율 맞춤이 정한 폭을 그대로 쓴다.
+            layoutGroup.childForceExpandHeight = false;
             layoutGroup.childControlWidth = false;
-            layoutGroup.childControlHeight = false;
+            layoutGroup.childControlHeight = true;
             layoutGroup.spacing = 8;
-            layoutGroup.padding = new RectOffset(8, 8, 8, 8);
+            layoutGroup.padding = new RectOffset(8, 8, 4, 4);
             layoutGroup.childAlignment = TextAnchor.MiddleLeft;
 
             var fitter = EditorUIBuilder.GetOrAddComponent<ContentSizeFitter>(contentGo);

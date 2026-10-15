@@ -66,9 +66,9 @@ namespace Game.Core
         private bool sceneRevealed;
 
         // 임시 보관 영역에 아이템이 있으면 "상행 시작"을 막는다(Docs/설계/40번 §5.5).
-        private IReadOnlyList<IInventoryStagingReader> inventoryStagingReaders = System.Array.Empty<IInventoryStagingReader>();
+        private IReadOnlyList<IInventoryStagingDiscarder> inventoryStaging = System.Array.Empty<IInventoryStagingDiscarder>();
 
-        public void RegisterTripUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingReader> inventoryStagingReaders, IWorldMapReader worldMap, ITripRouteReader routeReader, ITripDeparture tripDeparture, ICaravanRosterProvider rosterProvider, IGoldHoldingsReader goldHoldings, IGoldDepartureSettlement goldDeparture)
+        public void RegisterTripUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingDiscarder> inventoryStaging, IWorldMapReader worldMap, ITripRouteReader routeReader, ITripDeparture tripDeparture, ICaravanRosterProvider rosterProvider, IGoldHoldingsReader goldHoldings, IGoldDepartureSettlement goldDeparture)
         {
             this.uiManager = uiManager;
             this.gameManager = gameManager;
@@ -85,10 +85,8 @@ namespace Game.Core
             this.goldHoldings = goldHoldings;
             this.goldDeparture = goldDeparture;
 
-            // 저장소는 Bootstrap 상주라 Hub를 반복 방문해도 구독이 누적되지 않게 이전 구독부터 해제한다.
-            foreach (var reader in this.inventoryStagingReaders) reader.OnChanged -= RefreshStartButtonInteractable;
-            this.inventoryStagingReaders = inventoryStagingReaders ?? System.Array.Empty<IInventoryStagingReader>();
-            foreach (var reader in this.inventoryStagingReaders) reader.OnChanged += RefreshStartButtonInteractable;
+            // 임시 보관은 버튼 활성 조건이 아니라 출발 경고로 다룬다(2026-10-15) - 출발 시점에만 읽으므로 변경 구독이 필요 없다.
+            this.inventoryStaging = inventoryStaging ?? System.Array.Empty<IInventoryStagingDiscarder>();
 
             // 이전 Hub 방문의 지도 표시는 파괴된 씬 오브젝트를 가리키므로 버린다.
             mapPresenter?.Dispose();
@@ -186,7 +184,7 @@ namespace Game.Core
 
             var connected = IsFormationConnected();
             var hasDestination = destinationAssigner != null && destinationAssigner.IsAssigned;
-            startButton.interactable = sceneRevealed && hasDestination && !HasStagedInventoryItems() && connected;
+            startButton.interactable = sceneRevealed && hasDestination && connected;
 
             // 안내 라벨은 선택 요소 - 같은 이유로 파괴됐을 수 있어 Unity null 비교로 걸러낸다.
             if (disconnectedNoticeLabel != null)
@@ -224,13 +222,11 @@ namespace Game.Core
             return false;
         }
 
-        private bool HasStagedInventoryItems()
+        private int CountStagedItems()
         {
-            foreach (var reader in inventoryStagingReaders)
-            {
-                if (reader.StagedItems.Count > 0) return true;
-            }
-            return false;
+            var count = 0;
+            foreach (var staging in inventoryStaging) count += staging.StagedItems.Count;
+            return count;
         }
 
         private bool TryBind(SceneUIRoot sceneUIRoot)
@@ -344,11 +340,12 @@ namespace Game.Core
             panelRoot.SetActive(false);
         }
 
-        // 경고는 독립 판정·순차 표시한다(기획 82번 E4·E5, 설계 83번 §6.3). 모두 확인해야 초과분을 버리고 출발하며, 어느 단계든 취소하면
-        // 아무것도 바꾸지 않는다. 연결 조건(버튼 비활성)과는 별개다(기획 78 §4-35). 대화상자가 없으면(인스톨러 미실행) 경고 없이 출발한다.
+        // 경고는 독립 판정·순차 표시한다(기획 82번 E4·E5, 설계 83번 §6.3). 모두 확인해야 임시 보관 물류품·초과 골드를 버리고 출발하며, 어느 단계든
+        // 취소하면 아무것도 바꾸지 않는다. 연결 조건(버튼 비활성)과는 별개다(기획 78 §4-35). 대화상자가 없으면(인스톨러 미실행) 경고 없이 출발한다.
+        // 임시 보관은 예전엔 버튼을 이유 없이 비활성화했다 - 마지막 마차가 사라지면 다시 실을 곳이 없어 출발이 막혀 경고+버림으로 바꿨다(2026-10-15).
         private void StartTrip(IGameManager gameManager)
         {
-            var warnings = TripDepartureWarnings.Collect(HasAnyPlacedUnit(), goldHoldings?.ExcessGold ?? 0, goldHoldings?.PersonalLimit ?? 0);
+            var warnings = TripDepartureWarnings.Collect(HasAnyPlacedUnit(), CountStagedItems(), goldHoldings?.ExcessGold ?? 0, goldHoldings?.PersonalLimit ?? 0);
             ConfirmWarningsThenDepart(warnings, 0, gameManager);
         }
 
@@ -356,6 +353,7 @@ namespace Game.Core
         {
             if (index >= warnings.Count || departureConfirmDialog == null)
             {
+                foreach (var staging in inventoryStaging) staging.DiscardStaged();
                 goldDeparture?.DiscardExcess();
                 Depart(gameManager);
                 return;

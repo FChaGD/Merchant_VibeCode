@@ -10,27 +10,40 @@ namespace Game.Core.Tests
         [Test]
         public void Collect_NothingToWarn_Empty()
         {
-            Assert.AreEqual(0, TripDepartureWarnings.Collect(true, 0, 500).Count);
+            Assert.AreEqual(0, TripDepartureWarnings.Collect(true, 0, 0, 500).Count);
         }
 
         [Test]
         public void Collect_AtLimit_NoGoldWarning()
         {
             // ExcessGold는 개인 골드가 정확히 500이면 0이다.
-            Assert.AreEqual(0, TripDepartureWarnings.Collect(true, 0, 500).Count);
+            Assert.AreEqual(0, TripDepartureWarnings.Collect(true, 0, 0, 500).Count);
         }
 
         [Test]
         public void Collect_GoldOnly_ExactText()
         {
-            CollectionAssert.AreEqual(new[] { GoldText700 }, TripDepartureWarnings.Collect(true, 700, 500));
+            CollectionAssert.AreEqual(new[] { GoldText700 }, TripDepartureWarnings.Collect(true, 0, 700, 500));
         }
 
         [Test]
         public void Collect_Both_EmptyFormationFirst()
         {
-            CollectionAssert.AreEqual(new[] { TripDepartureWarnings.EmptyFormation, GoldText700 }, TripDepartureWarnings.Collect(false, 700, 500));
+            CollectionAssert.AreEqual(new[] { TripDepartureWarnings.EmptyFormation, GoldText700 }, TripDepartureWarnings.Collect(false, 0, 700, 500));
         }
+        [Test]
+        public void Collect_Staged_ExactText()
+        {
+            CollectionAssert.AreEqual(new[] { "임시 보관소의 물류품 3개가 버려집니다. 그래도 출발하시겠습니까?" }, TripDepartureWarnings.Collect(true, 3, 0, 500));
+        }
+
+        [Test]
+        public void Collect_All_OrderIsFormationThenStagedThenGold()
+        {
+            var warnings = TripDepartureWarnings.Collect(false, 2, 700, 500);
+            CollectionAssert.AreEqual(new[] { TripDepartureWarnings.EmptyFormation, TripDepartureWarnings.FormatStaged(2), GoldText700 }, warnings);
+        }
+
 
         [Test]
         public void FormatGold_UsesGivenLimit_WithThousandsSeparator()

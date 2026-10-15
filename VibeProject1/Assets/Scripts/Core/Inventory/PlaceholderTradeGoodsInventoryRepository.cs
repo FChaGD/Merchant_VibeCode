@@ -125,13 +125,7 @@ namespace Game.Core
 
         public void DiscardStaged()
         {
-            if (grid.StagedItems.Count == 0) return;
-
-            var stagedIds = new List<string>(grid.StagedItems.Count);
-            foreach (var staged in grid.StagedItems) stagedIds.Add(staged.InstanceId);
-            foreach (var instanceId in stagedIds) grid.Remove(instanceId);
-
-            OnChanged?.Invoke();
+            if (grid.ClearStaged()) OnChanged?.Invoke();
         }
 
         private void HandleOwnedChanged()

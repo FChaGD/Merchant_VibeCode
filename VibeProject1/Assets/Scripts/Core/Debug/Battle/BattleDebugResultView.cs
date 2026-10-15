@@ -27,6 +27,11 @@ namespace Game.Core.DebugTools
 
             var resettable = GetComponent<IResettableBattleSimulation>();
             if (resettable != null) resettable.OnReset += () => simulation = null;
+
+            // BattleManager는 Bootstrap 상주라 실전투가 끝나도 참조가 남으면 Field 이동 중·Hub에서도 버튼이 그려진다(2026-10-15 확인).
+            // 실전투에는 리셋이 없으므로 전투 종료 시 지워 전투 중에만 보이게 한다.
+            var resultSource = GetComponent<IBattleResultSource>();
+            if (resultSource != null) resultSource.OnBattleEnded += _ => simulation = null;
         }
 
         private void OnGUI()
