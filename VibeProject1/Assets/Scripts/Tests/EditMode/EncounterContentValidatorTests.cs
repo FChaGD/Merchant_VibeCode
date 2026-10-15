@@ -36,7 +36,7 @@ ghost: 누구?
             // 선택지 앞 줄의 #ask는 선택 사항이다 - Yarn이 그 줄에 lastline을 자동으로 붙인다.
             var nodes = YarnSourceScanner.Scan(@"title: N
 ---
-merc_a: 질문?
+merc_a: 질문? #left
 -> 예
     merc_a: 좋아.
 -> 아니오
@@ -59,6 +59,33 @@ merc_a: 질문?
 -> (무응답) #timeout
 ===");
             CollectionAssert.IsEmpty(EncounterContentValidator.ValidateScripts(nodes, _ => true));
+        }
+
+        [Test]
+        public void Scripts_SpeakerFirstLineNeedsSide()
+        {
+            var nodes = YarnSourceScanner.Scan(@"title: N
+---
+merc_a: 첫 대사
+merc_a: 둘째 대사 #left
+===");
+            var errors = EncounterContentValidator.ValidateScripts(nodes, _ => true);
+            Assert.AreEqual(1, errors.Count, string.Join("\n", errors));
+            StringAssert.Contains("merc_a", errors[0]);
+        }
+
+        [Test]
+        public void Scripts_TwoSpeakersOnSameSide_IsReported()
+        {
+            var nodes = YarnSourceScanner.Scan(@"title: N
+---
+merc_a: 하나 #left
+merc_b: 둘 #left
+서술 줄은 자리가 없다.
+===");
+            var errors = EncounterContentValidator.ValidateScripts(nodes, _ => true);
+            Assert.AreEqual(1, errors.Count, string.Join("\n", errors));
+            StringAssert.Contains("merc_b", errors[0]);
         }
     }
 }

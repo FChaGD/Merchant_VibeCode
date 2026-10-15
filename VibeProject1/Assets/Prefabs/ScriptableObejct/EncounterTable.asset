@@ -13,5 +13,38 @@ MonoBehaviour:
   m_Name: EncounterTable
   m_EditorClassIdentifier: Game.Core::Game.Core.EncounterTableAsset
   events: []
-  dialogues: []
+  dialogues:
+  - Id: D1
+    YarnNode: D1_Departure
+    Occurrence: 1
+    Trigger: 1
+    Speakers:
+    - Warrior01
+    Weight: 100
+    Conditions: []
+  - Id: D2
+    YarnNode: D2_AfterBattle
+    Occurrence: 1
+    Trigger: 2
+    Speakers:
+    - Warrior01
+    - Archer01
+    Weight: 100
+    Conditions: []
+  - Id: D3
+    YarnNode: D3_RandomQuestion
+    Occurrence: 0
+    Trigger: 0
+    Speakers:
+    - Archer01
+    Weight: 100
+    Conditions: []
+  - Id: D4
+    YarnNode: D4_SmallTalk
+    Occurrence: 3
+    Trigger: 0
+    Speakers:
+    - Warrior01
+    Weight: 100
+    Conditions: []
   people: []

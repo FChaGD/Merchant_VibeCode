@@ -1,0 +1,33 @@
+title: D1_Departure
+---
+Warrior01: 출발이다. 다들 짐은 단단히 묶었지? #left
+===
+
+title: D2_AfterBattle
+---
+Warrior01: 다친 사람은 없나? #left
+Archer01: 화살이 좀 모자라겠어요. #right
+Warrior01: 다음 마을에서 채우자.
+===
+
+title: D3_RandomQuestion
+---
+<<declare $d3_answer_fast = false>>
+<<declare $d3_answer_profit = false>>
+<<declare $d3_no_answer = false>>
+Archer01: 단장님, 이번 길은 왜 이쪽으로 잡으셨어요? #right
+-> 이쪽이 더 빠르다.
+    <<set $d3_answer_fast to true>>
+    Archer01: 역시 계산이 빠르시네요.
+-> 물건값이 좋은 곳으로 간다.
+    <<set $d3_answer_profit to true>>
+    Archer01: 장사꾼다운 대답이군요.
+-> (무응답) #timeout
+    <<set $d3_no_answer to true>>
+    Archer01: ...대답하기 싫으신가 보네요.
+===
+
+title: D4_SmallTalk
+---
+Warrior01: 오늘은 걷기 좋은 날씨군. #left
+===

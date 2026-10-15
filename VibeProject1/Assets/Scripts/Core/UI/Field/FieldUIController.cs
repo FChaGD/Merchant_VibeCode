@@ -29,6 +29,7 @@ namespace Game.Core
         private FieldTripLegCoordinator legCoordinator;
         private Button formationButton;
         private Button tacticsButton;
+        private FieldManualTalkView manualTalkView; // 상행 대화 "대화" 버튼(설계 88 §6) - 없어도 진행된다
         private FieldEncounterWarningView warningView;
         private RectTransform movementViewRoot;
         private RectTransform battleViewRoot;
@@ -151,6 +152,11 @@ namespace Game.Core
             {
                 tacticsButton.interactable = interactable;
             }
+
+            if (manualTalkView != null)
+            {
+                manualTalkView.SetTopLevelAllowed(interactable);   // "대화" 버튼도 정비창·방향성 지시와 같은 조건으로 막는다(설계 88 §4.1)
+            }
         }
 
         private void HandleProgressChanged(float progress)
@@ -219,6 +225,12 @@ namespace Game.Core
             {
                 WarnMissing(FieldUIElementIds.TacticsButton);
                 return false;
+            }
+
+            // 수동 걸기는 없어도 상행은 진행된다(인스톨러 미실행) - 경고만 한다.
+            if (!sceneUIRoot.TryGetElement(FieldDialogueUIElementIds.ManualTalk, out manualTalkView))
+            {
+                WarnMissing(FieldDialogueUIElementIds.ManualTalk + " (Tools > Game > Build Field Scene)");
             }
 
             if (!sceneUIRoot.TryGetElement<FieldEncounterWarningView>(FieldUIElementIds.EncounterWarning, out warningView))

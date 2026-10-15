@@ -95,6 +95,7 @@ namespace Game.Core
             var tripSignals = FieldTripSignals.Resolve(registrar);
 
             fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository, currentLocationRepository, destinationAssigner, fieldActivityRepository, tripItinerary, worldMap, aftermathApplier, cargoSettlement, repairMode, cargoRecoveryPanel, tripEndProcessor, dateAccrual, tripSignals);
+            BindTripDialogue(registrar, sceneUIRoot);
 
             // Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 다음 전환 때 슬라이드시킬 대상을
             // 등록한다. 예전엔 이동 뷰 루트만 등록해 전투 뷰/패널/결과 팝업이 전환 중 제자리에 남았다 - 이제
@@ -133,6 +134,19 @@ namespace Game.Core
 
             cargoRecoveryPanel = new FieldCargoRecoveryPanel(elements, doneButton, dialog, inventory, settlement);
             panelRegistrar.RegisterPopupPanel(cargoRecoveryPanel);
+        }
+
+        // 상행 대화 화면(설계 88 §2 씬 연결) - 진행자는 Bootstrap 상주라 Field를 로드할 때마다 이번 씬의 화면으로 바꿔 끼운다.
+        private static void BindTripDialogue(IDependencyResolver registrar, SceneUIRoot sceneUIRoot)
+        {
+            if (!registrar.TryResolve<ITripDialogueViewBinder>(out var binder)) return;
+            var hasView = sceneUIRoot.TryGetElement(FieldDialogueUIElementIds.Root, out FieldDialogueView dialogueView);
+            var hasManual = sceneUIRoot.TryGetElement(FieldDialogueUIElementIds.ManualTalk, out FieldManualTalkView manualTalkView);
+            if (!hasView || !hasManual)
+            {
+                Debug.LogWarning("상행 대화 화면 요소가 없어 대화가 표시되지 않는다(Tools > Game > Build Field Scene).");
+            }
+            binder.BindViews(hasView ? dialogueView : null, hasManual ? manualTalkView : null);
         }
 
         private void OnDestroy()

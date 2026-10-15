@@ -27,7 +27,6 @@ namespace Game.Core.DebugTools
         private ITripCheckSignal checks;
         private IDialogueScriptRunner scriptRunner;
         private readonly List<string> smokeLog = new();
-        private bool expanded;
         private bool isFieldLoaded;
         private Vector2 scroll;
 
@@ -71,8 +70,9 @@ namespace Game.Core.DebugTools
             if (!isFieldLoaded) return;
 
             var toggle = new Rect(Screen.width - ToggleWidth - Margin, Margin, ToggleWidth, ToggleHeight);
-            if (GUI.Button(toggle, expanded ? "이력 닫기" : "이력")) expanded = !expanded;
-            if (!expanded) return;
+            var expanded = NarrativeDebugPanels.Expanded == NarrativeDebugPanels.History;
+            if (GUI.Button(toggle, expanded ? "이력 닫기" : "이력")) NarrativeDebugPanels.Toggle(NarrativeDebugPanels.History);
+            if (NarrativeDebugPanels.Expanded != NarrativeDebugPanels.History) return;
 
             var area = new Rect(Screen.width - PanelWidth - Margin, Screen.height * PanelTopRatio, PanelWidth, PanelHeight);
             GUI.Box(area, GUIContent.none);

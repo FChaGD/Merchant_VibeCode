@@ -6,7 +6,7 @@ namespace Game.Core
     /// <summary>
     /// 콘텐츠 정합성 검사(설계 87 §9). 테이블: YarnNode 존재. 대본: 화자 Id 존재, 선택지 묶음마다 `#timeout` 0~1개. 선택지 묶음 = 같은 들여쓰기의 연속
     /// 선택지(사이의 더 깊은 줄은 선택지 본문). 선택지 앞 질문 줄의 `#ask`는 요구하지 않는다 - Yarn이 그 줄에 lastline을 자동으로 붙인다.
-    /// 좌우 자리 규칙(88)·명령·#choice 규칙(89)은 각 설계 제작 때 여기에 더한다.
+    /// 좌우 자리(88 §5.3): 화자마다 첫 대사에 `#left`/`#right`, 한 노드에서 같은 자리를 두 화자가 쓰지 않는다. 명령·#choice 규칙(89)은 89 제작 때 더한다.
     /// </summary>
     public static class EncounterContentValidator
     {
@@ -44,8 +44,37 @@ namespace Game.Core
                     foreach (var option in OptionGroup(lines, i)) if (option.Tags.Contains(DialogueTags.Timeout)) timeouts++;
                     if (timeouts > 1) errors.Add($"{node.Title}:{line.LineNumber} 선택지 묶음에 #timeout이 {timeouts}개 - 0~1개여야 한다.");
                 }
+                ValidateSides(node, errors);
             }
             return errors;
+        }
+
+        // 화자 자리(설계 88 §5.3). 줄 순서(파일 순서)로 첫 대사를 본다 - 선택지 본문 안의 첫 대사도 같다.
+        private static void ValidateSides(YarnScriptNode node, List<string> errors)
+        {
+            var sideOf = new Dictionary<string, string>();
+            foreach (var line in node.Lines)
+            {
+                if (line.IsOption || line.IsCommand || line.SpeakerId.Length == 0 || sideOf.ContainsKey(line.SpeakerId)) continue;
+
+                var side = line.Tags.Contains(DialogueTags.Left) ? DialogueTags.Left
+                    : line.Tags.Contains(DialogueTags.Right) ? DialogueTags.Right
+                    : null;
+                if (side == null)
+                {
+                    errors.Add($"{node.Title}:{line.LineNumber} 화자 '{line.SpeakerId}'의 첫 대사에 #left 또는 #right가 없다.");
+                    sideOf[line.SpeakerId] = string.Empty;
+                    continue;
+                }
+
+                foreach (var pair in sideOf)
+                {
+                    if (pair.Value != side) continue;
+                    errors.Add($"{node.Title}:{line.LineNumber} 화자 '{line.SpeakerId}'가 '{pair.Key}'와 같은 자리(#{side})를 쓴다.");
+                    break;
+                }
+                sideOf[line.SpeakerId] = side;
+            }
         }
 
         // 앞쪽에 같은 들여쓰기의 선택지가 있고 그 사이가 전부 더 깊은 줄(선택지 본문)이면 같은 묶음의 이어지는 선택지다.

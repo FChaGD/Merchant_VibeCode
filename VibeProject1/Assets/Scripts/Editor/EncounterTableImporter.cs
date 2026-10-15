@@ -14,10 +14,15 @@ namespace Game.Core.Editor
     public static class EncounterTableImporter
     {
         private const int DefaultWeight = 100;
+        public const string YarnProjectPath = "Assets/Content/Dialogue/Encounter.yarnproject";
 
         [MenuItem("Tools/Game/Table/Import Encounter")]
         public static void Import()
         {
+            // Yarn 프로젝트는 .yarn 파일을 새로 추가해도 스스로 다시 컴파일되지 않아 새 노드가 실행 중 "없음"이 된다(설계 88 제작 중 확인). 대본은 엑셀과 함께
+            // 콘텐츠이므로 테이블 임포트(Play 시 자동 임포트 포함)마다 프로젝트를 다시 컴파일해 둘이 항상 같은 시점의 내용을 보게 한다.
+            if (File.Exists(YarnProjectPath)) AssetDatabase.ImportAsset(YarnProjectPath, ImportAssetOptions.ForceUpdate);
+
             var workbookPath = TablePath(EncounterTableTemplateWriter.RelativePath);
             if (!File.Exists(workbookPath))
             {

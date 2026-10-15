@@ -77,6 +77,7 @@ namespace Game.Core.Editor
             EditorUIBuilder.GetOrAddComponent<TripHaltCoordinator>(fieldManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<TripCheckClock>(fieldManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<TripMilestoneSignal>(fieldManager.gameObject);
+            EditorUIBuilder.GetOrAddComponent<TripDialogueCoordinator>(fieldManager.gameObject); // 상행 대화 진행자(설계 88 §2)
             WireUIManagerPanels(uiManager);
             var dataRepositories = BuildUIManagerDataRepositories(root, uiManager);
             var dialogueScriptRunner = WireDialogueRunner(root);
@@ -368,9 +369,9 @@ namespace Game.Core.Editor
             var storage = EditorUIBuilder.GetOrAddComponent<YarnEncounterVariableStorage>(go);
             var bridge = EditorUIBuilder.GetOrAddComponent<YarnDialoguePresenterBridge>(go);
 
-            var project = AssetDatabase.LoadAssetAtPath<Yarn.Unity.YarnProject>("Assets/Content/Dialogue/Encounter.yarnproject");
+            var project = AssetDatabase.LoadAssetAtPath<Yarn.Unity.YarnProject>(EncounterTableImporter.YarnProjectPath);
             if (project != null) runner.SetProject(project);
-            else Debug.LogWarning("Assets/Content/Dialogue/Encounter.yarnproject가 없어 DialogueRunner에 Yarn 프로젝트를 연결하지 못했다.");
+            else Debug.LogWarning($"{EncounterTableImporter.YarnProjectPath}가 없어 DialogueRunner에 Yarn 프로젝트를 연결하지 못했다.");
             runner.VariableStorage = storage;
             runner.DialoguePresenters = new Yarn.Unity.DialoguePresenterBase[] { bridge };
             runner.autoStart = false;

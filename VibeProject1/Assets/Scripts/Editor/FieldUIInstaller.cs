@@ -58,6 +58,8 @@ namespace Game.Core.Editor
             BuildFormationButton(movementViewRoot.transform);
             BuildTacticsButton(movementViewRoot.transform);
             BuildEncounterWarning(movementViewRoot.transform);
+            // 상행 대화 말풍선·스탠딩·수동 걸기(Docs/설계/88번 §5~§7) - 클릭 받기를 배경 바로 뒤에 두므로 배경 Transform을 넘긴다.
+            FieldDialogueUIBuilder.Build(movementViewRoot.transform, movementViewRoot.transform.Find("Background"));
 
             // BattleView/ResultPopup은 MovementView와 형제로 ContentRoot 바로 아래 둔다 - 결과 팝업은
             // 이동 뷰(도착)/전투 뷰(승패) 양쪽에서 모두 떠야 해서 어느 한쪽 하위에 종속시키지 않는다.
