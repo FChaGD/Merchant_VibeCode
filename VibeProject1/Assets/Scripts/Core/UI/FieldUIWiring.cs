@@ -87,16 +87,14 @@ namespace Game.Core
             registrar.TryResolve<IDeceasedCharacterRecorder>(out var deceasedRecorder);
             var tripEndProcessor = new TripEndProcessor(caravanRosterProvider, unitConditionRepository, formationRepository, hiredCharacterRemover, deceasedRecorder);
 
-            // 게임 날짜 정산(Docs/설계/85번 §3.3) - 날짜 매니저가 없으면(인스톨러 미실행) 날짜 없이 상행만 진행한다.
-            registrar.TryResolve<IDateAdvancer>(out var dateAdvancer);
-            registrar.TryResolve<ITripTravelSettingsReader>(out var travelSettings);
-            var dateAccrual = new TripDateAccrual(sessionState, dateAdvancer, travelSettings);
+            // 궤주 날짜 정산(설계 93 §4.4) - 이동 중 날짜 진행은 FieldManager의 날짜 시계가 스스로 한다. 없으면(Bootstrap 미재빌드) 날짜 없이 진행한다.
+            registrar.TryResolve<ITripDayRout>(out var dayRout);
 
             // 상행 정지 조율·계기 신호(설계 87번 §6) - FieldManager가 없으면(Bootstrap 미재빌드) 둘 다 null, 조율자들이 예전 동작으로 물러난다.
             var tripSignals = FieldTripSignals.Resolve(registrar);
             registrar.TryResolve<ICurrentLegDifficulty>(out var legDifficulty); // 구간 라벨 등급명 갱신(설계 89 §4.3)
 
-            fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository, currentLocationRepository, destinationAssigner, fieldActivityRepository, tripItinerary, worldMap, aftermathApplier, cargoSettlement, repairMode, cargoRecoveryPanel, tripEndProcessor, dateAccrual, tripSignals, legDifficulty);
+            fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository, currentLocationRepository, destinationAssigner, fieldActivityRepository, tripItinerary, worldMap, aftermathApplier, cargoSettlement, repairMode, cargoRecoveryPanel, tripEndProcessor, dayRout, tripSignals, legDifficulty);
             BindMovementViewHider(registrar, fieldUIController.MovementViewRoot);
             BindTripDialogue(registrar, sceneUIRoot);
             BindEventEncounter(registrar, sceneUIRoot, uiManager, panelRegistrar, fieldUIController, formationPanel.GetComponent<IFormationViewOnlyMode>());

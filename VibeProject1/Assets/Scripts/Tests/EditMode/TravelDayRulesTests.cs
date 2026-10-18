@@ -19,17 +19,12 @@ namespace Game.Core.Tests
         }
 
         [Test]
-        public void ToRoutDays_AppliesMultiplierThenFloors()
+        public void RoutExtraRatio_IsMultiplierMinusOne()
         {
-            Assert.AreEqual(5, TravelDayRules.ToRoutDays(Settings, 100f)); // 150초
-            Assert.AreEqual(0, TravelDayRules.ToRoutDays(Settings, 19f));  // 28.5초
-        }
-
-        [Test]
-        public void PlanningExample_ArrivalThenRout_IsEightDays()
-        {
-            // 기획 84 §4.2 예시: 1구간 90초 도착 + 2구간 100초 궤주.
-            Assert.AreEqual(8, TravelDayRules.ToDays(Settings, 90f) + TravelDayRules.ToRoutDays(Settings, 100f));
+            Assert.AreEqual(0.5f, TravelDayRules.RoutExtraRatio(Settings), 1e-5f);
+            var low = TripTravelSettings.Default();
+            low.RoutDayMultiplier = 0.8f;
+            Assert.AreEqual(0f, TravelDayRules.RoutExtraRatio(low), "1 미만이면 0");
         }
 
         [Test]
@@ -40,7 +35,8 @@ namespace Game.Core.Tests
             broken.SecondsPerDay = 0f;
             broken.RoutDayMultiplier = -1f;
             Assert.AreEqual(3, TravelDayRules.ToDays(broken, 100f));
-            Assert.AreEqual(5, TravelDayRules.ToRoutDays(broken, 100f));
+            Assert.AreEqual(0.5f, TravelDayRules.RoutExtraRatio(broken), 1e-5f);
+            Assert.AreEqual(30f, TravelDayRules.SecondsPerDay(broken));
             Assert.AreEqual(3, TravelDayRules.ToDays(null, 100f));
         }
     }

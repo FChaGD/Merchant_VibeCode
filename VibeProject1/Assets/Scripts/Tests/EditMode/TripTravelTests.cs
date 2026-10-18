@@ -12,10 +12,10 @@ namespace Game.Core.Tests
 
         private static float Seconds(int minutes, int seconds) => minutes * 60 + seconds;
 
-        // 기획 75번 §4.1 예시(난이도 1 / 50 / 100).
-        [TestCase(329f, 1, 1, 46)]
-        [TestCase(329f, 50, 2, 4)]
-        [TestCase(329f, 100, 2, 22)]
+        // 기획 75번 §4.1 예시(난이도 1 / 50 / 100). 짧음은 2026-10-18 개정값(20초 + 160초 폭)으로 다시 계산했다.
+        [TestCase(329f, 1, 1, 28)]
+        [TestCase(329f, 50, 1, 46)]
+        [TestCase(329f, 100, 2, 4)]
         [TestCase(731f, 1, 5, 38)]
         [TestCase(731f, 50, 5, 56)]
         [TestCase(731f, 100, 6, 14)]
@@ -30,7 +30,7 @@ namespace Game.Core.Tests
         [Test]
         public void Duration_BandRangesAndBoundaries()
         {
-            Assert.AreEqual(60f, TripTravelRules.ComputeDurationSeconds(Settings, 0f, 1, false), 0.01f);
+            Assert.AreEqual(20f, TripTravelRules.ComputeDurationSeconds(Settings, 0f, 1, false), 0.01f, "짧음 최소 20초(기획 75 개정)");
             Assert.AreEqual(180f, TripTravelRules.ComputeDurationSeconds(Settings, 599.999f, 100, false), 0.1f);
             Assert.AreEqual(300f, TripTravelRules.ComputeDurationSeconds(Settings, 600f, 1, false), 0.01f, "600은 중간");
             Assert.AreEqual(480f, TripTravelRules.ComputeDurationSeconds(Settings, 1099.999f, 100, false), 0.1f);
@@ -108,17 +108,35 @@ namespace Game.Core.Tests
         }
 
         [Test]
-        public void EstimatedDays_FloorPerLeg_TotalIsSumOfLegs()
+        public void EstimatedDays_FloorPerLeg_TotalIsFloorOfTotalSeconds()
         {
             Assert.IsTrue(Planner(LineMap()).TryPlan(1, 3, out var plan));
             var settings = TripTravelSettings.Default();
-            var sum = 0;
             foreach (var leg in plan.Legs)
             {
                 Assert.AreEqual(TravelDayRules.ToDays(settings, leg.DurationSeconds), leg.EstimatedDays);
-                sum += leg.EstimatedDays;
             }
-            Assert.AreEqual(sum, plan.TotalEstimatedDays, "합계는 총 초가 아니라 구간 일수의 합");
+            Assert.AreEqual(TravelDayRules.ToDays(settings, plan.TotalDurationSeconds), plan.TotalEstimatedDays, "합계는 구간 일수의 합이 아니라 총 초 환산(기획 92 §3-7)");
+        }
+
+        [Test]
+        public void TotalEstimatedDays_CarriesRemainderAcrossLegs()
+        {
+            // 87초 구간 2개 → 구간 2일·2일, 합계 174초 = 5일(기획 92 §3-7 예시).
+            var legs = new List<TripLeg>
+            {
+                new(1, 2, 100f, 50, false, "짧음", "보통", 87f, 2f, 2),
+                new(2, 3, 100f, 50, false, "짧음", "보통", 87f, 2f, 2),
+            };
+            Assert.AreEqual(5, new TripPlan(legs, TripTravelSettings.Default()).TotalEstimatedDays);
+        }
+
+        [TestCase(0, "당일 도착")]
+        [TestCase(1, "약 1일")]
+        [TestCase(5, "약 5일")]
+        public void SummaryDaysText_ZeroIsSameDay(int days, string expected)
+        {
+            Assert.AreEqual(expected, TripPlanSummaryProvider.FormatDays(days));
         }
 
         private sealed class FixedPairDelta : ICityPairDifficultyReader

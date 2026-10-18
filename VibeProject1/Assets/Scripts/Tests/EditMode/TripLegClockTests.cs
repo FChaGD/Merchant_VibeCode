@@ -65,5 +65,26 @@ namespace Game.Core.Tests
             clock.Rebase(5f);
             Assert.Greater(clock.DurationSeconds, 0f);
         }
+
+        [Test]
+        public void Tick_ReturnsMoved_ClampedAtDuration()
+        {
+            var clock = new TripLegClock(30f);
+            clock.Begin(100f);
+            Assert.AreEqual(95f, clock.Tick(95f), 1e-4f);
+            Assert.AreEqual(5f, clock.Tick(10f), 1e-4f, "도착 프레임 초과분은 이동이 아니다");
+            Assert.AreEqual(0f, clock.Tick(1f), 1e-4f);
+            Assert.AreEqual(0f, clock.Tick(-1f), 1e-4f);
+        }
+
+        [Test]
+        public void Tick_AfterShortenToElapsed_ReturnsZero()
+        {
+            var clock = new TripLegClock(30f);
+            clock.Begin(100f);
+            clock.Tick(40f);
+            clock.Shorten(100f);        // 남은 시간 0
+            Assert.AreEqual(0f, clock.Tick(1f), 1e-4f);
+        }
     }
 }

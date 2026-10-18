@@ -20,16 +20,14 @@ namespace Game.Core
         private readonly FieldProgressGaugeView gaugeView;
         private readonly FieldLegArrivalNoticeView noticeView;
         private readonly Action onTripArrived;
-        private readonly TripDateAccrual dateAccrual; // 선택적 - 없으면 날짜 없이 진행
         private readonly ITripMilestoneSink milestones; // 선택적 - 중간 도시 도착 계기(설계 87번 §6.4)
         private readonly ICurrentLegDifficulty legDifficulty; // 선택적 - 없으면 계획 등급명(설계 89 §4.3)
 
         public FieldTripLegCoordinator(ISessionState sessionState, ITripItinerary itinerary, ITripCurrentLocationRepository currentLocation, IWorldMapReader worldMap,
-            FieldProgressGaugeView gaugeView, FieldLegArrivalNoticeView noticeView, Action onTripArrived, TripDateAccrual dateAccrual, ITripMilestoneSink milestones,
+            FieldProgressGaugeView gaugeView, FieldLegArrivalNoticeView noticeView, Action onTripArrived, ITripMilestoneSink milestones,
             ICurrentLegDifficulty legDifficulty = null)
         {
             this.legDifficulty = legDifficulty;
-            this.dateAccrual = dateAccrual;
             this.milestones = milestones;
             this.sessionState = sessionState;
             this.itinerary = itinerary;
@@ -45,9 +43,6 @@ namespace Game.Core
         // SessionStateTracker.OnArrived - 구간 하나가 끝났다(진행은 이미 멈춘 상태).
         public void HandleLegArrived()
         {
-            // 다음 구간 Begin이 경과를 0으로 되돌리기 전에 정산한다 - 중간 도시·최종 도착 공통(Docs/설계/85번 §3.3).
-            dateAccrual?.AccrueLegArrival();
-
             if (itinerary == null || !itinerary.HasItinerary || !itinerary.HasNextLeg)
             {
                 itinerary?.Clear();

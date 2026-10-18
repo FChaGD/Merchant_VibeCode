@@ -18,7 +18,7 @@ namespace Game.Core
         public float DurationSeconds { get; }
         public float EncountersPerFiveMinutes { get; }
         // 패널 예상 일수 - 출발 시점 소요시간 기준(파괴 지연·궤주 미반영, Docs/기획/84번 §4.3). 생성자에서 필수로 받는다 - 기본값을 두면
-        // 새 생성 경로가 값을 빠뜨려도 컴파일되고 패널에 "약 0일"이 조용히 뜬다.
+        // 새 생성 경로가 값을 빠뜨려도 컴파일되고 패널에 "당일 도착"이 조용히 뜬다.
         public int EstimatedDays { get; }
         /// <summary>도시 쌍 변경을 반영하기 전 구성 도로 기본값의 길이 가중 평균(설계 89 §5.2). 현재 구간 재계산·도시 쌍 변경의 기준.</summary>
         public int BaseDifficulty { get; }
@@ -45,21 +45,17 @@ namespace Game.Core
     {
         public IReadOnlyList<TripLeg> Legs { get; }
         public float TotalDurationSeconds { get; }
-        // 합계는 총 초를 환산하지 않고 구간 일수를 더한다 - 실제 가산도 구간마다 버림이라 같은 값이 된다(기획 84번 §4-9).
+        // 합계는 구간 일수의 합이 아니라 총 초를 환산한다 - 날짜가 구간을 넘어 이어서 흐르고 상행은 항상 0초에서 시작하므로(기획 92 §3-7)
+        // 전투·지연 없이 도착했을 때의 실제 진행 일수와 같다. 구간 일수의 합보다 클 수 있다.
         public int TotalEstimatedDays { get; }
 
-        public TripPlan(IReadOnlyList<TripLeg> legs)
+        public TripPlan(IReadOnlyList<TripLeg> legs, TripTravelSettings settings)
         {
             Legs = legs;
             var total = 0f;
-            var days = 0;
-            foreach (var leg in legs)
-            {
-                total += leg.DurationSeconds;
-                days += leg.EstimatedDays;
-            }
+            foreach (var leg in legs) total += leg.DurationSeconds;
             TotalDurationSeconds = total;
-            TotalEstimatedDays = days;
+            TotalEstimatedDays = TravelDayRules.ToDays(settings, total);
         }
     }
 }

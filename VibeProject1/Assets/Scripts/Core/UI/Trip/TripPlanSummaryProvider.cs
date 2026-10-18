@@ -5,7 +5,7 @@ namespace Game.Core
 {
     /// <summary>
     /// 상행정보 패널 문구(Docs/설계/76번 §7.1) - 현재 위치 → 도착지 계획을 구간별로 보여 준다. PlaceholderTripInfoProvider를 대체한다.
-    /// 예상 소요는 구간별 "약 n일"(버림)과 구간 일수의 합계로 보여 준다(Docs/기획/84번 §4-9) - 실제 날짜 가산과 같은 규칙이다.
+    /// 예상 소요는 구간별 "약 n일"(버림)과 총 소요 초 환산 합계로 보여 준다(기획 92 §3-7). 0일은 "약 0일" 대신 "당일 도착"(§3-7-1).
     /// 위험도는 구간별 등급 이름만 보여 준다 - 수치·예상 전투 횟수는 숨긴다(기획 75번 §4-12). 보상은 아직 없어 "값 없음"(기획 75번 §6).
     /// 계획은 표시할 때마다 새로 세운다 - 도착지를 고를 때만 불리고 노드가 수십 개라 비용이 작다.
     /// </summary>
@@ -13,6 +13,7 @@ namespace Game.Core
     {
         private const string MissingText = "값 없음";
         private const string LegSeparator = " → ";
+        private const string SameDayText = "당일 도착";
 
         private ITripPlanner planner;
         private ITripCurrentLocationReader currentLocation;
@@ -44,12 +45,14 @@ namespace Game.Core
             var grades = new List<string>(plan.Legs.Count);
             foreach (var leg in plan.Legs)
             {
-                durations.Add($"약 {leg.EstimatedDays}일({leg.BandName})");
+                durations.Add($"{FormatDays(leg.EstimatedDays)}({leg.BandName})");
                 grades.Add(leg.GradeName);
             }
             var durationText = string.Join(LegSeparator, durations);
-            if (plan.Legs.Count > 1) durationText += $" · 합계 약 {plan.TotalEstimatedDays}일";
+            if (plan.Legs.Count > 1) durationText += $" · 합계 {FormatDays(plan.TotalEstimatedDays)}";
             return new TripSummary(durationText, string.Join(LegSeparator, grades), MissingText);
         }
+
+        public static string FormatDays(int days) => days <= 0 ? SameDayText : $"약 {days}일";
     }
 }

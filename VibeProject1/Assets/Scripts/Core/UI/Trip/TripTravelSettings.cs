@@ -55,9 +55,9 @@ namespace Game.Core
 
         [Tooltip("난이도가 늘릴 수 있는 최대 시간(초) - 모든 거리 구분 공통. 가장 작은 시간 폭을 넘으면 안 된다.")]
         public float DifficultyTimeSeconds = 36f;
-        [Tooltip("이동 몇 초가 게임 하루인지(Docs/기획/84번 §4-2). 가산 시점마다 나머지는 버린다.")]
+        [Tooltip("이동 몇 초가 게임 하루인지(Docs/기획/92번 §3-1). 이동 중 누적해 이 초마다 하루가 지나고, 상행이 끝나면 나머지는 버린다.")]
         public float SecondsPerDay = DefaultSecondsPerDay;
-        [Tooltip("궤주 시 직전 도시부터 이동한 시간에 곱하는 배율(Docs/기획/84번 §4-6).")]
+        [Tooltip("궤주 시 직전 도시부터 이동한 시간의 총 배율(Docs/기획/92번 §3-4). 이동 중에 1배는 이미 흘렀으므로 (배율 − 1)만큼 더한다.")]
         public float RoutDayMultiplier = DefaultRoutDayMultiplier;
         public List<TripDistanceBand> DistanceBands = new();
         public List<TripDifficultyGrade> DifficultyGrades = new();
@@ -69,7 +69,7 @@ namespace Game.Core
             RoutDayMultiplier = DefaultRoutDayMultiplier,
             DistanceBands = new List<TripDistanceBand>
             {
-                new("짧음", 60f, 120f, 0f, 600f),
+                new("짧음", 20f, 160f, 0f, 600f), // 0:20~3:00(기획 75 개정 2026-10-18 - 붙어 있는 도시도 1분 넘게 걸렸다)
                 new("중간", 300f, 180f, 600f, 500f),
                 new("긴", 900f, 300f, 1100f, 1100f),
             },

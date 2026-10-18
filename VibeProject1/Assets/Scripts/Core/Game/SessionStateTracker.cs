@@ -22,6 +22,7 @@ namespace Game.Core
 
         public event Action<float> OnProgressChanged;
         public event Action OnArrived;
+        public event Action<float> OnMoved;
 
         public void Begin(float durationSeconds)
         {
@@ -93,7 +94,9 @@ namespace Game.Core
                 return;
             }
 
-            clock.Tick(Time.deltaTime);
+            // 이동 신호를 진행 알림보다 먼저 보낸다 - 날짜가 바뀌어 구간이 재계산돼도(설계 89 §4.3) 이번 프레임 경과 증가가 끝난 뒤라 이중으로 세지 않는다.
+            var moved = clock.Tick(Time.deltaTime);
+            if (moved > 0f) OnMoved?.Invoke(moved);
             Notify();
 
             if (Progress >= 1f)

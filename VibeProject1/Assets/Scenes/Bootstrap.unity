@@ -446,6 +446,7 @@ GameObject:
   - component: {fileID: 261332407}
   - component: {fileID: 261332408}
   - component: {fileID: 261332409}
+  - component: {fileID: 261332410}
   m_Layer: 0
   m_Name: FieldManager
   m_TagString: Untagged
@@ -588,6 +589,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0acf1beafe39ff948ae7560807b3181e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Core::Game.Core.FieldUIHideCoordinator
+--- !u!114 &261332410
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 261332398}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 88a41684528472646878d2aae67728e9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Core::Game.Core.TripDayClock
 --- !u!1 &261653094
 GameObject:
   m_ObjectHideFlags: 0
@@ -978,8 +991,8 @@ MonoBehaviour:
     RoutDayMultiplier: 1.5
     DistanceBands:
     - Name: "\uC9E7\uC74C"
-      MinSeconds: 60
-      SpanSeconds: 120
+      MinSeconds: 20
+      SpanSeconds: 160
       StartDistance: 0
       DistanceSpan: 600
     - Name: "\uC911\uAC04"

@@ -76,6 +76,7 @@ namespace Game.Core.Editor
             var fieldManager = EditorUIBuilder.GetOrCreateManager<FieldManager>(root.transform, nameof(FieldManager));
             EditorUIBuilder.GetOrAddComponent<TripHaltCoordinator>(fieldManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<TripCheckClock>(fieldManager.gameObject);
+            EditorUIBuilder.GetOrAddComponent<TripDayClock>(fieldManager.gameObject); // 상행 이동 초로 날짜 진행(설계 93 §4.3)
             EditorUIBuilder.GetOrAddComponent<TripMilestoneSignal>(fieldManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<TripDialogueCoordinator>(fieldManager.gameObject); // 상행 대화 진행자(설계 88 §2)
             EditorUIBuilder.GetOrAddComponent<EventEncounterCoordinator>(fieldManager.gameObject); // 이벤트 진행자(설계 89 §3)

@@ -14,12 +14,12 @@ namespace Game.Core
         private readonly IFieldFormationActivityRepository fieldActivityRepository; // 선택적 - 없으면 null-조건부 호출로 건너뜀
         private readonly ISessionState sessionState;
         private readonly IGameManager gameManager;
-        private readonly TripDateAccrual dateAccrual; // 선택적 - 없으면 날짜 없이 진행
+        private readonly ITripDayRout dayRout; // 선택적 - 없으면 날짜 없이 진행(FieldManager 미설치)
         private readonly FieldTripSignals tripSignals; // 정지 조율·계기 신호(설계 87 §6) - 없으면 예전처럼 직접 재개
 
-        public FinishStep(IFieldUIController fieldUIController, FieldCameraController cameraController, IFieldFormationActivityRepository fieldActivityRepository, ISessionState sessionState, IGameManager gameManager, TripDateAccrual dateAccrual, FieldTripSignals tripSignals)
+        public FinishStep(IFieldUIController fieldUIController, FieldCameraController cameraController, IFieldFormationActivityRepository fieldActivityRepository, ISessionState sessionState, IGameManager gameManager, ITripDayRout dayRout, FieldTripSignals tripSignals)
         {
-            this.dateAccrual = dateAccrual;
+            this.dayRout = dayRout;
             this.tripSignals = tripSignals ?? new FieldTripSignals(null, null);
             this.fieldUIController = fieldUIController;
             this.cameraController = cameraController;
@@ -59,8 +59,8 @@ namespace Game.Core
 
             if (context.Consequence == DefeatConsequence.Rout)
             {
-                // 상행 종료(FinishTrip)·씬 전환 전에 정산한다 - 직전 도시부터 경과 × 1.5(Docs/기획/84번 §4-6).
-                dateAccrual?.AccrueRout();
+                // 상행 종료(FinishTrip)·씬 전환 전에 정산한다 - 나머지 + 직전 도시부터 실제 이동 초 × 0.5(기획 92 §3-4).
+                dayRout?.SettleRout();
                 // 전투 유닛은 월드 오브젝트라 씬 전환 슬라이드로 함께 밀어낼 수 없다 - 이동 뷰로 먼저 돌아온 뒤 전환해야 "씬 전환은 항상
                 // 이동 뷰에서 시작한다"는 전제가 성립한다(Docs/설계/38번 §10.4 A안). 상행을 재개하지 않으므로 버튼 활성/세션 재개는 없다.
                 cameraController.TransitionToMovement(onComplete: () =>

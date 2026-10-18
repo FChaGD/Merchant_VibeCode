@@ -14,6 +14,7 @@ namespace Game.Core.Tests
             public float DurationSeconds => 1f;
             public event Action<float> OnProgressChanged { add { } remove { } }
             public event Action OnArrived { add { } remove { } }
+            public event Action<float> OnMoved { add { } remove { } }
             public void Begin(float durationSeconds) { }
             public void Pause() => Calls.Add("Pause");
             public void Resume() => Calls.Add("Resume");

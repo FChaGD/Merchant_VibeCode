@@ -52,7 +52,7 @@ namespace Game.Core
             // 계획기는 지도 조회 뒤(ResolveDependencies)에 만들어지므로 이 컴포넌트가 대신 등록하고 위임한다 - 정보 패널과 실제 상행이
             // 같은 이동 수치로 계산해야 표시 시간과 실제 시간이 같다.
             registrar.Register<ITripPlanner>(this);
-            // 게임 날짜 정산(Docs/설계/85번 §3.3)이 같은 이동 수치로 초→일 환산을 하도록 조회 계약을 따로 등록한다.
+            // 상행 날짜 시계(설계 93 §4.3)가 같은 이동 수치로 초→일 환산을 하도록 조회 계약을 따로 등록한다.
             registrar.Register<ITripTravelSettingsReader>(this);
             registrar.Register<ICurrentLegDifficulty>(this);
         }

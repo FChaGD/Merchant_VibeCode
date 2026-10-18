@@ -33,8 +33,8 @@ namespace Game.Core
         private IBattleAftermathApplier aftermathApplier;
         private ITradeGoodsCargoSettlement cargoSettlement;
         private IFormationRepairMode repairMode;
-        // 궤주 날짜 정산(Docs/설계/85번 §3.3) - 선택적, FinishStep에 넘긴다.
-        private TripDateAccrual dateAccrual;
+        // 궤주 날짜 정산(설계 93 §4.4) - 선택적, FinishStep에 넘긴다.
+        private ITripDayRout dayRout;
 
         private MonoBehaviour coroutineRunner;
         private IFieldUIController fieldUIController;
@@ -53,9 +53,9 @@ namespace Game.Core
         private bool isTransitioning;
         private BattleResult? pendingResult;
 
-        public void Bind(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IGameManager gameManager, IFieldFormationActivityRepository fieldActivityRepository, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, TripDateAccrual dateAccrual, FieldTripSignals tripSignals)
+        public void Bind(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IGameManager gameManager, IFieldFormationActivityRepository fieldActivityRepository, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, ITripDayRout dayRout, FieldTripSignals tripSignals)
         {
-            this.dateAccrual = dateAccrual;
+            this.dayRout = dayRout;
             this.tripSignals = tripSignals;
             this.uiManager = uiManager;
             this.sessionState = sessionState;
@@ -98,7 +98,7 @@ namespace Game.Core
                 new CargoRecoveryStep(uiManager, cargoSettlement, cargoRecoveryPanel),
                 new FormationRepairStep(uiManager, repairMode),
             };
-            flow = new BattleAftermathFlow(steps, new FinishStep(fieldUIController, cameraController, fieldActivityRepository, sessionState, gameManager, dateAccrual, tripSignals));
+            flow = new BattleAftermathFlow(steps, new FinishStep(fieldUIController, cameraController, fieldActivityRepository, sessionState, gameManager, dayRout, tripSignals));
             return flow;
         }
 

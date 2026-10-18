@@ -59,7 +59,7 @@ namespace Game.Core
     }
 
     /// <summary>
-    /// 상행 이동 수치 조회(Docs/설계/85번 §3.3) - Field 날짜 정산이 초→일 환산 값을 읽는다. ITripItinerary에 넣지 않은 이유: 구간 진행만
+    /// 상행 이동 수치 조회(설계 93 §4.3) - Field 상행 날짜 시계(TripDayClock)가 초→일 환산·궤주 비율을 읽는다. ITripItinerary에 넣지 않은 이유: 구간 진행만
     /// 필요한 소비자에게 이동 수치까지 노출하지 않기 위해서다(ISP).
     /// </summary>
     public interface ITripTravelSettingsReader

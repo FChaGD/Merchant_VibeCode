@@ -32,7 +32,8 @@ namespace Game.Core
             if (fromCityId == toCityId || !map.TryGetCity(fromCityId, out _) || !map.TryGetCity(toCityId, out _)) return false;
             if (!TryFindShortestPath(MapNodeId.City(fromCityId), MapNodeId.City(toCityId), out var path)) return false;
 
-            plan = new TripPlan(BuildLegs(path, settings()));
+            var travelSettings = settings();
+            plan = new TripPlan(BuildLegs(path, travelSettings), travelSettings);
             return true;
         }
 

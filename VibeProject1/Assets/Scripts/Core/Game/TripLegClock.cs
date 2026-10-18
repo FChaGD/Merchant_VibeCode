@@ -26,9 +26,16 @@ namespace Game.Core
             ElapsedSeconds = 0f;
         }
 
-        public void Tick(float delta)
+        /// <summary>
+        /// 실제로 늘어난 초를 돌려준다 - 날짜·판정 시계가 이 값만 센다(설계 93 §3). 도착 프레임의 소요 초과분은 이동이 아니므로 자른다.
+        /// 경과는 자르지 않고 그대로 더한다(진행도는 1에서 멈추고, 기존 도착 판정과 같다).
+        /// </summary>
+        public float Tick(float delta)
         {
-            if (delta > 0f) ElapsedSeconds += delta;
+            if (delta <= 0f) return 0f;
+            var moved = Math.Min(delta, Math.Max(0f, DurationSeconds - ElapsedSeconds));
+            ElapsedSeconds += delta;
+            return moved;
         }
 
         public void Extend(float seconds)

@@ -12,13 +12,19 @@ namespace Game.Core
         event Action<float> OnProgressChanged;
         event Action OnArrived;
 
+        /// <summary>
+        /// 이번 프레임에 실제로 이동한 초(설계 93 §3). 진행 알림과 달리 재계산·지연·단축에서는 오지 않고, 도착 프레임의 소요 초과분은 빠진다 -
+        /// 날짜 시계와 판정 시계가 같은 시간 기준을 쓰게 하기 위해서다. 진행 알림보다 먼저 온다.
+        /// </summary>
+        event Action<float> OnMoved;
+
         void Begin(float durationSeconds);
         void Resume();
 
-        /// <summary>현재 구간 경과 초 - 전투 중엔 멈춰 있다. 궤주 날짜 정산이 읽는다(Docs/설계/85번 §3.3).</summary>
+        /// <summary>현재 구간 경과 초 - 전투 중엔 멈춰 있다. 난이도 재계산 때 진행 비율로 다시 맞춰지므로 실제 이동 초가 아니다(설계 93 §3.1 - 날짜·궤주는 이동 신호로 센다).</summary>
         float ElapsedSeconds { get; }
 
-        /// <summary>현재 구간 소요시간 - 파괴 마차 지연이 반영된 값. 구간 도착 날짜 정산이 읽는다(Docs/설계/85번 §3.3).</summary>
+        /// <summary>현재 구간 소요시간 - 파괴 마차 지연이 반영된 값.</summary>
         float DurationSeconds { get; }
 
         /// <summary>
