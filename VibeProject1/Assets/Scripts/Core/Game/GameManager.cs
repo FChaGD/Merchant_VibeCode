@@ -21,6 +21,7 @@ namespace Game.Core
             }
             registrar.Register<ISessionState>(sessionState);
             registrar.Register<ISessionPauseControl>(sessionState);
+            registrar.Register<ITripClockAdjuster>(sessionState);   // 이벤트 단축·도로 난이도 재계산(설계 89 §4.3)
         }
 
         public void ResolveDependencies(IDependencyResolver registrar)

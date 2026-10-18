@@ -26,7 +26,7 @@ namespace Game.Core
             {
                 var name = nameStrings != null && nameStrings.TryGetLabel(entry.Id, out var ko) ? ko : MissingText;
                 var classLabel = TryGetClassLabel(entry.MercenaryClass, out var label) ? label : MissingText;
-                var profile = new CharacterProfile(entry.Id, name, entry.MercenaryClass, classLabel, TableBattleUnitStatProvider.ToStats(entry), entry.HireCost);
+                var profile = new CharacterProfile(entry.Id, name, entry.MercenaryClass, classLabel, TableBattleUnitStatProvider.ToStats(entry), entry.HireCost, entry.ExcludeFromHiring);
                 all.Add(profile);
                 byId[entry.Id] = profile;
             }

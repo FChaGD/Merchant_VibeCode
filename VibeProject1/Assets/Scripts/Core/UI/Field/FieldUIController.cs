@@ -27,6 +27,7 @@ namespace Game.Core
         private FieldLegArrivalNoticeView legArrivalNoticeView;
         // 구간 단위 진행(Docs/설계/76번 §6.2) - 씬을 로드할 때마다 이번 씬의 뷰로 새로 만든다.
         private FieldTripLegCoordinator legCoordinator;
+        private ICurrentLegDifficulty legDifficulty; // 구간 라벨 등급명 갱신(설계 89 §4.3) - 없으면 계획 등급명
         private Button formationButton;
         private Button tacticsButton;
         private FieldManualTalkView manualTalkView; // 상행 대화 "대화" 버튼(설계 88 §6) - 없어도 진행된다
@@ -62,7 +63,7 @@ namespace Game.Core
         // 상행 시작·종료 계기 신호(설계 87번 §6.4) - 이번 상행 기록·판정 시계·정지 원인 초기화. 없으면 신호 없이 진행한다.
         private FieldTripSignals tripSignals;
 
-        public void RegisterFieldUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository, ITripCurrentLocationRepository currentLocationRepository, ITripDestinationAssigner destinationAssigner, IFieldFormationActivityRepository fieldActivityRepository, ITripItinerary itinerary, IWorldMapReader worldMap, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, FieldCargoRecoveryPanel cargoRecoveryPanel, TripEndProcessor tripEndProcessor, TripDateAccrual dateAccrual, FieldTripSignals tripSignals)
+        public void RegisterFieldUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository, ITripCurrentLocationRepository currentLocationRepository, ITripDestinationAssigner destinationAssigner, IFieldFormationActivityRepository fieldActivityRepository, ITripItinerary itinerary, IWorldMapReader worldMap, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, FieldCargoRecoveryPanel cargoRecoveryPanel, TripEndProcessor tripEndProcessor, TripDateAccrual dateAccrual, FieldTripSignals tripSignals, ICurrentLegDifficulty legDifficulty)
         {
             if (!TryBind(sceneUIRoot))
             {
@@ -78,7 +79,11 @@ namespace Game.Core
             this.fieldActivityRepository = fieldActivityRepository;
             this.tripEndProcessor = tripEndProcessor;
             this.tripSignals = tripSignals;
-            legCoordinator = new FieldTripLegCoordinator(sessionState, itinerary, currentLocationRepository, worldMap, gaugeView, legArrivalNoticeView, HandleTripArrived, dateAccrual, tripSignals?.Milestones);
+            legCoordinator = new FieldTripLegCoordinator(sessionState, itinerary, currentLocationRepository, worldMap, gaugeView, legArrivalNoticeView, HandleTripArrived, dateAccrual, tripSignals?.Milestones, legDifficulty);
+            // 여정 상태는 Bootstrap 상주라 Field 재로드마다 해제 후 재구독한다(sessionState와 같은 규칙, 설계 89 §4.3 구간 라벨).
+            if (this.legDifficulty != null) this.legDifficulty.Changed -= HandleLegDifficultyChanged;
+            this.legDifficulty = legDifficulty;
+            if (legDifficulty != null) legDifficulty.Changed += HandleLegDifficultyChanged;
 
             formationButton.onClick.RemoveAllListeners();
             formationButton.onClick.AddListener(() => uiManager.Open(UIPanelIds.Formation));
@@ -158,6 +163,8 @@ namespace Game.Core
                 manualTalkView.SetTopLevelAllowed(interactable);   // "대화" 버튼도 정비창·방향성 지시와 같은 조건으로 막는다(설계 88 §4.1)
             }
         }
+
+        private void HandleLegDifficultyChanged() => legCoordinator?.RefreshLegLabel();
 
         private void HandleProgressChanged(float progress)
         {

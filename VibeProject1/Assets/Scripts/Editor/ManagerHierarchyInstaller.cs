@@ -78,6 +78,8 @@ namespace Game.Core.Editor
             EditorUIBuilder.GetOrAddComponent<TripCheckClock>(fieldManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<TripMilestoneSignal>(fieldManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<TripDialogueCoordinator>(fieldManager.gameObject); // 상행 대화 진행자(설계 88 §2)
+            EditorUIBuilder.GetOrAddComponent<EventEncounterCoordinator>(fieldManager.gameObject); // 이벤트 진행자(설계 89 §3)
+            EditorUIBuilder.GetOrAddComponent<FieldUIHideCoordinator>(fieldManager.gameObject); // 이벤트 중 Field UI 가림(설계 89 §13)
             WireUIManagerPanels(uiManager);
             var dataRepositories = BuildUIManagerDataRepositories(root, uiManager);
             var dialogueScriptRunner = WireDialogueRunner(root);

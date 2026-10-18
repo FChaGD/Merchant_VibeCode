@@ -20,10 +20,6 @@ namespace Game.Core
         private ITripDialogueView boundView;
         private IManualTalkView boundManual;
 
-        // 판정 문맥 재료 - 판정 순간 값을 읽는다.
-        private IDateReader date;
-        private ITripItinerary itinerary;
-        private IWorldMapReader worldMap;
         private ISessionState session;
         private IEncounterHistoryReader history;
 
@@ -50,10 +46,9 @@ namespace Game.Core
             registrar.TryResolve(out IHiredCharacterRoster hired);
             registrar.TryResolve(out ICaravanRosterProvider roster);
             registrar.TryResolve(out ICharacterCatalogReader catalog);
-            registrar.TryResolve(out date);
-            registrar.TryResolve(out itinerary);
-            registrar.TryResolve(out worldMap);
             registrar.TryResolve(out IUIManager uiManager);
+            // 판정 문맥은 이벤트 진행자(89)와 같은 공용 구성을 쓴다 - 같은 조건이 두 쪽에서 다르게 판정되지 않게.
+            var context = new EncounterContextSource(registrar);
             session = registrar.Resolve<ISessionState>();
 
             this.checks = checks;
@@ -67,7 +62,7 @@ namespace Game.Core
                 History = history,
                 HistoryWriter = historyWriter,
                 Runner = runner,
-                Context = BuildContext,
+                Context = context.Build,
                 IsHired = id => hired != null && hired.IsHired(id),
                 Crew = () => CrewOf(roster),
                 NameOf = id => NameOf(id, catalog, content),
@@ -117,15 +112,6 @@ namespace Game.Core
             if (progress >= 1f) return;
             director.AdvanceTripTime(Time.deltaTime);
         }
-
-        private EncounterConditionContext BuildContext()
-        {
-            var hasLeg = itinerary != null && itinerary.HasItinerary;
-            var today = date != null ? date.Today : default;
-            return EncounterConditionContextFactory.Create(today, hasLeg, hasLeg ? itinerary.CurrentLeg : default, RegionOf, session != null ? session.Progress : 0f, history);
-        }
-
-        private int RegionOf(int cityId) => worldMap != null && worldMap.TryGetCity(cityId, out var city) ? city.RegionId : -1;
 
         private static IReadOnlyList<CrewMember> CrewOf(ICaravanRosterProvider roster)
         {

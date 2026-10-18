@@ -6,30 +6,29 @@ namespace Game.Core
     /// <summary>
     /// GameManager 산하 컴포넌트(전역 DI 미등록 - GameManager가 ISessionState/ISessionPauseControl로
     /// 대신 등록한다). 구간 하나의 소요시간을 받아 경과 시간으로 진행도를 계산한다 - 소요시간 계산(거리·난이도)은
-    /// 상행 계획(TripRoutePlanner)이 맡고, 여기는 시간만 센다(Docs/설계/76번 §6.1).
+    /// 상행 계획(TripRoutePlanner)이 맡고, 여기는 시간만 센다(Docs/설계/76번 §6.1). 시간 계산(기본·추가·단축·기본 교체)은
+    /// TripLegClock(설계 89 §4.3)이 맡는다.
     /// </summary>
-    public class SessionStateTracker : MonoBehaviour, ISessionState
+    public class SessionStateTracker : MonoBehaviour, ISessionState, ITripClockAdjuster
     {
-        private float durationSeconds = TripTravelSettings.LegacyDurationSeconds;
-        private float elapsed;
+        private readonly TripLegClock clock = new(TripTravelSettings.LegacyDurationSeconds);
         private bool paused = true;
         private bool arrived;
 
         public float Progress { get; private set; }
-        public float ElapsedSeconds => elapsed;
-        public float DurationSeconds => durationSeconds;
+        public float ElapsedSeconds => clock.ElapsedSeconds;
+        public float DurationSeconds => clock.DurationSeconds;
+        public float AddedSeconds => clock.AddedSeconds;
 
         public event Action<float> OnProgressChanged;
         public event Action OnArrived;
 
         public void Begin(float durationSeconds)
         {
-            this.durationSeconds = Mathf.Max(0.01f, durationSeconds);
-            elapsed = 0f;
-            Progress = 0f;
+            clock.Begin(durationSeconds);
             arrived = false;
             paused = false;
-            OnProgressChanged?.Invoke(Progress);
+            Notify();
         }
 
         public void Pause()
@@ -54,8 +53,36 @@ namespace Game.Core
                 return;
             }
 
-            durationSeconds += seconds;
-            Progress = Mathf.Clamp01(elapsed / durationSeconds);
+            clock.Extend(seconds);
+            Notify();
+        }
+
+        public float ShortenDuration(float seconds)
+        {
+            if (arrived || seconds <= 0f)
+            {
+                return 0f;
+            }
+
+            var actual = clock.Shorten(seconds);
+            Notify();
+            return actual;
+        }
+
+        public void RebaseDuration(float baseSeconds)
+        {
+            if (arrived)
+            {
+                return;
+            }
+
+            clock.Rebase(baseSeconds);
+            Notify();
+        }
+
+        private void Notify()
+        {
+            Progress = clock.Progress;
             OnProgressChanged?.Invoke(Progress);
         }
 
@@ -66,9 +93,8 @@ namespace Game.Core
                 return;
             }
 
-            elapsed += Time.deltaTime;
-            Progress = Mathf.Clamp01(elapsed / durationSeconds);
-            OnProgressChanged?.Invoke(Progress);
+            clock.Tick(Time.deltaTime);
+            Notify();
 
             if (Progress >= 1f)
             {

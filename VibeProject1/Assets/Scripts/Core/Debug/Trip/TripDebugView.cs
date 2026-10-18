@@ -38,6 +38,7 @@ namespace Game.Core.DebugTools
         private DateManager dateManager; // 상행 완료 시 남은 일수 가산 - 없으면 날짜 없이 기존 동작
         private bool isFieldLoaded;
         private bool isMoving;
+        private IFieldUIHideReader uiHide; // 이벤트 중 그리지 않는다(설계 89 §13) - 없으면 항상 그림
 
         private void Awake()
         {
@@ -45,6 +46,12 @@ namespace Game.Core.DebugTools
             encounterManager = FindFirstObjectByType<EncounterManager>(FindObjectsInactive.Include);
             itinerary = FindFirstObjectByType<TripItineraryState>(FindObjectsInactive.Include);
             dateManager = FindFirstObjectByType<DateManager>(FindObjectsInactive.Include);
+        }
+
+        private void Start()
+        {
+            var dependencies = FindFirstObjectByType<DependencyManager>(FindObjectsInactive.Include);
+            if (dependencies != null) dependencies.TryResolve(out uiHide);
         }
 
         private void OnEnable()
@@ -86,6 +93,7 @@ namespace Game.Core.DebugTools
         private void OnGUI()
         {
             if (!Application.isPlaying || !isFieldLoaded) return;
+            if (uiHide != null && uiHide.IsHidden) return;
 
             var y = Top;
             for (var i = 0; i < Scales.Length; i++)

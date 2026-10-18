@@ -28,7 +28,8 @@ namespace Game.Core
             var deadIds = CollectDead();
             if (deadIds.Count > 0)
             {
-                ClearFromFormation(deadIds);
+                // 캐릭터는 대열 연결(마차·시설 영역)과 무관하므로 칸만 비운다(이벤트 이탈과 같은 조작).
+                FormationLayoutClearing.ClearUnits(formation, new HashSet<string>(deadIds));
                 foreach (var id in deadIds)
                 {
                     if (remover != null && remover.TryRemoveHired(id)) deceased?.Record(id);
@@ -47,25 +48,6 @@ namespace Game.Core
                 if (unit is IMercenaryUnit && conditions.IsDead(unit.Id)) ids.Add(unit.Id);
             }
             return ids;
-        }
-
-        // 캐릭터는 대열 연결(마차·시설 영역)과 무관하므로 칸만 비운다.
-        private void ClearFromFormation(List<string> deadIds)
-        {
-            if (formation == null || !formation.TryLoadCurrent(out var current) || current == null) return;
-
-            var layout = current.Clone();
-            var dead = new HashSet<string>(deadIds);
-            var changed = false;
-            for (var i = 0; i < layout.SlotCount; i++)
-            {
-                if (layout.GetUnitId(i) is { } id && dead.Contains(id))
-                {
-                    layout.Clear(i);
-                    changed = true;
-                }
-            }
-            if (changed) formation.Apply(layout);
         }
     }
 }

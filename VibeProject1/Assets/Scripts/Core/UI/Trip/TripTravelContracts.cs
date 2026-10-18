@@ -1,16 +1,12 @@
 namespace Game.Core
 {
-    /// <summary>도로의 현재 난이도 = 이벤트로 바뀐 값이 있으면 그 값, 없으면 지도 기본값(Docs/설계/76번 §4.4).</summary>
+    /// <summary>
+    /// 도로 조각의 기본 난이도(지도 데이터, Docs/설계/76번 §4.4). 게임 중 변경은 도로 조각이 아니라 도시 쌍 단위다(ICityPairDifficultyReader, 설계 89 §5.2) -
+    /// 예전 도로 조각별 변경 계약(IRoadDifficultyRepository)은 호출처 없이 비어 있다가 도시 쌍 저장으로 교체됐다.
+    /// </summary>
     public interface IRoadDifficultyReader
     {
         int GetDifficulty(RoadKey road);
-    }
-
-    /// <summary>도로 난이도를 바꾸는 쪽(향후 이벤트, 기획 75번 §6) - 지금 호출하는 곳은 없다.</summary>
-    public interface IRoadDifficultyRepository : IRoadDifficultyReader
-    {
-        void SetDifficulty(RoadKey road, int difficulty);
-        void ResetDifficulty(RoadKey road);
     }
 
     /// <summary>두 도시 사이 상행 계획(구간 목록). 경로가 없으면 false.</summary>
@@ -35,6 +31,25 @@ namespace Game.Core
         bool HasNextLeg { get; }
         void AdvanceLeg();
         void Clear();
+    }
+
+    /// <summary>
+    /// 현재 구간 실행 난이도(설계 89 §4.3·§5.2) - 이벤트 효과(이번 구간 증감, 도시 쌍 기준값)·구간 라벨·디버그가 쓴다. ITripItinerary에 넣지 않은 이유:
+    /// 구간 진행만 하는 소비자에게 난이도 조작을 노출하지 않기 위해서다(ISP).
+    /// </summary>
+    public interface ICurrentLegDifficulty
+    {
+        bool HasLeg { get; }
+        CityPairKey CurrentPair { get; }
+        int CurrentBaseDifficulty { get; }
+        int CurrentDifficulty { get; }
+        int LegOnlyChange { get; }
+        string CurrentGradeName { get; }
+        /// <summary>실행 난이도 기준 구간 기본 소요시간 - 구간 시작 시 시계를 이 값으로 시작한다(계획 값이 낡았을 수 있다).</summary>
+        float CurrentBaseDurationSeconds { get; }
+        void AdjustCurrentLeg(int change);
+        /// <summary>실행 난이도가 바뀌었다(시계 기본 교체까지 끝난 뒤).</summary>
+        event System.Action Changed;
     }
 
     /// <summary>현재 구간의 인카운터 빈도(5분 평균 횟수) - EncounterManager가 판정 확률을 계산할 때 쓴다(설계 76번 §6.3).</summary>

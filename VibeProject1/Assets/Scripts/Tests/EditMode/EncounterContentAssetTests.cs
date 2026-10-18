@@ -36,6 +36,17 @@ namespace Game.Core.Tests
             foreach (var p in table.People) personIds.Add(p.Id);
             var stats = AssetDatabase.LoadAssetAtPath<CharacterStatsTableAsset>(TableAssetPaths.CharacterStatsTable);
             errors.AddRange(EncounterContentValidator.ValidateScripts(nodes, id => personIds.Contains(id) || (stats != null && stats.TryGetEntry(id, out _))));
+
+            // 이벤트 대본(설계 89 §5.4) - 명령·인자·Id·#choice.
+            var eventNodes = new HashSet<string>();
+            foreach (var e in table.Events) eventNodes.Add(e.YarnNode);
+            var items = AssetDatabase.LoadAssetAtPath<ItemDefinitionTableAsset>(TableAssetPaths.TradeGoodsItemTable);
+            errors.AddRange(EncounterContentValidator.ValidateEventScripts(nodes, eventNodes, new EventScriptRules
+            {
+                ItemExists = id => items != null && items.TryGetEntry(id, out _),
+                CharacterExists = id => stats != null && stats.TryGetEntry(id, out _),
+                SpeakerExists = id => personIds.Contains(id) || (stats != null && stats.TryGetEntry(id, out _)),
+            }));
             CollectionAssert.IsEmpty(errors, string.Join("\n", errors));
         }
     }

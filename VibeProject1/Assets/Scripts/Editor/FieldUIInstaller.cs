@@ -51,6 +51,13 @@ namespace Game.Core.Editor
             var movementViewRoot = EditorUIBuilder.GetOrCreateUIObject(contentRoot, "MovementView");
             EditorUIBuilder.SetStretch(movementViewRoot.GetComponent<RectTransform>());
             EditorUIBuilder.EnsureMarker(movementViewRoot, FieldUIElementIds.MovementViewRoot);
+            // 이벤트 중 이동 뷰 가림(설계 89 §13.2) - 이동 뷰 전체를 CanvasGroup 하나로 가린다. 요소마다 붙이지 않는 이유: 도착 알림·전투 경고는 자기
+            // CanvasGroup으로 페이드·점멸해 같은 그룹을 가림과 나눠 쓸 수 없다. 남겨야 할 요소(배경)는 자기 그룹의 ignoreParentGroups로 뺀다.
+            var movementGroup = EditorUIBuilder.GetOrAddComponent<CanvasGroup>(movementViewRoot);
+            // 에디터에서 바뀐 값이 씬에 남지 않게 기본값으로 맞춘다 - 실행 중 가림은 FieldMovementViewHider가 덮어쓴다.
+            movementGroup.alpha = 1f;
+            movementGroup.interactable = true;
+            movementGroup.blocksRaycasts = true;
 
             BuildBackground(movementViewRoot.transform);
             BuildProgressGauge(movementViewRoot.transform);
@@ -74,7 +81,9 @@ namespace Game.Core.Editor
             EditorUIBuilder.ConfigureBattleCamera();
             var resultPopup = BuildResultPopup(contentRoot);
             // 회수 적재 패널(설계 79번 §7) - 결과 팝업과 같이 전투 뷰 위에서 진행하는 결과 정리 단계 화면이라 결과 팝업 바로 뒤 형제로 둔다.
-            BuildCargoRecoveryPanel(contentRoot, resultPopup);
+            var cargoRecoveryPanel = BuildCargoRecoveryPanel(contentRoot, resultPopup);
+            // 이벤트 대화·선택 화면(Docs/설계/89번 §6) - 회수 적재와 같은 모달 묶음 화면이라 그 뒤 형제로 둔다.
+            FieldEventUIBuilder.Build(contentRoot, cargoRecoveryPanel);
             BuildTransitionCurtain(contentRoot);
 
             // 방향성 지시 UI(정비창 Formation UI와 같은 자리 - MovementView 하위가 아니라 ContentRoot
@@ -136,6 +145,7 @@ namespace Game.Core.Editor
             image.raycastTarget = false;
             go.transform.SetAsFirstSibling(); // 배경은 항상 다른 이동 뷰 요소 뒤에 깔린다.
             EditorUIBuilder.EnsureMarker(go, FieldUIElementIds.Background);
+            EditorUIBuilder.GetOrAddComponent<CanvasGroup>(go).ignoreParentGroups = true; // 이벤트 중 가림에서 제외(설계 89 §13.1)
         }
 
         private static void BuildProgressGauge(Transform parent)
@@ -339,7 +349,7 @@ namespace Game.Core.Editor
         /// SceneUIRoot가 하나만 수집한다. 편집 본문은 루트 윗부분(0.9 이상)을 제목 줄로 비워 두므로 제목과 [완료]는 그 줄에 둔다.
         /// 결과 팝업 바로 뒤 형제로 두어 전투 뷰보다 위에 그리고, 확인 대화상자는 패널 자식의 마지막 형제로 패널 위에 그린다.
         /// </summary>
-        private static void BuildCargoRecoveryPanel(Transform parent, Transform resultPopup)
+        private static Transform BuildCargoRecoveryPanel(Transform parent, Transform resultPopup)
         {
             var root = EditorUIBuilder.GetOrCreateUIObject(parent, "CargoRecoveryPanel");
             var rootRect = root.GetComponent<RectTransform>();
@@ -372,6 +382,7 @@ namespace Game.Core.Editor
 
             EditorUIBuilder.PlaceSiblingAfter(root.transform, resultPopup);
             root.SetActive(false); // 평소에는 숨김 - 회수 적재 단계에서 UIManager가 연다.
+            return root.transform;
         }
 
         // sceneUIRoot의 마지막 자식으로 붙여 항상 최상단에 그려지게 한다 - MovementView/BattleView가

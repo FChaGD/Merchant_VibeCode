@@ -28,6 +28,7 @@ namespace Game.Core.DebugTools
         private IDialogueScriptRunner scriptRunner;
         private readonly List<string> smokeLog = new();
         private bool isFieldLoaded;
+        private IFieldUIHideReader uiHide; // 이벤트 중 그리지 않는다(설계 89 §13) - 없으면 항상 그림
         private Vector2 scroll;
 
         private void Start()
@@ -39,6 +40,7 @@ namespace Game.Core.DebugTools
                 dependencies.TryResolve(out historyWriter);
                 dependencies.TryResolve(out checks);
                 dependencies.TryResolve(out scriptRunner);
+                dependencies.TryResolve(out uiHide);
             }
         }
 
@@ -68,6 +70,7 @@ namespace Game.Core.DebugTools
         private void OnGUI()
         {
             if (!isFieldLoaded) return;
+            if (uiHide != null && uiHide.IsHidden) return;
 
             var toggle = new Rect(Screen.width - ToggleWidth - Margin, Margin, ToggleWidth, ToggleHeight);
             var expanded = NarrativeDebugPanels.Expanded == NarrativeDebugPanels.History;

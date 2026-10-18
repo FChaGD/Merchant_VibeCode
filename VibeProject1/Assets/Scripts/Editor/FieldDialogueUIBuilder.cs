@@ -175,16 +175,6 @@ namespace Game.Core.Editor
         }
 
         private static TextMeshProUGUI Text(Transform parent, string name, Vector2 min, Vector2 max, float size, TextAlignmentOptions alignment, Color color)
-        {
-            var go = EditorUIBuilder.GetOrCreateUIObject(parent, name);
-            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), min, max);
-            var text = EditorUIBuilder.EnsureText(go);
-            text.fontSize = size;
-            text.enableAutoSizing = false;
-            text.alignment = alignment;
-            text.color = color;
-            text.raycastTarget = false;
-            return text;
-        }
+            => EditorUIBuilder.EnsureTextBlock(parent, name, min, max, size, alignment, color);
     }
 }

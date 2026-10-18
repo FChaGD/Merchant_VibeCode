@@ -121,6 +121,27 @@ namespace Game.Core.Tests
             Assert.AreEqual(sum, plan.TotalEstimatedDays, "합계는 총 초가 아니라 구간 일수의 합");
         }
 
+        private sealed class FixedPairDelta : ICityPairDifficultyReader
+        {
+            private readonly CityPairKey pair;
+            private readonly int delta;
+            public FixedPairDelta(int a, int b, int delta) { pair = CityPairKey.Of(a, b); this.delta = delta; }
+            public int GetDifficulty(CityPairKey key, int baseDifficulty) => TripTravelRules.ClampDifficulty(baseDifficulty + (key.Equals(pair) ? delta : 0));
+            public System.Collections.Generic.IReadOnlyList<CityPairDifficultyChange> GetChanges(CityPairKey key) => System.Array.Empty<CityPairDifficultyChange>();
+            public event System.Action<CityPairKey> Changed { add { } remove { } }
+        }
+
+        [Test]
+        public void PairDelta_AppliesToThatLegOnly_AfterWeightedAverage()
+        {
+            var difficulty = new FixedDifficulty().Set(MapNodeId.City(1), MapNodeId.City(2), 40).Set(MapNodeId.City(2), MapNodeId.City(3), 40);
+            var planner = new TripRoutePlanner(LineMap(), difficulty, TripTravelSettings.Default, new FixedPairDelta(2, 1, 70));
+            Assert.IsTrue(planner.TryPlan(1, 3, out var plan));
+            Assert.AreEqual(100, plan.Legs[0].Difficulty, "40+70 → 100에서 자른다, 방향 무관");
+            Assert.AreEqual(40, plan.Legs[0].BaseDifficulty);
+            Assert.AreEqual(40, plan.Legs[1].Difficulty);
+        }
+
         [Test]
         public void LegDifficulty_ComesFromItsRoad()
         {

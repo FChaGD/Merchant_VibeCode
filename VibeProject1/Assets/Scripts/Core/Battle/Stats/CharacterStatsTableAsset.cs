@@ -17,6 +17,7 @@ namespace Game.Core
         public float Range;
         public float MoraleSyncRate;
         public int HireCost;
+        public bool ExcludeFromHiring; // 고용 후보 제외(이벤트 전용 캐릭터, Docs/설계/89번 §5.5)
     }
 
     /// <summary>

@@ -10,7 +10,7 @@ namespace Game.Core
     /// 지출·변환·버림은 지갑과 저장소를 여러 번 바꾸지만 변경 이벤트는 연산이 끝난 뒤 한 번만 낸다 - 구독자(HUD·시설 화면·변환 모달)가
     /// 중간 상태를 읽고 매번 다시 그리는 비용(무역품 화면은 구매 판정까지 다시 계산한다)을 없애기 위함이다.
     /// </summary>
-    public sealed class GoldLedger : IGoldHoldingsReader, IGoldSpender, IGoldBoxConverter, IGoldDepartureSettlement, IDisposable
+    public sealed class GoldLedger : IGoldHoldingsReader, IGoldSpender, IGoldBoxConverter, IGoldDepartureSettlement, IGoldEventAdjuster, IDisposable
     {
         private readonly IPlayerCurrencyWallet wallet;
         private readonly ITradeGoodsInventoryRepository inventory;
@@ -79,6 +79,16 @@ namespace Game.Core
         }
 
         public void Refund(int amount) => wallet.Add(amount);
+
+        public int Gain(int amount) => amount > 0 ? wallet.Add(amount) : 0;
+
+        public int LoseUpTo(int amount) => Batch(() =>
+        {
+            var actual = Math.Min(Math.Max(0, amount), OwnedGold);
+            return actual > 0 && SpendCore(actual) ? actual : 0;
+        });
+
+        public bool IsGoldItem(string itemId) => itemId != null && itemId == goldItemId;
 
         public int Convert(int boxCount) => Batch(() => ConvertCore(boxCount));
 

@@ -12,9 +12,12 @@ namespace Game.Core
         public string ClassLabel { get; }
         public BattleUnitStats Stats { get; }
         public int HireCost { get; }
+        /// <summary>이벤트 전용 캐릭터 - 고용 후보에서 뺀다(설계 89 §5.5). 이벤트 합류(&lt;&lt;join&gt;&gt;)와는 무관.</summary>
+        public bool ExcludedFromHiring { get; }
 
-        public CharacterProfile(string characterId, string name, string mercenaryClass, string classLabel, BattleUnitStats stats, int hireCost)
+        public CharacterProfile(string characterId, string name, string mercenaryClass, string classLabel, BattleUnitStats stats, int hireCost, bool excludedFromHiring = false)
         {
+            ExcludedFromHiring = excludedFromHiring;
             CharacterId = characterId;
             Name = name;
             MercenaryClass = mercenaryClass;

@@ -15,6 +15,7 @@ namespace Game.Core
         // 회수 적재 패널(plain C#, 설계 79번 §7)은 Field 로드마다 이번 씬의 화면 요소로 새로 만든다 - 저장소(Bootstrap 상주) 이벤트를
         // 구독하므로 이전 패널은 Dispose한다(HubUIWiring의 시설 화면과 같은 방식).
         private FieldCargoRecoveryPanel cargoRecoveryPanel;
+        private FieldMovementViewHider movementViewHider;
 
         public void Wire(IDependencyResolver registrar, IUIManager uiManager, IPanelRegistrar panelRegistrar)
         {
@@ -93,9 +94,12 @@ namespace Game.Core
 
             // 상행 정지 조율·계기 신호(설계 87번 §6) - FieldManager가 없으면(Bootstrap 미재빌드) 둘 다 null, 조율자들이 예전 동작으로 물러난다.
             var tripSignals = FieldTripSignals.Resolve(registrar);
+            registrar.TryResolve<ICurrentLegDifficulty>(out var legDifficulty); // 구간 라벨 등급명 갱신(설계 89 §4.3)
 
-            fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository, currentLocationRepository, destinationAssigner, fieldActivityRepository, tripItinerary, worldMap, aftermathApplier, cargoSettlement, repairMode, cargoRecoveryPanel, tripEndProcessor, dateAccrual, tripSignals);
+            fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository, currentLocationRepository, destinationAssigner, fieldActivityRepository, tripItinerary, worldMap, aftermathApplier, cargoSettlement, repairMode, cargoRecoveryPanel, tripEndProcessor, dateAccrual, tripSignals, legDifficulty);
+            BindMovementViewHider(registrar, fieldUIController.MovementViewRoot);
             BindTripDialogue(registrar, sceneUIRoot);
+            BindEventEncounter(registrar, sceneUIRoot, uiManager, panelRegistrar, fieldUIController, formationPanel.GetComponent<IFormationViewOnlyMode>());
 
             // Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 다음 전환 때 슬라이드시킬 대상을
             // 등록한다. 예전엔 이동 뷰 루트만 등록해 전투 뷰/패널/결과 팝업이 전환 중 제자리에 남았다 - 이제
@@ -149,9 +153,46 @@ namespace Game.Core
             binder.BindViews(hasView ? dialogueView : null, hasManual ? manualTalkView : null);
         }
 
+        // 이벤트 화면(설계 89 §6.3) - 진행자는 Bootstrap 상주라 Field를 로드할 때마다 이번 씬의 화면 묶음으로 바꿔 끼운다. 두 화면은 정비창과 같은 모달 묶음.
+        // 회수 적재 패널(무역품 공간 부족 정리)은 위에서 이번 씬 것으로 만든 것을 넘긴다 - 없으면 넘친 무역품이 임시 보관에 남는다.
+        private void BindEventEncounter(IDependencyResolver registrar, SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IFieldUIController fieldUIController, IFormationViewOnlyMode viewOnly)
+        {
+            if (!registrar.TryResolve<IEventEncounterViewBinder>(out var binder)) return;
+            var ok = sceneUIRoot.TryGetElement(FieldEventUIElementIds.DialogueRoot, out FieldEventDialogueView dialogue)
+                & sceneUIRoot.TryGetElement(FieldEventUIElementIds.ChoiceRoot, out FieldEventChoiceView choice);
+            if (!ok)
+            {
+                Debug.LogWarning("이벤트 화면 요소가 없어 이벤트가 발생하지 않는다(Tools > Game > Build Field Scene).");
+                binder.BindScreens(null);
+                return;
+            }
+
+            var dialoguePanel = new ViewRootPanel(UIPanelIds.EventDialogue, dialogue.gameObject);
+            var choicePanel = new ViewRootPanel(UIPanelIds.EventChoice, choice.gameObject);
+            panelRegistrar.RegisterPopupPanel(dialoguePanel);
+            panelRegistrar.RegisterPopupPanel(choicePanel);
+            binder.BindScreens(new FieldEventScreens(uiManager, dialogue, choice, dialoguePanel, choicePanel, cargoRecoveryPanel, fieldUIController, viewOnly));
+        }
+
+        // 이벤트 중 이동 뷰 가림(설계 89 §13.2) - 가림 상태는 Bootstrap 상주라 Field 로드마다 이번 씬의 이동 뷰로 새로 잇고 이전 객체 구독은 푼다.
+        private void BindMovementViewHider(IDependencyResolver registrar, RectTransform movementViewRoot)
+        {
+            movementViewHider?.Dispose();
+            movementViewHider = null;
+            if (movementViewRoot == null || !registrar.TryResolve<IFieldUIHideReader>(out var reader)) return;
+            var group = movementViewRoot.GetComponent<CanvasGroup>();
+            if (group == null)
+            {
+                Debug.LogWarning("이동 뷰에 CanvasGroup이 없어 이벤트 중 가림이 동작하지 않는다(Tools > Game > Build Field Scene).");
+                return;
+            }
+            movementViewHider = new FieldMovementViewHider(group, reader);
+        }
+
         private void OnDestroy()
         {
             cargoRecoveryPanel?.Dispose();
+            movementViewHider?.Dispose();
         }
     }
 }

@@ -16,9 +16,11 @@ namespace Game.Core
     /// 배치·이동 목표는 현재 영역 안이어야 하고, 이동·제거는 편집 후 배치로 마차 연결을 검사한다. 영역이 줄면 영역 밖 유닛을 자동 해제하고
     /// 목표가 영역 밖이 된 진행 중 활동을 취소한다. 이동 경로는 영역 밖 칸을 지나지 않는다.
     /// 편집 판정·반영은 편집 정책 객체(IFieldFormationEditPolicy)에 위임한다(설계 79번 §8) - 평소엔 활동 기반(FieldTimedEditPolicy), 전투 후 정리
-    /// 모드(IFormationRepairMode)엔 즉시 반영(FieldRepairEditPolicy). 활동 완료 후 정규화·디버그 핀·활동 이벤트 중계는 두 정책이 공유하는 패널 몫으로 남긴다.
+    /// 모드(IFormationRepairMode)엔 즉시 반영(FieldRepairEditPolicy), 이벤트 중엔 열람(FieldViewOnlyEditPolicy, 설계 89 §6.3). 활동 완료 후 정규화·디버그 핀·
+    /// 활동 이벤트 중계는 정책들이 공유하는 패널 몫으로 남긴다. 정리 모드가 끝나면 "기본 정책"(평소 또는 열람)으로 돌아간다 - 이벤트 전투 뒤 정리를 마쳐도
+    /// 이벤트가 끝나기 전에는 열람 모드여야 하기 때문이다.
     /// </summary>
-    public class FieldFormationPanel : MonoBehaviour, IUIPanel, IFormationEditingHandler, IFormationActivityHandler, ISceneLoadingTaskSource, IFormationRepairMode
+    public class FieldFormationPanel : MonoBehaviour, IUIPanel, IFormationEditingHandler, IFormationActivityHandler, ISceneLoadingTaskSource, IFormationRepairMode, IFormationViewOnlyMode
     {
         private const string RepairGuideText = "대열이 끊어져 있습니다. 마차를 옮겨 대열을 이어 붙이세요.";
 
@@ -38,6 +40,8 @@ namespace Game.Core
 
         private IFieldFormationEditPolicy timedPolicy;
         private IFieldFormationEditPolicy repairPolicy;
+        private IFieldFormationEditPolicy viewOnlyPolicy;
+        private IFieldFormationEditPolicy basePolicy;   // 정리 모드가 아닐 때의 정책 - 평소 또는 열람
         private IFieldFormationEditPolicy currentPolicy;
 
         // 정리 모드 화면 요소(설계 79번 §8) - 없으면 정리 모드만 건너뛴다(평소 정비창은 정상 동작).
@@ -60,7 +64,9 @@ namespace Game.Core
             // 재등록(씬 재진입) 시 정리 모드가 남아 있지 않게 평소 정책으로 시작한다.
             timedPolicy = new FieldTimedEditPolicy(rosterProvider, formationRepository, activityRepository, GetAreaPins, ApplyAndCancelOutside);
             repairPolicy = new FieldRepairEditPolicy(rosterProvider, formationRepository, activityRepository, GetAreaPins);
-            currentPolicy = timedPolicy;
+            viewOnlyPolicy = new FieldViewOnlyEditPolicy();
+            basePolicy = timedPolicy;
+            currentPolicy = basePolicy;
             repairCompleted = null;
             repairGuideLabel = null;
             repairDoneButton = null;
@@ -177,6 +183,15 @@ namespace Game.Core
 
         public bool IsUnitReserved(string unitId) => activityRepository != null && activityRepository.IsUnitBusy(unitId);
 
+        /// <summary>이벤트 중 열람 모드(설계 89 §6.3). 정리 모드 중이면 기본 정책만 바꾸고, 정리가 끝날 때 적용된다.</summary>
+        public void SetViewOnly(bool viewOnly)
+        {
+            if (timedPolicy == null) return;   // 화면 등록 전
+            basePolicy = viewOnly ? viewOnlyPolicy : timedPolicy;
+            if (!IsRepairing) currentPolicy = basePolicy;
+            gridEditor?.RequestRefresh();
+        }
+
         // 편집 요청은 현재 정책에 위임한다(설계 79번 §8). 정리 모드에서는 반영될 때마다 [완료] 활성·끊어진 덩어리 표시를 갱신한다.
         public bool HandlePaletteDrop(IFormationUnit unit, int targetSlotIndex) => AfterEdit(currentPolicy != null && currentPolicy.HandlePaletteDrop(unit, targetSlotIndex));
 
@@ -253,7 +268,7 @@ namespace Game.Core
         {
             if (!IsRepairing || !IsFormationConnected()) return;
 
-            currentPolicy = timedPolicy;
+            currentPolicy = basePolicy;
             repairTints.Clear();
             gridEditor?.SetCellTints(null);
             repairGuideLabel.gameObject.SetActive(false);

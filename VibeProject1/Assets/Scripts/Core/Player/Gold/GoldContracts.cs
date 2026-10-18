@@ -55,4 +55,19 @@ namespace Game.Core
         /// <summary>개인 골드를 개인 소유 가능량으로 줄이고 버린 금액을 반환한다. 적재 골드는 건드리지 않는다.</summary>
         int DiscardExcess();
     }
+
+    /// <summary>
+    /// 이벤트 골드 효과(설계 89 §5.1·§2 2026-10-16). IGoldSpender에 넣지 않은 이유: 구매·고용 소비자에게 "가진 만큼 잃기"·"획득" 같은 이벤트 전용 조작을
+    /// 노출하지 않기 위해서다(ISP). 잃기는 지출과 같은 순서(개인 골드 → 골드 상자 자동 인출)이고 부족하면 가진 만큼만 잃는다.
+    /// </summary>
+    public interface IGoldEventAdjuster
+    {
+        int OwnedGold { get; }
+        /// <summary>개인 골드에 더한다(상한 없음 - 출발 시 초과분 버림, 기획 82). 실제 더한 양.</summary>
+        int Gain(int amount);
+        /// <summary>가진 만큼 잃는다. 실제 잃은 양.</summary>
+        int LoseUpTo(int amount);
+        /// <summary>골드 상자 아이템인지 - 무작위 무역품 손실에서 뺀다.</summary>
+        bool IsGoldItem(string itemId);
+    }
 }

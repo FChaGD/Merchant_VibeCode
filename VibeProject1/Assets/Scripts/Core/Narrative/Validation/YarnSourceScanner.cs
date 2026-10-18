@@ -14,6 +14,8 @@ namespace Game.Core
         public bool IsOption;
         public bool IsCommand;
         public string CommandName = string.Empty;
+        /// <summary>명령 인자(공백 구분) - 이벤트 효과 명령 검사(설계 89 §5.1)용.</summary>
+        public List<string> CommandArgs = new();
     }
 
     public sealed class YarnScriptNode
@@ -25,7 +27,7 @@ namespace Game.Core
     /// <summary>
     /// .yarn 텍스트를 노드·줄 구조로 읽는 가벼운 스캐너(설계 87 §9). Yarn 컴파일러에 의존하지 않아 EditMode 콘텐츠 검증(화자·태그·명령 규칙)을
     /// Game.Core 테스트에서 돌릴 수 있다. 문법 전체가 아니라 검증에 필요한 것만 본다: 노드 제목, 들여쓰기, 화자 접두(`id:`), `#태그`, 선택지(`->`),
-    /// 명령(`<<x>>`). 선택지 줄의 `<<if ...>>`는 조건이라 명령으로 세지 않는다.
+    /// 명령(`<<x 인자...>>`, 인자는 공백 구분). 선택지 줄의 `<<if ...>>`는 조건이라 명령으로 세지 않는다.
     /// </summary>
     public static class YarnSourceScanner
     {
@@ -97,8 +99,9 @@ namespace Game.Core
                 result.IsCommand = true;
                 var end = line.IndexOf(">>", StringComparison.Ordinal);
                 var body = (end > 2 ? line.Substring(2, end - 2) : line.Substring(2)).Trim();
-                var space = body.IndexOf(' ');
-                result.CommandName = space > 0 ? body.Substring(0, space) : body;
+                var parts = body.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                result.CommandName = parts.Length > 0 ? parts[0] : string.Empty;
+                for (var p = 1; p < parts.Length; p++) result.CommandArgs.Add(parts[p]);
                 return result;
             }
 

@@ -23,6 +23,7 @@ MonoBehaviour:
     Range: 1.5
     MoraleSyncRate: 5
     HireCost: 1000
+    ExcludeFromHiring: 0
   - Id: Warrior02
     MercenaryClass: Warrior
     MaxHp: 100
@@ -33,6 +34,7 @@ MonoBehaviour:
     Range: 1.5
     MoraleSyncRate: 5
     HireCost: 1000
+    ExcludeFromHiring: 0
   - Id: Warrior03
     MercenaryClass: Warrior
     MaxHp: 100
@@ -43,6 +45,7 @@ MonoBehaviour:
     Range: 1.5
     MoraleSyncRate: 5
     HireCost: 1000
+    ExcludeFromHiring: 0
   - Id: Warrior04
     MercenaryClass: Warrior
     MaxHp: 100
@@ -53,6 +56,7 @@ MonoBehaviour:
     Range: 1.5
     MoraleSyncRate: 5
     HireCost: 1000
+    ExcludeFromHiring: 0
   - Id: Warrior05
     MercenaryClass: Warrior
     MaxHp: 100
@@ -63,6 +67,7 @@ MonoBehaviour:
     Range: 1.5
     MoraleSyncRate: 5
     HireCost: 1000
+    ExcludeFromHiring: 0
   - Id: Archer01
     MercenaryClass: Archer
     MaxHp: 70
@@ -73,6 +78,7 @@ MonoBehaviour:
     Range: 6
     MoraleSyncRate: 5
     HireCost: 1000
+    ExcludeFromHiring: 0
   - Id: Archer02
     MercenaryClass: Archer
     MaxHp: 70
@@ -83,6 +89,7 @@ MonoBehaviour:
     Range: 6
     MoraleSyncRate: 5
     HireCost: 1000
+    ExcludeFromHiring: 0
   - Id: Archer03
     MercenaryClass: Archer
     MaxHp: 70
@@ -93,6 +100,7 @@ MonoBehaviour:
     Range: 6
     MoraleSyncRate: 5
     HireCost: 1000
+    ExcludeFromHiring: 0
   - Id: Archer04
     MercenaryClass: Archer
     MaxHp: 70
@@ -103,6 +111,7 @@ MonoBehaviour:
     Range: 6
     MoraleSyncRate: 5
     HireCost: 1000
+    ExcludeFromHiring: 0
   - Id: Archer05
     MercenaryClass: Archer
     MaxHp: 70
@@ -113,6 +122,7 @@ MonoBehaviour:
     Range: 6
     MoraleSyncRate: 5
     HireCost: 1000
+    ExcludeFromHiring: 0
   - Id: ShieldBearer01
     MercenaryClass: ShieldBearer
     MaxHp: 150
@@ -123,6 +133,7 @@ MonoBehaviour:
     Range: 1.2
     MoraleSyncRate: 3
     HireCost: 1000
+    ExcludeFromHiring: 0
   - Id: ShieldBearer02
     MercenaryClass: ShieldBearer
     MaxHp: 150
@@ -133,6 +144,7 @@ MonoBehaviour:
     Range: 1.2
     MoraleSyncRate: 3
     HireCost: 1000
+    ExcludeFromHiring: 0
   - Id: ShieldBearer03
     MercenaryClass: ShieldBearer
     MaxHp: 150
@@ -143,6 +155,7 @@ MonoBehaviour:
     Range: 1.2
     MoraleSyncRate: 3
     HireCost: 1000
+    ExcludeFromHiring: 0
   - Id: ShieldBearer04
     MercenaryClass: ShieldBearer
     MaxHp: 150
@@ -153,6 +166,7 @@ MonoBehaviour:
     Range: 1.2
     MoraleSyncRate: 3
     HireCost: 1000
+    ExcludeFromHiring: 0
   - Id: ShieldBearer05
     MercenaryClass: ShieldBearer
     MaxHp: 150
@@ -163,3 +177,15 @@ MonoBehaviour:
     Range: 1.2
     MoraleSyncRate: 3
     HireCost: 1000
+    ExcludeFromHiring: 0
+  - Id: Escort01
+    MercenaryClass: Warrior
+    MaxHp: 100
+    Attack: 20
+    Defense: 10
+    MoveSpeed: 3
+    AttackInterval: 1
+    Range: 1.5
+    MoraleSyncRate: 5
+    HireCost: 1000
+    ExcludeFromHiring: 1

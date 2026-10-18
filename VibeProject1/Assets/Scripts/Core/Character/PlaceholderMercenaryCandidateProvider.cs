@@ -31,15 +31,8 @@ namespace Game.Core
         public IReadOnlyList<CharacterProfile> GetCandidates(int cityId, string facilityId)
         {
             if (catalog == null) return Array.Empty<CharacterProfile>();
-
-            var candidates = new List<CharacterProfile>();
-            foreach (var profile in catalog.All)
-            {
-                if (roster != null && roster.IsHired(profile.CharacterId)) continue;
-                if (deceased != null && deceased.IsDeceased(profile.CharacterId)) continue;
-                candidates.Add(profile);
-            }
-            return candidates;
+            // 이벤트 전용 캐릭터(후보 제외 열)도 뺀다(설계 89 §5.5).
+            return MercenaryCandidateFilter.Filter(catalog.All, id => roster != null && roster.IsHired(id), id => deceased != null && deceased.IsDeceased(id));
         }
     }
 }

@@ -399,6 +399,22 @@ namespace Game.Core.Editor
             return text;
         }
 
+        /// <summary>
+        /// 앵커 영역에 고정 크기 글자 칸을 get-or-create한다(입력 받지 않음). 대화 화면·이벤트 화면 빌더가 같은 모양을 써서 공용으로 뺐다(설계 89 §6).
+        /// </summary>
+        public static TextMeshProUGUI EnsureTextBlock(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, float fontSize, TextAlignmentOptions alignment, Color color)
+        {
+            var go = GetOrCreateUIObject(parent, name);
+            SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
+            var text = EnsureText(go);
+            text.fontSize = fontSize;
+            text.enableAutoSizing = false;
+            text.alignment = alignment;
+            text.color = color;
+            text.raycastTarget = false;
+            return text;
+        }
+
         public static void EnsureMarker(GameObject go, string id)
         {
             var marker = GetOrAddComponent<UIElementMarker>(go);

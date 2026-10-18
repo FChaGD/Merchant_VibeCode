@@ -25,6 +25,7 @@ namespace Game.Core.DebugTools
         private ITripCheckSignal checks;
         private IEncounterContentReader content;
         private bool isFieldLoaded;
+        private IFieldUIHideReader uiHide; // 이벤트 중 그리지 않는다(설계 89 §13) - 없으면 항상 그림
         private Vector2 scroll;
         private readonly StringBuilder status = new();
 
@@ -35,6 +36,7 @@ namespace Game.Core.DebugTools
             dependencies.TryResolve(out dialogue);
             dependencies.TryResolve(out checks);
             dependencies.TryResolve(out content);
+            dependencies.TryResolve(out uiHide);
         }
 
         private void OnEnable()
@@ -63,6 +65,7 @@ namespace Game.Core.DebugTools
         private void OnGUI()
         {
             if (!isFieldLoaded) return;
+            if (uiHide != null && uiHide.IsHidden) return;
 
             var expanded = NarrativeDebugPanels.Expanded == NarrativeDebugPanels.Dialogue;
             var toggle = new Rect(Screen.width - ToggleWidth - Margin, ToggleTop, ToggleWidth, ToggleHeight);

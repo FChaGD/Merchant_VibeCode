@@ -22,10 +22,13 @@ namespace Game.Core
         private readonly Action onTripArrived;
         private readonly TripDateAccrual dateAccrual; // 선택적 - 없으면 날짜 없이 진행
         private readonly ITripMilestoneSink milestones; // 선택적 - 중간 도시 도착 계기(설계 87번 §6.4)
+        private readonly ICurrentLegDifficulty legDifficulty; // 선택적 - 없으면 계획 등급명(설계 89 §4.3)
 
         public FieldTripLegCoordinator(ISessionState sessionState, ITripItinerary itinerary, ITripCurrentLocationRepository currentLocation, IWorldMapReader worldMap,
-            FieldProgressGaugeView gaugeView, FieldLegArrivalNoticeView noticeView, Action onTripArrived, TripDateAccrual dateAccrual, ITripMilestoneSink milestones)
+            FieldProgressGaugeView gaugeView, FieldLegArrivalNoticeView noticeView, Action onTripArrived, TripDateAccrual dateAccrual, ITripMilestoneSink milestones,
+            ICurrentLegDifficulty legDifficulty = null)
         {
+            this.legDifficulty = legDifficulty;
             this.dateAccrual = dateAccrual;
             this.milestones = milestones;
             this.sessionState = sessionState;
@@ -70,9 +73,17 @@ namespace Game.Core
                 return;
             }
 
-            var leg = itinerary.CurrentLeg;
-            gaugeView.SetLegLabel($"구간 {itinerary.CurrentLegIndex + 1}/{itinerary.LegCount} · {leg.GradeName}");
-            sessionState.Begin(leg.DurationSeconds);
+            RefreshLegLabel();
+            // 실행 값 기준으로 시작한다 - 출발 뒤 도시 쌍 난이도가 바뀌었으면 계획 소요시간이 낡았다(설계 89 §4.3).
+            sessionState.Begin(legDifficulty != null && legDifficulty.HasLeg ? legDifficulty.CurrentBaseDurationSeconds : itinerary.CurrentLeg.DurationSeconds);
+        }
+
+        /// <summary>이벤트로 현재 구간 난이도가 바뀌면 등급명을 다시 그린다(설계 89 §4.3).</summary>
+        public void RefreshLegLabel()
+        {
+            if (itinerary == null || !itinerary.HasItinerary) return;
+            var grade = legDifficulty != null && legDifficulty.HasLeg ? legDifficulty.CurrentGradeName : itinerary.CurrentLeg.GradeName;
+            gaugeView.SetLegLabel($"구간 {itinerary.CurrentLegIndex + 1}/{itinerary.LegCount} · {grade}");
         }
 
         private string CityName(int cityId)

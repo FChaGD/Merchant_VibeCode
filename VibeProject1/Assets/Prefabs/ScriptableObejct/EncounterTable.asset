@@ -12,7 +12,38 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fa886540c4d3b284ebc7479e3f96c526, type: 3}
   m_Name: EncounterTable
   m_EditorClassIdentifier: Game.Core::Game.Core.EncounterTableAsset
-  events: []
+  events:
+  - Id: E1
+    YarnNode: E1_BrokenCart
+    Occurrence: 0
+    Importance: 3
+    Repeat: 0
+    Weight: 100
+    Conditions: []
+  - Id: E2
+    YarnNode: E2_Toll
+    Occurrence: 0
+    Importance: 3
+    Repeat: 1
+    Weight: 100
+    Conditions: []
+  - Id: E3
+    YarnNode: E3_Storm
+    Occurrence: 0
+    Importance: 3
+    Repeat: 1
+    Weight: 100
+    Conditions: []
+  - Id: E4
+    YarnNode: E4_CartOwnerReturns
+    Occurrence: 1
+    Importance: 2
+    Repeat: 0
+    Weight: 100
+    Conditions:
+    - Key: flag
+      Negated: 0
+      Argument: helped_cart
   dialogues:
   - Id: D1
     YarnNode: D1_Departure
@@ -47,4 +78,10 @@ MonoBehaviour:
     - Warrior01
     Weight: 100
     Conditions: []
-  people: []
+  people:
+  - Id: cart_owner
+    Name: "\uC218\uB808 \uC8FC\uC778"
+    IllustrationKey: 
+  - Id: bandit_leader
+    Name: "\uC0B0\uC801 \uB450\uBAA9"
+    IllustrationKey: 

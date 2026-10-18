@@ -36,19 +36,23 @@ namespace Game.Core
             {
                 // 상단 버튼은 ①~③ 동안 비활성으로 두고 슬라이드 시작 직전에 되돌린다(사용자 확정) - 정리 중 다른 화면을 열 수 없게.
                 // ResumeAll(Moving 포함, 설계 25번 §8.4)은 슬라이드가 끝난 뒤 - 판정 즉시 재개하면 전환 도중 진행된 이동이 뒤로 밀려
-                // 어색해진다(사용자 확정).
-                fieldUIController.SetTopLevelButtonsInteractable(true);
+                // 어색해진다(사용자 확정). 이벤트 전투면 켜지 않는다 - 이벤트가 아직 진행 중이고, 진행자가 종료 때 되돌린다(설계 89 §4.2).
+                if (!IsInEvent(tripSignals)) fieldUIController.SetTopLevelButtonsInteractable(true);
+                var outcome = context.IsVictory ? EventBattleOutcome.Victory : EventBattleOutcome.Flee;
                 cameraController.TransitionToMovement(onComplete: () =>
                 {
                     ResumeTrip(tripSignals, () =>
                     {
                         fieldActivityRepository?.ResumeAll();
                         sessionState.Resume();
-                    });
+                    }, outcome);
                     onDone();
                 });
                 return;
             }
+
+            // 이벤트 전투 패배 - 씬 전환·종료 전에 진행자에 알려 이벤트를 "끝"으로 기록한다(설계 89 §4.2). 정지 원인은 상행 종료 신호가 비운다.
+            if (IsInEvent(tripSignals)) tripSignals.EventBattle.OnEventBattleFinished(EventBattleOutcome.Defeat);
 
             // 도주를 제외한 패배는 진행 중이던 배치/이동을 즉시 완료 처리한다(기획 20번 §3.2/§3.3, 설계 25번 §8.4).
             fieldActivityRepository?.ForceCompleteAll();
@@ -74,14 +78,30 @@ namespace Game.Core
         }
 
         /// <summary>
-        /// 상행을 이어갈 때의 재개(설계 87 §6.2·§6.4). 정지 조율자가 있으면 "전투" 원인만 푼다 - 다른 원인(이벤트)이 남아 있으면 조율자가 정지를 유지한다.
-        /// 없으면(Bootstrap 미재빌드) 예전처럼 직접 재개한다. 이벤트 전투의 신호 생략은 설계 89에서 이 메서드에 더한다.
+        /// 상행을 이어갈 때의 재개(설계 87 §6.2·§6.4, 89 §4.2). 정지 조율자가 있으면 "전투" 원인만 푼다 - 다른 원인(이벤트)이 남아 있으면 조율자가 정지를 유지한다.
+        /// "이벤트" 정지가 남아 있으면 전투 종료 신호를 보내지 않고 결과를 이벤트 진행자에 넘긴다 - 신호는 이벤트가 끝날 때 진행자가 보낸다.
+        /// 조율자가 없으면(Bootstrap 미재빌드) 예전처럼 직접 재개한다.
         /// </summary>
-        internal static void ResumeTrip(FieldTripSignals tripSignals, Action legacyResume)
+        internal static void ResumeTrip(FieldTripSignals tripSignals, Action legacyResume, EventBattleOutcome outcome = EventBattleOutcome.Victory)
         {
-            if (tripSignals?.Halt != null) tripSignals.Halt.Release(TripHaltReason.Battle);
-            else legacyResume();
+            if (tripSignals?.Halt != null)
+            {
+                var inEvent = IsInEvent(tripSignals);
+                tripSignals.Halt.Release(TripHaltReason.Battle);
+                if (inEvent)
+                {
+                    tripSignals.EventBattle.OnEventBattleFinished(outcome);
+                    return;
+                }
+            }
+            else
+            {
+                legacyResume();
+            }
             tripSignals?.Milestones?.Raise(TripMilestone.BattleEnded);
         }
+
+        internal static bool IsInEvent(FieldTripSignals tripSignals)
+            => tripSignals?.Halt != null && tripSignals.EventBattle != null && tripSignals.Halt.IsHeld(TripHaltReason.Event);
     }
 }

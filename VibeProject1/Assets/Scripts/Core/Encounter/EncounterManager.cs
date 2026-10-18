@@ -9,7 +9,7 @@ namespace Game.Core
     /// 시계는 상행 진행 이벤트에 얹혀 있어 전투 중·도착 후엔 판정도 별도 코드 없이 멈춘다(Docs/설계/05-2026-08-25-인카운터_판정_아키텍처.md §3).
     /// 상행 정지는 정지 조율자를 거친다(설계 87번 §6.2) - 이벤트 중 전투처럼 원인이 겹쳐도 한쪽 해제가 다른 쪽 정지를 풀지 않게.
     /// </summary>
-    public class EncounterManager : MonoBehaviour, IEncounterManager, IManagedComponent
+    public class EncounterManager : MonoBehaviour, IEncounterManager, IEventBattleRequester, IManagedComponent
     {
         public event Action OnEncounterTriggered;
 
@@ -23,6 +23,7 @@ namespace Game.Core
         public void RegisterSelf(IDependencyRegistrar registrar)
         {
             registrar.Register<IEncounterManager>(this);
+            registrar.Register<IEventBattleRequester>(this); // 이벤트 전투 입구(설계 89 §4.2)
         }
 
         public void ResolveDependencies(IDependencyResolver registrar)
@@ -45,6 +46,12 @@ namespace Game.Core
                 TriggerEncounter();
             }
         }
+
+        /// <summary>
+        /// 이벤트 전투 입구(설계 89 §4.2) - 확률 판정 없이 랜덤 전투와 같은 흐름(경고 → 전투 → 결과 정리)으로 들어간다. 적 구성도 같은 규칙(도로 난이도).
+        /// 이벤트 정지가 걸린 상태라 "전투" 원인은 추가로 걸리고, 마무리에서 그것만 풀린다.
+        /// </summary>
+        public void RequestEventBattle() => TriggerEncounter();
 
 #if UNITY_EDITOR
         // 디버깅 전용(TripDebugView "인카운터 발생") - 확률 판정을 건너뛰고 정상 인카운터 흐름을 즉시 시작한다. 디버그 도구를 걷어낼 때 이 메서드도 지운다.

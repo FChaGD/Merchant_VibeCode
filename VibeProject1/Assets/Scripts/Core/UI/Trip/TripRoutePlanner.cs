@@ -9,18 +9,21 @@ namespace Game.Core
     /// 직선 거리) + 관문 짝(가중치 0 - 서로 다른 지도라 거리를 잴 수 없다). 도달 판정(WorldMap.IsReachable)과 같은 그래프라 결과가 일치한다.
     /// 구간 = 다음 도시까지(기획 75번 §4-15) - 사이에 관문이 끼면 지역을 넘는 구간으로 긴 거리 공식, 난이도는 구간 안 도로들의 길이 가중 평균
     /// (설계 76번 §10-2). 노드가 수십 개라 단순 다익스트라(선형 최소 탐색)로 충분하다.
+    /// 이벤트로 바뀐 난이도는 도시 쌍 변경으로 반영한다 - 구간 난이도 = 그 도시 쌍의 보이는 값(기본 = 길이 가중 평균, 설계 89 §5.2).
     /// </summary>
     public sealed class TripRoutePlanner : ITripPlanner
     {
         private readonly IWorldMapReader map;
         private readonly IRoadDifficultyReader difficulties;
         private readonly Func<TripTravelSettings> settings;
+        private readonly ICityPairDifficultyReader pairs; // 선택적 - 없으면 기본값 그대로
 
-        public TripRoutePlanner(IWorldMapReader map, IRoadDifficultyReader difficulties, Func<TripTravelSettings> settings)
+        public TripRoutePlanner(IWorldMapReader map, IRoadDifficultyReader difficulties, Func<TripTravelSettings> settings, ICityPairDifficultyReader pairs = null)
         {
             this.map = map;
             this.difficulties = difficulties;
             this.settings = settings;
+            this.pairs = pairs;
         }
 
         public bool TryPlan(int fromCityId, int toCityId, out TripPlan plan)
@@ -116,16 +119,17 @@ namespace Game.Core
             }
 
             // 길이 0인 도로만 있는 비정상 데이터면 첫 도로 난이도로 대신한다.
-            var difficulty = distance > 0f
+            var baseDifficulty = TripTravelRules.ClampDifficulty(distance > 0f
                 ? Mathf.RoundToInt(weightedDifficulty / distance)
-                : difficulties.GetDifficulty(RoadKey.Of(path[startIndex], path[startIndex + 1]));
-            difficulty = TripTravelRules.ClampDifficulty(difficulty);
+                : difficulties.GetDifficulty(RoadKey.Of(path[startIndex], path[startIndex + 1])));
+            var pair = CityPairKey.Of(path[startIndex].Id, path[endIndex].Id);
+            var difficulty = pairs?.GetDifficulty(pair, baseDifficulty) ?? baseDifficulty;
 
             var band = travel.DistanceBands[TripTravelRules.ResolveBandIndex(travel, distance, crossesRegion)];
             var grade = TripTravelRules.ResolveGrade(travel, difficulty);
             var duration = TripTravelRules.ComputeDurationSeconds(travel, distance, difficulty, crossesRegion);
             return new TripLeg(path[startIndex].Id, path[endIndex].Id, distance, difficulty, crossesRegion, band.Name, grade.Name, duration, grade.EncountersPerFiveMinutes,
-                TravelDayRules.ToDays(travel, duration));
+                TravelDayRules.ToDays(travel, duration), baseDifficulty);
         }
 
         private bool IsGatePair(MapNodeId a, MapNodeId b) => map.TryGetGate(a.Id, out var gate) && gate.PairGateId == b.Id;

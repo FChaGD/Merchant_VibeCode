@@ -1,0 +1,50 @@
+title: E1_BrokenCart
+---
+<<declare $helped_cart = false>>
+cart_owner: 거기 상단 분들! 수레 바퀴가 빠져서 꼼짝을 못 하고 있소. #right
+Warrior01: 단장, 길을 막고 있군요. 어떻게 할까요? #left
+길가에 바퀴 빠진 수레가 서 있다. 짐이 반쯤 쏟아져 있다. #choice #people:cart_owner,Warrior01
+-> 돕는다
+    <<gold -100>>
+    <<set $helped_cart to true>>
+    cart_owner: 고맙소! 이 은혜는 잊지 않겠소.
+-> 지나친다
+    Warrior01: 갈 길이 멉니다.
+-> 짐을 뒤진다
+    <<goods_add placeholder-1x1 1>>
+    <<difficulty 10 leg>>
+    cart_owner: 이, 이런 도둑놈들! 이 길에 소문을 내 주겠다!
+===
+
+title: E2_Toll
+---
+bandit_leader: 지나가려면 통행세를 내라. #right
+Warrior01: 단장, 어떻게 할까요? #left
+무리가 길을 막고 통행세를 요구한다. #choice #people:bandit_leader,Warrior01
+-> 낸다 <<if gold() >= 300>> #lock:골드_300_필요
+    <<gold -300>>
+    bandit_leader: 현명한 선택이군.
+-> 거절한다
+    Warrior01: 싸울 수밖에 없겠군요!
+    <<battle>>
+    Warrior01: 정리됐습니다.
+===
+
+title: E3_Storm
+---
+갑자기 굵은 빗줄기가 쏟아진다. 길이 진창이 되었다.
+Warrior01: 바퀴가 빠지지 않게 천천히 갑시다. #left
+<<delay 20>>
+===
+
+title: E4_CartOwnerReturns
+---
+cart_owner: 지난번 도와준 상단이로군! 다시 만나 반갑소. #right
+cart_owner: 우리 아들 녀석이 상단 일을 배우고 싶어 하오. 데려가 주겠소?
+수레 뒤에서 젊은이가 고개를 내민다. #choice #people:cart_owner,Escort01
+-> 동행을 허락한다
+    <<join Escort01>>
+    cart_owner: 잘 부탁하오!
+-> 정중히 사양한다
+    cart_owner: 아쉽구려. 몸조심하시오.
+===

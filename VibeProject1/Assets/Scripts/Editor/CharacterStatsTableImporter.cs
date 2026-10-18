@@ -60,6 +60,9 @@ namespace Game.Core.Editor
                     Range = EditorTableReader.ParseFloat(row, "Range"),
                     MoraleSyncRate = EditorTableReader.ParseFloat(row, "MoraleSyncRate"),
                     HireCost = EditorTableReader.ParseInt(row, "HireCost"),
+                    // 선택 열(설계 89 §5.5) - 열이 없거나 비어 있으면 false. 기존 워크북도 그대로 임포트된다.
+                    ExcludeFromHiring = row.TryGetValue("ExcludeFromHiring", out var exclude) && !string.IsNullOrWhiteSpace(exclude)
+                        && EditorTableReader.ParseBool(row, "ExcludeFromHiring"),
                 });
             }
             return entries;
@@ -121,6 +124,7 @@ namespace Game.Core.Editor
                 element.FindPropertyRelative("Range").floatValue = entry.Range;
                 element.FindPropertyRelative("MoraleSyncRate").floatValue = entry.MoraleSyncRate;
                 element.FindPropertyRelative("HireCost").intValue = entry.HireCost;
+                element.FindPropertyRelative("ExcludeFromHiring").boolValue = entry.ExcludeFromHiring;
             }
             so.ApplyModifiedProperties();
             EditorUtility.SetDirty(asset);

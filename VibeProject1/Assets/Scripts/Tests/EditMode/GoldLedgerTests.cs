@@ -295,5 +295,50 @@ namespace Game.Core.Tests
             Assert.AreEqual(0, ledger.MaxConvertibleBoxes);
             Assert.AreEqual(0, ledger.Convert(1));
         }
+
+        [Test]
+        public void Gain_AddsToPersonal_NoLimit()
+        {
+            var wallet = new GoldTestWallet(400);
+            var ledger = Ledger(wallet, Inventory(GoldTestInventory.Section("A", 1, 1)));
+            Assert.AreEqual(300, ledger.Gain(300));
+            Assert.AreEqual(700, wallet.CurrentAmount, "개인 소유 가능량(500)을 넘어도 더한다 - 출발 시 버림");
+            Assert.AreEqual(0, ledger.Gain(-5));
+        }
+
+        [Test]
+        public void LoseUpTo_Shortfall_LosesAllOwned_PersonalThenBoxes()
+        {
+            var wallet = new GoldTestWallet(200);
+            var inventory = Inventory(GoldTestInventory.Section("A", 2, 1));
+            inventory.Place(Gold, 0, 0, "A");
+            var ledger = Ledger(wallet, inventory);   // 소유 700
+
+            Assert.AreEqual(700, ledger.LoseUpTo(1000));
+            Assert.AreEqual(0, wallet.CurrentAmount);
+            Assert.AreEqual(0, inventory.Items.Count);
+        }
+
+        [Test]
+        public void LoseUpTo_Enough_WithdrawsMinimalBoxes()
+        {
+            var wallet = new GoldTestWallet(200);
+            var inventory = Inventory(GoldTestInventory.Section("A", 2, 1));
+            inventory.Place(Gold, 0, 0, "A");
+            inventory.Place(Gold, 1, 0, "A");
+            var ledger = Ledger(wallet, inventory);
+
+            Assert.AreEqual(300, ledger.LoseUpTo(300));
+            Assert.AreEqual(400, wallet.CurrentAmount);
+            Assert.AreEqual(1, inventory.Items.Count);
+        }
+
+        [Test]
+        public void IsGoldItem_MatchesConfiguredId()
+        {
+            var ledger = Ledger(new GoldTestWallet(0), Inventory(GoldTestInventory.Section("A", 1, 1)));
+            Assert.IsTrue(ledger.IsGoldItem("gold-box"));
+            Assert.IsFalse(ledger.IsGoldItem("other"));
+        }
     }
 }
