@@ -5,7 +5,7 @@ namespace Game.Core
 {
     /// <summary>
     /// 숙소 화면(기획 94 4-1~4-6·4-11, Docs/설계/103번 §4.3). 좌측 휴식 설정, 우측 탭(전투 장비/전투 소모품/개인 물품) 편집. 무역품 구매 화면과 같은
-    /// 시설 화면 방식이라 모달 채널에 등록되고 HubUIWiring이 Hub 로드마다 새로 만든다 - 골드·저장소(Bootstrap 상주) 이벤트를 구독하므로 교체 시 Dispose한다.
+    /// 시설 화면 방식이라 시설 화면 채널에 등록되고 HubUIWiring이 Hub 로드마다 새로 만든다 - 골드·저장소(Bootstrap 상주) 이벤트를 구독하므로 교체 시 Dispose한다.
     /// 탭마다 편집 본문 컨트롤러를 따로 둔다 - 탭을 바꿀 때 보이는 본문만 Show하고 나머지는 Hide해 드래그·버리기 선택 상태가 남지 않게 한다.
     /// 휴식 가능 여부는 InnRestPlan 하나로 판정해 버튼 활성과 툴팁 사유가 어긋나지 않는다.
     /// </summary>
@@ -27,7 +27,7 @@ namespace Game.Core
         public string PanelId => UIPanelIds.Facility(TownFacilityIds.Inn);
 
         /// <param name="tabSources">탭 순서대로 각 탭 인벤토리의 조회·정리 계약. elements.Tabs와 같은 순서다.</param>
-        public InnPanel(InnElements elements, IReadOnlyList<(IInventoryReader Reader, IInventoryArrangement Arrangement)> tabSources, IInnRestService rest, IGoldHoldingsReader gold, ITooltipController tooltips, InnRestProgressPanel progress, IUIManager uiManager, IInputManager input)
+        public InnPanel(InnElements elements, IReadOnlyList<(IInventoryReader Reader, IInventoryArrangement Arrangement)> tabSources, IInnRestService rest, IGoldHoldingsReader gold, ITooltipController tooltips, InnRestProgressPanel progress, IPanelNavigator uiManager, IInputManager input)
         {
             this.elements = elements;
             this.rest = rest;

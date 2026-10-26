@@ -11,37 +11,23 @@ namespace Game.Core.Editor
     /// </summary>
     internal static class InnUIBuilder
     {
-        private static readonly Color PanelColor = new(0.96f, 0.95f, 0.92f, 1f);
-        private static readonly Color HeaderColor = new(0.72f, 0.66f, 0.55f, 1f);
-        private static readonly Color ButtonColor = new(0.85f, 0.85f, 0.85f, 1f);
         private static readonly Color GaugeBackColor = new(0.3f, 0.3f, 0.3f, 1f);
         private static readonly Color GaugeFillColor = new(0.35f, 0.7f, 0.35f, 1f);
-        private static readonly Color AreaColor = new(0.9f, 0.88f, 0.84f, 1f);
-        private static readonly Color DimColor = new(0f, 0f, 0f, 0.5f);
 
-        private const float PanelTop = 0.86f;
+        private static readonly System.Collections.Generic.IReadOnlyList<InventoryPopupSpec> TabSpecs = InventoryPopupSpecs.InnTabs;
 
-        private static readonly InventoryPopupSpec[] TabSpecs =
+        public static void Build(Transform screens)
         {
-            InventoryPopupSpecs.Equipment,
-            InventoryPopupSpecs.Consumable,
-            InventoryPopupSpecs.PersonalItem,
-        };
-
-        public static void Build(Transform modalPopups)
-        {
-            BuildInn(modalPopups);
-            BuildProgress(modalPopups);
+            BuildInn(screens);
+            BuildProgress(screens);
         }
 
-        private static void BuildInn(Transform modalPopups)
+        private static void BuildInn(Transform screens)
         {
-            var root = EditorUIBuilder.GetOrCreateUIObject(modalPopups, "Inn");
-            var rootRect = root.GetComponent<RectTransform>();
-            EditorUIBuilder.SetStretch(rootRect);
-            EditorUIBuilder.EnsureMarker(root, InnUIElementIds.Root);
+            var rootRect = EditorFacilityScreenBuilder.EnsureRoot(screens, EditorFacilityScreenBuilder.InnRoot, InnUIElementIds.Root);
+            var root = rootRect.gameObject;
 
-            BuildButton(rootRect, "ExitButton", "나가기", InnUIElementIds.ExitButton, new Vector2(0.02f, 0.88f), new Vector2(0.14f, 0.95f));
+            EditorFacilityScreenBuilder.EnsureExitButton(rootRect, InnUIElementIds.ExitButton);
             BuildRestPanel(rootRect);
             BuildTabPanel(rootRect);
 
@@ -52,7 +38,7 @@ namespace Game.Core.Editor
         // 좌측 휴식 설정(기획 94 4-1): 일수 스테퍼 + 1일 비용·총 비용 + "휴식". 비용 부족 사유는 버튼 툴팁으로만(4-11).
         private static void BuildRestPanel(RectTransform root)
         {
-            var panel = BuildPanel(root, "RestPanel", "휴식", new Vector2(0.02f, 0.06f), new Vector2(0.4f, PanelTop));
+            var panel = EditorFacilityScreenBuilder.EnsurePanel(root, "RestPanel", "휴식", 0.02f, 0.4f);
 
             BuildButton(panel, "DaysDownButton", "▼", InnUIElementIds.DaysDownButton, new Vector2(0.12f, 0.62f), new Vector2(0.28f, 0.74f));
             BuildText(panel, "Days", InnUIElementIds.DaysLabel, new Vector2(0.3f, 0.62f), new Vector2(0.7f, 0.74f), TextAlignmentOptions.Center, 28f);
@@ -80,11 +66,11 @@ namespace Game.Core.Editor
         {
             var panel = EditorUIBuilder.GetOrCreateUIObject(root, "TabPanel");
             var panelRect = panel.GetComponent<RectTransform>();
-            EditorUIBuilder.SetAnchors(panelRect, new Vector2(0.43f, 0.06f), new Vector2(0.98f, PanelTop));
-            EditorUIBuilder.EnsureImage(panel, PanelColor);
+            EditorUIBuilder.SetAnchors(panelRect, new Vector2(0.43f, EditorFacilityScreenBuilder.PanelBottom), new Vector2(0.98f, EditorFacilityScreenBuilder.PanelTop));
+            EditorUIBuilder.EnsureImage(panel, EditorUIColors.Panel);
 
-            var tabWidth = 1f / TabSpecs.Length;
-            for (var i = 0; i < TabSpecs.Length; i++)
+            var tabWidth = 1f / TabSpecs.Count;
+            for (var i = 0; i < TabSpecs.Count; i++)
             {
                 var spec = TabSpecs[i];
                 BuildButton(panelRect, $"Tab_{spec.PopupId}", spec.Title, InnUIElementIds.TabButton(spec.PopupId),
@@ -94,24 +80,24 @@ namespace Game.Core.Editor
                 var bodyRect = body.GetComponent<RectTransform>();
                 EditorUIBuilder.SetAnchors(bodyRect, new Vector2(0f, 0f), new Vector2(1f, 0.89f));
                 // 빈 곳 클릭(선택 해제)을 받으려면 본문 루트가 레이캐스트 대상이어야 한다.
-                EditorUIBuilder.EnsureImage(body, PanelColor);
+                EditorUIBuilder.EnsureImage(body, EditorUIColors.Panel);
                 InventoryPopupUIBuilder.BuildArrangementBody(bodyRect, InnUIElementIds.BodyPrefix(spec.PopupId), spec.HasStaging, spec.HasSections);
             }
         }
 
         // 휴식 진행(기획 94 4-7·4-13): 재화·날짜 HUD만 남기도록 화면 전체를 덮고, 중앙 패널에 게이지·표시값·빈 영역 2개·결과·중단/확인.
-        private static void BuildProgress(Transform modalPopups)
+        private static void BuildProgress(Transform screens)
         {
-            var root = EditorUIBuilder.GetOrCreateUIObject(modalPopups, "InnRestProgress");
+            var root = EditorUIBuilder.GetOrCreateUIObject(screens, EditorFacilityScreenBuilder.InnRestProgressRoot);
             var rootRect = root.GetComponent<RectTransform>();
             EditorUIBuilder.SetStretch(rootRect);
-            EditorUIBuilder.EnsureImage(root, DimColor);
+            EditorUIBuilder.EnsureImage(root, EditorUIColors.Dim);
             EditorUIBuilder.EnsureMarker(root, InnUIElementIds.ProgressRoot);
 
             var panel = EditorUIBuilder.GetOrCreateUIObject(rootRect, "Panel");
             var panelRect = panel.GetComponent<RectTransform>();
             EditorUIBuilder.SetAnchors(panelRect, new Vector2(0.2f, 0.2f), new Vector2(0.8f, 0.75f));
-            EditorUIBuilder.EnsureImage(panel, PanelColor);
+            EditorUIBuilder.EnsureImage(panel, EditorUIColors.Panel);
 
             BuildText(panelRect, "Days", InnUIElementIds.ProgressDays, new Vector2(0.05f, 0.8f), new Vector2(0.95f, 0.94f), TextAlignmentOptions.Center, 30f);
 
@@ -141,11 +127,9 @@ namespace Game.Core.Editor
         }
 
         // 저수준 조립은 공용 EditorUIBuilder에 있다 - 여기서는 이 화면의 색만 정해 넘긴다.
-        private static RectTransform BuildPanel(RectTransform root, string name, string title, Vector2 min, Vector2 max)
-            => EditorUIBuilder.EnsureHeaderedPanel(root, name, title, min, max, PanelColor, HeaderColor);
 
         private static GameObject BuildButton(RectTransform parent, string name, string text, string id, Vector2 min, Vector2 max)
-            => EditorUIBuilder.EnsureLabeledButton(parent, name, text, id, min, max, ButtonColor);
+            => EditorUIBuilder.EnsureLabeledButton(parent, name, text, id, min, max, EditorUIColors.Button);
 
         private static void BuildText(RectTransform parent, string name, string id, Vector2 min, Vector2 max, TextAlignmentOptions alignment, float maxFontSize)
             => EditorUIBuilder.EnsureAnchoredLabel(parent, name, id, min, max, alignment, maxFontSize);
@@ -154,7 +138,7 @@ namespace Game.Core.Editor
         {
             var go = EditorUIBuilder.GetOrCreateUIObject(parent, name);
             EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), min, max);
-            EditorUIBuilder.EnsureImage(go, AreaColor).raycastTarget = false;
+            EditorUIBuilder.EnsureImage(go, EditorUIColors.List).raycastTarget = false;
             EditorUIBuilder.EnsureMarker(go, id);
         }
     }

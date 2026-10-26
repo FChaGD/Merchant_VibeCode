@@ -21,6 +21,9 @@ namespace Game.Core
     /// 이벤트가 끝나기 전에는 열람 모드여야 하기 때문이다.
     /// </summary>
     public class FieldFormationPanel : MonoBehaviour, IUIPanel, IFormationEditingHandler, IFormationActivityHandler, ISceneLoadingTaskSource, IFormationRepairMode, IFormationViewOnlyMode
+#if UNITY_EDITOR
+        , IFormationDebugPinEditing
+#endif
     {
         private const string RepairGuideText = "대열이 끊어져 있습니다. 마차를 옮겨 대열을 이어 붙이세요.";
 
@@ -34,7 +37,7 @@ namespace Game.Core
         private ICaravanRosterProvider rosterProvider;
         private IFormationRepository formationRepository;
         private IFieldFormationActivityRepository activityRepository;
-        private IUIManager uiManager;
+        private IPanelNavigator uiManager;
         // 디버그 핀(에디터 전용 도구, 같은 UIManager 오브젝트에 설치된 경우만) - 없으면 null.
         private IFormationDebugAreaSource debugAreaSource;
 
@@ -53,7 +56,7 @@ namespace Game.Core
 
         private bool IsRepairing => currentPolicy != null && currentPolicy == repairPolicy;
 
-        public void RegisterFieldFormationUI(SceneUIRoot sceneUIRoot, ICaravanRosterProvider rosterProvider, IFormationRepository formationRepository, IUnitConditionRepository conditionRepository, IFieldFormationActivityRepository activityRepository, IUIManager uiManager)
+        public void RegisterFieldFormationUI(SceneUIRoot sceneUIRoot, ICaravanRosterProvider rosterProvider, IFormationRepository formationRepository, IUnitConditionRepository conditionRepository, IFieldFormationActivityRepository activityRepository, IPanelNavigator uiManager)
         {
             this.rosterProvider = rosterProvider;
             this.formationRepository = formationRepository;

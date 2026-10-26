@@ -15,7 +15,9 @@ namespace Game.Core
         public delegate bool ItemFinder(string instanceId, out InventoryItemInstance item);
 
         private const string SelectingText = "버릴 아이템을 선택하세요 ({0}개 선택)";
-        private const string FailedText = "버리지 못했습니다. 다시 선택하세요.";
+        private const string SelectFailedText = "버리지 못했습니다. 다시 선택하세요.";
+        // 드롭 버리기는 아이템 1개를 바로 버리므로 "다시 선택"이 맞지 않는다(사용자 확정 2026-10-26, Docs/Refactor/2026-10-26_공통.md D-6).
+        private const string DropFailedText = "아이템이 이미 사라져 버리지 못했습니다.";
         private const string ConfirmText = "확인";
         private const string CancelText = "취소";
 
@@ -51,6 +53,19 @@ namespace Game.Core
         public string InfoText => failedMessage ?? (IsSelecting ? string.Format(SelectingText, selection.Count) : null);
 
         public bool IsMarked(string instanceId) => IsSelecting && selection.Contains(instanceId);
+
+        internal static string FailureText(bool wasSelecting) => wasSelecting ? SelectFailedText : DropFailedText;
+
+        /// <summary>
+        /// 선택 상태가 아닐 때 남아 있는 실패 문구를 지운다 - 편집 본문이 아이템 클릭·드래그 시작 때 부른다. 선택 상태의 실패 문구는
+        /// 다음 아이템 토글에서 지워진다(HandleItemClicked).
+        /// </summary>
+        public void ClearFailureMessage()
+        {
+            if (failedMessage == null) return;
+            failedMessage = null;
+            Notify();
+        }
 
         public void HandleItemClicked(string instanceId)
         {
@@ -139,7 +154,7 @@ namespace Game.Core
             }
 
             selection.Clear();
-            failedMessage = FailedText;
+            failedMessage = FailureText(IsSelecting);
             UpdateButtons();
             Notify();
         }

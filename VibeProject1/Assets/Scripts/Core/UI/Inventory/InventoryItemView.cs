@@ -36,7 +36,7 @@ namespace Game.Core
             Item = item;
             baseColor = color;
             if (background != null) background.color = color;
-            if (label != null) label.text = item.Definition?.DisplayName ?? "값 없음";
+            if (label != null) label.text = item.Definition?.DisplayName ?? PlaceholderText.Missing;
             SetSelected(false);
             SetDiscardMarked(false);
         }

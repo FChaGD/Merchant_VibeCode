@@ -10,7 +10,7 @@ namespace Game.Core
     /// </summary>
     public class PlaceholderGuildQuestBoard : MonoBehaviour, IGuildQuestBoard, IManagedComponent
     {
-        private const string MissingText = "값 없음";
+        private const string MissingText = PlaceholderText.Missing;
         private const int QuestCount = 3;
 
         private readonly List<GuildQuestInfo> quests = new();

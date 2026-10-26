@@ -51,13 +51,13 @@ namespace Game.Core
         private TMP_Dropdown rangedSelfPreservationDropdown;
 
         private ITacticsRepository repository;
-        private IUIManager uiManager;
+        private IPanelNavigator uiManager;
 
         // TryBind가 중간 요소에서 실패해도 panelRoot는 이미 할당된 상태일 수 있어, panelRoot null
         // 체크만으로는 "완전히 바인딩됐는지"를 판별할 수 없다 - Open()은 이 플래그로 판별한다.
         private bool isBound;
 
-        public void RegisterTacticsUI(SceneUIRoot sceneUIRoot, ITacticsRepository repository, IUIManager uiManager)
+        public void RegisterTacticsUI(SceneUIRoot sceneUIRoot, ITacticsRepository repository, IPanelNavigator uiManager)
         {
             isBound = false;
 
@@ -273,7 +273,7 @@ namespace Game.Core
         // 라벨 조회 실패 시 "값 없음" 자리표시자로 대체한다(CLAUDE.md Placeholder 컨벤션) - 수치
         // Provider(TableBattleUnitStatProvider 등)와 달리 표시용 텍스트는 누락돼도 게임을 막을
         // 이유가 없다(Docs/설계/18번 §5.3).
-        private static string ResolveLabel(bool found, string ko) => found ? ko : "값 없음";
+        private static string ResolveLabel(bool found, string ko) => found ? ko : PlaceholderText.Missing;
 
         private static void SetOptions<T>(TMP_Dropdown dropdown, IReadOnlyList<T> options, System.Func<T, string> labelSelector)
         {

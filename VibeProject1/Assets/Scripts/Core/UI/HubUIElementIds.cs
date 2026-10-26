@@ -19,6 +19,8 @@ namespace Game.Core
         public const string RootDepth = "Hub.RootDepth";
         public const string PersistentLayer = "Hub.PersistentLayer";
         public const string PopupLayer = "Hub.PopupLayer";
+        // 시설 화면 묶음(Docs/Refactor/2026-10-26_공통.md B-1) - 모달 묶음보다 아래에 그려져 골드 변환 같은 모달이 시설 화면 위에 뜬다.
+        public const string Screens = "Hub.Screens";
         public const string ModalPopups = "Hub.ModalPopups";
         public const string ModelessPopups = "Hub.ModelessPopups";
         public const string PopupExemptLayer = "Hub.PopupExemptLayer";

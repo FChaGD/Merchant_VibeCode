@@ -39,7 +39,7 @@ namespace Game.Core
 
         private IDependencyResolver registrar;
         private IBattleController battleController;
-        private IUIManager uiManager;
+        private IPanelNavigator uiManager;
 
         public void RegisterSelf(IDependencyRegistrar registrar)
         {
@@ -63,7 +63,7 @@ namespace Game.Core
 
         private void Start()
         {
-            uiManager = registrar.Resolve<IUIManager>();
+            uiManager = registrar.Resolve<IPanelNavigator>();
             var tacticsRepository = registrar.Resolve<ITacticsRepository>();
 
             var tacticsPanel = GetComponent<ITacticsPanel>();

@@ -9,10 +9,10 @@ namespace Game.Core
     /// </summary>
     internal sealed class FormationRepairStep : IBattleAftermathStep
     {
-        private readonly IUIManager uiManager;
+        private readonly IPanelNavigator uiManager;
         private readonly IFormationRepairMode repairMode;
 
-        public FormationRepairStep(IUIManager uiManager, IFormationRepairMode repairMode)
+        public FormationRepairStep(IPanelNavigator uiManager, IFormationRepairMode repairMode)
         {
             this.uiManager = uiManager;
             this.repairMode = repairMode;

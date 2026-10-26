@@ -45,7 +45,7 @@ namespace Game.Core
 
             registrar.TryResolve(out ICharacterCatalogReader catalog);
             registrar.TryResolve(out IEventBattleRequester battle);
-            registrar.TryResolve(out IUIManager uiManager);
+            registrar.TryResolve(out IUIVisibilitySignal uiManager);
             registrar.TryResolve(out IFieldUIHideControl uiHide); // 이벤트 중 Field UI 가림(설계 89 §13) - 없으면 숨기지 않는다
             var context = new EncounterContextSource(registrar);
 

@@ -18,7 +18,7 @@ namespace Game.Core
             var goldBoxes = 0;
             foreach (var item in items)
             {
-                var name = item.Definition?.DisplayName ?? "값 없음";
+                var name = item.Definition?.DisplayName ?? PlaceholderText.Missing;
                 if (counts.TryGetValue(name, out var count))
                 {
                     counts[name] = count + 1;

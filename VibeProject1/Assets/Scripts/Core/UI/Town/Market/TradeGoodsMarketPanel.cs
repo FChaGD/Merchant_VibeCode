@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Game.Core
 {
     /// <summary>
-    /// 무역품 구매 화면(Docs/기획/48번, 설계 50번 §6.5). 모달 팝업 채널에 등록된다 - 모달 팝업이 열리면 재화 패널 외 Hub UI가
+    /// 무역품 구매 화면(Docs/기획/48번, 설계 50번 §6.5). 시설 화면 채널에 등록된다 - 모달 팝업이 열리면 재화 패널 외 Hub UI가
     /// 숨고, 닫으면 카테고리 depth가 그대로 남아 있어 "재화 패널만 남김"과 "나가면 시장 지구로 복귀"가 새 코드 없이 성립한다
     /// (설계 50번 §2.3). MonoBehaviour가 아닌 plain C#이며 HubUIWiring이 Hub 로드마다 새로 만든다 - 골드 보유·저장소(Bootstrap
     /// 상주) 이벤트를 구독하므로 교체 시 반드시 Dispose한다.
@@ -15,9 +15,6 @@ namespace Game.Core
     public sealed class TradeGoodsMarketPanel : IUIPanel, IPanelCloseGuard, IDisposable
     {
         private const string EmptyStockText = "판매 품목 없음";
-        private const string SoldOutText = "품절";
-        private const string InsufficientFundsText = "재화가 부족합니다.";
-        private const string NoSpaceText = "상단 물류품에 놓을 공간이 없습니다. 마차 공간을 정리해주세요.";
         private const string ExitBlockedText = "임시 보관 물품을 넣을 공간이 부족해 나갈 수 없습니다. 물건을 팔거나, 마차에 실어주세요.";
         private const float PreviewCellGap = 4f;
         private const int VisibleStockRows = 6; // 목록 영역에 한 번에 보이는 줄 수 - 줄 높이를 영역 높이 비율로 정한다(잠정)
@@ -36,10 +33,14 @@ namespace Game.Core
         private int selectedIndex = -1;
         private bool isOpen;
 
+        // 구매·고용 버튼 비활성 사유 툴팁(Docs/Refactor/2026-10-26_공통.md D-1) - 배선이 등록해 넘기고, 이 패널이 Dispose에서 해제한다. 요소가 없으면 null.
+        private readonly ITooltipHandle actionTooltip;
+
         public string PanelId => UIPanelIds.Facility(TownFacilityIds.TradeGoodsMarket);
 
-        public TradeGoodsMarketPanel(TradeGoodsMarketElements elements, ITradeGoodsInventoryRepository inventory, IGoldSpender gold, ITownShopStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, IUIManager uiManager, IInputManager input, IGoldItemInfo goldInfo)
+        public TradeGoodsMarketPanel(TradeGoodsMarketElements elements, ITradeGoodsInventoryRepository inventory, IGoldSpender gold, ITownShopStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, IPanelNavigator uiManager, ITooltipHandle actionTooltip, IInputManager input, IGoldItemInfo goldInfo)
         {
+            this.actionTooltip = actionTooltip;
             this.elements = elements;
             this.inventory = inventory;
             this.gold = gold;
@@ -100,6 +101,7 @@ namespace Game.Core
 
         public void Dispose()
         {
+            actionTooltip?.Dispose();
             gold.Changed -= HandleCurrencyChanged;
             stockReader.OnStockChanged -= HandleStockChanged;
             inventoryController.Dispose();
@@ -133,27 +135,8 @@ namespace Game.Core
 
         private void RenderStock()
         {
-            var viewportHeight = Mathf.Max(elements.StockViewport.rect.height, 1f);
-            var rowHeight = viewportHeight / VisibleStockRows;
-
-            for (var i = 0; i < stock.Count; i++)
-            {
-                if (i >= rowViews.Count) rowViews.Add(UnityEngine.Object.Instantiate(elements.StockRowTemplate, elements.StockContent));
-
-                var row = rowViews[i];
-                row.gameObject.SetActive(true);
-                row.Bind(i, stock[i], Select);
-                var rect = row.RectTransform;
-                rect.anchorMin = new Vector2(0f, 1f);
-                rect.anchorMax = new Vector2(1f, 1f);
-                rect.pivot = new Vector2(0.5f, 1f);
-                rect.anchoredPosition = new Vector2(0f, -i * rowHeight);
-                rect.sizeDelta = new Vector2(0f, rowHeight);
-            }
-
-            for (var i = stock.Count; i < rowViews.Count; i++) rowViews[i].gameObject.SetActive(false);
-
-            elements.StockContent.sizeDelta = new Vector2(elements.StockContent.sizeDelta.x, stock.Count * rowHeight);
+            var rowHeight = FixedRowListLayout.RowHeight(elements.StockViewport.rect.height, VisibleStockRows);
+            FixedRowListLayout.Render(rowViews, stock.Count, elements.StockRowTemplate, elements.StockContent, rowHeight, (row, i) => row.Bind(i, stock[i], Select));
             elements.EmptyStockLabel.gameObject.SetActive(stock.Count == 0);
             elements.EmptyStockLabel.text = EmptyStockText;
         }
@@ -181,7 +164,7 @@ namespace Game.Core
                 elements.InfoName.text = string.Empty;
                 elements.InfoPrice.text = string.Empty;
                 elements.InfoDescription.text = string.Empty;
-                elements.ReasonLabel.text = string.Empty;
+                actionTooltip?.SetText(null);
                 elements.BuyButton.interactable = false;
                 RenderPreview(null);
                 return;
@@ -194,13 +177,7 @@ namespace Game.Core
 
             var check = purchaseService.Evaluate(entry);
             elements.BuyButton.interactable = check == ShopPurchaseCheck.Available;
-            elements.ReasonLabel.text = check switch
-            {
-                ShopPurchaseCheck.SoldOut => SoldOutText,
-                ShopPurchaseCheck.InsufficientFunds => InsufficientFundsText,
-                ShopPurchaseCheck.NoSpace => NoSpaceText,
-                _ => string.Empty,
-            };
+            actionTooltip?.SetText(FacilityBlockReasons.For(check));
         }
 
         // 차지하는 칸 모양 미리보기 - 영역 안에 정사각형 칸으로 가운데 정렬한다. 칸 오브젝트는 재사용한다.

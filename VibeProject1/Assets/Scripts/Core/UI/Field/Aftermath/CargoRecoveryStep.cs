@@ -9,11 +9,11 @@ namespace Game.Core
     /// </summary>
     internal sealed class CargoRecoveryStep : IBattleAftermathStep
     {
-        private readonly IUIManager uiManager;
+        private readonly IPanelNavigator uiManager;
         private readonly ITradeGoodsCargoSettlement settlement;
         private readonly FieldCargoRecoveryPanel panel;
 
-        public CargoRecoveryStep(IUIManager uiManager, ITradeGoodsCargoSettlement settlement, FieldCargoRecoveryPanel panel)
+        public CargoRecoveryStep(IPanelNavigator uiManager, ITradeGoodsCargoSettlement settlement, FieldCargoRecoveryPanel panel)
         {
             this.uiManager = uiManager;
             this.settlement = settlement;

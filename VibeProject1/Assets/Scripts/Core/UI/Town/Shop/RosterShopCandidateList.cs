@@ -23,27 +23,8 @@ namespace Game.Core
 
         public void Render(int count, Action<RosterShopCandidateRowView, int> bindRow, string emptyText)
         {
-            var viewportHeight = Mathf.Max(elements.CandidateViewport.rect.height, 1f);
-            var rowHeight = viewportHeight / VisibleRows;
-
-            for (var i = 0; i < count; i++)
-            {
-                if (i >= rowViews.Count) rowViews.Add(UnityEngine.Object.Instantiate(elements.CandidateRowTemplate, elements.CandidateContent));
-
-                var row = rowViews[i];
-                row.gameObject.SetActive(true);
-                bindRow(row, i);
-                var rect = row.RectTransform;
-                rect.anchorMin = new Vector2(0f, 1f);
-                rect.anchorMax = new Vector2(1f, 1f);
-                rect.pivot = new Vector2(0.5f, 1f);
-                rect.anchoredPosition = new Vector2(0f, -i * rowHeight);
-                rect.sizeDelta = new Vector2(0f, rowHeight);
-            }
-
-            for (var i = count; i < rowViews.Count; i++) rowViews[i].gameObject.SetActive(false);
-
-            elements.CandidateContent.sizeDelta = new Vector2(elements.CandidateContent.sizeDelta.x, count * rowHeight);
+            var rowHeight = FixedRowListLayout.RowHeight(elements.CandidateViewport.rect.height, VisibleRows);
+            FixedRowListLayout.Render(rowViews, count, elements.CandidateRowTemplate, elements.CandidateContent, rowHeight, bindRow);
             elements.EmptyCandidateLabel.gameObject.SetActive(count == 0);
             elements.EmptyCandidateLabel.text = emptyText;
         }

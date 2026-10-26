@@ -9,7 +9,7 @@ namespace Game.Core
     /// </summary>
     public sealed class FieldEventScreens : IEventEncounterScreens
     {
-        private readonly IUIManager uiManager;
+        private readonly IPanelNavigator uiManager;
         private readonly FieldEventDialogueView dialogue;
         private readonly FieldEventChoiceView choice;
         private readonly ViewRootPanel dialoguePanel;
@@ -18,7 +18,7 @@ namespace Game.Core
         private readonly IFieldUIController fieldUI;
         private readonly IFormationViewOnlyMode formation;          // 선택적
 
-        public FieldEventScreens(IUIManager uiManager, FieldEventDialogueView dialogue, FieldEventChoiceView choice, ViewRootPanel dialoguePanel, ViewRootPanel choicePanel,
+        public FieldEventScreens(IPanelNavigator uiManager, FieldEventDialogueView dialogue, FieldEventChoiceView choice, ViewRootPanel dialoguePanel, ViewRootPanel choicePanel,
             FieldCargoRecoveryPanel cargoRecovery, IFieldUIController fieldUI, IFormationViewOnlyMode formation)
         {
             this.uiManager = uiManager;

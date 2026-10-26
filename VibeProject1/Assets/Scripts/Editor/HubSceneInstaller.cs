@@ -76,19 +76,19 @@ namespace Game.Core.Editor
             InventoryPopupUIBuilder.Build(layers.ModelessPopups, InventoryPopupSpecs.Equipment);
             InventoryPopupUIBuilder.Build(layers.ModelessPopups, InventoryPopupSpecs.Consumable);
             InventoryPopupUIBuilder.Build(layers.ModelessPopups, InventoryPopupSpecs.PersonalItem);
-            // 시설 화면은 모달 팝업(Docs/설계/50번 §6.1) - 재화 패널 외 UI 숨김·카테고리 depth 복귀를 기존 팝업 축이 처리한다.
-            TradeGoodsMarketUIBuilder.Build(layers.ModalPopups);
-            RosterShopUIBuilder.Build(layers.ModalPopups, RosterShopUIBuilder.MercenaryContact);
-            var stableRoot = RosterShopUIBuilder.Build(layers.ModalPopups, RosterShopUIBuilder.Stable);
+            // 시설 화면은 Screens 묶음(Docs/Refactor/2026-10-26_공통.md B-1) - 재화 패널 외 UI 숨김은 레이어 숨김 규칙이, 카테고리 depth 복귀는 시설 화면 채널이 처리한다.
+            TradeGoodsMarketUIBuilder.Build(layers.Screens);
+            RosterShopUIBuilder.Build(layers.Screens, RosterShopUIBuilder.MercenaryContact);
+            var stableRoot = RosterShopUIBuilder.Build(layers.Screens, RosterShopUIBuilder.Stable);
             StableOwnedUIBuilder.Build(stableRoot); // 마구간 보유 영역(설계 91번 §5.2)
             // 매각은 StableOwnedUIBuilder가 좌측 개체 정보에 만든다(2026-10-26) - 우측 정보 영역에 있던 옛 매각 버튼 정리.
             var candidateInfo = stableRoot.Find("CandidatePanel/CandidateInfo");
             if (candidateInfo != null) EditorUIBuilder.DestroyChildIfExists(candidateInfo, "SellButton");
             // 골드 변환 모달(설계 83번 §6.2) - HUD 짧은 클릭으로 연다.
             GoldConversionUIBuilder.Build(layers.ModalPopups);
-            // 숙소·휴식 진행·상인조합(설계 103번 §5.2) - 시설 화면과 같은 모달 팝업.
-            InnUIBuilder.Build(layers.ModalPopups);
-            MerchantGuildUIBuilder.Build(layers.ModalPopups);
+            // 숙소·휴식 진행·상인조합(설계 103번 §5.2) - 시설 화면.
+            InnUIBuilder.Build(layers.Screens);
+            MerchantGuildUIBuilder.Build(layers.Screens);
 
             EditorUIBuilder.WarnIfOutsideTransitionRoot(sceneUIRoot.transform, contentRoot, "Hub");
 
@@ -105,7 +105,7 @@ namespace Game.Core.Editor
         //   Background
         //   DepthLayer        depth 의존 · 모달 팝업 시 숨김(CanvasGroup)
         //   PersistentLayer   depth 무관 · 모달 팝업 시 숨김(CanvasGroup) - 인벤토리 버튼, 새 상시 UI의 기본 자리
-        //   PopupLayer        ModalPopups(상행 준비/배치/방향성 지시) → ModelessPopups(인벤토리 팝업)
+        //   PopupLayer        Screens(시설 화면) → ModalPopups(상행 준비/배치/방향성 지시/골드 변환) → ModelessPopups(인벤토리 팝업)
         //   PopupExemptLayer  depth 무관 · 모달 팝업 시 유지(재화 HUD)
         // 레이어 순서가 곧 렌더 순서라 여기서 레이어 형제 순서만 고정하면 요소별 형제 순서 강제가 필요 없다.
         private readonly struct HubLayers
@@ -113,15 +113,17 @@ namespace Game.Core.Editor
             public readonly Transform DepthLayer;
             public readonly Transform RootDepth;
             public readonly Transform PersistentLayer;
+            public readonly Transform Screens;
             public readonly Transform ModalPopups;
             public readonly Transform ModelessPopups;
             public readonly Transform PopupExemptLayer;
 
-            public HubLayers(Transform depthLayer, Transform rootDepth, Transform persistentLayer, Transform modalPopups, Transform modelessPopups, Transform popupExemptLayer)
+            public HubLayers(Transform depthLayer, Transform rootDepth, Transform persistentLayer, Transform screens, Transform modalPopups, Transform modelessPopups, Transform popupExemptLayer)
             {
                 DepthLayer = depthLayer;
                 RootDepth = rootDepth;
                 PersistentLayer = persistentLayer;
+                Screens = screens;
                 ModalPopups = modalPopups;
                 ModelessPopups = modelessPopups;
                 PopupExemptLayer = popupExemptLayer;
@@ -130,7 +132,7 @@ namespace Game.Core.Editor
 
         private static HubLayers EnsureLayers(SceneUIRoot sceneUIRoot, Transform contentRoot)
         {
-            // CanvasGroup은 PopupLayerGate가 모달 팝업 동안 숨기는 대상이다(팝업 축).
+            // CanvasGroup은 LayerHideGate가 모달 팝업·시설 화면 동안 숨기는 대상이다(팝업 축).
             var depthLayer = EnsureStretchLayer(contentRoot, "DepthLayer", HubUIElementIds.DepthLayer);
             EditorUIBuilder.GetOrAddComponent<CanvasGroup>(depthLayer.gameObject);
             var persistentLayer = EnsureStretchLayer(contentRoot, "PersistentLayer", HubUIElementIds.PersistentLayer);
@@ -146,10 +148,19 @@ namespace Game.Core.Editor
             popupLayer.SetAsLastSibling();
             popupExemptLayer.SetAsLastSibling();
 
+            var screens = EnsureStretchLayer(popupLayer, "Screens", HubUIElementIds.Screens);
             var modalPopups = EnsureStretchLayer(popupLayer, "ModalPopups", HubUIElementIds.ModalPopups);
             var modelessPopups = EnsureStretchLayer(popupLayer, "ModelessPopups", HubUIElementIds.ModelessPopups);
-            modalPopups.SetAsFirstSibling();
-            modelessPopups.SetAsLastSibling(); // 인벤토리 팝업은 모달 팝업 위에 뜬다(38번 §3).
+            // 시설 화면 < 모달 < 인벤토리 팝업 순으로 그린다 - 골드 변환 모달이 시설 화면 위에, 인벤토리 팝업이 모달 위에 뜬다(38번 §3).
+            screens.SetAsFirstSibling();
+            modalPopups.SetSiblingIndex(screens.GetSiblingIndex() + 1);
+            modelessPopups.SetAsLastSibling();
+            // 예전엔 시설 화면 루트가 ModalPopups 아래에 있었다 - 조립 전에 Screens로 옮겨야 조립이 옛 오브젝트를 재사용한다(중복 생성 방지).
+            foreach (var facilityRoot in EditorFacilityScreenBuilder.AllRoots)
+            {
+                var old = modalPopups.Find(facilityRoot);
+                if (old != null && screens.Find(facilityRoot) == null) old.SetParent(screens, false);
+            }
 
             // RootDepth는 카테고리 depth보다 아래에 그려져야 한다 - DepthLayer의 첫 자식으로 고정.
             // RootDepth 자신의 CanvasGroup은 씬 전환 커튼 중 루트 depth 버튼 전체를 비활성화하는 용도다
@@ -169,7 +180,7 @@ namespace Game.Core.Editor
             ReparentIfFound(sceneUIRoot, HubUIElementIds.CurrencyPanelRoot, popupExemptLayer);
             ReparentIfFound(sceneUIRoot, HubUIElementIds.InventoryShortcutRoot, persistentLayer);
 
-            return new HubLayers(depthLayer, rootDepth, persistentLayer, modalPopups, modelessPopups, popupExemptLayer);
+            return new HubLayers(depthLayer, rootDepth, persistentLayer, screens, modalPopups, modelessPopups, popupExemptLayer);
         }
 
         private static Transform EnsureStretchLayer(Transform parent, string name, string markerId)
@@ -861,15 +872,15 @@ namespace Game.Core.Editor
             var smallHeight = HubActionButtonBaseHeight * (smallWidth / HubActionButtonBaseWidth);
             var smallTop = bigBottom - HubActionButtonGap;
 
-            var popupIds = HubInventoryShortcutBinder.PopupIds;
-            var big = BuildInventoryShortcutButton(root, popupIds[0], "상단 물류품", minFontSize: 18f);
+            var popupSpecs = InventoryPopupSpecs.All; // 표시 순서는 스펙 목록 순서(Docs/Refactor/2026-10-26_공통.md D-2)
+            var big = BuildInventoryShortcutButton(root, popupSpecs[0].PopupId, "상단 물류품", minFontSize: 18f);
             EditorUIBuilder.SetAnchors(big, new Vector2(leftX, bigBottom), new Vector2(leftX + width, bigTop));
 
             var smallLabels = new[] { "전투 장비", "소모품", "개인 물품" };
             for (var i = 0; i < smallLabels.Length; i++)
             {
                 // 작은 버튼은 1080p 기준 약 100x48px라 기본 최소 글자 크기(18)로는 라벨이 넘친다 - 최소치만 낮춘다.
-                var small = BuildInventoryShortcutButton(root, popupIds[i + 1], smallLabels[i], minFontSize: 10f);
+                var small = BuildInventoryShortcutButton(root, popupSpecs[i + 1].PopupId, smallLabels[i], minFontSize: 10f);
                 var x = leftX + i * (smallWidth + HubActionButtonGap);
                 EditorUIBuilder.SetAnchors(small, new Vector2(x, smallTop - smallHeight), new Vector2(x + smallWidth, smallTop));
             }

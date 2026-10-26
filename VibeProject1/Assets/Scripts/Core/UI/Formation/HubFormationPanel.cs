@@ -15,6 +15,9 @@ namespace Game.Core
     /// 배치·이동·제거는 마차 중심 대열 규칙(FormationAreaRules, Docs/기획/59번)으로 판정하고, 허용된 결과(자동 해제 포함)만 로컬 사본에 반영한다.
     /// </summary>
     public class HubFormationPanel : MonoBehaviour, IUIPanel, IFormationEditingHandler, ISceneLoadingTaskSource
+#if UNITY_EDITOR
+        , IFormationDebugPinEditing
+#endif
     {
         [SerializeField] private FormationUnitIconView dragGhostPrefab;
 
@@ -26,13 +29,13 @@ namespace Game.Core
 
         private IFormationRepository repository;
         private ICaravanRosterProvider rosterProvider;
-        private IUIManager uiManager;
+        private IPanelNavigator uiManager;
         // 디버그 핀(에디터 전용 도구, 같은 UIManager 오브젝트에 설치된 경우만) - 없으면 null.
         private IFormationDebugAreaSource debugAreaSource;
 
         private FormationLayout currentLayout;
 
-        public void RegisterFormationUI(SceneUIRoot sceneUIRoot, ICaravanRosterProvider rosterProvider, IFormationRepository repository, IUnitConditionRepository conditionRepository, IUIManager uiManager)
+        public void RegisterFormationUI(SceneUIRoot sceneUIRoot, ICaravanRosterProvider rosterProvider, IFormationRepository repository, IUnitConditionRepository conditionRepository, IPanelNavigator uiManager)
         {
             this.repository = repository;
             this.rosterProvider = rosterProvider;

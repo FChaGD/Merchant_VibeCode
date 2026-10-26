@@ -12,27 +12,25 @@ namespace Game.Core
     /// </summary>
     public sealed class StableSaleController : IDisposable
     {
-        private const string MissingText = "값 없음";
-        private const string CargoText = "화물이 실린 마차는 매각할 수 없습니다.";
-        private const string LastWagonText = "마지막 마차는 매각할 수 없습니다.";
+        private const string MissingText = PlaceholderText.Missing;
         private const string ConfirmText = "매각";
         private const string CancelText = "취소";
 
         private readonly TMP_Text priceLabel;
-        private readonly TMP_Text reasonLabel;
+        private readonly ITooltipHandle sellTooltip; // 매각 버튼 비활성 사유 툴팁(Docs/Refactor/2026-10-26_공통.md D-1) - 요소가 없으면 null
         private readonly Button sellButton;
         private readonly ConfirmDialogView dialog;
-        private readonly ICaravanAssetSaleService sale;   // 선택적 - 없으면 매각 버튼 비활성 + "값 없음"
+        private readonly ICaravanAssetSaleService sale;   // 선택적 - 없으면 매각 버튼 비활성 + 매각가 "값 없음" + 사유 툴팁
         private readonly IOwnedCaravanAssetReader owned;
         private readonly IInventoryReader cargo;          // 선택적 - 개체 정보를 보는 동안 화물 변경 구독
 
         private string instanceId;
         private bool subscribed;
 
-        public StableSaleController(TMP_Text priceLabel, TMP_Text reasonLabel, Button sellButton, ConfirmDialogView dialog, ICaravanAssetSaleService sale, IOwnedCaravanAssetReader owned, IInventoryReader cargo)
+        public StableSaleController(TMP_Text priceLabel, ITooltipHandle sellTooltip, Button sellButton, ConfirmDialogView dialog, ICaravanAssetSaleService sale, IOwnedCaravanAssetReader owned, IInventoryReader cargo)
         {
             this.priceLabel = priceLabel;
-            this.reasonLabel = reasonLabel;
+            this.sellTooltip = sellTooltip;
             this.sellButton = sellButton;
             this.dialog = dialog;
             this.sale = sale;
@@ -64,7 +62,11 @@ namespace Game.Core
             if (dialog != null) dialog.Hide();
         }
 
-        public void Dispose() => Unsubscribe();
+        public void Dispose()
+        {
+            Unsubscribe();
+            sellTooltip?.Dispose();
+        }
 
         private void Render()
         {
@@ -73,7 +75,7 @@ namespace Game.Core
             if (!owned.TryGetOwned(instanceId, out _))
             {
                 priceLabel.text = string.Empty;
-                reasonLabel.text = string.Empty;
+                sellTooltip?.SetText(null);
                 sellButton.interactable = false;
                 return;
             }
@@ -81,7 +83,7 @@ namespace Game.Core
             if (sale == null)
             {
                 priceLabel.text = "매각가 " + MissingText;
-                reasonLabel.text = MissingText;
+                sellTooltip?.SetText(FacilityBlockReasons.SaleUnavailable);
                 sellButton.interactable = false;
                 return;
             }
@@ -89,12 +91,7 @@ namespace Game.Core
             priceLabel.text = $"매각가 {sale.SalePriceOf(instanceId):N0}";
             var check = sale.Evaluate(instanceId);
             sellButton.interactable = check == CaravanAssetSaleCheck.Available;
-            reasonLabel.text = check switch
-            {
-                CaravanAssetSaleCheck.HasCargo => CargoText,
-                CaravanAssetSaleCheck.LastWagon => LastWagonText,
-                _ => string.Empty,
-            };
+            sellTooltip?.SetText(FacilityBlockReasons.For(check));
         }
 
         // 되돌릴 수 없는 조작이라 확인 창을 거친다(기획 94 4-21).

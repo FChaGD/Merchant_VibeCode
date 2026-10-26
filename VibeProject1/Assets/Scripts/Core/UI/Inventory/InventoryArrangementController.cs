@@ -15,7 +15,7 @@ namespace Game.Core
     internal sealed class InventoryArrangementController : IDisposable
     {
         private const string SortFailedMessage = "공간이 부족해 정렬할 수 없습니다.";
-        private const string NoSectionLabel = "값 없음";
+        private const string NoSectionLabel = PlaceholderText.Missing;
 
         private readonly InventoryArrangementElements elements;
         private readonly IInventoryReader reader;
@@ -229,6 +229,7 @@ namespace Game.Core
                 {
                     // 선택 버리기 중에는 드래그를 시작하지 않는다 - Q 회전 구독도 생기지 않는다(기획 95).
                     if (discardController.IsSelecting) return;
+                    discardController.ClearFailureMessage();
                     Select(dragged.Item.InstanceId);
                     dragController.Begin(dragged, eventData);
                 },
@@ -239,8 +240,13 @@ namespace Game.Core
         // 선택 버리기 중의 클릭은 정보 선택이 아니라 버릴 아이템 토글이다(기획 95).
         private void HandleItemClicked(InventoryItemView clicked)
         {
-            if (discardController.IsSelecting) discardController.HandleItemClicked(clicked.Item.InstanceId);
-            else Select(clicked.Item.InstanceId);
+            if (discardController.IsSelecting)
+            {
+                discardController.HandleItemClicked(clicked.Item.InstanceId);
+                return;
+            }
+            discardController.ClearFailureMessage();
+            Select(clicked.Item.InstanceId);
         }
 
         // 아이템 정보는 클릭(또는 드래그 시작)으로 선택했을 때만 표시한다(기획 39번 §3.7).

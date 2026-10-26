@@ -14,25 +14,13 @@ namespace Game.Core.Editor
     /// </summary>
     internal static class TradeGoodsMarketUIBuilder
     {
-        private static readonly Color PanelColor = new(0.96f, 0.95f, 0.92f, 1f);
-        private static readonly Color HeaderColor = new(0.72f, 0.66f, 0.55f, 1f);
-        private static readonly Color ListColor = new(0.9f, 0.88f, 0.84f, 1f);
-        private static readonly Color RowColor = new(1f, 1f, 1f, 1f);
-        private static readonly Color ButtonColor = new(0.85f, 0.85f, 0.85f, 1f);
-        private static readonly Color SelectionOutlineColor = new(0.1f, 0.1f, 0.1f, 1f);
-        private static readonly Color ReasonColor = new(0.75f, 0.15f, 0.1f, 1f);
 
-        // 우상단 재화 패널(PopupExemptLayer)과 겹치지 않도록 두 패널 윗변을 여기까지로 제한한다.
-        private const float PanelTop = 0.86f;
-
-        public static void Build(Transform modalPopups)
+        public static void Build(Transform screens)
         {
-            var root = EditorUIBuilder.GetOrCreateUIObject(modalPopups, "TradeGoodsMarket");
-            var rootRect = root.GetComponent<RectTransform>();
-            EditorUIBuilder.SetStretch(rootRect);
-            EditorUIBuilder.EnsureMarker(root, TradeGoodsMarketUIElementIds.Root);
+            var rootRect = EditorFacilityScreenBuilder.EnsureRoot(screens, EditorFacilityScreenBuilder.TradeGoodsMarketRoot, TradeGoodsMarketUIElementIds.Root);
+            var root = rootRect.gameObject;
 
-            BuildExitButton(rootRect);
+            EditorFacilityScreenBuilder.EnsureExitButton(rootRect, TradeGoodsMarketUIElementIds.ExitButton);
             BuildInventoryPanel(rootRect);
             BuildShopPanel(rootRect);
 
@@ -40,46 +28,18 @@ namespace Game.Core.Editor
             root.SetActive(false);
         }
 
-        private static void BuildExitButton(RectTransform root)
-        {
-            var go = EditorUIBuilder.GetOrCreateUIObject(root, "ExitButton");
-            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(0.02f, 0.88f), new Vector2(0.14f, 0.95f));
-            EditorUIBuilder.EnsureImage(go, ButtonColor);
-            EditorUIBuilder.EnsureButton(go);
-            EditorUIBuilder.EnsureLabel(go.transform, "나가기", autoSize: true, minFontSize: 12f, maxFontSize: 26f);
-            EditorUIBuilder.EnsureMarker(go, TradeGoodsMarketUIElementIds.ExitButton);
-        }
-
         // 떠 있는 팝업이 아니라 고정 패널이라 제목 줄은 드래그하지 않는 머리글이다(기획 48번 §4.4 - 창 드래그·닫기 버튼 제거).
         private static void BuildInventoryPanel(RectTransform root)
         {
-            var panel = EditorUIBuilder.GetOrCreateUIObject(root, "InventoryPanel");
-            var panelRect = panel.GetComponent<RectTransform>();
-            EditorUIBuilder.SetAnchors(panelRect, new Vector2(0.02f, 0.06f), new Vector2(0.55f, PanelTop));
-            EditorUIBuilder.EnsureImage(panel, PanelColor);
-
-            BuildHeader(panelRect, InventoryPopupSpecs.TradeGoods.Title);
+            var panelRect = EditorFacilityScreenBuilder.EnsurePanel(root, "InventoryPanel", InventoryPopupSpecs.TradeGoods.Title, 0.02f, 0.55f);
             InventoryPopupUIBuilder.BuildArrangementBody(panelRect, TradeGoodsMarketUIElementIds.InventoryPrefix, InventoryPopupSpecs.TradeGoods.HasStaging, InventoryPopupSpecs.TradeGoods.HasSections);
         }
 
         private static void BuildShopPanel(RectTransform root)
         {
-            var panel = EditorUIBuilder.GetOrCreateUIObject(root, "ShopPanel");
-            var panelRect = panel.GetComponent<RectTransform>();
-            EditorUIBuilder.SetAnchors(panelRect, new Vector2(0.58f, 0.06f), new Vector2(0.98f, PanelTop));
-            EditorUIBuilder.EnsureImage(panel, PanelColor);
-
-            BuildHeader(panelRect, "무역품 구매");
+            var panelRect = EditorFacilityScreenBuilder.EnsurePanel(root, "ShopPanel", "무역품 구매", 0.58f, 0.98f);
             BuildStockList(panelRect);
             BuildItemInfo(panelRect);
-        }
-
-        private static void BuildHeader(RectTransform panel, string title)
-        {
-            var header = EditorUIBuilder.GetOrCreateUIObject(panel, "Header");
-            EditorUIBuilder.SetAnchors(header.GetComponent<RectTransform>(), new Vector2(0f, 0.9f), Vector2.one);
-            EditorUIBuilder.EnsureImage(header, HeaderColor).raycastTarget = false;
-            EditorUIBuilder.EnsureLabel(header.transform, title, autoSize: true, minFontSize: 12f, maxFontSize: 26f);
         }
 
         // 판매 목록 - 패널 상단 약 55%. 줄 높이는 런타임(TradeGoodsMarketPanel)이 목록 영역 높이 비율로 정한다.
@@ -88,7 +48,7 @@ namespace Game.Core.Editor
             var area = EditorUIBuilder.GetOrCreateUIObject(panel, "StockList");
             var areaRect = area.GetComponent<RectTransform>();
             EditorUIBuilder.SetAnchors(areaRect, new Vector2(0.03f, 0.47f), new Vector2(0.97f, 0.88f));
-            EditorUIBuilder.EnsureImage(area, ListColor);
+            EditorUIBuilder.EnsureImage(area, EditorUIColors.List);
 
             var (viewport, content) = EditorUIBuilder.CreateViewportAndContent(areaRect);
             EditorUIBuilder.EnsureMarker(viewport.gameObject, TradeGoodsMarketUIElementIds.StockViewport);
@@ -116,10 +76,10 @@ namespace Game.Core.Editor
             EditorUIBuilder.SetStretch(templates.GetComponent<RectTransform>());
 
             var row = EditorUIBuilder.GetOrCreateUIObject(templates.transform, "StockRowTemplate");
-            EditorUIBuilder.EnsureImage(row, RowColor);
+            EditorUIBuilder.EnsureImage(row, EditorUIColors.Row);
             var button = EditorUIBuilder.EnsureButton(row);
             var outline = EditorUIBuilder.GetOrAddComponent<Outline>(row);
-            outline.effectColor = SelectionOutlineColor;
+            outline.effectColor = EditorUIColors.SelectionOutline;
             outline.effectDistance = new Vector2(3f, -3f);
             outline.enabled = false;
 
@@ -180,16 +140,17 @@ namespace Game.Core.Editor
             cell.SetActive(false);
 
             BuildInfoLabel(infoRect, "Price", new Vector2(0.33f, 0.66f), new Vector2(1f, 0.82f), TradeGoodsMarketUIElementIds.InfoPrice, TextAlignmentOptions.MidlineLeft, 24f);
-            BuildInfoLabel(infoRect, "Description", new Vector2(0.33f, 0.36f), new Vector2(1f, 0.64f), TradeGoodsMarketUIElementIds.InfoDescription, TextAlignmentOptions.TopLeft, 20f);
-            var reason = BuildInfoLabel(infoRect, "Reason", new Vector2(0f, 0.2f), new Vector2(1f, 0.34f), TradeGoodsMarketUIElementIds.ReasonLabel, TextAlignmentOptions.MidlineLeft, 20f);
-            reason.color = ReasonColor;
+            // 사유 문구 줄은 구매 버튼 툴팁으로 옮겼다(Docs/Refactor/2026-10-26_공통.md D-1) - 빈 자리는 설명 칸이 아래로 늘어 메운다.
+            EditorUIBuilder.DestroyChildIfExists(infoRect, "Reason");
+            BuildInfoLabel(infoRect, "Description", new Vector2(0.33f, 0.2f), new Vector2(1f, 0.64f), TradeGoodsMarketUIElementIds.InfoDescription, TextAlignmentOptions.TopLeft, 20f);
 
             var buy = EditorUIBuilder.GetOrCreateUIObject(infoRect, "BuyButton");
             EditorUIBuilder.SetAnchors(buy.GetComponent<RectTransform>(), new Vector2(0.65f, 0f), new Vector2(1f, 0.17f));
-            EditorUIBuilder.EnsureImage(buy, ButtonColor);
+            EditorUIBuilder.EnsureImage(buy, EditorUIColors.Button);
             EditorUIBuilder.EnsureButton(buy);
             EditorUIBuilder.EnsureLabel(buy.transform, "구매", autoSize: true, minFontSize: 12f, maxFontSize: 26f);
             EditorUIBuilder.EnsureMarker(buy, TradeGoodsMarketUIElementIds.BuyButton);
+            EditorUIBuilder.EnsureButtonTooltip(infoRect, buy, "BuyTooltip", TradeGoodsMarketUIElementIds.BuyTooltip, TradeGoodsMarketUIElementIds.BuyTooltipText, 0.65f, 1f, 0.18f);
         }
 
         private static TMP_Text BuildInfoLabel(RectTransform parent, string name, Vector2 min, Vector2 max, string id, TextAlignmentOptions alignment, float maxFontSize)

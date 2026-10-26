@@ -32,6 +32,7 @@ namespace Game.Core
 #if UNITY_EDITOR
         // 디버그 핀 패널 연동 지점(설계 60번 §8) - 디버그 도구를 걷어낼 때는 이 #if UNITY_EDITOR 블록들도 함께 지운다.
         private FormationGridDebugView debugView;
+        private IFormationDebugPinEditing DebugPins => handler as IFormationDebugPinEditing;
 #endif
         // 대열 영역 외곽선(디버그 도구, 마을 정비창만 넘겨줌) - 없으면 null.
         private IFormationAreaOutline areaOutline;
@@ -45,11 +46,8 @@ namespace Game.Core
         private readonly Dictionary<string, IFormationUnit> unitsById = new();
         private IReadOnlyList<IFormationUnit> currentRoster = Array.Empty<IFormationUnit>();
 
-        // TickActivityOverlays가 매 프레임 호출되므로(Field 배치 UI가 열려 있는 동안) 매번 새로
-        // 할당하지 않고 이 두 버퍼를 Clear()해서 재사용한다(최적화, Docs/Refactor/2026-09-08_공통.md
-        // §6.3 수정 F).
-        private readonly List<FormationActivityOverlayVisual> activityOverlayBuffer = new();
-        private readonly List<FormationMovePathVisual> movePathBuffer = new();
+        // 활동 표시(매 프레임 경로)는 협력 객체가 맡는다(Docs/Refactor/2026-10-26_공통.md C-3b). 격자 뷰를 바인딩할 때 만든다.
+        private FormationActivityPresenter activityPresenter;
 
         // 표시 범위 = 대열 경계 상자 바깥 이 칸 수만큼(설계 60번 §11-3).
 
@@ -88,6 +86,7 @@ namespace Game.Core
             // 확대/축소 애니메이션은 코루틴이라 패널의 매 프레임 갱신(Update)보다 늦게 칸 좌표를 바꾼다 - 이동선·출발지·도착지·이동 아이콘이 한 프레임
             // 늦은 좌표로 그려져 줌 동안 흔들리다 자리 잡았다(2026-10-05 실전 확인). 칸 좌표가 바뀐 그 자리에서 다시 그려 같은 프레임에 맞춘다.
             gridView.ViewChanged += TickActivityOverlays;
+            activityPresenter = new FormationActivityPresenter(gridView, LookupUnit);
 
             if (!sceneUIRoot.TryGetElement<FormationInfoPanelView>(FormationUIElementIds.InfoPanelRoot, out infoPanelView))
             {
@@ -134,10 +133,12 @@ namespace Game.Core
             gridView.Initialize(HandleSlotDropped, HandleUnitIconClicked, HandleGridIconBeginDrag, HandleIconDrag, HandleIconEndDrag);
 #if UNITY_EDITOR
             // 디버그 패널은 게임 UI 인스톨러가 늘 만들지만, 핀 저장소(Bootstrap, Install/Remove 메뉴)가 없으면 쓸 수 없으므로 숨긴다.
+            // 디버그 조작은 정책이 디버그 계약을 구현했을 때만 쓴다(Docs/Refactor/2026-10-26_공통.md C-2).
             if (debugView != null)
             {
-                debugView.gameObject.SetActive(handler.HasDebugPinStore);
-                if (handler.HasDebugPinStore) debugView.Initialize(HandleDebugPinDropped, HandleDebugPinClicked);
+                var usable = DebugPins != null && DebugPins.HasDebugPinStore;
+                debugView.gameObject.SetActive(usable);
+                if (usable) debugView.Initialize(HandleDebugPinDropped, HandleDebugPinClicked);
             }
 #endif
 
@@ -204,40 +205,17 @@ namespace Game.Core
             RefreshAllSlots();
         }
 
-        // 진행 중인 배치/이동 활동을 경로선 + 슬롯 오버레이 마크 + 이동 아이콘으로 그린다(설계 25번
-        // §5) - 잔여시간이 매 프레임 줄어들므로 FieldFormationPanel.Update()가 매 프레임 호출한다.
-        // Hub는 GetActiveActivities()가 항상 빈 목록이라 이 메서드 전체가 자연히 무해하다. 세 호출
-        // (SetPathLines→SetActivityOverlays→SetTravelerIcons) 순서가 곧 렌더 순서다(실전 확인:
-        // 슬롯 배경 < 경로선 < 오버레이 마크 < 이동 아이콘) - 순서를 바꾸지 말 것.
+        // 진행 중인 배치/이동 활동 표시(설계 25번 §5) - FieldFormationPanel.Update()가 매 프레임, 격자 뷰가 칸 좌표가 바뀔 때 부른다.
+        // 그리기는 FormationActivityPresenter에 위임한다.
         public void TickActivityOverlays()
         {
-            if (panelRoot == null || !panelRoot.activeSelf || displayLayout == null)
+            if (panelRoot == null || !panelRoot.activeSelf || displayLayout == null || activityPresenter == null)
             {
                 return;
             }
 
             var activities = activityHandler?.GetActiveActivities() ?? Array.Empty<FormationActivity>();
-            activityOverlayBuffer.Clear();
-            movePathBuffer.Clear();
-
-            foreach (var activity in activities)
-            {
-                unitsById.TryGetValue(activity.UnitId, out var unit);
-
-                activityOverlayBuffer.Add(new FormationActivityOverlayVisual(activity.TargetSlotIndex, activity, unit));
-
-                if (activity.Kind == FormationActivityKind.Moving)
-                {
-                    activityOverlayBuffer.Add(new FormationActivityOverlayVisual(activity.OriginSlotIndex, activity, unit));
-                    // 이동 중인 유닛 아이콘이 경로 위를 실시간으로 지나가도록(기획 20번 §3.3) 진행률과
-                    // 아이콘을 함께 넘긴다 - 정적인 출발/도착 오버레이(위 activityOverlayBuffer)와는 별개다.
-                    movePathBuffer.Add(new FormationMovePathVisual(activity.PathSlotIndices, activity.Progress01, unit?.Icon, activity.PartialSegmentIndex, activity.PartialSegmentWeight));
-                }
-            }
-
-            gridView.SetPathLines(movePathBuffer);
-            gridView.SetActivityOverlays(activityOverlayBuffer, HandleActivityGhostBeginDrag, HandleIconDrag, HandleActivityGhostEndDrag);
-            gridView.SetTravelerIcons(movePathBuffer);
+            activityPresenter.Tick(activities, HandleActivityGhostBeginDrag, HandleIconDrag, HandleActivityGhostEndDrag);
         }
 
         private void RefreshRosterCache()
@@ -308,47 +286,18 @@ namespace Game.Core
             return placedIds;
         }
 
+        // 범주 요약 계산은 FormationPaletteSummaryBuilder가 한다(Docs/Refactor/2026-10-26_공통.md C-3a) - 여기서는 저장소로 배치 불가를 판정해 넘긴다.
         private List<FormationCategorySummary> BuildCategorySummaries()
         {
             var placedIds = CollectPlacedIds();
-            var order = new List<FormationCategoryKey>();
-            var totals = new Dictionary<FormationCategoryKey, int>();
-            var availables = new Dictionary<FormationCategoryKey, int>();
-            var names = new Dictionary<FormationCategoryKey, string>();
-            var icons = new Dictionary<FormationCategoryKey, Sprite>();
-
-            foreach (var unit in currentRoster)
+            return FormationPaletteSummaryBuilder.Build(currentRoster, handler.ShowsInPalette, unit =>
             {
-                if (!handler.ShowsInPalette(unit)) continue;
-
-                var key = FormationCategoryKey.Of(unit);
-                if (!totals.ContainsKey(key))
-                {
-                    order.Add(key);
-                    totals[key] = 0;
-                    availables[key] = 0;
-                    names[key] = unit.DisplayName;
-                    icons[key] = unit.Icon;
-                }
-
-                totals[key]++;
-
                 var isDead = conditionRepository != null && unit is IMercenaryUnit && conditionRepository.IsDead(unit.Id);
                 // Field에서는 아직 배치가 완료되지 않았어도(레이아웃엔 안 나타남) 이미 다른 진행 중
                 // 활동에 쓰이고 있으면 예약된 것으로 본다(activityHandler.IsUnitReserved, 설계 25번 §3.3).
                 var isReserved = placedIds.Contains(unit.Id) || (activityHandler?.IsUnitReserved(unit.Id) ?? false);
-                if (!isDead && !isReserved)
-                {
-                    availables[key]++;
-                }
-            }
-
-            var summaries = new List<FormationCategorySummary>(order.Count);
-            foreach (var key in order)
-            {
-                summaries.Add(new FormationCategorySummary(key, names[key], icons[key], totals[key], availables[key]));
-            }
-            return summaries;
+                return isDead || isReserved;
+            });
         }
 
         private void RefreshPalette()
@@ -538,7 +487,7 @@ namespace Game.Core
 
         private void HandleDebugPinDropped(int slotIndex, FormationAreaShape shape)
         {
-            handler.HandleDebugPinAdd(slotIndex, shape);
+            DebugPins?.HandleDebugPinAdd(slotIndex, shape);
             displayLayout = handler.GetDisplayLayout();
             RefreshAllSlots();
         }
@@ -546,7 +495,7 @@ namespace Game.Core
         // 핀 제거가 마차 연결을 끊으면 거부되고 그 칸이 깜빡인다(기획 59번 §4.5).
         private void HandleDebugPinClicked(int slotIndex)
         {
-            if (!handler.HandleDebugPinRemove(slotIndex)) gridView.FlashRejected(slotIndex);
+            if (DebugPins != null && !DebugPins.HandleDebugPinRemove(slotIndex)) gridView.FlashRejected(slotIndex);
             displayLayout = handler.GetDisplayLayout();
             RefreshAllSlots();
         }

@@ -46,7 +46,7 @@ namespace Game.Core
             registrar.TryResolve(out IHiredCharacterRoster hired);
             registrar.TryResolve(out ICaravanRosterProvider roster);
             registrar.TryResolve(out ICharacterCatalogReader catalog);
-            registrar.TryResolve(out IUIManager uiManager);
+            registrar.TryResolve(out IUIVisibilitySignal uiManager);
             // 판정 문맥은 이벤트 진행자(89)와 같은 공용 구성을 쓴다 - 같은 조건이 두 쪽에서 다르게 판정되지 않게.
             var context = new EncounterContextSource(registrar);
             session = registrar.Resolve<ISessionState>();

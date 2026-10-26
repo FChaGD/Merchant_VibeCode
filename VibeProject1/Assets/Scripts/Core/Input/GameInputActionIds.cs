@@ -24,19 +24,6 @@ namespace Game.Core
             OpenTradeGoods, OpenEquipment, OpenConsumable, OpenPersonalItem, RotateHeldItem, PointerPress,
         };
 
-        /// <summary>인벤토리 팝업 Id에 대응하는 상시 호출 키 액션. 대응이 없으면 null.</summary>
-        public static string ForInventoryPopup(string popupId)
-        {
-            switch (popupId)
-            {
-                case InventoryPopupIds.TradeGoods: return OpenTradeGoods;
-                case InventoryPopupIds.Equipment: return OpenEquipment;
-                case InventoryPopupIds.Consumable: return OpenConsumable;
-                case InventoryPopupIds.PersonalItem: return OpenPersonalItem;
-                default: return null;
-            }
-        }
-
         public static bool IsBlockedDuringTextInput(string actionId)
         {
             if (string.IsNullOrEmpty(actionId))

@@ -21,7 +21,6 @@ namespace Game.Core
         public TMP_Text InfoKind { get; private set; }
         public TMP_Text InfoDetail { get; private set; }
         public TMP_Text InfoPrice { get; private set; }
-        public TMP_Text ReasonLabel { get; private set; }
         public Button ActionButton { get; private set; }
 
         public static bool TryBind(SceneUIRoot sceneUIRoot, string prefix, out RosterShopElements elements, bool requireOwnedListLabel = true)
@@ -42,7 +41,6 @@ namespace Game.Core
                 & InventoryArrangementElements.TryGet(sceneUIRoot, RosterShopUIElementIds.Of(prefix, RosterShopUIElementIds.InfoKind), out TMP_Text infoKind)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, RosterShopUIElementIds.Of(prefix, RosterShopUIElementIds.InfoDetail), out TMP_Text infoDetail)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, RosterShopUIElementIds.Of(prefix, RosterShopUIElementIds.InfoPrice), out TMP_Text infoPrice)
-                & InventoryArrangementElements.TryGet(sceneUIRoot, RosterShopUIElementIds.Of(prefix, RosterShopUIElementIds.ReasonLabel), out TMP_Text reasonLabel)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, RosterShopUIElementIds.Of(prefix, RosterShopUIElementIds.ActionButton), out Button actionButton);
             if (!ok) return false;
 
@@ -59,7 +57,6 @@ namespace Game.Core
                 InfoKind = infoKind,
                 InfoDetail = infoDetail,
                 InfoPrice = infoPrice,
-                ReasonLabel = reasonLabel,
                 ActionButton = actionButton,
             };
             return true;

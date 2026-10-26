@@ -36,14 +36,5 @@ namespace Game.Core
 
         // 그리드 밖으로 드래그해 배치 취소, 혹은 명시적 제거.
         bool HandleRemove(string unitId, int slotIndex);
-
-#if UNITY_EDITOR
-        // 디버그 핀(Docs/기획/59번 §4.5). 추가는 판 어디든 허용, 제거는 마차 연결을 끊으면 거부. 디버그 도구를 걷어낼 때 이 블록과 구현부의
-        // #if UNITY_EDITOR 블록을 함께 지운다.
-        // 핀 저장소가 설치돼 있는지 - 없으면 편집기가 디버그 패널을 숨긴다(2026-09-29 사용자 결정, 설계 60번 §8 개정).
-        bool HasDebugPinStore { get; }
-        void HandleDebugPinAdd(int slotIndex, FormationAreaShape shape);
-        bool HandleDebugPinRemove(int slotIndex);
-#endif
     }
 }

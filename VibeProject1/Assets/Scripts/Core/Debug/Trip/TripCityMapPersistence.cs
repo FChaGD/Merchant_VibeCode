@@ -108,7 +108,7 @@ namespace Game.Core.DebugTools
                 row++;
             }
 
-            AppendMissingRows(workbook, CityStringsSheetName, new[] { "Id", "Name", "Description" }, map.AllCities.Select(city => city.Id), id => new object[] { id, $"디버그 도시 {id}", "값 없음" });
+            AppendMissingRows(workbook, CityStringsSheetName, new[] { "Id", "Name", "Description" }, map.AllCities.Select(city => city.Id), id => new object[] { id, $"디버그 도시 {id}", PlaceholderText.Missing });
             AppendMissingRows(workbook, RegionStringsSheetName, new[] { "Id", "Name" }, map.Regions.Select(region => region.Id), id => new object[] { id, map.TryGetRegion(id, out var region) ? region.Name : $"지역{id}" });
 
             workbook.SaveAs(workbookPath);

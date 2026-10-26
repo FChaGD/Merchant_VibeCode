@@ -13,8 +13,6 @@ namespace Game.Core
     public sealed class StableOwnedSection : IDisposable
     {
         private const int VisibleRows = 10; // 목록 영역에 한 번에 보이는 줄 수(잠정)
-        private const string NotNeededText = "수리할 필요 없음";
-        private const string InsufficientText = "골드 부족";
         private const string RepairAllText = "전체 수리";
 
         private readonly StableOwnedElements elements;
@@ -24,14 +22,19 @@ namespace Game.Core
         private readonly CaravanAssetRepairService repair;          // 선택적
         private readonly IGoldSpender gold;
         private readonly StableSaleController sale;                 // 선택적 - 매각 요소가 없으면(인스톨러 미실행) 수리만
+        // 수리·전체 수리 버튼 비활성 사유 툴팁(Docs/Refactor/2026-10-26_공통.md D-1) - 배선이 등록해 넘기고 Dispose에서 해제한다. 요소가 없으면 null.
+        private readonly ITooltipHandle repairTooltip;
+        private readonly ITooltipHandle repairAllTooltip;
         private readonly List<StableOwnedRowView> rows = new();
 
         private string selectedId;
         private bool isOpen;
 
-        public StableOwnedSection(StableOwnedElements elements, IOwnedCaravanAssetReader owned, ICaravanAssetCatalogReader catalog, ICaravanAssetDurabilityReader durability, CaravanAssetRepairService repair, IGoldSpender gold, StableSaleController sale)
+        public StableOwnedSection(StableOwnedElements elements, IOwnedCaravanAssetReader owned, ICaravanAssetCatalogReader catalog, ICaravanAssetDurabilityReader durability, CaravanAssetRepairService repair, IGoldSpender gold, StableSaleController sale, ITooltipHandle repairTooltip, ITooltipHandle repairAllTooltip)
         {
             this.sale = sale;
+            this.repairTooltip = repairTooltip;
+            this.repairAllTooltip = repairAllTooltip;
             this.elements = elements;
             this.owned = owned;
             this.catalog = catalog;
@@ -72,6 +75,8 @@ namespace Game.Core
             owned.OnOwnedChanged -= HandleChanged;
             if (durability != null) durability.Changed -= HandleChanged;
             sale?.Dispose();
+            repairTooltip?.Dispose();
+            repairAllTooltip?.Dispose();
         }
 
         private void HandleChanged()
@@ -102,34 +107,20 @@ namespace Game.Core
         private void RenderList()
         {
             var entries = StableOwnedListModel.Build(owned, catalog, durability);
-            var rowHeight = Mathf.Max(elements.ListViewport.rect.height, 1f) / VisibleRows;
-
-            for (var i = 0; i < entries.Count; i++)
+            var rowHeight = FixedRowListLayout.RowHeight(elements.ListViewport.rect.height, VisibleRows);
+            FixedRowListLayout.Render(rows, entries.Count, elements.RowTemplate, elements.ListContent, rowHeight, (row, i) =>
             {
-                if (i >= rows.Count) rows.Add(UnityEngine.Object.Instantiate(elements.RowTemplate, elements.ListContent));
-
-                var row = rows[i];
-                row.gameObject.SetActive(true);
                 var entry = entries[i];
                 if (entry.IsHeader) row.BindHeader(entry.Name);
                 else row.BindAsset(entry.Name, entry.DurabilityText, entry.Damaged, () => Select(entry.InstanceId));
-
-                var rect = row.RectTransform;
-                rect.anchorMin = new Vector2(0f, 1f);
-                rect.anchorMax = new Vector2(1f, 1f);
-                rect.pivot = new Vector2(0.5f, 1f);
-                rect.anchoredPosition = new Vector2(0f, -i * rowHeight);
-                rect.sizeDelta = new Vector2(0f, rowHeight);
-            }
-            for (var i = entries.Count; i < rows.Count; i++) rows[i].gameObject.SetActive(false);
-            elements.ListContent.sizeDelta = new Vector2(elements.ListContent.sizeDelta.x, entries.Count * rowHeight);
+            });
 
             var total = repair?.TotalCost() ?? 0;
             var check = repair?.EvaluateAll() ?? CaravanAssetRepairCheck.NotDamaged;
             elements.RepairAllLabel.text = total > 0 ? $"{RepairAllText} ({total:N0})" : RepairAllText;
             elements.RepairAllButton.interactable = check == CaravanAssetRepairCheck.Available;
             // 손상 없음은 사유 없이 비활성(기획 90번 §4-16).
-            elements.RepairAllReason.text = check == CaravanAssetRepairCheck.InsufficientFunds ? InsufficientText : string.Empty;
+            repairAllTooltip?.SetText(FacilityBlockReasons.ForRepairAll(check));
         }
 
         private void RenderDetail()
@@ -142,12 +133,7 @@ namespace Game.Core
 
             var check = repair?.Evaluate(selectedId);
             elements.RepairButton.interactable = check == CaravanAssetRepairCheck.Available;
-            elements.DetailReason.text = check switch
-            {
-                CaravanAssetRepairCheck.NotDamaged => NotNeededText,
-                CaravanAssetRepairCheck.InsufficientFunds => InsufficientText,
-                _ => string.Empty,
-            };
+            repairTooltip?.SetText(FacilityBlockReasons.ForRepair(check));
         }
 
         private void Select(string instanceId)

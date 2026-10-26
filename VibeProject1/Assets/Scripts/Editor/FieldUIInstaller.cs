@@ -54,7 +54,7 @@ namespace Game.Core.Editor
             // 이벤트 중 이동 뷰 가림(설계 89 §13.2) - 이동 뷰 전체를 CanvasGroup 하나로 가린다. 요소마다 붙이지 않는 이유: 도착 알림·전투 경고는 자기
             // CanvasGroup으로 페이드·점멸해 같은 그룹을 가림과 나눠 쓸 수 없다. 남겨야 할 요소(배경)는 자기 그룹의 ignoreParentGroups로 뺀다.
             var movementGroup = EditorUIBuilder.GetOrAddComponent<CanvasGroup>(movementViewRoot);
-            // 에디터에서 바뀐 값이 씬에 남지 않게 기본값으로 맞춘다 - 실행 중 가림은 FieldMovementViewHider가 덮어쓴다.
+            // 에디터에서 바뀐 값이 씬에 남지 않게 기본값으로 맞춘다 - 실행 중 가림은 LayerHideGate가 덮어쓴다.
             movementGroup.alpha = 1f;
             movementGroup.interactable = true;
             movementGroup.blocksRaycasts = true;
@@ -77,8 +77,8 @@ namespace Game.Core.Editor
             EditorUIBuilder.PlaceSiblingAfter(battleView, movementViewRoot.transform);
             // 전투 유닛 스프라이트 루트/카메라는 Canvas 밖 별도 하이어라키다(Docs/설계/13번 §2). 조립
             // 로직 자체는 EditorUIBuilder 공용 유틸리티에 있다(BattleTestSceneInstaller와 공유).
-            EditorUIBuilder.EnsureBattleWorldRoot().gameObject.SetActive(false); // 평소에는 숨김 - FieldCameraController가 전환 시 활성화.
-            EditorUIBuilder.ConfigureBattleCamera();
+            EditorBattleWorldBuilder.EnsureBattleWorldRoot().gameObject.SetActive(false); // 평소에는 숨김 - FieldCameraController가 전환 시 활성화.
+            EditorBattleWorldBuilder.ConfigureBattleCamera();
             var resultPopup = BuildResultPopup(contentRoot);
             // 회수 적재 패널(설계 79번 §7) - 결과 팝업과 같이 전투 뷰 위에서 진행하는 결과 정리 단계 화면이라 결과 팝업 바로 뒤 형제로 둔다.
             var cargoRecoveryPanel = BuildCargoRecoveryPanel(contentRoot, resultPopup);
@@ -101,9 +101,9 @@ namespace Game.Core.Editor
 
             // 전투 뷰 유닛 프리팹도 여기서 함께 최신화한다 - ManagerHierarchyInstaller(Bootstrap)가
             // FieldUIController에 이 프리팹들을 연결할 때 재사용한다(EditorUIBuilder 공용 조립 로직).
-            EditorUIBuilder.GetOrCreateBattleCharacterViewPrefab();
-            EditorUIBuilder.GetOrCreateBattleProtectedViewPrefab();
-            EditorUIBuilder.GetOrCreateBattlePendingReinforcementViewPrefab();
+            EditorBattleWorldBuilder.GetOrCreateBattleCharacterViewPrefab();
+            EditorBattleWorldBuilder.GetOrCreateBattleProtectedViewPrefab();
+            EditorBattleWorldBuilder.GetOrCreateBattlePendingReinforcementViewPrefab();
 
             EditorUIBuilder.WarnIfOutsideTransitionRoot(sceneUIRoot.transform, contentRoot, "Field");
 
@@ -244,7 +244,7 @@ namespace Game.Core.Editor
         }
 
         // 전투 뷰 월드 오브젝트 전환(Docs/설계/13-2026-08-29-전투뷰_월드오브젝트_전환_아키텍처.md) - 실제 유닛은
-        // 더 이상 이 파일이 만드는 UI 하이어라키에 없다(EditorUIBuilder.EnsureBattleWorldRoot 참고).
+        // 더 이상 이 파일이 만드는 UI 하이어라키에 없다(EditorBattleWorldBuilder.EnsureBattleWorldRoot 참고).
         // BattleView에는 배경/라벨/입력 캡처(드래그팬·휠줌)만 남는다.
         private static Transform BuildBattleView(Transform parent)
         {

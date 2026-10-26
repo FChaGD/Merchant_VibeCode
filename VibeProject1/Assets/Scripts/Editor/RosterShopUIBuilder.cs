@@ -35,29 +35,16 @@ namespace Game.Core.Editor
             }
         }
 
-        public static readonly Spec MercenaryContact = new("MercenaryContact", RosterShopUIElementIds.MercenaryContactPrefix, "보유 용병", "용병단 접촉", "고용 가능한 용병 없음", "고용");
-        public static readonly Spec Stable = new("Stable", RosterShopUIElementIds.StablePrefix, "보유 현황", "마구간", "구매 가능한 마차·시설 없음", "구매", ownedListAsText: false);
-
-        private static readonly Color PanelColor = new(0.96f, 0.95f, 0.92f, 1f);
-        private static readonly Color HeaderColor = new(0.72f, 0.66f, 0.55f, 1f);
-        private static readonly Color ListColor = new(0.9f, 0.88f, 0.84f, 1f);
-        private static readonly Color RowColor = new(1f, 1f, 1f, 1f);
-        private static readonly Color ButtonColor = new(0.85f, 0.85f, 0.85f, 1f);
-        private static readonly Color SelectionOutlineColor = new(0.1f, 0.1f, 0.1f, 1f);
-        private static readonly Color ReasonColor = new(0.75f, 0.15f, 0.1f, 1f);
-
-        // 우상단 재화 패널(PopupExemptLayer)과 겹치지 않도록 두 패널 윗변을 여기까지로 제한한다(무역품 구매 화면과 같은 값).
-        private const float PanelTop = 0.86f;
+        public static readonly Spec MercenaryContact = new(EditorFacilityScreenBuilder.MercenaryContactRoot, RosterShopUIElementIds.MercenaryContactPrefix, "보유 용병", "용병단 접촉", "고용 가능한 용병 없음", "고용");
+        public static readonly Spec Stable = new(EditorFacilityScreenBuilder.StableRoot, RosterShopUIElementIds.StablePrefix, "보유 현황", "마구간", "구매 가능한 마차·시설 없음", "구매", ownedListAsText: false);
 
         // 루트를 돌려준다 - 화면별 추가 조립(마구간 보유 영역)이 같은 루트 아래를 채운다.
-        public static RectTransform Build(Transform modalPopups, Spec spec)
+        public static RectTransform Build(Transform screens, Spec spec)
         {
-            var root = EditorUIBuilder.GetOrCreateUIObject(modalPopups, spec.ObjectName);
-            var rootRect = root.GetComponent<RectTransform>();
-            EditorUIBuilder.SetStretch(rootRect);
-            EditorUIBuilder.EnsureMarker(root, Id(spec, RosterShopUIElementIds.Root));
+            var rootRect = EditorFacilityScreenBuilder.EnsureRoot(screens, spec.ObjectName, Id(spec, RosterShopUIElementIds.Root));
+            var root = rootRect.gameObject;
 
-            BuildExitButton(rootRect, spec);
+            EditorFacilityScreenBuilder.EnsureExitButton(rootRect, Id(spec, RosterShopUIElementIds.ExitButton));
             BuildOwnedPanel(rootRect, spec);
             BuildCandidatePanel(rootRect, spec);
 
@@ -68,25 +55,10 @@ namespace Game.Core.Editor
 
         private static string Id(Spec spec, string element) => RosterShopUIElementIds.Of(spec.IdPrefix, element);
 
-        private static void BuildExitButton(RectTransform root, Spec spec)
-        {
-            var go = EditorUIBuilder.GetOrCreateUIObject(root, "ExitButton");
-            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(0.02f, 0.88f), new Vector2(0.14f, 0.95f));
-            EditorUIBuilder.EnsureImage(go, ButtonColor);
-            EditorUIBuilder.EnsureButton(go);
-            EditorUIBuilder.EnsureLabel(go.transform, "나가기", autoSize: true, minFontSize: 12f, maxFontSize: 26f);
-            EditorUIBuilder.EnsureMarker(go, Id(spec, RosterShopUIElementIds.ExitButton));
-        }
-
         // 좌측 보유 현황 - 텍스트 블록 하나(설계 54번 §11, 56번 §7). 내용은 런타임 패널이 채운다.
         private static void BuildOwnedPanel(RectTransform root, Spec spec)
         {
-            var panel = EditorUIBuilder.GetOrCreateUIObject(root, "OwnedPanel");
-            var panelRect = panel.GetComponent<RectTransform>();
-            EditorUIBuilder.SetAnchors(panelRect, new Vector2(0.02f, 0.06f), new Vector2(0.4f, PanelTop));
-            EditorUIBuilder.EnsureImage(panel, PanelColor);
-
-            BuildHeader(panelRect, spec.OwnedTitle);
+            var panelRect = EditorFacilityScreenBuilder.EnsurePanel(root, "OwnedPanel", spec.OwnedTitle, 0.02f, 0.4f);
 
             // 마구간은 보유 영역을 전용 조립(StableOwnedUIBuilder)으로 채운다(설계 91번 §5.2) - 예전 텍스트 레이블은 지운다.
             if (!spec.OwnedListAsText)
@@ -104,22 +76,9 @@ namespace Game.Core.Editor
 
         private static void BuildCandidatePanel(RectTransform root, Spec spec)
         {
-            var panel = EditorUIBuilder.GetOrCreateUIObject(root, "CandidatePanel");
-            var panelRect = panel.GetComponent<RectTransform>();
-            EditorUIBuilder.SetAnchors(panelRect, new Vector2(0.43f, 0.06f), new Vector2(0.98f, PanelTop));
-            EditorUIBuilder.EnsureImage(panel, PanelColor);
-
-            BuildHeader(panelRect, spec.CandidateTitle);
+            var panelRect = EditorFacilityScreenBuilder.EnsurePanel(root, "CandidatePanel", spec.CandidateTitle, 0.43f, 0.98f);
             BuildCandidateList(panelRect, spec);
             BuildCandidateInfo(panelRect, spec);
-        }
-
-        private static void BuildHeader(RectTransform panel, string title)
-        {
-            var header = EditorUIBuilder.GetOrCreateUIObject(panel, "Header");
-            EditorUIBuilder.SetAnchors(header.GetComponent<RectTransform>(), new Vector2(0f, 0.9f), Vector2.one);
-            EditorUIBuilder.EnsureImage(header, HeaderColor).raycastTarget = false;
-            EditorUIBuilder.EnsureLabel(header.transform, title, autoSize: true, minFontSize: 12f, maxFontSize: 26f);
         }
 
         // 후보 목록 - 패널 상단 약 55%. 줄 높이는 런타임(RosterShopCandidateList)이 목록 영역 높이 비율로 정한다.
@@ -128,7 +87,7 @@ namespace Game.Core.Editor
             var area = EditorUIBuilder.GetOrCreateUIObject(panel, "CandidateList");
             var areaRect = area.GetComponent<RectTransform>();
             EditorUIBuilder.SetAnchors(areaRect, new Vector2(0.03f, 0.47f), new Vector2(0.97f, 0.88f));
-            EditorUIBuilder.EnsureImage(area, ListColor);
+            EditorUIBuilder.EnsureImage(area, EditorUIColors.List);
 
             var (viewport, content) = EditorUIBuilder.CreateViewportAndContent(areaRect);
             EditorUIBuilder.EnsureMarker(viewport.gameObject, Id(spec, RosterShopUIElementIds.CandidateViewport));
@@ -160,10 +119,10 @@ namespace Game.Core.Editor
             EditorUIBuilder.DestroyChildIfExists(row.transform, "Class");
             EditorUIBuilder.DestroyChildIfExists(row.transform, "Cost");
 
-            EditorUIBuilder.EnsureImage(row, RowColor);
+            EditorUIBuilder.EnsureImage(row, EditorUIColors.Row);
             var button = EditorUIBuilder.EnsureButton(row);
             var outline = EditorUIBuilder.GetOrAddComponent<Outline>(row);
-            outline.effectColor = SelectionOutlineColor;
+            outline.effectColor = EditorUIColors.SelectionOutline;
             outline.effectDistance = new Vector2(3f, -3f);
             outline.enabled = false;
 
@@ -213,17 +172,18 @@ namespace Game.Core.Editor
 
             BuildInfoLabel(infoRect, "Name", new Vector2(0f, 0.84f), new Vector2(0.65f, 1f), Id(spec, RosterShopUIElementIds.InfoName), TextAlignmentOptions.MidlineLeft, 28f);
             BuildInfoLabel(infoRect, "Kind", new Vector2(0.65f, 0.84f), new Vector2(1f, 1f), Id(spec, RosterShopUIElementIds.InfoKind), TextAlignmentOptions.MidlineRight, 24f);
-            BuildInfoLabel(infoRect, "Detail", new Vector2(0f, 0.36f), new Vector2(0.6f, 0.82f), Id(spec, RosterShopUIElementIds.InfoDetail), TextAlignmentOptions.TopLeft, 22f);
+            // 사유 문구 줄은 행동 버튼 툴팁으로 옮겼다(Docs/Refactor/2026-10-26_공통.md D-1) - 빈 자리는 상세 칸이 아래로 늘어 메운다.
+            EditorUIBuilder.DestroyChildIfExists(infoRect, "Reason");
+            BuildInfoLabel(infoRect, "Detail", new Vector2(0f, 0.2f), new Vector2(0.6f, 0.82f), Id(spec, RosterShopUIElementIds.InfoDetail), TextAlignmentOptions.TopLeft, 22f);
             BuildInfoLabel(infoRect, "Price", new Vector2(0.6f, 0.66f), new Vector2(1f, 0.82f), Id(spec, RosterShopUIElementIds.InfoPrice), TextAlignmentOptions.MidlineRight, 24f);
-            var reason = BuildInfoLabel(infoRect, "Reason", new Vector2(0f, 0.2f), new Vector2(1f, 0.34f), Id(spec, RosterShopUIElementIds.ReasonLabel), TextAlignmentOptions.MidlineLeft, 20f);
-            reason.color = ReasonColor;
 
             var action = EditorUIBuilder.GetOrCreateUIObject(infoRect, "ActionButton");
             EditorUIBuilder.SetAnchors(action.GetComponent<RectTransform>(), new Vector2(0.65f, 0f), new Vector2(1f, 0.17f));
-            EditorUIBuilder.EnsureImage(action, ButtonColor);
+            EditorUIBuilder.EnsureImage(action, EditorUIColors.Button);
             EditorUIBuilder.EnsureButton(action);
             EditorUIBuilder.EnsureLabel(action.transform, spec.ActionLabel, autoSize: true, minFontSize: 12f, maxFontSize: 26f);
             EditorUIBuilder.EnsureMarker(action, Id(spec, RosterShopUIElementIds.ActionButton));
+            EditorUIBuilder.EnsureButtonTooltip(infoRect, action, "ActionTooltip", Id(spec, RosterShopUIElementIds.ActionTooltip), Id(spec, RosterShopUIElementIds.ActionTooltipText), 0.65f, 1f, 0.18f);
         }
 
         private static TMP_Text BuildInfoLabel(RectTransform parent, string name, Vector2 min, Vector2 max, string id, TextAlignmentOptions alignment, float maxFontSize)

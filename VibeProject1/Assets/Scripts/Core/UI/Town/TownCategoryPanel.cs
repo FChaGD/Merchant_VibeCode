@@ -14,15 +14,17 @@ namespace Game.Core
     {
         private readonly string categoryId;
         private readonly TownCategoryDepthElements elements;
-        private readonly IUIManager uiManager;
+        private readonly IPanelNavigator uiManager;
+        private readonly IInventoryPopupToggle inventoryPopups;
         private readonly CurrentTownFacilityFilter facilityFilter;
         private readonly List<GameObject> visibleBuffer = new();
 
-        public TownCategoryPanel(string categoryId, TownCategoryDepthElements elements, IUIManager uiManager, CurrentTownFacilityFilter facilityFilter)
+        public TownCategoryPanel(string categoryId, TownCategoryDepthElements elements, IPanelNavigator uiManager, IInventoryPopupToggle inventoryPopups, CurrentTownFacilityFilter facilityFilter)
         {
             this.categoryId = categoryId;
             this.elements = elements;
             this.uiManager = uiManager;
+            this.inventoryPopups = inventoryPopups;
             this.facilityFilter = facilityFilter;
         }
 
@@ -45,7 +47,7 @@ namespace Game.Core
                 button.onClick.RemoveAllListeners();
                 button.onClick.AddListener(() =>
                 {
-                    uiManager.CloseAllInventoryPopups();
+                    inventoryPopups.CloseAllInventoryPopups();
                     uiManager.Open(panelId);
                 });
                 visibleBuffer.Add(button.gameObject);

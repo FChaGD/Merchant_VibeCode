@@ -35,8 +35,8 @@ namespace Game.Core.Editor.DebugTools
 
             EditorUIBuilder.EnsureSceneEventSystem(scene);
             EnsureMainCamera();
-            EditorUIBuilder.ConfigureBattleCamera();
-            var battleWorldRoot = EditorUIBuilder.EnsureBattleWorldRoot();
+            EditorBattleWorldBuilder.ConfigureBattleCamera();
+            var battleWorldRoot = EditorBattleWorldBuilder.EnsureBattleWorldRoot();
             // Field와 달리 전환할 "이동 뷰"가 없어 처음부터 항상 활성 상태다.
             battleWorldRoot.gameObject.SetActive(true);
             var cameraView = Camera.main.GetComponent<BattleFieldWorldCameraView>();
@@ -804,8 +804,8 @@ namespace Game.Core.Editor.DebugTools
             so.FindProperty("tacticsButton").objectReferenceValue = tacticsButton;
             so.FindProperty("allyContainer").objectReferenceValue = battleWorldRoot.transform.Find("AllyLayer");
             so.FindProperty("enemyContainer").objectReferenceValue = battleWorldRoot.transform.Find("EnemyLayer");
-            so.FindProperty("characterViewPrefab").objectReferenceValue = EditorUIBuilder.GetOrCreateBattleCharacterViewPrefab();
-            so.FindProperty("protectedViewPrefab").objectReferenceValue = EditorUIBuilder.GetOrCreateBattleProtectedViewPrefab();
+            so.FindProperty("characterViewPrefab").objectReferenceValue = EditorBattleWorldBuilder.GetOrCreateBattleCharacterViewPrefab();
+            so.FindProperty("protectedViewPrefab").objectReferenceValue = EditorBattleWorldBuilder.GetOrCreateBattleProtectedViewPrefab();
             so.FindProperty("cameraView").objectReferenceValue = cameraView;
             so.FindProperty("backgroundView").objectReferenceValue = battleWorldRoot.GetComponent<BattleBackgroundGridView>();
             so.FindProperty("paletteView").objectReferenceValue = paletteView;

@@ -18,7 +18,9 @@ namespace Game.Core
         public const string InfoPreviewCellTemplate = "TradeGoodsMarket.InfoPreviewCellTemplate";
         public const string InfoPrice = "TradeGoodsMarket.InfoPrice";
         public const string InfoDescription = "TradeGoodsMarket.InfoDescription";
-        public const string ReasonLabel = "TradeGoodsMarket.ReasonLabel";
+        // 구매 버튼 비활성 사유 툴팁(Docs/Refactor/2026-10-26_공통.md D-1) - 예전 사유 문구 줄을 대체.
+        public const string BuyTooltip = "TradeGoodsMarket.BuyTooltip";
+        public const string BuyTooltipText = "TradeGoodsMarket.BuyTooltipText";
         public const string BuyButton = "TradeGoodsMarket.BuyButton";
 
         public const string InventoryPrefix = "TradeGoodsMarket.Inventory";

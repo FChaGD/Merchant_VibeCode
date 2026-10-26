@@ -13,10 +13,6 @@ namespace Game.Core.Editor
     /// </summary>
     internal static class StableOwnedUIBuilder
     {
-        private static readonly Color ListColor = new(0.9f, 0.88f, 0.84f, 1f);
-        private static readonly Color RowColor = Color.white;
-        private static readonly Color ButtonColor = new(0.85f, 0.85f, 0.85f, 1f);
-        private static readonly Color ReasonColor = new(0.75f, 0.15f, 0.1f, 1f);
 
         public static void Build(RectTransform stableRoot)
         {
@@ -39,8 +35,8 @@ namespace Game.Core.Editor
 
             var area = EditorUIBuilder.GetOrCreateUIObject(rootRect, "List");
             var areaRect = area.GetComponent<RectTransform>();
-            EditorUIBuilder.SetAnchors(areaRect, new Vector2(0.05f, 0.17f), new Vector2(0.95f, 0.98f));
-            EditorUIBuilder.EnsureImage(area, ListColor);
+            EditorUIBuilder.SetAnchors(areaRect, new Vector2(0.05f, 0.11f), new Vector2(0.95f, 0.98f));
+            EditorUIBuilder.EnsureImage(area, EditorUIColors.List);
 
             var (viewport, content) = EditorUIBuilder.CreateViewportAndContent(areaRect);
             EditorUIBuilder.EnsureMarker(viewport.gameObject, StableUIElementIds.ListViewport);
@@ -55,8 +51,10 @@ namespace Game.Core.Editor
 
             BuildRowTemplate(areaRect);
 
-            BuildLabel(rootRect, "RepairAllReason", new Vector2(0.05f, 0.1f), new Vector2(0.95f, 0.16f), StableUIElementIds.RepairAllReason, TextAlignmentOptions.MidlineLeft, 20f).color = ReasonColor;
-            var (_, repairAllLabel) = BuildButton(rootRect, "RepairAllButton", new Vector2(0.05f, 0.02f), new Vector2(0.95f, 0.09f), "전체 수리", StableUIElementIds.RepairAllButton);
+            // 사유 문구 줄은 버튼 툴팁으로 옮겼다(Docs/Refactor/2026-10-26_공통.md D-1) - 빈 자리는 목록이 아래로 늘어 메운다.
+            EditorUIBuilder.DestroyChildIfExists(rootRect, "RepairAllReason");
+            var (repairAll, repairAllLabel) = BuildButton(rootRect, "RepairAllButton", new Vector2(0.05f, 0.02f), new Vector2(0.95f, 0.09f), "전체 수리", StableUIElementIds.RepairAllButton);
+            EditorUIBuilder.EnsureButtonTooltip(rootRect, repairAll.gameObject, "RepairAllTooltip", StableUIElementIds.RepairAllTooltip, StableUIElementIds.RepairAllTooltipText, 0.05f, 0.95f, 0.1f);
             EditorUIBuilder.EnsureMarker(repairAllLabel.gameObject, StableUIElementIds.RepairAllLabel);
             root.SetActive(true);
         }
@@ -68,7 +66,7 @@ namespace Game.Core.Editor
             EditorUIBuilder.SetStretch(templates.GetComponent<RectTransform>());
 
             var row = EditorUIBuilder.GetOrCreateUIObject(templates.transform, "OwnedRowTemplate");
-            var background = EditorUIBuilder.EnsureImage(row, RowColor);
+            var background = EditorUIBuilder.EnsureImage(row, EditorUIColors.Row);
             var button = EditorUIBuilder.EnsureButton(row);
             var nameLabel = BuildRowLabel(row.transform, "Name", 0.03f, 0.65f, TextAlignmentOptions.MidlineLeft);
             var durabilityLabel = BuildRowLabel(row.transform, "Durability", 0.65f, 0.97f, TextAlignmentOptions.MidlineRight);
@@ -98,10 +96,13 @@ namespace Game.Core.Editor
             BuildLabel(rootRect, "Durability", new Vector2(0.05f, 0.66f), new Vector2(0.95f, 0.75f), StableUIElementIds.DetailDurability, TextAlignmentOptions.MidlineLeft, 24f);
             BuildLabel(rootRect, "Cost", new Vector2(0.05f, 0.56f), new Vector2(0.95f, 0.65f), StableUIElementIds.DetailCost, TextAlignmentOptions.MidlineLeft, 24f);
             BuildLabel(rootRect, "SalePrice", new Vector2(0.05f, 0.46f), new Vector2(0.95f, 0.55f), StableUIElementIds.SalePrice, TextAlignmentOptions.MidlineLeft, 24f);
-            BuildLabel(rootRect, "Reason", new Vector2(0.05f, 0.35f), new Vector2(0.48f, 0.45f), StableUIElementIds.DetailReason, TextAlignmentOptions.MidlineLeft, 20f).color = ReasonColor;
-            BuildLabel(rootRect, "SaleReason", new Vector2(0.52f, 0.35f), new Vector2(0.95f, 0.45f), StableUIElementIds.SaleReason, TextAlignmentOptions.MidlineLeft, 20f).color = ReasonColor;
-            BuildButton(rootRect, "RepairButton", new Vector2(0.05f, 0.2f), new Vector2(0.48f, 0.33f), "수리", StableUIElementIds.RepairButton);
-            BuildButton(rootRect, "SellButton", new Vector2(0.52f, 0.2f), new Vector2(0.95f, 0.33f), "매각", StableUIElementIds.SellButton);
+            // 사유 문구 줄은 수리·매각 버튼 툴팁으로 옮겼다(Docs/Refactor/2026-10-26_공통.md D-1) - 버튼을 그 자리로 올리고, 툴팁은 버튼 바로 위에 뜬다.
+            EditorUIBuilder.DestroyChildIfExists(rootRect, "Reason");
+            EditorUIBuilder.DestroyChildIfExists(rootRect, "SaleReason");
+            var (repair, _) = BuildButton(rootRect, "RepairButton", new Vector2(0.05f, 0.24f), new Vector2(0.48f, 0.38f), "수리", StableUIElementIds.RepairButton);
+            var (sell, _) = BuildButton(rootRect, "SellButton", new Vector2(0.52f, 0.24f), new Vector2(0.95f, 0.38f), "매각", StableUIElementIds.SellButton);
+            EditorUIBuilder.EnsureButtonTooltip(rootRect, repair.gameObject, "RepairTooltip", StableUIElementIds.RepairTooltip, StableUIElementIds.RepairTooltipText, 0.05f, 0.48f, 0.39f);
+            EditorUIBuilder.EnsureButtonTooltip(rootRect, sell.gameObject, "SellTooltip", StableUIElementIds.SellTooltip, StableUIElementIds.SellTooltipText, 0.52f, 0.95f, 0.39f);
             BuildButton(rootRect, "BackButton", new Vector2(0.05f, 0.03f), new Vector2(0.95f, 0.16f), "목록으로", StableUIElementIds.BackButton);
             root.SetActive(false);
         }
@@ -120,7 +121,7 @@ namespace Game.Core.Editor
         {
             var go = EditorUIBuilder.GetOrCreateUIObject(parent, name);
             EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), min, max);
-            EditorUIBuilder.EnsureImage(go, ButtonColor);
+            EditorUIBuilder.EnsureImage(go, EditorUIColors.Button);
             var button = EditorUIBuilder.EnsureButton(go);
             var label = EditorUIBuilder.EnsureLabel(go.transform, text, autoSize: true, minFontSize: 12f, maxFontSize: 26f);
             EditorUIBuilder.EnsureMarker(go, id);

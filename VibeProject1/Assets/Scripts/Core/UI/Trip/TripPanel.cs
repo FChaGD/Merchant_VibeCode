@@ -48,7 +48,7 @@ namespace Game.Core
         private TripMapDebugEditor mapDebugEditor;
 #endif
 
-        private IUIManager uiManager;
+        private IPanelNavigator uiManager;
         private IGameManager gameManager;
         private IFormationReader formationReader;
         private ITripInfoProvider tripInfoProvider;
@@ -69,7 +69,7 @@ namespace Game.Core
         // 임시 보관 영역에 아이템이 있으면 "상행 시작"을 막는다(Docs/설계/40번 §5.5).
         private IReadOnlyList<IInventoryStagingDiscarder> inventoryStaging = System.Array.Empty<IInventoryStagingDiscarder>();
 
-        public void RegisterTripUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingDiscarder> inventoryStaging, IWorldMapReader worldMap, ITripRouteReader routeReader, ITripDeparture tripDeparture, ICaravanRosterProvider rosterProvider, IGoldHoldingsReader goldHoldings, IGoldDepartureSettlement goldDeparture)
+        public void RegisterTripUI(SceneUIRoot sceneUIRoot, IPanelNavigator uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingDiscarder> inventoryStaging, IWorldMapReader worldMap, ITripRouteReader routeReader, ITripDeparture tripDeparture, ICaravanRosterProvider rosterProvider, IGoldHoldingsReader goldHoldings, IGoldDepartureSettlement goldDeparture)
         {
             this.uiManager = uiManager;
             this.gameManager = gameManager;
@@ -405,7 +405,7 @@ namespace Game.Core
 
             var summary = tripInfoProvider != null
                 ? tripInfoProvider.GetTripSummary()
-                : new TripSummary("값 없음", "값 없음", "값 없음");
+                : new TripSummary(PlaceholderText.Missing, PlaceholderText.Missing, PlaceholderText.Missing);
 
             summaryView.SetValues(summary.EstimatedDurationDistanceText, summary.DangerText, BuildFormationSummaryText(), summary.RewardText);
         }

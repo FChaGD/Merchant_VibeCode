@@ -7,11 +7,11 @@ namespace Game.Core
 {
     /// <summary>
     /// 정비창 그리드 위에 이동 경로 하나를 얇은 선분들로 이어 그린다(Docs/기획/20번 §3.3, 설계 25번
-    /// §5.2). 슬롯과 같은 부모(FormationGridView의 slotContent) 아래 배치돼야 anchoredPosition
+    /// §5.2). FormationGridView의 경로선 컨테이너(slotContent와 같은 영역을 덮는 자식) 아래 놓여 anchoredPosition
     /// 좌표계가 슬롯 위치와 일치한다. 세그먼트는 get-or-create로 재사용한다. 이동 중인 유닛 아이콘은
-    /// 이 클래스가 아니라 FormationGridView가 별도 풀로 관리한다 - 선은 항상 슬롯/오버레이보다
-    /// 아래, 이동 아이콘은 항상 그 위에 그려야 해서(실전 확인된 렌더 순서 요구사항) 형제 인덱스를
-    /// 독립적으로 강제해야 하기 때문이다(같은 오브젝트 안에 있으면 분리할 수 없다).
+    /// 이 클래스가 아니라 FormationGridView가 별도 컨테이너로 관리한다 - 선은 항상 슬롯 위·오버레이 아래,
+    /// 이동 아이콘은 항상 그 위에 그려야 해서(실전 확인된 렌더 순서 요구사항) 종류별 컨테이너의 형제 순서로
+    /// 고정하기 때문이다(같은 오브젝트 안에 있으면 분리할 수 없다, Docs/Refactor/2026-10-26_공통.md A-1).
     /// </summary>
     public class FormationPathLineView : MonoBehaviour
     {

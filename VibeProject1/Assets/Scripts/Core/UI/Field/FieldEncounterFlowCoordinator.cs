@@ -20,7 +20,7 @@ namespace Game.Core
 
         private bool eventsBound;
 
-        private IUIManager uiManager;
+        private IPanelNavigator uiManager;
         private ISessionState sessionState;
         private IBattleController battleController;
         private IDefeatConsequenceSource defeatConsequenceSource;
@@ -53,7 +53,7 @@ namespace Game.Core
         private bool isTransitioning;
         private BattleResult? pendingResult;
 
-        public void Bind(IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IGameManager gameManager, IFieldFormationActivityRepository fieldActivityRepository, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, ITripDayRout dayRout, FieldTripSignals tripSignals)
+        public void Bind(IPanelNavigator uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IGameManager gameManager, IFieldFormationActivityRepository fieldActivityRepository, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, ITripDayRout dayRout, FieldTripSignals tripSignals)
         {
             this.dayRout = dayRout;
             this.tripSignals = tripSignals;

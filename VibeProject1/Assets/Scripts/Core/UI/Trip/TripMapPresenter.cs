@@ -17,7 +17,7 @@ namespace Game.Core
     /// </summary>
     public sealed class TripMapPresenter : IDisposable
     {
-        private const string MissingText = "값 없음";
+        private const string MissingText = PlaceholderText.Missing;
 
         private readonly TripMapView mapView;
         private readonly TripMapMarkerView cityMarkerPrefab;

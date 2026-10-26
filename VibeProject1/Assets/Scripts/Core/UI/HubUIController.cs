@@ -66,7 +66,7 @@ namespace Game.Core
             sceneRevealSignal.SceneRevealed += HandleSceneRevealed;
 
             // depth 패널(마을 카테고리 등)이 열려 있는 동안 루트 depth를 숨긴다 - depth 축(Docs/설계/38번 §6).
-            // 모달 팝업(상행 준비/배치/방향성 지시)에 의한 숨김은 이 클래스가 아니라 PopupLayerGate가
+            // 모달 팝업(상행 준비/배치/방향성 지시)·시설 화면에 의한 숨김은 이 클래스가 아니라 LayerHideGate가
             // DepthLayer 전체에 대해 처리한다(팝업 축). 두 축이 서로 다른 속성(SetActive/CanvasGroup)을 쓴다.
             uiManager.RootDepthChanged -= HandleRootDepthChanged;
             uiManager.RootDepthChanged += HandleRootDepthChanged;

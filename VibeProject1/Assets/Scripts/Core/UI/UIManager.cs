@@ -4,7 +4,12 @@ using UnityEngine;
 
 namespace Game.Core
 {
-    public class UIManager : MonoBehaviour, IUIManager, IPanelRegistrar, IManagedComponent
+    /// <summary>
+    /// 콘텐츠 씬이 로드될 때마다 그 씬의 UI 배선(IContentSceneUIWiring)에 위임하고, 패널 열기/닫기·두 축 신호는 공용 패널 라우터에,
+    /// 인벤토리 팝업은 조율자에 위임한다(Docs/Refactor/2026-10-26_공통.md B-2). 소비자가 쓰는 계약을 각각 DI에 등록한다 -
+    /// 등록하지 않은 계약 타입은 TryResolve가 조용히 null을 돌려준다.
+    /// </summary>
+    public class UIManager : MonoBehaviour, IUIManager, IPanelRegistrar, IInventoryPopupRegistrar, IManagedComponent
     {
         private IDependencyResolver registrar;
         private ISceneLoader sceneLoader;
@@ -12,20 +17,14 @@ namespace Game.Core
 
         private readonly Dictionary<ContentSceneId, IContentSceneUIWiring> wiringBySceneId = new();
 
-        // depth 패널과 모달 팝업은 네비게이션 스택을 따로 쓴다 - 모달 팝업을 열어도 depth 패널이 닫혔다
-        // 열리지 않게 하기 위함이다(Docs/설계/38번 §4.2). 채널별 활성 변화가 곧 두 축의 신호다.
-        private readonly PanelChannel depthChannel = new();
-        private readonly PanelChannel popupChannel = new();
-
-        private void Awake()
-        {
-            depthChannel.ActiveChanged += hasActive => RootDepthChanged?.Invoke(!hasActive);
-            popupChannel.ActiveChanged += hasActive => ModalPopupOpenChanged?.Invoke(hasActive);
-        }
+        private readonly PanelRouter router = new();
 
         public void RegisterSelf(IDependencyRegistrar registrar)
         {
             registrar.Register<IUIManager>(this);
+            registrar.Register<IPanelNavigator>(this);
+            registrar.Register<IInventoryPopupToggle>(this);
+            registrar.Register<IUIVisibilitySignal>(this);
         }
 
         public void ResolveDependencies(IDependencyResolver registrar)
@@ -63,42 +62,21 @@ namespace Game.Core
             }
         }
 
-        public bool IsAtRootDepth => !depthChannel.HasActive;
-        public event Action<bool> RootDepthChanged;
-        public bool IsModalPopupOpen => popupChannel.HasActive;
-        public event Action<bool> ModalPopupOpenChanged;
+        public bool IsAtRootDepth => router.IsAtRootDepth;
+        public event Action<bool> RootDepthChanged { add => router.RootDepthChanged += value; remove => router.RootDepthChanged -= value; }
+        public bool IsScreenOpen => router.IsScreenOpen;
+        public event Action<bool> ScreenOpenChanged { add => router.ScreenOpenChanged += value; remove => router.ScreenOpenChanged -= value; }
+        public bool IsModalPopupOpen => router.IsModalPopupOpen;
+        public event Action<bool> ModalPopupOpenChanged { add => router.ModalPopupOpenChanged += value; remove => router.ModalPopupOpenChanged -= value; }
 
-        public void RegisterDepthPanel(IUIPanel panel) => depthChannel.Register(panel);
-        public void RegisterPopupPanel(IUIPanel panel) => popupChannel.Register(panel);
+        public void RegisterDepthPanel(IUIPanel panel) => router.RegisterDepthPanel(panel);
+        public void RegisterScreenPanel(IUIPanel panel) => router.RegisterScreenPanel(panel);
+        public void RegisterPopupPanel(IUIPanel panel) => router.RegisterPopupPanel(panel);
         public void RegisterInventoryPopup(IUIPanel popup) => inventoryPopupCoordinator.RegisterPopup(popup);
 
-        public void Open(string panelId)
-        {
-            if (TryGetChannel(panelId, out var channel))
-            {
-                channel.Open(panelId);
-            }
-        }
+        public void Open(string panelId) => router.Open(panelId);
 
-        public void Close(string panelId)
-        {
-            if (TryGetChannel(panelId, out var channel))
-            {
-                channel.Close(panelId);
-            }
-        }
-
-        private bool TryGetChannel(string panelId, out PanelChannel channel)
-        {
-            channel = depthChannel.Contains(panelId) ? depthChannel
-                : popupChannel.Contains(panelId) ? popupChannel
-                : null;
-            if (channel == null)
-            {
-                Debug.LogWarning($"'{panelId}'에 해당하는 UI 패널이 등록되어 있지 않다.");
-            }
-            return channel != null;
-        }
+        public void Close(string panelId) => router.Close(panelId);
 
         public void ToggleInventoryPopup(string popupId) => inventoryPopupCoordinator.Toggle(popupId);
 
@@ -115,11 +93,10 @@ namespace Game.Core
             // 이 씬의 패널 시각 요소는 전부 새로 만들어졌으므로, 이전 씬(또는 이전 방문)의 열림/복귀
             // 기록은 더 이상 유효하지 않다 - 씬 전환이 항상 UIManager.Close를 거치는 것은 아니므로
             // (예: "상행 시작"으로 인한 Hub→Field 전환) 여기서 매번 명시적으로 지운다.
-            depthChannel.Reset();
-            popupChannel.Reset();
+            router.Reset();
             inventoryPopupCoordinator.Reset();
 
-            wiring.Wire(registrar, this, this);
+            wiring.Wire(registrar, this, this, this);
         }
 
         private void OnDestroy()

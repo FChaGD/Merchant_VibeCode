@@ -15,9 +15,8 @@ namespace Game.Core
         // 회수 적재 패널(plain C#, 설계 79번 §7)은 Field 로드마다 이번 씬의 화면 요소로 새로 만든다 - 저장소(Bootstrap 상주) 이벤트를
         // 구독하므로 이전 패널은 Dispose한다(HubUIWiring의 시설 화면과 같은 방식).
         private FieldCargoRecoveryPanel cargoRecoveryPanel;
-        private FieldMovementViewHider movementViewHider;
 
-        public void Wire(IDependencyResolver registrar, IUIManager uiManager, IPanelRegistrar panelRegistrar)
+        public void Wire(IDependencyResolver registrar, IUIManager uiManager, IPanelRegistrar panelRegistrar, IInventoryPopupRegistrar inventoryRegistrar)
         {
             // 이 씬의 SceneUIRoot를 여기서 한 번만 찾아 아래 3개 컴포넌트 전부에 넘긴다 - 예전엔
             // 각자 SceneManager.GetSceneByName부터 다시 조회했다(DRY, Docs/Refactor/2026-09-08_Hub.md
@@ -176,25 +175,34 @@ namespace Game.Core
             binder.BindScreens(new FieldEventScreens(uiManager, dialogue, choice, dialoguePanel, choicePanel, cargoRecoveryPanel, fieldUIController, viewOnly));
         }
 
-        // 이벤트 중 이동 뷰 가림(설계 89 §13.2) - 가림 상태는 Bootstrap 상주라 Field 로드마다 이번 씬의 이동 뷰로 새로 잇고 이전 객체 구독은 푼다.
+        // 이벤트 중 이동 뷰 가림(설계 89 §13.2) - Hub와 같은 레이어 숨김 규칙 게이트에 규칙으로 등록한다(Docs/Refactor/2026-10-26_공통.md B-4).
+        // Field 모달(정비창·전술·회수 적재·이벤트)이 열릴 때 숨기는 레이어는 없다(사용자 결정 2026-10-26 - 화면 현행 유지).
+        // 게이트는 Hub와 공유하는 한 인스턴스라 조건이 없어도 빈 규칙표로 등록해 이전 씬 규칙을 지운다.
         private void BindMovementViewHider(IDependencyResolver registrar, RectTransform movementViewRoot)
         {
-            movementViewHider?.Dispose();
-            movementViewHider = null;
-            if (movementViewRoot == null || !registrar.TryResolve<IFieldUIHideReader>(out var reader)) return;
-            var group = movementViewRoot.GetComponent<CanvasGroup>();
-            if (group == null)
+            var gate = GetComponent<ILayerHideGate>();
+            if (gate == null)
+            {
+                throw new InvalidOperationException($"{nameof(FieldUIWiring)}와 같은 GameObject에 {nameof(ILayerHideGate)} 구현체가 없다.");
+            }
+
+            var group = movementViewRoot != null ? movementViewRoot.GetComponent<CanvasGroup>() : null;
+            if (movementViewRoot != null && group == null)
             {
                 Debug.LogWarning("이동 뷰에 CanvasGroup이 없어 이벤트 중 가림이 동작하지 않는다(Tools > Game > Build Field Scene).");
+            }
+
+            if (group == null || !registrar.TryResolve<IFieldUIHideReader>(out var reader))
+            {
+                gate.Register(Array.Empty<LayerHideRule>());
                 return;
             }
-            movementViewHider = new FieldMovementViewHider(group, reader);
+            gate.Register(new[] { new LayerHideRule(UIHideConditions.From(reader), new[] { group }) });
         }
 
         private void OnDestroy()
         {
             cargoRecoveryPanel?.Dispose();
-            movementViewHider?.Dispose();
         }
     }
 }

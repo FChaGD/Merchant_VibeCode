@@ -329,11 +329,41 @@ namespace Game.Core
 
         private void OnDisable() => zoomRoutine = null;
 
+        // 그리기 순서(슬롯 < 경로선 < 오버레이 마크 < 이동 아이콘, 실전 확인)는 종류별 컨테이너의 형제 순서로 고정한다(Docs/Refactor/2026-10-26_공통.md A-1).
+        // 예전엔 매 프레임 풀 전체에 SetAsLastSibling을 불러 순서를 맞췄는데, 풀이 2개 이상이면 호출마다 실제 순서가 바뀌어 캔버스가 매 프레임 다시 구성됐다.
+        // 컨테이너는 slotContent와 같은 영역(전체 덮기·오프셋 0)이라 자식 좌표(slotContent 좌상단 기준)가 그대로 맞고, Graphic이 없어 레이캐스트를 막지 않는다.
+        // 런타임에 처음 필요할 때 만든다 - 풀 인스턴스도 런타임 생성이라 씬 구성 변경이 필요 없다. 슬롯은 생성 시 SetSiblingIndex(slotPool.Count)로 항상 앞에 놓인다.
+        private RectTransform pathLineLayer;
+        private RectTransform overlayLayer;
+        private RectTransform travelerLayer;
+        // 이동마다 프레임당 한 번 계산하는 경로 좌표(경로선·이동 아이콘 공유, A-3). 경로선은 좌표를 받아 바로 배치하고 목록을 보관하지 않으므로 재사용해도 안전하다.
+        private readonly List<List<Vector2>> waypointBuffers = new();
+
+        private void EnsureVisualLayers()
+        {
+            if (pathLineLayer != null) return;
+            pathLineLayer = CreateVisualLayer("PathLineLayer");
+            overlayLayer = CreateVisualLayer("OverlayLayer");
+            travelerLayer = CreateVisualLayer("TravelerLayer");
+        }
+
+        private RectTransform CreateVisualLayer(string layerName)
+        {
+            var existing = slotContent.Find(layerName) as RectTransform;
+            var layer = existing != null ? existing : new GameObject(layerName, typeof(RectTransform), typeof(LayoutElement)).GetComponent<RectTransform>();
+            if (existing == null) layer.SetParent(slotContent, false);
+            layer.GetComponent<LayoutElement>().ignoreLayout = true;
+            layer.anchorMin = Vector2.zero;
+            layer.anchorMax = Vector2.one;
+            layer.offsetMin = Vector2.zero;
+            layer.offsetMax = Vector2.zero;
+            layer.pivot = ((RectTransform)slotContent).pivot;
+            layer.SetAsLastSibling();
+            return layer;
+        }
+
         // 배치/이동 진행 중인 슬롯마다 반투명 마크(기획 20번 §3.2/§3.3)를 하나씩 그린다 - 개수가
-        // 줄면 남는 인스턴스는 숨기기만 하고 파괴하지 않는다(get-or-create 재사용). 렌더 순서는
-        // 호출 순서로 정한다 - 반드시 SetPathLines 다음, SetTravelerIcons 이전에 호출할 것
-        // (FormationGridEditor.TickActivityOverlays 참고, 실전 확인된 순서: 슬롯 < 경로선 < 이
-        // 마크 < 이동 아이콘).
+        // 줄면 남는 인스턴스는 숨기기만 하고 파괴하지 않는다(get-or-create 재사용).
         public void SetActivityOverlays(IReadOnlyList<FormationActivityOverlayVisual> overlays,
             Action<string, PointerEventData> onGhostBeginDrag = null, Action<PointerEventData> onGhostDrag = null, Action<PointerEventData> onGhostEndDrag = null)
         {
@@ -342,14 +372,14 @@ namespace Game.Core
                 return;
             }
 
+            EnsureVisualLayers();
             while (activityOverlays.Count < overlays.Count)
             {
-                activityOverlays.Add(Instantiate(activityOverlayPrefab, slotContent));
+                activityOverlays.Add(Instantiate(activityOverlayPrefab, overlayLayer));
             }
 
             for (var i = 0; i < activityOverlays.Count; i++)
             {
-                activityOverlays[i].transform.SetAsLastSibling();
                 if (i < overlays.Count)
                 {
                     var overlay = overlays[i];
@@ -369,85 +399,76 @@ namespace Game.Core
             }
         }
 
-        // 동시에 진행 중인 이동 활동 수만큼 경로선을 그린다 - 개수가 줄면 남는 인스턴스는 숨기기만 하고
-        // 파괴하지 않는다. 반드시 SetActivityOverlays 이전에 호출할 것(렌더 순서, 위 주석 참고).
-        public void SetPathLines(IReadOnlyList<FormationMovePathVisual> moves)
+        // 동시에 진행 중인 이동 활동마다 경로선과 경로 위를 실시간으로 지나가는 유닛 아이콘(기획 20번 §3.3)을 그린다. 경로 좌표는
+        // 이동마다 한 번만 계산해 둘이 함께 쓴다(A-3). 개수가 줄면 남는 인스턴스는 숨기기만 하고 파괴하지 않는다.
+        public void SetMoveVisuals(IReadOnlyList<FormationMovePathVisual> moves)
         {
-            if (pathLinePrefab == null)
-            {
-                return;
-            }
+            EnsureVisualLayers();
+            while (waypointBuffers.Count < moves.Count) waypointBuffers.Add(new List<Vector2>());
+            for (var i = 0; i < moves.Count; i++) FillWaypoints(moves[i], waypointBuffers[i]);
 
-            while (pathLines.Count < moves.Count)
+            if (pathLinePrefab != null)
             {
-                pathLines.Add(Instantiate(pathLinePrefab, slotContent));
-            }
-
-            for (var i = 0; i < pathLines.Count; i++)
-            {
-                pathLines[i].transform.SetAsLastSibling();
-                if (i < moves.Count)
+                while (pathLines.Count < moves.Count)
                 {
-                    pathLines[i].gameObject.SetActive(true);
-                    pathLines[i].SetPath(BuildWaypoints(moves[i]));
+                    pathLines.Add(Instantiate(pathLinePrefab, pathLineLayer));
                 }
-                else
+
+                for (var i = 0; i < pathLines.Count; i++)
                 {
-                    pathLines[i].gameObject.SetActive(false);
+                    if (i < moves.Count)
+                    {
+                        pathLines[i].gameObject.SetActive(true);
+                        pathLines[i].SetPath(waypointBuffers[i]);
+                    }
+                    else
+                    {
+                        pathLines[i].gameObject.SetActive(false);
+                    }
+                }
+            }
+
+            if (travelerIconPrefab != null)
+            {
+                while (travelerIcons.Count < moves.Count)
+                {
+                    travelerIcons.Add(Instantiate(travelerIconPrefab, travelerLayer));
+                }
+
+                for (var i = 0; i < travelerIcons.Count; i++)
+                {
+                    if (i < moves.Count)
+                    {
+                        var move = moves[i];
+                        // 대각선 구간(√2배, 설계 26번 §10)이 섞일 수 있어 균등 보간이 아니라 구간별
+                        // 실제 비용 배열로 보간한다.
+                        var weights = FormationPathFinder.ComputeSegmentWeights(move.PathSlotIndices, boardColumns, move.PartialSegmentIndex, move.PartialSegmentWeight);
+                        var traveler = travelerIcons[i];
+                        traveler.gameObject.SetActive(true);
+                        traveler.sprite = move.Icon;
+                        traveler.enabled = move.Icon != null;
+                        var travelerRect = (RectTransform)traveler.transform;
+                        travelerRect.anchoredPosition = FormationPathInterpolation.Evaluate(waypointBuffers[i], move.Progress01, weights);
+                        travelerRect.sizeDelta = Vector2.one * (cellSize * TravelerToCellRatio);
+                    }
+                    else
+                    {
+                        travelerIcons[i].gameObject.SetActive(false);
+                    }
                 }
             }
         }
 
-        // 슬롯 좌표 목록을 만든 뒤, 부분 구간(리다이렉트 직후 연속 좌표, 기획 21번 §2)이 있으면 그
-        // 지점 하나만 정확한 위치로 치환한다 - SetPathLines/SetTravelerIcons가 공유한다.
-        private List<Vector2> BuildWaypoints(FormationMovePathVisual move)
+        // 슬롯 좌표 목록을 채운 뒤, 부분 구간(리다이렉트 직후 연속 좌표, 기획 21번 §2)이 있으면 그
+        // 지점 하나만 정확한 위치로 치환한다.
+        private void FillWaypoints(FormationMovePathVisual move, List<Vector2> positions)
         {
-            var positions = new List<Vector2>(move.PathSlotIndices.Count);
+            positions.Clear();
             foreach (var slotIndex in move.PathSlotIndices)
             {
                 positions.Add(GetSlotAnchoredPosition(slotIndex));
             }
             FormationPathInterpolation.ApplyPartialSegment(positions, move.PartialSegmentIndex, move.PartialSegmentWeight);
-            return positions;
-        }
-
-        // 경로 위를 실시간으로 이동하는 유닛 아이콘을 그린다(기획 20번 §3.3) - 반드시
-        // SetActivityOverlays 이후에 호출할 것(항상 모든 것보다 위, 렌더 순서 위 주석 참고).
-        public void SetTravelerIcons(IReadOnlyList<FormationMovePathVisual> moves)
-        {
-            if (travelerIconPrefab == null)
-            {
-                return;
-            }
-
-            while (travelerIcons.Count < moves.Count)
-            {
-                travelerIcons.Add(Instantiate(travelerIconPrefab, slotContent));
-            }
-
-            for (var i = 0; i < travelerIcons.Count; i++)
-            {
-                travelerIcons[i].transform.SetAsLastSibling();
-                if (i < moves.Count)
-                {
-                    var move = moves[i];
-                    var positions = BuildWaypoints(move);
-                    // 대각선 구간(√2배, 설계 26번 §10)이 섞일 수 있어 균등 보간이 아니라 구간별
-                    // 실제 비용 배열로 보간한다.
-                    var weights = FormationPathFinder.ComputeSegmentWeights(move.PathSlotIndices, boardColumns, move.PartialSegmentIndex, move.PartialSegmentWeight);
-                    var traveler = travelerIcons[i];
-                    traveler.gameObject.SetActive(true);
-                    traveler.sprite = move.Icon;
-                    traveler.enabled = move.Icon != null;
-                    var travelerRect = (RectTransform)traveler.transform;
-                    travelerRect.anchoredPosition = FormationPathInterpolation.Evaluate(positions, move.Progress01, weights);
-                    travelerRect.sizeDelta = Vector2.one * (cellSize * TravelerToCellRatio);
-                }
-                else
-                {
-                    travelerIcons[i].gameObject.SetActive(false);
-                }
-            }
         }
 
         private float MaxCellSize => Mathf.Max(1f, Mathf.Min(slotSize.x, slotSize.y));

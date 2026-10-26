@@ -12,23 +12,13 @@ namespace Game.Core.Editor
     /// </summary>
     internal static class MerchantGuildUIBuilder
     {
-        private static readonly Color PanelColor = new(0.96f, 0.95f, 0.92f, 1f);
-        private static readonly Color HeaderColor = new(0.72f, 0.66f, 0.55f, 1f);
-        private static readonly Color ListColor = new(0.9f, 0.88f, 0.84f, 1f);
-        private static readonly Color RowColor = new(1f, 1f, 1f, 1f);
-        private static readonly Color ButtonColor = new(0.85f, 0.85f, 0.85f, 1f);
-        private static readonly Color SelectionOutlineColor = new(0.1f, 0.1f, 0.1f, 1f);
 
-        private const float PanelTop = 0.86f;
-
-        public static void Build(Transform modalPopups)
+        public static void Build(Transform screens)
         {
-            var root = EditorUIBuilder.GetOrCreateUIObject(modalPopups, "MerchantGuild");
-            var rootRect = root.GetComponent<RectTransform>();
-            EditorUIBuilder.SetStretch(rootRect);
-            EditorUIBuilder.EnsureMarker(root, MerchantGuildUIElementIds.Root);
+            var rootRect = EditorFacilityScreenBuilder.EnsureRoot(screens, EditorFacilityScreenBuilder.MerchantGuildRoot, MerchantGuildUIElementIds.Root);
+            var root = rootRect.gameObject;
 
-            BuildButton(rootRect, "ExitButton", "나가기", MerchantGuildUIElementIds.ExitButton, new Vector2(0.02f, 0.88f), new Vector2(0.14f, 0.95f));
+            EditorFacilityScreenBuilder.EnsureExitButton(rootRect, MerchantGuildUIElementIds.ExitButton);
             BuildListPanel(rootRect);
             BuildDetailPanel(rootRect);
 
@@ -38,12 +28,12 @@ namespace Game.Core.Editor
 
         private static void BuildListPanel(RectTransform root)
         {
-            var panel = BuildPanel(root, "ListPanel", "의뢰 목록", new Vector2(0.02f, 0.06f), new Vector2(0.4f, PanelTop));
+            var panel = EditorFacilityScreenBuilder.EnsurePanel(root, "ListPanel", "의뢰 목록", 0.02f, 0.4f);
 
             var area = EditorUIBuilder.GetOrCreateUIObject(panel, "List");
             var areaRect = area.GetComponent<RectTransform>();
             EditorUIBuilder.SetAnchors(areaRect, new Vector2(0.03f, 0.03f), new Vector2(0.97f, 0.88f));
-            EditorUIBuilder.EnsureImage(area, ListColor);
+            EditorUIBuilder.EnsureImage(area, EditorUIColors.List);
 
             var (viewport, content) = EditorUIBuilder.CreateViewportAndContent(areaRect);
             EditorUIBuilder.EnsureMarker(viewport.gameObject, MerchantGuildUIElementIds.ListViewport);
@@ -72,10 +62,10 @@ namespace Game.Core.Editor
             EditorUIBuilder.SetStretch(templates.GetComponent<RectTransform>());
 
             var row = EditorUIBuilder.GetOrCreateUIObject(templates.transform, "QuestRowTemplate");
-            EditorUIBuilder.EnsureImage(row, RowColor);
+            EditorUIBuilder.EnsureImage(row, EditorUIColors.Row);
             var button = EditorUIBuilder.EnsureButton(row);
             var outline = EditorUIBuilder.GetOrAddComponent<Outline>(row);
-            outline.effectColor = SelectionOutlineColor;
+            outline.effectColor = EditorUIColors.SelectionOutline;
             outline.effectDistance = new Vector2(3f, -3f);
             outline.enabled = false;
 
@@ -97,7 +87,7 @@ namespace Game.Core.Editor
 
         private static void BuildDetailPanel(RectTransform root)
         {
-            var panel = BuildPanel(root, "DetailPanel", "의뢰 상세", new Vector2(0.43f, 0.06f), new Vector2(0.98f, PanelTop));
+            var panel = EditorFacilityScreenBuilder.EnsurePanel(root, "DetailPanel", "의뢰 상세", 0.43f, 0.98f);
 
             BuildText(panel, "Title", MerchantGuildUIElementIds.DetailTitle, new Vector2(0.05f, 0.74f), new Vector2(0.95f, 0.87f), TextAlignmentOptions.MidlineLeft, 28f);
             BuildText(panel, "Description", MerchantGuildUIElementIds.DetailDescription, new Vector2(0.05f, 0.38f), new Vector2(0.95f, 0.72f), TextAlignmentOptions.TopLeft, 22f);
@@ -107,11 +97,9 @@ namespace Game.Core.Editor
         }
 
         // 저수준 조립은 공용 EditorUIBuilder에 있다 - 여기서는 이 화면의 색만 정해 넘긴다.
-        private static RectTransform BuildPanel(RectTransform root, string name, string title, Vector2 min, Vector2 max)
-            => EditorUIBuilder.EnsureHeaderedPanel(root, name, title, min, max, PanelColor, HeaderColor);
 
         private static void BuildButton(RectTransform parent, string name, string text, string id, Vector2 min, Vector2 max)
-            => EditorUIBuilder.EnsureLabeledButton(parent, name, text, id, min, max, ButtonColor);
+            => EditorUIBuilder.EnsureLabeledButton(parent, name, text, id, min, max, EditorUIColors.Button);
 
         private static void BuildText(RectTransform parent, string name, string id, Vector2 min, Vector2 max, TextAlignmentOptions alignment, float maxFontSize)
             => EditorUIBuilder.EnsureAnchoredLabel(parent, name, id, min, max, alignment, maxFontSize);

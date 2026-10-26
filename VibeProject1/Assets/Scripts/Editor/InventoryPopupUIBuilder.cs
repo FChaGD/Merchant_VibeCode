@@ -15,11 +15,6 @@ namespace Game.Core.Editor
     /// </summary>
     internal static class InventoryPopupUIBuilder
     {
-        private static readonly Color WindowColor = new(0.96f, 0.95f, 0.92f, 1f);
-        private static readonly Color TitleBarColor = new(0.72f, 0.66f, 0.55f, 1f);
-        private static readonly Color StagingColor = new(0.9f, 0.88f, 0.84f, 1f);
-        private static readonly Color ButtonColor = new(0.85f, 0.85f, 0.85f, 1f);
-        private static readonly Color SelectionOutlineColor = new(0.1f, 0.1f, 0.1f, 1f);
         private static readonly Color DiscardMarkColor = new(0.9f, 0.1f, 0.1f, 0.45f);
 
         // 임시 보관이 있으면 그리드 오른쪽을 임시 보관 영역에 내주고, 없으면 그리드가 창 폭 전체를 쓴다.
@@ -33,7 +28,7 @@ namespace Game.Core.Editor
             var rootRect = root.GetComponent<RectTransform>();
             // 기본 위치(기획 39번 §4.4, 41번 §4.1). 이후 위치는 창 드래그로 바뀌고 런타임에만 기억한다.
             EditorUIBuilder.SetAnchors(rootRect, spec.DefaultAnchorMin, spec.DefaultAnchorMax);
-            EditorUIBuilder.EnsureImage(root, WindowColor);
+            EditorUIBuilder.EnsureImage(root, EditorUIColors.Panel);
 
             BuildTitleBar(rootRect, popupId, spec.Title);
             BuildCloseButton(rootRect, popupId);
@@ -132,7 +127,7 @@ namespace Game.Core.Editor
         {
             var go = EditorUIBuilder.GetOrCreateUIObject(root, name);
             EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
-            EditorUIBuilder.EnsureImage(go, ButtonColor);
+            EditorUIBuilder.EnsureImage(go, EditorUIColors.Button);
             EditorUIBuilder.EnsureButton(go);
             EditorUIBuilder.GetOrAddComponent<HoverRepeatTrigger>(go);
             EditorUIBuilder.EnsureLabel(go.transform, text, autoSize: true, minFontSize: 10f, maxFontSize: 28f);
@@ -157,7 +152,7 @@ namespace Game.Core.Editor
         {
             var go = EditorUIBuilder.GetOrCreateUIObject(root, "TitleBar");
             EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(0f, 0.9f), Vector2.one);
-            EditorUIBuilder.EnsureImage(go, TitleBarColor);
+            EditorUIBuilder.EnsureImage(go, EditorUIColors.Header);
             var window = EditorUIBuilder.GetOrAddComponent<DraggableWindow>(go);
             var so = new SerializedObject(window);
             so.FindProperty("window").objectReferenceValue = root;
@@ -170,7 +165,7 @@ namespace Game.Core.Editor
         {
             var go = EditorUIBuilder.GetOrCreateUIObject(root, "CloseButton");
             EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(0.93f, 0.91f), new Vector2(0.99f, 0.99f));
-            EditorUIBuilder.EnsureImage(go, ButtonColor);
+            EditorUIBuilder.EnsureImage(go, EditorUIColors.Button);
             EditorUIBuilder.EnsureButton(go);
             EditorUIBuilder.EnsureLabel(go.transform, "X", autoSize: true, minFontSize: 10f, maxFontSize: 24f);
             EditorUIBuilder.EnsureMarker(go, InventoryPopupUIElementIds.CloseButton(popupId));
@@ -203,7 +198,7 @@ namespace Game.Core.Editor
             var area = EditorUIBuilder.GetOrCreateUIObject(root, "StagingArea");
             var areaRect = area.GetComponent<RectTransform>();
             EditorUIBuilder.SetAnchors(areaRect, areaMin, areaMax);
-            EditorUIBuilder.EnsureImage(area, StagingColor);
+            EditorUIBuilder.EnsureImage(area, EditorUIColors.List);
             EditorUIBuilder.EnsureMarker(area, InventoryPopupUIElementIds.StagingArea(popupId));
 
             var (viewport, content) = EditorUIBuilder.CreateViewportAndContent(areaRect);
@@ -232,7 +227,7 @@ namespace Game.Core.Editor
         {
             var sort = EditorUIBuilder.GetOrCreateUIObject(root, "SortButton");
             EditorUIBuilder.SetAnchors(sort.GetComponent<RectTransform>(), anchorMin, anchorMax);
-            EditorUIBuilder.EnsureImage(sort, ButtonColor);
+            EditorUIBuilder.EnsureImage(sort, EditorUIColors.Button);
             EditorUIBuilder.EnsureButton(sort);
             EditorUIBuilder.EnsureLabel(sort.transform, "자동 정렬", autoSize: true, minFontSize: 10f, maxFontSize: 22f);
             EditorUIBuilder.EnsureMarker(sort, InventoryPopupUIElementIds.SortButton(popupId));
@@ -251,7 +246,7 @@ namespace Game.Core.Editor
         {
             var go = EditorUIBuilder.GetOrCreateUIObject(root, name);
             EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
-            EditorUIBuilder.EnsureImage(go, ButtonColor);
+            EditorUIBuilder.EnsureImage(go, EditorUIColors.Button);
             EditorUIBuilder.EnsureButton(go);
             EditorUIBuilder.EnsureLabel(go.transform, text, autoSize: true, minFontSize: 10f, maxFontSize: 22f);
             EditorUIBuilder.EnsureMarker(go, elementId);
@@ -285,7 +280,7 @@ namespace Game.Core.Editor
             var item = EditorUIBuilder.GetOrCreateUIObject(templates.transform, "ItemTemplate");
             var background = EditorUIBuilder.EnsureImage(item, Color.white);
             var outline = EditorUIBuilder.GetOrAddComponent<Outline>(item);
-            outline.effectColor = SelectionOutlineColor;
+            outline.effectColor = EditorUIColors.SelectionOutline;
             outline.effectDistance = new Vector2(3f, -3f);
             outline.enabled = false;
             var label = EditorUIBuilder.EnsureLabel(item.transform, string.Empty, autoSize: true, minFontSize: 8f, maxFontSize: 18f);

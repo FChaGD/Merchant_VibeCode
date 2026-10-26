@@ -12,7 +12,7 @@ namespace Game.Core
     /// </summary>
     public class TableItemCatalog : IItemCatalogReader
     {
-        private const string MissingText = "값 없음";
+        private const string MissingText = PlaceholderText.Missing;
 
         private readonly ItemDefinitionTableAsset dataTable;
         private readonly ItemStringTableAsset stringTable;

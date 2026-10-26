@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Game.Core
 {
     /// <summary>
-    /// 상인조합 화면(기획 94 4-14~4-17, Docs/설계/103번 §4.5) - 좌측 의뢰 목록 + 우측 상세·수락. 시설 화면 방식이라 모달 채널에 등록되고
+    /// 상인조합 화면(기획 94 4-14~4-17, Docs/설계/103번 §4.5) - 좌측 의뢰 목록 + 우측 상세·수락. 시설 화면 방식이라 시설 화면 채널에 등록되고
     /// HubUIWiring이 Hub 로드마다 새로 만든다 - 게시판(Bootstrap 상주) 변경을 구독하므로 교체 시 Dispose한다.
     /// 수락은 확인 창 없이 게시판에 요청하고, 게시판 변경 알림으로 목록·상세를 다시 그린다(수락 상태의 출처는 게시판 하나).
     /// </summary>
@@ -24,7 +24,7 @@ namespace Game.Core
 
         public string PanelId => UIPanelIds.Facility(TownFacilityIds.MerchantGuild);
 
-        public MerchantGuildPanel(MerchantGuildElements elements, IGuildQuestBoard board, IUIManager uiManager)
+        public MerchantGuildPanel(MerchantGuildElements elements, IGuildQuestBoard board, IPanelNavigator uiManager)
         {
             this.elements = elements;
             this.board = board;
@@ -67,26 +67,13 @@ namespace Game.Core
             var quests = board.Quests;
             if (selectedId != null && FindQuest(selectedId) == null) selectedId = null;
 
-            var rowHeight = Mathf.Max(elements.ListViewport.rect.height, 1f) / VisibleRows;
-            for (var i = 0; i < quests.Count; i++)
+            var rowHeight = FixedRowListLayout.RowHeight(elements.ListViewport.rect.height, VisibleRows);
+            FixedRowListLayout.Render(rows, quests.Count, elements.RowTemplate, elements.ListContent, rowHeight, (row, i) =>
             {
-                if (i >= rows.Count) rows.Add(UnityEngine.Object.Instantiate(elements.RowTemplate, elements.ListContent));
-
-                var row = rows[i];
                 var quest = quests[i];
-                row.gameObject.SetActive(true);
                 row.Bind(quest.Title, quest.Requester, board.IsAccepted(quest.Id) ? AcceptedText : string.Empty, () => Select(quest.Id));
                 row.SetSelected(quest.Id == selectedId);
-
-                var rect = row.RectTransform;
-                rect.anchorMin = new Vector2(0f, 1f);
-                rect.anchorMax = new Vector2(1f, 1f);
-                rect.pivot = new Vector2(0.5f, 1f);
-                rect.anchoredPosition = new Vector2(0f, -i * rowHeight);
-                rect.sizeDelta = new Vector2(0f, rowHeight);
-            }
-            for (var i = quests.Count; i < rows.Count; i++) rows[i].gameObject.SetActive(false);
-            elements.ListContent.sizeDelta = new Vector2(elements.ListContent.sizeDelta.x, quests.Count * rowHeight);
+            });
             elements.EmptyLabel.text = quests.Count == 0 ? EmptyText : string.Empty;
 
             RenderDetail();

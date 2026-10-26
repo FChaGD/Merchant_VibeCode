@@ -18,7 +18,7 @@ namespace Game.Core
 
         public string PanelId => UIPanelIds.GoldConversion;
 
-        public GoldConversionPanel(GoldConversionElements elements, IGoldHoldingsReader holdings, IGoldBoxConverter converter, IUIManager uiManager)
+        public GoldConversionPanel(GoldConversionElements elements, IGoldHoldingsReader holdings, IGoldBoxConverter converter, IPanelNavigator uiManager)
         {
             this.elements = elements;
             this.holdings = holdings;

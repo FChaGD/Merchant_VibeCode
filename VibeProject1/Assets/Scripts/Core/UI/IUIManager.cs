@@ -1,22 +1,10 @@
 namespace Game.Core
 {
-    public interface IUIManager : IUIVisibilitySignal
+    /// <summary>
+    /// UIManager가 내는 계약 전체(열기/닫기 + 인벤토리 팝업 + 두 축 신호). 셋이 다 필요한 배선·컨트롤러만 이 이름을 쓰고,
+    /// 나머지 소비자는 실제로 쓰는 계약만 받는다(ISP, Docs/Refactor/2026-10-26_공통.md B-3).
+    /// </summary>
+    public interface IUIManager : IPanelNavigator, IInventoryPopupToggle, IUIVisibilitySignal
     {
-        /// <summary>
-        /// 패널 Id가 등록된 종류(depth 패널/모달 팝업)의 채널에서 연다. 모달 팝업을 열어도 depth 패널은
-        /// 닫히지 않는다(Docs/설계/38번 §4.2).
-        /// </summary>
-        void Open(string panelId);
-        void Close(string panelId);
-
-        // PanelNavigationStack의 단일 활성 패널 정책과 분리된 경로 - 인벤토리 팝업 4종은 동시 중첩
-        // 오픈이 가능해야 해서(Docs/기획/31번 §3.5) Open/Close가 아니라 IInventoryPopupCoordinator로
-        // 위임하는 이 메서드만 쓴다(Docs/설계/32번 §5). 비모달이라 IUIVisibilitySignal 신호에도 참여하지
-        // 않는다(Docs/설계/38번 §3).
-        void ToggleInventoryPopup(string popupId);
-
-        // 열린 인벤토리 팝업을 닫기 차단(임시 보관 비우기) 없이 모두 숨긴다 - 시설 화면 진입용(Docs/설계/50번 §6.2).
-        // 임시 보관 상태는 저장소에 있어 시설 화면의 고정 패널이 그대로 이어받으므로 비우지 않아도 된다.
-        void CloseAllInventoryPopups();
     }
 }

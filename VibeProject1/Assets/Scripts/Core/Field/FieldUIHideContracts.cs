@@ -12,7 +12,7 @@ namespace Game.Core
         void Release(FieldUIHideReason reason);
     }
 
-    /// <summary>가림 여부 조회 - 이동 뷰 가림 적용(FieldMovementViewHider)과 Field 디버그 창이 쓴다. Changed = 가림 여부가 바뀌었다.</summary>
+    /// <summary>가림 여부 조회 - 이동 뷰 가림 규칙(FieldUIWiring → LayerHideGate)과 Field 디버그 창이 쓴다. Changed = 가림 여부가 바뀌었다.</summary>
     public interface IFieldUIHideReader
     {
         bool IsHidden { get; }

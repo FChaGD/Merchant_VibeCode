@@ -27,7 +27,7 @@ namespace Game.Core
     /// </summary>
     public static class StableOwnedListModel
     {
-        public const string MissingText = "값 없음";
+        public const string MissingText = PlaceholderText.Missing;
         private static readonly FormationUnitKind[] Kinds = { FormationUnitKind.Wagon, FormationUnitKind.Facility };
 
         public static List<StableOwnedEntry> Build(IOwnedCaravanAssetReader owned, ICaravanAssetCatalogReader catalog, ICaravanAssetDurabilityReader durability)

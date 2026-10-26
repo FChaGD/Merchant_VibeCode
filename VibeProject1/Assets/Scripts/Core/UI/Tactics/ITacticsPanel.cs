@@ -9,6 +9,6 @@ namespace Game.Core
         /// InMemoryTacticsRepository/LiveBattleSimulationRule과 같은 자리(에디터에서 같은 에셋 파일을
         /// 각자 참조).
         /// </summary>
-        void RegisterTacticsUI(SceneUIRoot sceneUIRoot, ITacticsRepository repository, IUIManager uiManager);
+        void RegisterTacticsUI(SceneUIRoot sceneUIRoot, ITacticsRepository repository, IPanelNavigator uiManager);
     }
 }

@@ -27,7 +27,7 @@ namespace Game.Core
 
         private IGoldHoldingsReader goldHoldings;
         private ICaravanRosterProvider roster;
-        private IUIManager uiManager;
+        private IPanelNavigator uiManager;
         private RectTransform panelRoot;
         private TMP_Text amountText;
         private TMP_Text wagonCountText;
@@ -37,7 +37,7 @@ namespace Game.Core
         private ITooltipHandle tooltip;
         private float fittedPanelWidth = -1f;
 
-        public void RegisterCurrencyUI(SceneUIRoot sceneUIRoot, IGoldHoldingsReader goldHoldings, IUIManager uiManager, ICaravanRosterProvider roster)
+        public void RegisterCurrencyUI(SceneUIRoot sceneUIRoot, IGoldHoldingsReader goldHoldings, IPanelNavigator uiManager, ICaravanRosterProvider roster)
         {
             Unbind();
 

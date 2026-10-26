@@ -52,7 +52,7 @@ namespace Game.Core
     /// </summary>
     public sealed class TableCaravanAssetCatalog : ICaravanAssetCatalogReader
     {
-        private const string MissingText = "값 없음";
+        private const string MissingText = PlaceholderText.Missing;
         private const string WagonLabel = "마차";
         private const string FacilityLabel = "시설";
 

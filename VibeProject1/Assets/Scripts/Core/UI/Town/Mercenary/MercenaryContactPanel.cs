@@ -5,7 +5,7 @@ using System.Text;
 namespace Game.Core
 {
     /// <summary>
-    /// 용병단 접촉(캐릭터 고용) 화면(Docs/기획/53번, 설계 54번 §8). 무역품 구매 화면과 같이 모달 팝업 채널에 등록된다 - 재화 패널 외
+    /// 용병단 접촉(캐릭터 고용) 화면(Docs/기획/53번, 설계 54번 §8). 무역품 구매 화면과 같이 시설 화면 채널에 등록된다 - 재화 패널 외
     /// Hub UI 숨김과 "나가면 주점 지구로 복귀"를 기존 채널이 처리한다. MonoBehaviour가 아닌 plain C#이며 HubUIWiring이 Hub 로드마다
     /// 새로 만든다 - 골드 보유·로스터(Bootstrap 상주) 이벤트를 구독하므로 교체 시 반드시 Dispose한다.
     /// 화면 요소와 후보 목록 처리는 마구간과 공유한다(RosterShopElements/RosterShopCandidateList, 설계 56번 §7.1). 좌측 보유 목록은
@@ -14,8 +14,6 @@ namespace Game.Core
     public sealed class MercenaryContactPanel : IUIPanel, IDisposable
     {
         private const string EmptyCandidateText = "고용 가능한 용병 없음";
-        private const string InsufficientFundsText = "재화가 부족합니다.";
-        private const string AlreadyHiredText = "이미 고용한 용병입니다.";
 
         private readonly RosterShopElements elements;
         private readonly IGoldSpender gold;
@@ -32,10 +30,14 @@ namespace Game.Core
         private int selectedIndex = -1;
         private bool isOpen;
 
+        // 구매·고용 버튼 비활성 사유 툴팁(Docs/Refactor/2026-10-26_공통.md D-1) - 배선이 등록해 넘기고, 이 패널이 Dispose에서 해제한다. 요소가 없으면 null.
+        private readonly ITooltipHandle actionTooltip;
+
         public string PanelId => UIPanelIds.Facility(TownFacilityIds.MercenaryContact);
 
-        public MercenaryContactPanel(RosterShopElements elements, IGoldSpender gold, IMercenaryCandidateReader candidateReader, IHiredCharacterRoster roster, ICharacterCatalogReader catalog, IMercenaryClassIconReader iconReader, ITripCurrentLocationReader currentLocation, IUIManager uiManager)
+        public MercenaryContactPanel(RosterShopElements elements, IGoldSpender gold, IMercenaryCandidateReader candidateReader, IHiredCharacterRoster roster, ICharacterCatalogReader catalog, IMercenaryClassIconReader iconReader, ITripCurrentLocationReader currentLocation, IPanelNavigator uiManager, ITooltipHandle actionTooltip)
         {
+            this.actionTooltip = actionTooltip;
             this.elements = elements;
             this.gold = gold;
             this.candidateReader = candidateReader;
@@ -73,6 +75,7 @@ namespace Game.Core
 
         public void Dispose()
         {
+            actionTooltip?.Dispose();
             gold.Changed -= HandleCurrencyChanged;
             roster.OnHiredChanged -= HandleRosterChanged;
         }
@@ -166,7 +169,7 @@ namespace Game.Core
                 elements.InfoKind.text = string.Empty;
                 elements.InfoDetail.text = string.Empty;
                 elements.InfoPrice.text = string.Empty;
-                elements.ReasonLabel.text = string.Empty;
+                actionTooltip?.SetText(null);
                 elements.ActionButton.interactable = false;
                 return;
             }
@@ -179,12 +182,7 @@ namespace Game.Core
 
             var check = hiringService.Evaluate(candidate);
             elements.ActionButton.interactable = check == MercenaryHireCheck.Available;
-            elements.ReasonLabel.text = check switch
-            {
-                MercenaryHireCheck.InsufficientFunds => InsufficientFundsText,
-                MercenaryHireCheck.AlreadyHired => AlreadyHiredText,
-                _ => string.Empty,
-            };
+            actionTooltip?.SetText(FacilityBlockReasons.For(check));
         }
     }
 }

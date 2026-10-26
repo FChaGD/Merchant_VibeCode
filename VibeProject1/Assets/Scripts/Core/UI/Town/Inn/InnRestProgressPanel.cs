@@ -5,22 +5,22 @@ using UnityEngine;
 namespace Game.Core
 {
     /// <summary>
-    /// 휴식 진행 화면(기획 94 4-7~4-13, Docs/설계/103번 §4.4). 숙소와 같은 모달 채널의 별도 패널이라, 열면 채널이 숙소를 숨기고
+    /// 휴식 진행 화면(기획 94 4-7~4-13, Docs/설계/103번 §4.4). 숙소와 같은 시설 화면 채널의 별도 패널이라, 열면 채널이 숙소를 숨기고
     /// 닫으면 숙소로 돌아간다 - 숙소 패널이 설정·진행·결과를 내부에서 바꿔 끼우지 않는다(SRP). 진행이 끝나면 같은 화면이 결과 상태로 바뀐다.
     /// plain C# 패널은 프레임 갱신이 없어 Bootstrap 상주 MonoBehaviour(HubUIWiring)를 실행 주체로 받아 코루틴을 돌리고, 배속과 무관하게
     /// 실제 시간(unscaledDeltaTime)으로 진행한다.
     /// 날짜·골드는 표시용 예상값이다 - 실제 변경은 휴식 서비스 구현체(system 브랜치) 몫. 진행 중에는 재화·날짜 HUD 레이어 입력을 막는다 -
-    /// 골드 HUD를 누르면 변환 모달이 같은 채널에서 열려 진행이 끊기고 개인 골드가 바뀌기 때문이다(사용자 결정 2026-10-20, 설계 103번 §3).
+    /// 골드 변환으로 개인 골드가 바뀌면 "진행 중 부족 없음" 전제가 깨지기 때문이다(사용자 결정 2026-10-20, 설계 103번 §3). 시설 화면 채널 분리(Docs/Refactor/2026-10-26_공통.md B-1) 뒤로는 모달이 진행 화면을 닫지 않지만 이 전제 때문에 차단은 유지한다(B-5).
     /// </summary>
     public sealed class InnRestProgressPanel : IUIPanel, IDisposable
     {
-        private const string MissingText = "값 없음";
+        private const string MissingText = PlaceholderText.Missing;
 
         private readonly InnRestProgressElements elements;
         private readonly IInnRestService rest;
         private readonly IDateReader date;         // 선택적 - 없으면 예상 날짜 "값 없음"
         private readonly IGoldHoldingsReader gold;
-        private readonly IUIManager uiManager;
+        private readonly IPanelNavigator uiManager;
         private readonly MonoBehaviour runner;
         private readonly RestPacingSettings pacing;
         private readonly CanvasGroup hudLayer;     // 선택적 - 없으면(인스톨러 미실행) 차단 없이 동작
@@ -37,7 +37,7 @@ namespace Game.Core
 
         public string PanelId => UIPanelIds.InnRestProgress;
 
-        public InnRestProgressPanel(InnRestProgressElements elements, IInnRestService rest, IDateReader date, IGoldHoldingsReader gold, IUIManager uiManager, MonoBehaviour runner, RestPacingSettings pacing, CanvasGroup hudLayer)
+        public InnRestProgressPanel(InnRestProgressElements elements, IInnRestService rest, IDateReader date, IGoldHoldingsReader gold, IPanelNavigator uiManager, MonoBehaviour runner, RestPacingSettings pacing, CanvasGroup hudLayer)
         {
             this.elements = elements;
             this.rest = rest;

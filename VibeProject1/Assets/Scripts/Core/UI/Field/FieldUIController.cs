@@ -46,7 +46,7 @@ namespace Game.Core
         private BattleViewPresenter viewPresenter;
         private IGameManager gameManager;
         private ISessionState sessionState;
-        private IUIManager uiManager;
+        private IPanelNavigator uiManager;
         // 상행 시작/종료(허브 복귀) 시 보유 유닛 HP를 리셋하는 데 쓴다(설계 15번) - 없어도(TryResolve
         // 실패) 상행 진행 자체는 정상 동작한다(null-조건부 호출).
         private IUnitConditionRepository unitConditionRepository;
@@ -63,7 +63,7 @@ namespace Game.Core
         // 상행 시작·종료 계기 신호(설계 87번 §6.4) - 이번 상행 기록·판정 시계·정지 원인 초기화. 없으면 신호 없이 진행한다.
         private FieldTripSignals tripSignals;
 
-        public void RegisterFieldUI(SceneUIRoot sceneUIRoot, IUIManager uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository, ITripCurrentLocationRepository currentLocationRepository, ITripDestinationAssigner destinationAssigner, IFieldFormationActivityRepository fieldActivityRepository, ITripItinerary itinerary, IWorldMapReader worldMap, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, FieldCargoRecoveryPanel cargoRecoveryPanel, TripEndProcessor tripEndProcessor, ITripDayRout dayRout, FieldTripSignals tripSignals, ICurrentLegDifficulty legDifficulty)
+        public void RegisterFieldUI(SceneUIRoot sceneUIRoot, IPanelNavigator uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository, ITripCurrentLocationRepository currentLocationRepository, ITripDestinationAssigner destinationAssigner, IFieldFormationActivityRepository fieldActivityRepository, ITripItinerary itinerary, IWorldMapReader worldMap, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, FieldCargoRecoveryPanel cargoRecoveryPanel, TripEndProcessor tripEndProcessor, ITripDayRout dayRout, FieldTripSignals tripSignals, ICurrentLegDifficulty legDifficulty)
         {
             if (!TryBind(sceneUIRoot))
             {

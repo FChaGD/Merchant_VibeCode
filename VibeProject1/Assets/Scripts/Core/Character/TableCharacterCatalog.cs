@@ -9,7 +9,7 @@ namespace Game.Core
     /// </summary>
     public sealed class TableCharacterCatalog : ICharacterCatalogReader
     {
-        private const string MissingText = "값 없음";
+        private const string MissingText = PlaceholderText.Missing;
 
         private readonly List<CharacterProfile> all = new();
         private readonly Dictionary<string, CharacterProfile> byId = new();

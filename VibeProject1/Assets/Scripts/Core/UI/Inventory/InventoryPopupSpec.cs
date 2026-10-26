@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Game.Core
@@ -18,9 +19,12 @@ namespace Game.Core
         public bool HasSections { get; }
         public Vector2 DefaultAnchorMin { get; }
         public Vector2 DefaultAnchorMax { get; }
+        // 상시 호출 키 액션(GameInputActionIds) - 팝업 → 키 대응을 스펙에 둬 팝업을 늘릴 때 한 곳만 고친다(Docs/Refactor/2026-10-26_공통.md D-2).
+        public string ShortcutActionId { get; }
 
-        public InventoryPopupSpec(string popupId, string title, bool allowsRotation, bool hasStaging, bool hasSections, Vector2 defaultAnchorMin, Vector2 defaultAnchorMax)
+        public InventoryPopupSpec(string popupId, string title, bool allowsRotation, bool hasStaging, bool hasSections, Vector2 defaultAnchorMin, Vector2 defaultAnchorMax, string shortcutActionId)
         {
+            ShortcutActionId = shortcutActionId;
             PopupId = popupId;
             Title = title;
             AllowsRotation = allowsRotation;
@@ -36,22 +40,28 @@ namespace Game.Core
         // 기획 39번 - RE4 아타셰 케이스 레퍼런스 전부 적용.
         public static readonly InventoryPopupSpec TradeGoods = new(
             InventoryPopupIds.TradeGoods, "상단 물류품", allowsRotation: true, hasStaging: true, hasSections: true,
-            new Vector2(0.02f, 0.16f), new Vector2(0.55f, 0.8f));
+            new Vector2(0.02f, 0.16f), new Vector2(0.55f, 0.8f), GameInputActionIds.OpenTradeGoods);
 
         // 기획 41번 - 장비는 전부 1×1이라 회전·임시 보관 없음. 두 팝업을 동시에 열어도 완전히 겹치지 않게
         // 상단 물류품보다 오른쪽·아래로 어긋나게, 더 작게 둔다(잠정 수치, 실전 확인 후 조정).
         public static readonly InventoryPopupSpec Equipment = new(
             InventoryPopupIds.Equipment, "전투 장비", allowsRotation: false, hasStaging: false, hasSections: false,
-            new Vector2(0.06f, 0.1f), new Vector2(0.42f, 0.72f));
+            new Vector2(0.06f, 0.1f), new Vector2(0.42f, 0.72f), GameInputActionIds.OpenEquipment);
 
         // 기획 43번 - 전투 장비와 같은 기능 구성. 창 제목은 버튼 라벨("소모품"/"개인 물품")이 아닌 정식 명칭(사용자 확정).
         // 네 팝업을 모두 열어도 완전히 가리지 않도록 계단식으로 어긋나게, 그리드 크기에 맞춰 작게 둔다(잠정 수치).
         public static readonly InventoryPopupSpec Consumable = new(
             InventoryPopupIds.Consumable, "전투 소모품", allowsRotation: false, hasStaging: false, hasSections: false,
-            new Vector2(0.1f, 0.06f), new Vector2(0.42f, 0.66f));
+            new Vector2(0.1f, 0.06f), new Vector2(0.42f, 0.66f), GameInputActionIds.OpenConsumable);
 
         public static readonly InventoryPopupSpec PersonalItem = new(
             InventoryPopupIds.PersonalItem, "상단주 개인 물품", allowsRotation: false, hasStaging: false, hasSections: false,
-            new Vector2(0.14f, 0.04f), new Vector2(0.36f, 0.56f));
+            new Vector2(0.14f, 0.04f), new Vector2(0.36f, 0.56f), GameInputActionIds.OpenPersonalItem);
+
+        // 상시 호출 버튼 표시 순서: 큰 버튼(상단 물류품) 1개 + 그 아래 작은 버튼 3개(좌→우). 배치는 HubSceneInstaller가 한다.
+        public static readonly IReadOnlyList<InventoryPopupSpec> All = new[] { TradeGoods, Equipment, Consumable, PersonalItem };
+
+        // 숙소 탭(기획 94 4-3) - 런타임 배선과 인스톨러가 같은 목록을 쓴다.
+        public static readonly IReadOnlyList<InventoryPopupSpec> InnTabs = new[] { Equipment, Consumable, PersonalItem };
     }
 }

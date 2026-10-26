@@ -21,7 +21,9 @@ namespace Game.Core
         public const string InfoKind = "InfoKind";
         public const string InfoDetail = "InfoDetail";
         public const string InfoPrice = "InfoPrice";
-        public const string ReasonLabel = "ReasonLabel";
+        // 행동(고용·구매) 버튼 비활성 사유 툴팁(Docs/Refactor/2026-10-26_공통.md D-1) - 예전 사유 문구 줄을 대체.
+        public const string ActionTooltip = "ActionTooltip";
+        public const string ActionTooltipText = "ActionTooltipText";
         public const string ActionButton = "ActionButton";
 
         public static string Of(string prefix, string element) => $"{prefix}.{element}";

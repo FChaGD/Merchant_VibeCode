@@ -5,15 +5,13 @@ namespace Game.Core
 {
     /// <summary>
     /// 마구간(마차·시설 구매) 화면(Docs/기획/55번, 설계 56번 §7.2). 용병단 접촉 화면과 같은 목록형 구매 화면 요소를 쓰고
-    /// (RosterShopElements), 모달 팝업 채널에 등록되어 재화 패널 외 숨김·공업 지구 복귀를 기존 채널이 처리한다. plain C#이며
+    /// (RosterShopElements), 시설 화면 채널에 등록되어 재화 패널 외 숨김·공업 지구 복귀를 기존 채널이 처리한다. plain C#이며
     /// HubUIWiring이 Hub 로드마다 새로 만든다 - 골드 보유·로스터 이벤트를 구독하므로 교체 시 반드시 Dispose한다.
     /// 좌측 보유 영역(목록·개별 정보·수리)은 StableOwnedSection에 위임한다(설계 91번 §5.2) - 이 패널은 구매만 맡는다.
     /// </summary>
     public sealed class StablePanel : IUIPanel, IDisposable
     {
         private const string EmptyCandidateText = "판매 품목 없음";
-        private const string SoldOutText = "품절";
-        private const string InsufficientFundsText = "재화가 부족합니다.";
 
         private readonly RosterShopElements elements;
         private readonly IGoldSpender gold;
@@ -29,10 +27,14 @@ namespace Game.Core
         private int selectedIndex = -1;
         private bool isOpen;
 
+        // 구매 버튼 비활성 사유 툴팁(Docs/Refactor/2026-10-26_공통.md D-1) - 배선이 등록해 넘기고, 이 패널이 Dispose에서 해제한다. 요소가 없으면 null.
+        private readonly ITooltipHandle actionTooltip;
+
         public string PanelId => UIPanelIds.Facility(TownFacilityIds.Stable);
 
-        public StablePanel(RosterShopElements elements, IGoldSpender gold, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, StableOwnedSection ownedSection, ICaravanAssetIconReader iconReader, ITownStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, IUIManager uiManager)
+        public StablePanel(RosterShopElements elements, IGoldSpender gold, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, StableOwnedSection ownedSection, ICaravanAssetIconReader iconReader, ITownStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, IPanelNavigator uiManager, ITooltipHandle actionTooltip)
         {
+            this.actionTooltip = actionTooltip;
             this.elements = elements;
             this.gold = gold;
             this.candidateReader = candidateReader;
@@ -73,6 +75,7 @@ namespace Game.Core
 
         public void Dispose()
         {
+            actionTooltip?.Dispose();
             gold.Changed -= HandleCurrencyChanged;
             roster.OnOwnedChanged -= HandleRosterChanged;
             candidateReader.OnCandidatesChanged -= HandleRosterChanged;
@@ -141,7 +144,7 @@ namespace Game.Core
                 elements.InfoName.text = string.Empty;
                 elements.InfoKind.text = string.Empty;
                 elements.InfoPrice.text = string.Empty;
-                elements.ReasonLabel.text = string.Empty;
+                actionTooltip?.SetText(null);
                 elements.ActionButton.interactable = false;
                 return;
             }
@@ -152,12 +155,7 @@ namespace Game.Core
 
             var check = purchaseService.Evaluate(candidate, CityId);
             elements.ActionButton.interactable = check == CaravanAssetPurchaseCheck.Available;
-            elements.ReasonLabel.text = check switch
-            {
-                CaravanAssetPurchaseCheck.SoldOut => SoldOutText,
-                CaravanAssetPurchaseCheck.InsufficientFunds => InsufficientFundsText,
-                _ => string.Empty,
-            };
+            actionTooltip?.SetText(FacilityBlockReasons.For(check));
         }
     }
 }

@@ -13,13 +13,11 @@ namespace Game.Core
         public StableOwnedRowView RowTemplate { get; private set; }
         public Button RepairAllButton { get; private set; }
         public TMP_Text RepairAllLabel { get; private set; }
-        public TMP_Text RepairAllReason { get; private set; }
         public GameObject DetailRoot { get; private set; }
         public TMP_Text DetailName { get; private set; }
         public TMP_Text DetailKind { get; private set; }
         public TMP_Text DetailDurability { get; private set; }
         public TMP_Text DetailCost { get; private set; }
-        public TMP_Text DetailReason { get; private set; }
         public Button RepairButton { get; private set; }
         public Button BackButton { get; private set; }
 
@@ -32,13 +30,11 @@ namespace Game.Core
                 & InventoryArrangementElements.TryGet(sceneUIRoot, StableUIElementIds.RowTemplate, out StableOwnedRowView rowTemplate)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, StableUIElementIds.RepairAllButton, out Button repairAllButton)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, StableUIElementIds.RepairAllLabel, out TMP_Text repairAllLabel)
-                & InventoryArrangementElements.TryGet(sceneUIRoot, StableUIElementIds.RepairAllReason, out TMP_Text repairAllReason)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, StableUIElementIds.DetailRoot, out RectTransform detailRoot)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, StableUIElementIds.DetailName, out TMP_Text detailName)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, StableUIElementIds.DetailKind, out TMP_Text detailKind)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, StableUIElementIds.DetailDurability, out TMP_Text detailDurability)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, StableUIElementIds.DetailCost, out TMP_Text detailCost)
-                & InventoryArrangementElements.TryGet(sceneUIRoot, StableUIElementIds.DetailReason, out TMP_Text detailReason)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, StableUIElementIds.RepairButton, out Button repairButton)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, StableUIElementIds.BackButton, out Button backButton);
             if (!ok) return false;
@@ -51,13 +47,11 @@ namespace Game.Core
                 RowTemplate = rowTemplate,
                 RepairAllButton = repairAllButton,
                 RepairAllLabel = repairAllLabel,
-                RepairAllReason = repairAllReason,
                 DetailRoot = detailRoot.gameObject,
                 DetailName = detailName,
                 DetailKind = detailKind,
                 DetailDurability = detailDurability,
                 DetailCost = detailCost,
-                DetailReason = detailReason,
                 RepairButton = repairButton,
                 BackButton = backButton,
             };

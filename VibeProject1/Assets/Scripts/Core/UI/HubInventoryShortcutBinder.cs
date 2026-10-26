@@ -8,7 +8,7 @@ namespace Game.Core
 {
     /// <summary>
     /// Hub 우상단 인벤토리 상시 호출 버튼 4개를 인벤토리 팝업 토글에 연결한다(Docs/기획/31번 §3.5 상시 호출).
-    /// 버튼은 PersistentLayer에 있어 depth 전환과 무관하게 보이므로(모달 팝업 동안에는 PopupLayerGate가 숨김),
+    /// 버튼은 PersistentLayer에 있어 depth 전환과 무관하게 보이므로(모달 팝업·시설 화면 동안에는 LayerHideGate가 숨김),
     /// 루트 depth만 다루는 HubUIController와 분리했다.
     /// 키(I/B/C/P)는 버튼 클릭을 대신 누르는 방식이라 버튼이 막힌 화면에서는 키도 막힌다(Docs/설계/99번 §5.1).
     /// 키 구독 핸들을 들고 있어야 하므로 인스턴스로 두고, Hub 재로드마다 이전 구독을 먼저 해제한다 —
@@ -16,15 +16,6 @@ namespace Game.Core
     /// </summary>
     public sealed class HubInventoryShortcutBinder : IDisposable
     {
-        // 표시 순서: 큰 버튼(교역품/전리품) 1개 + 그 아래 작은 버튼 3개(좌→우). 배치는 HubSceneInstaller가 한다.
-        public static readonly string[] PopupIds =
-        {
-            InventoryPopupIds.TradeGoods,
-            InventoryPopupIds.Equipment,
-            InventoryPopupIds.Consumable,
-            InventoryPopupIds.PersonalItem,
-        };
-
         private readonly IInputManager input;
         private readonly List<IDisposable> keySubscriptions = new();
 
@@ -34,12 +25,13 @@ namespace Game.Core
             this.input = input;
         }
 
-        public void Bind(SceneUIRoot sceneUIRoot, IUIManager uiManager)
+        public void Bind(SceneUIRoot sceneUIRoot, IInventoryPopupToggle uiManager)
         {
             Dispose();
 
-            foreach (var popupId in PopupIds)
+            foreach (var spec in InventoryPopupSpecs.All)
             {
+                var popupId = spec.PopupId;
                 var id = HubUIElementIds.InventoryShortcutButton(popupId);
                 if (!sceneUIRoot.TryGetElement<Button>(id, out var button))
                 {
@@ -51,7 +43,7 @@ namespace Game.Core
                 button.onClick.RemoveAllListeners();
                 button.onClick.AddListener(() => uiManager.ToggleInventoryPopup(capturedId));
 
-                var actionId = GameInputActionIds.ForInventoryPopup(popupId);
+                var actionId = spec.ShortcutActionId;
                 if (input != null && actionId != null)
                 {
                     keySubscriptions.Add(input.Subscribe(actionId, () =>

@@ -11,7 +11,7 @@ namespace Game.Core
     /// </summary>
     public class TripPlanSummaryProvider : MonoBehaviour, ITripInfoProvider, IManagedComponent
     {
-        private const string MissingText = "값 없음";
+        private const string MissingText = PlaceholderText.Missing;
         private const string LegSeparator = " → ";
         private const string SameDayText = "당일 도착";
 

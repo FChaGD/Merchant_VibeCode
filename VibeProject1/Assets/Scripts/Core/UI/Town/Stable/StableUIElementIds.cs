@@ -12,18 +12,22 @@ namespace Game.Core
         public const string RowTemplate = "Stable.Owned.RowTemplate";
         public const string RepairAllButton = "Stable.Owned.RepairAllButton";
         public const string RepairAllLabel = "Stable.Owned.RepairAllLabel";
-        public const string RepairAllReason = "Stable.Owned.RepairAllReason";
+        // 수리·전체 수리·매각 버튼 비활성 사유 툴팁(Docs/Refactor/2026-10-26_공통.md D-1) - 예전 사유 문구 줄을 대체.
+        public const string RepairAllTooltip = "Stable.Owned.RepairAllTooltip";
+        public const string RepairAllTooltipText = "Stable.Owned.RepairAllTooltipText";
         public const string DetailRoot = "Stable.Owned.DetailRoot";
         public const string DetailName = "Stable.Owned.DetailName";
         public const string DetailKind = "Stable.Owned.DetailKind";
         public const string DetailDurability = "Stable.Owned.DetailDurability";
         public const string DetailCost = "Stable.Owned.DetailCost";
-        public const string DetailReason = "Stable.Owned.DetailReason";
+        public const string RepairTooltip = "Stable.Owned.RepairTooltip";
+        public const string RepairTooltipText = "Stable.Owned.RepairTooltipText";
         public const string RepairButton = "Stable.Owned.RepairButton";
         public const string BackButton = "Stable.Owned.BackButton";
         // 매각(설계 103번 §5.1, 2026-10-26 좌측 개체 정보로 이동) - 수리 오른쪽의 매각가·사유·매각 버튼, 마구간 전체를 덮는 확인 대화상자.
         public const string SalePrice = "Stable.Sale.Price";
-        public const string SaleReason = "Stable.Sale.Reason";
+        public const string SellTooltip = "Stable.Sale.SellTooltip";
+        public const string SellTooltipText = "Stable.Sale.SellTooltipText";
         public const string SellButton = "Stable.Sale.SellButton";
         public const string SaleConfirmDialog = "Stable.Sale.ConfirmDialog";
     }
