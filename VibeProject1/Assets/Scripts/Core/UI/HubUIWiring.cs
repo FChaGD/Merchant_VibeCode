@@ -16,7 +16,7 @@ namespace Game.Core
         // 소유해 게임 실행 중 유지하고(Docs/설계/40번 §5.1), 이전 패널은 저장소 구독 해제를 위해 Dispose한다.
         private readonly PopupWindowPositionStore inventoryWindowPositions = new();
         private readonly List<IDisposable> inventoryPopups = new();
-        // 누른 인벤토리 팝업을 맨 위로 올린다(Docs/설계/46번) - 입력 액션을 한 번만 만들고 Hub 로드마다 창 목록만 교체한다.
+        // 누른 인벤토리 팝업을 맨 위로 올린다(Docs/설계/46번) - 포인터 누르기 구독을 한 번만 하고 Hub 로드마다 창 목록만 교체한다. InputManager가 없으면 만들지 않는다.
         private PopupFocusOnPress inventoryPopupFocus;
         // 무역품 구매 화면(Docs/설계/50번 §6.5) - 인벤토리 팝업과 같은 이유로 Hub 로드마다 새로 만들고 이전 것은 Dispose한다.
         private TradeGoodsMarketPanel tradeGoodsMarketPanel;
@@ -26,6 +26,14 @@ namespace Game.Core
         private StablePanel stablePanel;
         // 골드 변환 모달(설계 83번 §6.2) - 시설 화면과 같은 이유로 Hub 로드마다 새로 만들고 이전 것은 Dispose한다.
         private GoldConversionPanel goldConversionPanel;
+        // 숙소·휴식 진행·상인조합(설계 103번 §4.7) - 시설 화면과 같은 이유로 Hub 로드마다 새로 만들고 이전 것은 Dispose한다.
+        private InnPanel innPanel;
+        private InnRestProgressPanel innRestProgressPanel;
+        private MerchantGuildPanel merchantGuildPanel;
+        // 휴식 진행 연출 속도(설계 103번 §4.2) - 연출 값이라 휴식 서비스(Placeholder)를 바꿔도 남도록 배선에 둔다.
+        [SerializeField] private RestPacingSettings restPacing = new();
+        // 인벤토리 상시 호출 버튼·키(설계 99번 §5.1) - 키 구독을 들고 있어 한 번만 만들고 Hub 로드마다 다시 묶는다.
+        private HubInventoryShortcutBinder inventoryShortcuts;
 
         public void Wire(IDependencyResolver registrar, IUIManager uiManager, IPanelRegistrar panelRegistrar)
         {
@@ -126,6 +134,10 @@ namespace Game.Core
             registrar.TryResolve<ICharacterCatalogReader>(out var characterCatalog);
             registrar.TryResolve<IMercenaryClassIconReader>(out var mercenaryClassIconReader);
             // 마차·시설 구매(설계 56번 §7.2) - 로스터·판매 시스템이 아직 Placeholder라 선택적으로 조회한다.
+            // 숙소 휴식·상인조합 게시판·마구간 매각(설계 103번 §4.7) - Placeholder라 선택적으로 조회한다.
+            registrar.TryResolve<IInnRestService>(out var innRestService);
+            registrar.TryResolve<IGuildQuestBoard>(out var guildQuestBoard);
+            registrar.TryResolve<ICaravanAssetSaleService>(out var caravanAssetSaleService);
             registrar.TryResolve<ICaravanAssetCandidateReader>(out var caravanAssetCandidateReader);
             registrar.TryResolve<IOwnedCaravanAssetRoster>(out var ownedCaravanAssetRoster);
             registrar.TryResolve<ICaravanAssetCatalogReader>(out var caravanAssetCatalog);
@@ -133,6 +145,10 @@ namespace Game.Core
             // 마차·시설 내구도(설계 91번 §5.2) - 없으면 마구간 보유 영역이 "값 없음"을 보이고 수리를 막는다.
             registrar.TryResolve<ICaravanAssetDurabilityReader>(out var caravanAssetDurabilityReader);
             registrar.TryResolve<ICaravanAssetDurabilityWriter>(out var caravanAssetDurabilityWriter);
+            // 입력 구독(설계 99번 §5) - 없으면 키 단축키·Q 회전·누른 팝업 맨 위로만 빠지고 클릭은 정상 동작한다.
+            registrar.TryResolve<IInputManager>(out var input);
+            // 버리기 경고의 골드 상자 줄(설계 102번 §4.2) - 상단 물류품 화면에만 넘긴다. 없으면 골드 줄 없이 버린다.
+            registrar.TryResolve<IGoldItemInfo>(out var goldItemInfo);
             var inventoryPopupSources = new List<InventoryPopupSource>();
             AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.TradeGoods, tradeGoodsInventory, tradeGoodsInventory, nameof(ITradeGoodsInventoryRepository));
             AddInventoryPopupSource(inventoryPopupSources, InventoryPopupSpecs.Equipment, equipmentInventory, equipmentInventory, nameof(IEquipmentInventoryRepository));
@@ -148,9 +164,10 @@ namespace Game.Core
             }
 
             hubUIController.RegisterHubUI(sceneUIRoot, uiManager, sceneRevealSignal, townFacilityFilter);
-            currencyHudController.RegisterCurrencyUI(sceneUIRoot, goldHoldings, uiManager);
+            currencyHudController.RegisterCurrencyUI(sceneUIRoot, goldHoldings, uiManager, caravanRosterProvider);
             dateHudController.RegisterDateUI(sceneUIRoot, dateReader);
-            HubInventoryShortcutBinder.Bind(sceneUIRoot, uiManager);
+            inventoryShortcuts ??= new HubInventoryShortcutBinder(input);
+            inventoryShortcuts.Bind(sceneUIRoot, uiManager);
 
             formationPanel.RegisterFormationUI(sceneUIRoot, caravanRosterProvider, formationRepository, unitConditionRepository, uiManager);
             panelRegistrar.RegisterPopupPanel(formationPanel);
@@ -174,10 +191,12 @@ namespace Game.Core
                 }
             }
 
-            RegisterInventoryPopups(sceneUIRoot, uiManager, panelRegistrar, inventoryPopupSources);
-            RegisterTradeGoodsMarket(sceneUIRoot, uiManager, panelRegistrar, tradeGoodsInventory, goldSpender, townShopStockReader, townStockConsumer, currentLocationRepository);
+            RegisterInventoryPopups(sceneUIRoot, uiManager, panelRegistrar, inventoryPopupSources, input, goldItemInfo);
+            RegisterTradeGoodsMarket(sceneUIRoot, uiManager, panelRegistrar, tradeGoodsInventory, goldSpender, townShopStockReader, townStockConsumer, currentLocationRepository, input, goldItemInfo);
             RegisterMercenaryContact(sceneUIRoot, uiManager, panelRegistrar, goldSpender, mercenaryCandidateReader, hiredCharacterRoster, characterCatalog, mercenaryClassIconReader, currentLocationRepository);
-            RegisterStable(sceneUIRoot, uiManager, panelRegistrar, goldSpender, caravanAssetCandidateReader, ownedCaravanAssetRoster, caravanAssetCatalog, caravanAssetIconReader, townStockReader, townStockConsumer, currentLocationRepository, caravanAssetDurabilityReader, caravanAssetDurabilityWriter);
+            RegisterStable(sceneUIRoot, uiManager, panelRegistrar, goldSpender, caravanAssetCandidateReader, ownedCaravanAssetRoster, caravanAssetCatalog, caravanAssetIconReader, townStockReader, townStockConsumer, currentLocationRepository, caravanAssetDurabilityReader, caravanAssetDurabilityWriter, caravanAssetSaleService, tradeGoodsInventory);
+            RegisterInn(sceneUIRoot, uiManager, panelRegistrar, inventoryPopupSources, innRestService, goldHoldings, dateReader, input);
+            RegisterMerchantGuild(sceneUIRoot, uiManager, panelRegistrar, guildQuestBoard);
             RegisterGoldConversion(sceneUIRoot, uiManager, panelRegistrar, goldHoldings, goldConverter);
 
             // 팝업 축(Docs/설계/38번 §5·§6) - 모달 팝업이 열리면 DepthLayer/PersistentLayer를 숨긴다.
@@ -220,7 +239,7 @@ namespace Game.Core
 
         // 비모달 인벤토리 팝업(Docs/설계/40번 §6, 42번 §4.5). 화면 요소가 없으면(인스톨러 미실행) 그 팝업만 건너뛴다 -
         // 해당 인벤토리 버튼은 기존처럼 "팝업 미등록" 경고만 낸다.
-        private void RegisterInventoryPopups(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, List<InventoryPopupSource> sources)
+        private void RegisterInventoryPopups(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, List<InventoryPopupSource> sources, IInputManager input, IGoldItemInfo goldItemInfo)
         {
             foreach (var previous in inventoryPopups) previous.Dispose();
             inventoryPopups.Clear();
@@ -230,19 +249,19 @@ namespace Game.Core
             {
                 if (!InventoryPopupElements.TryBind(sceneUIRoot, source.Spec, out var elements)) continue;
 
-                var popup = new InventoryPopupPanel(source.Spec, elements, source.Reader, source.Arrangement, uiManager, inventoryWindowPositions);
+                var popup = new InventoryPopupPanel(source.Spec, elements, source.Reader, source.Arrangement, uiManager, inventoryWindowPositions, input, source.Spec.PopupId == InventoryPopupIds.TradeGoods ? goldItemInfo : null);
                 inventoryPopups.Add(popup);
                 windowRoots.Add(popup.WindowRoot);
                 panelRegistrar.RegisterInventoryPopup(popup);
             }
 
-            inventoryPopupFocus ??= new PopupFocusOnPress();
-            inventoryPopupFocus.Rebind(windowRoots);
+            if (input != null) inventoryPopupFocus ??= new PopupFocusOnPress(input);
+            inventoryPopupFocus?.Rebind(windowRoots);
         }
 
         // 시설 화면은 모달 팝업으로 등록한다 - 재화 패널 외 UI 숨김과 카테고리 depth 복귀를 기존 채널이 처리한다(설계 50번 §6.1).
         // 의존성이나 화면 요소가 없으면(인스톨러 미실행) 등록하지 않는다 - 시설 버튼은 "등록되지 않은 패널" 경고만 낸다.
-        private void RegisterTradeGoodsMarket(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, ITradeGoodsInventoryRepository inventory, IGoldSpender gold, ITownShopStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation)
+        private void RegisterTradeGoodsMarket(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, ITradeGoodsInventoryRepository inventory, IGoldSpender gold, ITownShopStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, IInputManager input, IGoldItemInfo goldItemInfo)
         {
             tradeGoodsMarketPanel?.Dispose();
             tradeGoodsMarketPanel = null;
@@ -255,7 +274,7 @@ namespace Game.Core
 
             if (!TradeGoodsMarketElements.TryBind(sceneUIRoot, InventoryPopupSpecs.TradeGoods.HasStaging, InventoryPopupSpecs.TradeGoods.HasSections, out var elements)) return;
 
-            tradeGoodsMarketPanel = new TradeGoodsMarketPanel(elements, inventory, gold, stockReader, stockConsumer, currentLocation, uiManager);
+            tradeGoodsMarketPanel = new TradeGoodsMarketPanel(elements, inventory, gold, stockReader, stockConsumer, currentLocation, uiManager, input, goldItemInfo);
             panelRegistrar.RegisterPopupPanel(tradeGoodsMarketPanel);
         }
 
@@ -278,7 +297,7 @@ namespace Game.Core
         }
 
         // 용병단 접촉 화면과 같은 등록 방식(모달 팝업 채널, 목록형 구매 화면 요소 공유). 종류 아이콘 제공자는 없어도 된다.
-        private void RegisterStable(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IGoldSpender gold, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, ICaravanAssetCatalogReader catalog, ICaravanAssetIconReader iconReader, ITownStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, ICaravanAssetDurabilityReader durabilityReader, ICaravanAssetDurabilityWriter durabilityWriter)
+        private void RegisterStable(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IGoldSpender gold, ICaravanAssetCandidateReader candidateReader, IOwnedCaravanAssetRoster roster, ICaravanAssetCatalogReader catalog, ICaravanAssetIconReader iconReader, ITownStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, ICaravanAssetDurabilityReader durabilityReader, ICaravanAssetDurabilityWriter durabilityWriter, ICaravanAssetSaleService saleService, IInventoryReader cargo)
         {
             stablePanel?.Dispose();
             stablePanel = null;
@@ -294,14 +313,94 @@ namespace Game.Core
             StableOwnedSection ownedSection = null;
             if (StableOwnedElements.TryBind(sceneUIRoot, out var ownedElements))
             {
+                // 매각(설계 103번 §4.6, 2026-10-26 좌측 개체 정보로 이동) - 요소가 없으면(인스톨러 미실행) 수리만.
+                StableSaleController saleController = null;
+                if (sceneUIRoot.TryGetElement<TMPro.TMP_Text>(StableUIElementIds.SalePrice, out var salePrice)
+                    && sceneUIRoot.TryGetElement<TMPro.TMP_Text>(StableUIElementIds.SaleReason, out var saleReason)
+                    && sceneUIRoot.TryGetElement<UnityEngine.UI.Button>(StableUIElementIds.SellButton, out var sellButton)
+                    && sceneUIRoot.TryGetElement<ConfirmDialogView>(StableUIElementIds.SaleConfirmDialog, out var saleDialog))
+                {
+                    if (saleService == null) Debug.LogWarning($"{nameof(ICaravanAssetSaleService)}가 없어 마구간 매각 버튼을 막는다(Tools > Game > Build Bootstrap Scene).");
+                    saleController = new StableSaleController(salePrice, saleReason, sellButton, saleDialog, saleService, roster, cargo);
+                }
+                else
+                {
+                    Debug.LogWarning($"Hub UI에서 마구간 매각 요소('{StableUIElementIds.SalePrice}'/'{StableUIElementIds.SaleReason}'/'{StableUIElementIds.SellButton}'/'{StableUIElementIds.SaleConfirmDialog}')를 찾을 수 없어 매각 없이 등록한다(Tools > Game > Build Hub Scene).");
+                }
+
                 CaravanAssetRepairService repair = null;
                 if (durabilityReader != null && durabilityWriter != null) repair = new CaravanAssetRepairService(gold, roster, durabilityReader, durabilityWriter);
                 else Debug.LogWarning($"마구간 수리에 필요한 {nameof(ICaravanAssetDurabilityReader)}/{nameof(ICaravanAssetDurabilityWriter)}가 없어 수리를 막는다(Tools > Game > Build Bootstrap Scene).");
-                ownedSection = new StableOwnedSection(ownedElements, roster, catalog, durabilityReader, repair, gold);
+                ownedSection = new StableOwnedSection(ownedElements, roster, catalog, durabilityReader, repair, gold, saleController);
             }
 
             stablePanel = new StablePanel(elements, gold, candidateReader, roster, ownedSection, iconReader, stockReader, stockConsumer, currentLocation, uiManager);
             panelRegistrar.RegisterPopupPanel(stablePanel);
+        }
+
+        // 숙소 + 휴식 진행 화면(설계 103번 §4.3·§4.4) - 숙소의 "휴식"이 진행 화면을 열므로 함께 만든다. 시설 화면과 같은 등록 방식(모달 채널).
+        private void RegisterInn(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, List<InventoryPopupSource> inventorySources, IInnRestService rest, IGoldHoldingsReader gold, IDateReader date, IInputManager input)
+        {
+            innPanel?.Dispose();
+            innPanel = null;
+            innRestProgressPanel?.Dispose();
+            innRestProgressPanel = null;
+
+            if (rest == null || gold == null)
+            {
+                Debug.LogWarning($"숙소 화면에 필요한 {nameof(IInnRestService)}/{nameof(IGoldHoldingsReader)}가 연결되어 있지 않아 등록하지 못했다(Tools > Game > Build Bootstrap Scene).");
+                return;
+            }
+
+            // 탭 = 장비·소모품·개인 물품 인벤토리(기획 94 4-3). 저장소가 없는 탭이 있으면 화면 전체를 등록하지 않는다.
+            var tabSpecs = new[] { InventoryPopupSpecs.Equipment, InventoryPopupSpecs.Consumable, InventoryPopupSpecs.PersonalItem };
+            var tabSources = new List<(IInventoryReader Reader, IInventoryArrangement Arrangement)>();
+            foreach (var spec in tabSpecs)
+            {
+                var found = inventorySources.Find(s => s.Spec.PopupId == spec.PopupId);
+                if (found.Reader == null)
+                {
+                    Debug.LogWarning($"숙소 '{spec.Title}' 탭 저장소가 없어 숙소 화면을 등록하지 못했다(Tools > Game > Build Bootstrap Scene).");
+                    return;
+                }
+                tabSources.Add((found.Reader, found.Arrangement));
+            }
+
+            if (!InnElements.TryBind(sceneUIRoot, tabSpecs, out var innElements) || !InnRestProgressElements.TryBind(sceneUIRoot, out var progressElements)) return;
+
+            sceneUIRoot.TryGetElement<CanvasGroup>(HubUIElementIds.PopupExemptLayer, out var hudLayer);
+            innRestProgressPanel = new InnRestProgressPanel(progressElements, rest, date, gold, uiManager, this, restPacing, hudLayer);
+            panelRegistrar.RegisterPopupPanel(innRestProgressPanel);
+            innPanel = new InnPanel(innElements, tabSources, rest, gold, GetTooltipController(), innRestProgressPanel, uiManager, input);
+            panelRegistrar.RegisterPopupPanel(innPanel);
+        }
+
+        // 상인조합(설계 103번 §4.5) - 시설 화면과 같은 등록 방식(모달 채널).
+        private void RegisterMerchantGuild(SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IGuildQuestBoard board)
+        {
+            merchantGuildPanel?.Dispose();
+            merchantGuildPanel = null;
+
+            if (board == null)
+            {
+                Debug.LogWarning($"상인조합 화면에 필요한 {nameof(IGuildQuestBoard)}가 연결되어 있지 않아 등록하지 못했다(Tools > Game > Build Bootstrap Scene).");
+                return;
+            }
+
+            if (!MerchantGuildElements.TryBind(sceneUIRoot, out var elements)) return;
+
+            merchantGuildPanel = new MerchantGuildPanel(elements, board, uiManager);
+            panelRegistrar.RegisterPopupPanel(merchantGuildPanel);
+        }
+
+        private ITooltipController GetTooltipController()
+        {
+            var tooltips = GetComponent<ITooltipController>();
+            if (tooltips == null)
+            {
+                throw new InvalidOperationException($"{nameof(HubUIWiring)}와 같은 GameObject에 {nameof(ITooltipController)} 구현체가 없다.");
+            }
+            return tooltips;
         }
 
         // 시설 화면과 같은 등록 방식(모달 팝업 채널). 의존성이나 요소가 없으면 등록하지 않는다 - HUD 클릭은 "등록되지 않은 패널" 경고만 낸다.
@@ -328,9 +427,13 @@ namespace Game.Core
             mercenaryContactPanel?.Dispose();
             stablePanel?.Dispose();
             goldConversionPanel?.Dispose();
+            innPanel?.Dispose();
+            innRestProgressPanel?.Dispose();
+            merchantGuildPanel?.Dispose();
             foreach (var popup in inventoryPopups) popup.Dispose();
             inventoryPopups.Clear();
             inventoryPopupFocus?.Dispose();
+            inventoryShortcuts?.Dispose();
         }
 
         private static List<CanvasGroup> CollectLayers(SceneUIRoot sceneUIRoot, params string[] layerIds)

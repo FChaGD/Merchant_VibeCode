@@ -57,6 +57,16 @@ namespace Game.Core
     }
 
     /// <summary>
+    /// 골드 아이템 판별과 1개 가치(읽기 전용, Docs/설계/102번 §4.2). 버리기 경고에 "골드 상자 n개(골드 x)"를 적는 데 쓴다 -
+    /// 판별이 이벤트 전용 계약(IGoldEventAdjuster)에만 있어 버리기 화면에 이벤트 조작을 노출하지 않으려고 따로 뒀다(ISP).
+    /// </summary>
+    public interface IGoldItemInfo
+    {
+        bool IsGoldItem(string itemId);
+        int GoldValuePerItem { get; }
+    }
+
+    /// <summary>
     /// 이벤트 골드 효과(설계 89 §5.1·§2 2026-10-16). IGoldSpender에 넣지 않은 이유: 구매·고용 소비자에게 "가진 만큼 잃기"·"획득" 같은 이벤트 전용 조작을
     /// 노출하지 않기 위해서다(ISP). 잃기는 지출과 같은 순서(개인 골드 → 골드 상자 자동 인출)이고 부족하면 가진 만큼만 잃는다.
     /// </summary>

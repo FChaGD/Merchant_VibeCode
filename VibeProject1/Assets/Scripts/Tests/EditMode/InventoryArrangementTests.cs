@@ -46,6 +46,7 @@ namespace Game.Core.Tests
             public bool TryApplyPlacements(IReadOnlyList<ItemPlacement> placements) => Grid.TryApplyPlacements(placements);
             public bool CanApplyPlacements(IReadOnlyList<ItemPlacement> placements) => Grid.CanApplyPlacements(placements);
             public void DiscardStaged() => Grid.ClearStaged();
+            public bool TryDiscard(IReadOnlyCollection<string> instanceIds) => Grid.RemoveAll(instanceIds);
             public event Action OnChanged { add { } remove { } }
 
             public InventoryItemInstance Place(IInventoryItemDefinition definition, int x, int y, string sectionId = null)

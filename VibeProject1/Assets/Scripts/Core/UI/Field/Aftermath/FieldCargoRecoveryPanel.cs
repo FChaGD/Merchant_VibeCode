@@ -26,7 +26,7 @@ namespace Game.Core
 
         public string PanelId => UIPanelIds.CargoRecovery;
 
-        public FieldCargoRecoveryPanel(InventoryArrangementElements elements, Button doneButton, ConfirmDialogView dialog, ITradeGoodsInventoryRepository inventory, ITradeGoodsCargoSettlement settlement)
+        public FieldCargoRecoveryPanel(InventoryArrangementElements elements, Button doneButton, ConfirmDialogView dialog, ITradeGoodsInventoryRepository inventory, ITradeGoodsCargoSettlement settlement, IInputManager input, IGoldItemInfo goldInfo)
         {
             this.elements = elements;
             this.doneButton = doneButton;
@@ -35,7 +35,7 @@ namespace Game.Core
 
             // 같은 인벤토리를 다른 화면과 다른 규칙으로 다루지 않게 상단 물류품 팝업 스펙을 따른다.
             var spec = InventoryPopupSpecs.TradeGoods;
-            inventoryController = new InventoryArrangementController(elements, inventory, inventory, spec.AllowsRotation, spec.HasStaging, spec.HasSections);
+            inventoryController = new InventoryArrangementController(elements, input, goldInfo, inventory, inventory, spec.AllowsRotation, spec.HasStaging, spec.HasSections);
 
             doneButton.onClick.RemoveAllListeners();
             doneButton.onClick.AddListener(HandleDone);

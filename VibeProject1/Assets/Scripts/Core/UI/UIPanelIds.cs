@@ -15,6 +15,8 @@ namespace Game.Core
         /// <summary>이벤트 대화 화면·선택 화면(Field, 설계 89 §6) - 정비창과 같은 모달 묶음.</summary>
         public const string EventDialogue = "EventDialogue";
         public const string EventChoice = "EventChoice";
+        /// <summary>숙소 휴식 진행 화면(Hub, 설계 103번 §4.4) - 숙소와 같은 모달 채널이라 열면 숙소가 숨고 닫으면 숙소로 돌아간다.</summary>
+        public const string InnRestProgress = "InnRestProgress";
 
         /// <summary>마을 카테고리 depth(TownCategoryPanel) - 카테고리마다 별도 패널이라 Id를 조립한다.</summary>
         public static string TownCategory(string categoryId) => $"Town.{categoryId}";

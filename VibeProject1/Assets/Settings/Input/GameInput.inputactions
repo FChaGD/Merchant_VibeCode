@@ -1,0 +1,150 @@
+{
+    "name": "GameInput",
+    "maps": [
+        {
+            "name": "Shortcut",
+            "id": "131c8347-8246-4c1f-a3af-9607268e7e27",
+            "actions": [
+                {
+                    "name": "OpenTradeGoods",
+                    "type": "Button",
+                    "id": "94444b24-2b11-4e41-9570-849b456f3a10",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "OpenEquipment",
+                    "type": "Button",
+                    "id": "3979a109-8c26-4dc0-9e65-ba28fa53830b",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "OpenConsumable",
+                    "type": "Button",
+                    "id": "b7e9a1f6-d800-4d16-b718-0f5eb1b5b25c",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "OpenPersonalItem",
+                    "type": "Button",
+                    "id": "8f4f32a8-42b7-4762-add5-3b879a146106",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "573959da-2cc1-4274-b89f-9f73ef75005f",
+                    "path": "<Keyboard>/i",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "OpenTradeGoods",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "01f4807e-b4dc-4f00-8a99-2f5686a11ae9",
+                    "path": "<Keyboard>/b",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "OpenEquipment",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "254f1f99-94cd-414f-b6ea-ee1dba49628c",
+                    "path": "<Keyboard>/c",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "OpenConsumable",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "f1da021c-eb8a-439a-9daa-6da10cfe88c0",
+                    "path": "<Keyboard>/p",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "OpenPersonalItem",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        },
+        {
+            "name": "Inventory",
+            "id": "dc99c5d2-ca92-458c-9873-f52cc1b3bcb8",
+            "actions": [
+                {
+                    "name": "RotateHeldItem",
+                    "type": "Button",
+                    "id": "ec5ba117-39ee-4a9e-bc10-d45c121766b4",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "dfdb89a4-a513-4e17-8882-8847de1c6fb0",
+                    "path": "<Keyboard>/q",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "RotateHeldItem",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        },
+        {
+            "name": "Pointer",
+            "id": "64a61185-acc3-4788-b892-515a51071aea",
+            "actions": [
+                {
+                    "name": "Press",
+                    "type": "Button",
+                    "id": "2e5ca84b-cc8f-4d53-94dc-30a01bd6e2db",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "9e373cd5-b9e1-4f66-a795-96c9eda635c0",
+                    "path": "<Pointer>/press",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Press",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}

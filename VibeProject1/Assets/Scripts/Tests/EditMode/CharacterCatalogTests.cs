@@ -90,9 +90,12 @@ namespace Game.Core.Tests
 
             var changed = 0;
             roster.OnHiredChanged += () => changed++;
+            var rosterChanged = 0;
+            roster.RosterChanged += () => rosterChanged++; // 재화 HUD 보유 수 갱신(설계 101번 §4.1)
             Assert.IsTrue(roster.TryAddHired("Warrior03"));
             Assert.IsFalse(roster.TryAddHired("Warrior03"));
             Assert.AreEqual(1, changed);
+            Assert.AreEqual(1, rosterChanged);
 
             mercenaryIds = roster.GetRoster().OfType<IMercenaryUnit>().Select(u => u.CharacterId).ToList();
             CollectionAssert.AreEqual(new[] { "Warrior01", "Warrior02", "Warrior03", "Archer01", "Archer02" }, mercenaryIds);
@@ -116,12 +119,15 @@ namespace Game.Core.Tests
             var roster = CreateRoster(go.AddComponent<DependencyManager>());
             var changed = 0;
             roster.OnHiredChanged += () => changed++;
+            var rosterChanged = 0;
+            roster.RosterChanged += () => rosterChanged++; // 재화 HUD 보유 수 갱신(설계 101번 §4.1)
 
             Assert.IsTrue(roster.TryRemoveHired("Warrior01"));
             Assert.IsFalse(roster.TryRemoveHired("Warrior01"));
             Assert.IsFalse(roster.TryRemoveHired("Warrior03"), "고용하지 않은 캐릭터");
 
             Assert.AreEqual(1, changed);
+            Assert.AreEqual(1, rosterChanged);
             Assert.IsFalse(roster.IsHired("Warrior01"));
             Assert.AreEqual(1, roster.CountHiredOfClass("Warrior"));
             Assert.IsFalse(roster.GetRoster().Any(u => u.Id == "Warrior01"));

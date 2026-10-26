@@ -21,5 +21,10 @@ namespace Game.Core
         public const string DetailReason = "Stable.Owned.DetailReason";
         public const string RepairButton = "Stable.Owned.RepairButton";
         public const string BackButton = "Stable.Owned.BackButton";
+        // 매각(설계 103번 §5.1, 2026-10-26 좌측 개체 정보로 이동) - 수리 오른쪽의 매각가·사유·매각 버튼, 마구간 전체를 덮는 확인 대화상자.
+        public const string SalePrice = "Stable.Sale.Price";
+        public const string SaleReason = "Stable.Sale.Reason";
+        public const string SellButton = "Stable.Sale.SellButton";
+        public const string SaleConfirmDialog = "Stable.Sale.ConfirmDialog";
     }
 }

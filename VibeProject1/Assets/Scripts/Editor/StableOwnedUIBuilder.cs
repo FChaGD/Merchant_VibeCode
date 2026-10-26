@@ -24,6 +24,9 @@ namespace Game.Core.Editor
             var ownedPanel = EditorUIBuilder.GetOrCreateUIObject(stableRoot, "OwnedPanel").GetComponent<RectTransform>();
             BuildList(ownedPanel);
             BuildDetail(ownedPanel);
+
+            // 매각 확인(설계 103번 §4.6) - 마구간 화면 전체를 덮는다. BuildConfirmDialog가 마지막 형제로 올려 다른 요소 위에 그린다.
+            EditorUIBuilder.BuildConfirmDialog(stableRoot, "SaleConfirmDialog", StableUIElementIds.SaleConfirmDialog);
         }
 
         // 헤더(위 10%) 아래 전체. 목록 / 전체 수리 사유 / 전체 수리 버튼.
@@ -81,7 +84,8 @@ namespace Game.Core.Editor
             row.SetActive(false);
         }
 
-        // 개별 정보 - 이름 / 종류 / 내구도 / 수리비 / 사유 / [수리] / [목록으로]. 저장 상태는 비활성(목록 화면이 기본).
+        // 개별 정보 - 이름 / 종류 / 내구도 / 수리비 / 매각가 / 사유(좌 수리·우 매각) / [수리][매각] / [목록으로]. 저장 상태는 비활성(목록 화면이 기본).
+        // 매각은 우측 정보 영역에 있다가 좌측으로 옮겼다(2026-10-26 사용자 지시) - 수리와 매각을 좌우로 나란히 둔다.
         private static void BuildDetail(RectTransform panel)
         {
             var root = EditorUIBuilder.GetOrCreateUIObject(panel, "OwnedDetailRoot");
@@ -89,12 +93,15 @@ namespace Game.Core.Editor
             EditorUIBuilder.SetAnchors(rootRect, Vector2.zero, new Vector2(1f, 0.9f));
             EditorUIBuilder.EnsureMarker(root, StableUIElementIds.DetailRoot);
 
-            BuildLabel(rootRect, "Name", new Vector2(0.05f, 0.84f), new Vector2(0.95f, 0.97f), StableUIElementIds.DetailName, TextAlignmentOptions.MidlineLeft, 28f);
-            BuildLabel(rootRect, "Kind", new Vector2(0.05f, 0.72f), new Vector2(0.95f, 0.83f), StableUIElementIds.DetailKind, TextAlignmentOptions.MidlineLeft, 24f);
-            BuildLabel(rootRect, "Durability", new Vector2(0.05f, 0.6f), new Vector2(0.95f, 0.71f), StableUIElementIds.DetailDurability, TextAlignmentOptions.MidlineLeft, 24f);
-            BuildLabel(rootRect, "Cost", new Vector2(0.05f, 0.48f), new Vector2(0.95f, 0.59f), StableUIElementIds.DetailCost, TextAlignmentOptions.MidlineLeft, 24f);
-            BuildLabel(rootRect, "Reason", new Vector2(0.05f, 0.37f), new Vector2(0.95f, 0.46f), StableUIElementIds.DetailReason, TextAlignmentOptions.MidlineLeft, 20f).color = ReasonColor;
-            BuildButton(rootRect, "RepairButton", new Vector2(0.05f, 0.2f), new Vector2(0.95f, 0.33f), "수리", StableUIElementIds.RepairButton);
+            BuildLabel(rootRect, "Name", new Vector2(0.05f, 0.86f), new Vector2(0.95f, 0.97f), StableUIElementIds.DetailName, TextAlignmentOptions.MidlineLeft, 28f);
+            BuildLabel(rootRect, "Kind", new Vector2(0.05f, 0.76f), new Vector2(0.95f, 0.85f), StableUIElementIds.DetailKind, TextAlignmentOptions.MidlineLeft, 24f);
+            BuildLabel(rootRect, "Durability", new Vector2(0.05f, 0.66f), new Vector2(0.95f, 0.75f), StableUIElementIds.DetailDurability, TextAlignmentOptions.MidlineLeft, 24f);
+            BuildLabel(rootRect, "Cost", new Vector2(0.05f, 0.56f), new Vector2(0.95f, 0.65f), StableUIElementIds.DetailCost, TextAlignmentOptions.MidlineLeft, 24f);
+            BuildLabel(rootRect, "SalePrice", new Vector2(0.05f, 0.46f), new Vector2(0.95f, 0.55f), StableUIElementIds.SalePrice, TextAlignmentOptions.MidlineLeft, 24f);
+            BuildLabel(rootRect, "Reason", new Vector2(0.05f, 0.35f), new Vector2(0.48f, 0.45f), StableUIElementIds.DetailReason, TextAlignmentOptions.MidlineLeft, 20f).color = ReasonColor;
+            BuildLabel(rootRect, "SaleReason", new Vector2(0.52f, 0.35f), new Vector2(0.95f, 0.45f), StableUIElementIds.SaleReason, TextAlignmentOptions.MidlineLeft, 20f).color = ReasonColor;
+            BuildButton(rootRect, "RepairButton", new Vector2(0.05f, 0.2f), new Vector2(0.48f, 0.33f), "수리", StableUIElementIds.RepairButton);
+            BuildButton(rootRect, "SellButton", new Vector2(0.52f, 0.2f), new Vector2(0.95f, 0.33f), "매각", StableUIElementIds.SellButton);
             BuildButton(rootRect, "BackButton", new Vector2(0.05f, 0.03f), new Vector2(0.95f, 0.16f), "목록으로", StableUIElementIds.BackButton);
             root.SetActive(false);
         }

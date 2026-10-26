@@ -19,6 +19,8 @@ namespace Game.Core
         [SerializeField] private Image background;
         [SerializeField] private TMP_Text label;
         [SerializeField] private Outline selectionOutline;
+        // 선택 버리기 표시(반투명 빨강 오버레이, 설계 102번 §4.6) - 정보 선택 테두리와 따로 켜고 끈다.
+        [SerializeField] private GameObject discardMark;
 
         private Color baseColor = Color.white;
         private Action<InventoryItemView> onClicked;
@@ -36,6 +38,7 @@ namespace Game.Core
             if (background != null) background.color = color;
             if (label != null) label.text = item.Definition?.DisplayName ?? "값 없음";
             SetSelected(false);
+            SetDiscardMarked(false);
         }
 
         public void SetHandlers(
@@ -55,6 +58,11 @@ namespace Game.Core
             if (selectionOutline != null) selectionOutline.enabled = selected;
         }
 
+        public void SetDiscardMarked(bool marked)
+        {
+            if (discardMark != null && discardMark.activeSelf != marked) discardMark.SetActive(marked);
+        }
+
         // 드래그 중 원래 자리의 아이템을 반투명하게 남겨 "어디서 집었는지"를 보여준다.
         public void SetDimmed(bool dimmed)
         {
@@ -70,6 +78,7 @@ namespace Game.Core
             if (background != null) background.enabled = visible;
             if (label != null) label.enabled = visible;
             if (!visible && selectionOutline != null) selectionOutline.enabled = false;
+            if (!visible) SetDiscardMarked(false);
         }
 
         public void SetRaycastTarget(bool raycastTarget)

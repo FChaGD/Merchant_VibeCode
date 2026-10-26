@@ -17,6 +17,24 @@ namespace Game.Core.Tests
 
         private static GoldLedger Ledger(GoldTestWallet wallet, GoldTestInventory inventory) => new(wallet, inventory, "gold-box", 500);
 
+
+        [Test]
+        public void DiscardGoldBox_LoadedGoldDrops_PersonalUnchanged()
+        {
+            // 버린 골드 상자는 환급 없이 적재 골드에서 빠진다(설계 102번 §4.1).
+            var wallet = new GoldTestWallet(300);
+            var inventory = Inventory(GoldTestInventory.Section("A", 2, 2));
+            var box = inventory.Place(Gold, 0, 0, "A");
+            inventory.Place(Gold, 1, 0, "A");
+            var ledger = Ledger(wallet, inventory);
+            var changed = 0;
+            ledger.Changed += () => changed++;
+
+            Assert.IsTrue(inventory.TryDiscard(new[] { box.InstanceId }));
+            Assert.AreEqual(500, ledger.LoadedGold);
+            Assert.AreEqual(300, ledger.PersonalGold);
+            Assert.AreEqual(1, changed);
+        }
         [Test]
         public void Holdings_ComputeOwnedCapacityExcess()
         {

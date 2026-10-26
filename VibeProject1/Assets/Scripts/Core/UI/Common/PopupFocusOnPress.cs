@@ -8,23 +8,19 @@ namespace Game.Core
     /// <summary>
     /// 같은 부모 아래의 창들 중 포인터로 누른 창을 맨 위(마지막 형제)로 올린다(Docs/설계/46번). UI 누르기 이벤트
     /// (IPointerDownHandler)는 레이캐스트에 맞은 요소부터 부모 방향으로 처음 처리하는 하나에만 전달돼, 버튼처럼
-    /// 스스로 처리하는 하위 요소를 누르면 창 루트까지 오지 않는다 - 그래서 입력 시스템의 포인터 누르기 액션으로
-    /// 누른 순간을 받고, 위치로 창을 판정한다. 겹친 창 중 하나만 반응해야 하므로 각 창이 스스로 판정하지 않고 이
+    /// 스스로 처리하는 하위 요소를 누르면 창 루트까지 오지 않는다 - 그래서 InputManager의 포인터 누르기 액션을 구독해
+    /// 누른 순간을 받고(설계 99번 §5.3), 위치로 창을 판정한다. 겹친 창 중 하나만 반응해야 하므로 각 창이 스스로 판정하지 않고 이
     /// 객체가 창 목록 전체를 보고 결정한다. 인벤토리를 모르는 범용 동작이라 Common에 둔다.
     /// </summary>
     public sealed class PopupFocusOnPress : IDisposable
     {
-        private const string PressBinding = "<Pointer>/press";
-
-        private readonly InputAction pressAction;
+        private readonly IDisposable pressSubscription;
         private readonly List<RectTransform> windows = new();
         private Camera eventCamera;
 
-        public PopupFocusOnPress()
+        public PopupFocusOnPress(IInputManager input)
         {
-            pressAction = new InputAction("FocusPopupOnPress", InputActionType.Button, PressBinding);
-            pressAction.performed += _ => HandlePress();
-            pressAction.Enable();
+            pressSubscription = input.Subscribe(GameInputActionIds.PointerPress, HandlePress);
         }
 
         /// <summary>씬 로드마다 새로 만들어진 창 루트로 교체한다. 이전 씬의 창은 이미 파괴돼 판정에서 빠진다.</summary>
@@ -46,8 +42,7 @@ namespace Game.Core
 
         public void Dispose()
         {
-            pressAction.Disable();
-            pressAction.Dispose();
+            pressSubscription.Dispose();
             windows.Clear();
         }
 

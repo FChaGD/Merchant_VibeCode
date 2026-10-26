@@ -30,6 +30,11 @@ namespace Game.Core
         public HoverRepeatTrigger SectionPrevHover { get; private set; }
         public HoverRepeatTrigger SectionNextHover { get; private set; }
         public TMP_Text SectionLabel { get; private set; }
+        // 버리기(Docs/설계/102번 §5.1) - 쓰레기통 버튼은 드롭 대상 영역도 겸한다.
+        public Button DiscardButton { get; private set; }
+        public Button DiscardConfirmButton { get; private set; }
+        public Button DiscardCancelButton { get; private set; }
+        public ConfirmDialogView DiscardDialog { get; private set; }
 
         public static bool TryBind(SceneUIRoot sceneUIRoot, string prefix, bool hasStaging, bool hasSections, out InventoryArrangementElements elements)
         {
@@ -43,7 +48,11 @@ namespace Game.Core
                 & TryGet(sceneUIRoot, InventoryPopupUIElementIds.InfoLabel(prefix), out TMP_Text infoLabel)
                 & TryGet(sceneUIRoot, InventoryPopupUIElementIds.DragLayer(prefix), out RectTransform dragLayer)
                 & TryGet(sceneUIRoot, InventoryPopupUIElementIds.ItemTemplate(prefix), out InventoryItemView itemTemplate)
-                & TryGet(sceneUIRoot, InventoryPopupUIElementIds.CellTemplate(prefix), out Image cellTemplate);
+                & TryGet(sceneUIRoot, InventoryPopupUIElementIds.CellTemplate(prefix), out Image cellTemplate)
+                & TryGet(sceneUIRoot, InventoryPopupUIElementIds.DiscardButton(prefix), out Button discardButton)
+                & TryGet(sceneUIRoot, InventoryPopupUIElementIds.DiscardConfirmButton(prefix), out Button discardConfirmButton)
+                & TryGet(sceneUIRoot, InventoryPopupUIElementIds.DiscardCancelButton(prefix), out Button discardCancelButton)
+                & TryGet(sceneUIRoot, InventoryPopupUIElementIds.DiscardDialog(prefix), out ConfirmDialogView discardDialog);
 
             RectTransform stagingArea = null;
             RectTransform stagingContent = null;
@@ -88,6 +97,10 @@ namespace Game.Core
                 SectionPrevHover = sectionPrevHover,
                 SectionNextHover = sectionNextHover,
                 SectionLabel = sectionLabel,
+                DiscardButton = discardButton,
+                DiscardConfirmButton = discardConfirmButton,
+                DiscardCancelButton = discardCancelButton,
+                DiscardDialog = discardDialog,
             };
             return true;
         }

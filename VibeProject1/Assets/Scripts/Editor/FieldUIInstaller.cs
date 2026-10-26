@@ -376,6 +376,9 @@ namespace Game.Core.Editor
             // 맨 뒤로 보낸 "뒤에" 제목·[완료]를 처음 만들면 첫 실행과 재실행의 순서가 달라지므로, 여기서 다시 맨 뒤로 보낸다(2026-10-05 검진 지적 7).
             var dragLayer = rootRect.Find("DragLayer");
             if (dragLayer != null) dragLayer.SetAsLastSibling();
+            // 버리기 경고(설계 102번 §5.1)도 제목 줄·[완료]를 덮어야 한다 - 드래그 레이어 뒤, 완료 확인 대화상자 앞.
+            var discardDialog = rootRect.Find("DiscardDialog");
+            if (discardDialog != null) discardDialog.SetAsLastSibling();
 
             // 드래그 레이어보다도 위(마지막 형제)에 둔다 - BuildConfirmDialog가 SetAsLastSibling한다.
             EditorUIBuilder.BuildConfirmDialog(rootRect, "ConfirmDialog", FieldCargoRecoveryUIElementIds.ConfirmDialog);

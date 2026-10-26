@@ -35,9 +35,10 @@ namespace Game.Core
         private Button closeButton;
         private Button openFormationButton;
         private Button startButton;
-        // 선택 요소(인스톨러 미실행이면 없음) - 끊어진 대열 안내와 배치 유닛 0 출발 확인(Docs/설계/79번 §9).
-        private TMP_Text disconnectedNoticeLabel;
+        // 선택 요소(인스톨러 미실행이면 없음) - 배치 유닛 0 출발 확인(Docs/설계/79번 §9.2).
         private ConfirmDialogView departureConfirmDialog;
+        // 비활성 사유 툴팁(Docs/설계/100번 §4.3) - Hub 바인딩마다 다시 등록한다. 요소가 없으면 null(버튼 판정은 그대로).
+        private ITooltipHandle startBlockTooltip;
         private Canvas rootCanvas;
         private SceneUIRoot boundSceneUIRoot;
         private TripMapPresenter mapPresenter;
@@ -182,19 +183,11 @@ namespace Game.Core
                 return;
             }
 
-            var connected = IsFormationConnected();
             var hasDestination = destinationAssigner != null && destinationAssigner.IsAssigned;
-            startButton.interactable = sceneRevealed && hasDestination && connected;
-
-            // 안내 라벨은 선택 요소 - 같은 이유로 파괴됐을 수 있어 Unity null 비교로 걸러낸다.
-            if (disconnectedNoticeLabel != null)
-            {
-                disconnectedNoticeLabel.text = DisconnectedNoticeText;
-                disconnectedNoticeLabel.gameObject.SetActive(!connected);
-            }
+            var reasons = TripStartBlockReasons.Collect(sceneRevealed, hasDestination, IsFormationConnected());
+            startButton.interactable = reasons.Count == 0;
+            startBlockTooltip?.SetText(string.Join("\n", reasons));
         }
-
-        private const string DisconnectedNoticeText = "대열이 끊어져 있습니다. 정비창에서 마차를 이어 붙이세요.";
 
         // 마차 덩어리가 하나 이하여야 출발할 수 있다(기획 78 §4.8). 배치가 없으면 판정할 마차가 없으므로 충족으로 본다.
         private bool IsFormationConnected()
@@ -280,11 +273,8 @@ namespace Game.Core
                 return false;
             }
 
-            // 아래 두 요소는 없어도(인스톨러 미실행) 패널은 동작한다 - 안내 없이 버튼만 비활성, 경고 없이 바로 출발.
-            if (!sceneUIRoot.TryGetElement(TripUIElementIds.DisconnectedNotice, out disconnectedNoticeLabel))
-            {
-                WarnMissing(TripUIElementIds.DisconnectedNotice);
-            }
+            // 아래 요소들은 없어도(인스톨러 미실행) 패널은 동작한다 - 툴팁 없이 버튼만 비활성, 경고 없이 바로 출발.
+            BindStartBlockTooltip(sceneUIRoot);
 
             if (!sceneUIRoot.TryGetElement(TripUIElementIds.DepartureConfirmDialog, out departureConfirmDialog))
             {
@@ -302,6 +292,39 @@ namespace Game.Core
             }
 
             return true;
+        }
+
+        // 이전 Hub 방문의 등록은 파괴된 요소를 가리키므로 먼저 해제한다 - 남기면 중계 구독이 방문마다 쌓인다.
+        private void BindStartBlockTooltip(SceneUIRoot sceneUIRoot)
+        {
+            startBlockTooltip?.Dispose();
+            startBlockTooltip = null;
+
+            var tooltips = GetComponent<ITooltipController>();
+            if (tooltips == null)
+            {
+                throw new System.InvalidOperationException($"{nameof(TripPanel)}와 같은 GameObject에 {nameof(ITooltipController)} 구현체가 없다.");
+            }
+
+            if (!startButton.TryGetComponent<PointerHoverRelay>(out var hover) || !startButton.TryGetComponent<PointerPressRelay>(out var press))
+            {
+                WarnMissing($"{TripUIElementIds.StartButton}의 {nameof(PointerHoverRelay)}/{nameof(PointerPressRelay)}");
+                return;
+            }
+
+            if (!sceneUIRoot.TryGetElement<RectTransform>(TripUIElementIds.StartBlockTooltip, out var tooltipRoot))
+            {
+                WarnMissing(TripUIElementIds.StartBlockTooltip);
+                return;
+            }
+
+            if (!sceneUIRoot.TryGetElement<TMP_Text>(TripUIElementIds.StartBlockTooltipText, out var tooltipText))
+            {
+                WarnMissing(TripUIElementIds.StartBlockTooltipText);
+                return;
+            }
+
+            startBlockTooltip = tooltips.Register(hover, press, tooltipRoot.gameObject, tooltipText);
         }
 
         private static void WarnMissing(string id)

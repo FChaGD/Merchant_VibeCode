@@ -20,6 +20,7 @@ namespace Game.Core.Editor
         private static readonly Color StagingColor = new(0.9f, 0.88f, 0.84f, 1f);
         private static readonly Color ButtonColor = new(0.85f, 0.85f, 0.85f, 1f);
         private static readonly Color SelectionOutlineColor = new(0.1f, 0.1f, 0.1f, 1f);
+        private static readonly Color DiscardMarkColor = new(0.9f, 0.1f, 0.1f, 0.45f);
 
         // 임시 보관이 있으면 그리드 오른쪽을 임시 보관 영역에 내주고, 없으면 그리드가 창 폭 전체를 쓴다.
         private const float GridRightWithStaging = 0.72f;
@@ -69,6 +70,9 @@ namespace Game.Core.Editor
             EditorUIBuilder.SetStretch(dragLayer.GetComponent<RectTransform>());
             EditorUIBuilder.EnsureMarker(dragLayer, InventoryPopupUIElementIds.DragLayer(prefix));
             dragLayer.transform.SetAsLastSibling();
+
+            // 대화상자가 떠 있는 동안은 드래그가 시작될 수 없으므로 드래그 레이어보다 위에 둬도 된다.
+            BuildDiscardDialog(root, prefix);
         }
 
         // 기존 배치: 그리드(임시 보관이 있으면 오른쪽을 내줌) + 하단 자동 정렬·정보 줄.
@@ -86,7 +90,12 @@ namespace Game.Core.Editor
                 RemoveStaging(root);
             }
             BuildSortButton(root, prefix, new Vector2(0.02f, 0.02f), new Vector2(0.2f, 0.11f));
-            BuildInfo(root, prefix, new Vector2(0.22f, 0.02f), new Vector2(0.98f, 0.11f), TextAlignmentOptions.MidlineLeft);
+            // 버리기(설계 102번 §5.1) - 정렬 오른쪽에 쓰레기통, 정보 줄 오른쪽 끝에 선택 버리기 확인/취소.
+            BuildDiscardButtons(root, prefix,
+                new Vector2(0.22f, 0.02f), new Vector2(0.32f, 0.11f),
+                new Vector2(0.70f, 0.02f), new Vector2(0.83f, 0.11f),
+                new Vector2(0.85f, 0.02f), new Vector2(0.98f, 0.11f));
+            BuildInfo(root, prefix, new Vector2(0.34f, 0.02f), new Vector2(0.68f, 0.11f), TextAlignmentOptions.MidlineLeft);
         }
 
         // 상단 물류품 배치(기획 63번 §3.6, 설계 64번 §7.2 - 비율 잠정).
@@ -109,7 +118,12 @@ namespace Game.Core.Editor
             {
                 RemoveStaging(root);
             }
-            BuildInfo(root, prefix, new Vector2(0.76f, 0.14f), new Vector2(0.98f, 0.88f), TextAlignmentOptions.TopLeft);
+            // 버리기(설계 102번 §5.1) - 정렬 위에 쓰레기통, 그 위에 선택 버리기 확인/취소(좌우 반분).
+            BuildDiscardButtons(root, prefix,
+                new Vector2(0.76f, 0.13f), new Vector2(0.98f, 0.21f),
+                new Vector2(0.76f, 0.22f), new Vector2(0.865f, 0.30f),
+                new Vector2(0.875f, 0.22f), new Vector2(0.98f, 0.30f));
+            BuildInfo(root, prefix, new Vector2(0.76f, 0.31f), new Vector2(0.98f, 0.88f), TextAlignmentOptions.TopLeft);
             BuildSortButton(root, prefix, new Vector2(0.76f, 0.02f), new Vector2(0.98f, 0.12f));
         }
 
@@ -224,6 +238,35 @@ namespace Game.Core.Editor
             EditorUIBuilder.EnsureMarker(sort, InventoryPopupUIElementIds.SortButton(popupId));
         }
 
+        // 쓰레기통은 글자 버튼("버림") - 아이콘은 아이콘 작업 때 교체(설계 102번 §5.1). 쓰레기통 영역이 드래그 버리기 드롭 대상을 겸한다.
+        // 확인/취소는 선택 버리기 상태에서만 보이므로(런타임이 켬) 저장 상태는 비활성이다.
+        private static void BuildDiscardButtons(RectTransform root, string popupId, Vector2 trashMin, Vector2 trashMax, Vector2 confirmMin, Vector2 confirmMax, Vector2 cancelMin, Vector2 cancelMax)
+        {
+            BuildBodyButton(root, "DiscardButton", "버림", InventoryPopupUIElementIds.DiscardButton(popupId), trashMin, trashMax);
+            BuildBodyButton(root, "DiscardConfirmButton", "확인", InventoryPopupUIElementIds.DiscardConfirmButton(popupId), confirmMin, confirmMax).SetActive(false);
+            BuildBodyButton(root, "DiscardCancelButton", "취소", InventoryPopupUIElementIds.DiscardCancelButton(popupId), cancelMin, cancelMax).SetActive(false);
+        }
+
+        private static GameObject BuildBodyButton(RectTransform root, string name, string text, string elementId, Vector2 anchorMin, Vector2 anchorMax)
+        {
+            var go = EditorUIBuilder.GetOrCreateUIObject(root, name);
+            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
+            EditorUIBuilder.EnsureImage(go, ButtonColor);
+            EditorUIBuilder.EnsureButton(go);
+            EditorUIBuilder.EnsureLabel(go.transform, text, autoSize: true, minFontSize: 10f, maxFontSize: 22f);
+            EditorUIBuilder.EnsureMarker(go, elementId);
+            return go;
+        }
+
+        // 버리기 경고(설계 102번 §5.1) - 본문 전체를 덮는 공용 확인 대화상자, 본문의 마지막 자식. 이름 목록이 길 수 있고 개인 물품 창(3×3)처럼
+        // 본문이 작은 화면도 있어 패널을 공용 기본값(가운데 40%)보다 넓힌다.
+        private static void BuildDiscardDialog(RectTransform root, string popupId)
+        {
+            EditorUIBuilder.BuildConfirmDialog(root, "DiscardDialog", InventoryPopupUIElementIds.DiscardDialog(popupId));
+            var panel = root.Find("DiscardDialog/Panel");
+            if (panel != null) EditorUIBuilder.SetAnchors((RectTransform)panel, new Vector2(0.06f, 0.15f), new Vector2(0.94f, 0.85f));
+        }
+
         private static void BuildInfo(RectTransform root, string popupId, Vector2 anchorMin, Vector2 anchorMax, TextAlignmentOptions alignment)
         {
             var info = EditorUIBuilder.GetOrCreateUIObject(root, "Info");
@@ -246,11 +289,18 @@ namespace Game.Core.Editor
             outline.effectDistance = new Vector2(3f, -3f);
             outline.enabled = false;
             var label = EditorUIBuilder.EnsureLabel(item.transform, string.Empty, autoSize: true, minFontSize: 8f, maxFontSize: 18f);
+            // 선택 버리기 표시(설계 102번 §4.6) - 이름 위에 덮는 반투명 빨강, 입력은 아이템 배경이 받는다.
+            var discardMark = EditorUIBuilder.GetOrCreateUIObject(item.transform, "DiscardMark");
+            EditorUIBuilder.SetStretch(discardMark.GetComponent<RectTransform>());
+            EditorUIBuilder.EnsureImage(discardMark, DiscardMarkColor).raycastTarget = false;
+            discardMark.transform.SetAsLastSibling();
+            discardMark.SetActive(false);
             var view = EditorUIBuilder.GetOrAddComponent<InventoryItemView>(item);
             var so = new SerializedObject(view);
             so.FindProperty("background").objectReferenceValue = background;
             so.FindProperty("label").objectReferenceValue = label;
             so.FindProperty("selectionOutline").objectReferenceValue = outline;
+            so.FindProperty("discardMark").objectReferenceValue = discardMark;
             so.ApplyModifiedProperties();
             EditorUIBuilder.EnsureMarker(item, InventoryPopupUIElementIds.ItemTemplate(popupId));
             item.SetActive(false);

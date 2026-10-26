@@ -74,6 +74,13 @@ namespace Game.Core.Tests
         public IReadOnlyCollection<InventoryItemInstance> Items => grid.Items;
         public IReadOnlyList<InventoryItemInstance> StagedItems => grid.StagedItems;
         public void DiscardStaged() { if (grid.ClearStaged()) OnChanged?.Invoke(); }
+
+        public bool TryDiscard(IReadOnlyCollection<string> instanceIds)
+        {
+            if (!grid.RemoveAll(instanceIds)) return false;
+            OnChanged?.Invoke();
+            return true;
+        }
         public IReadOnlyList<IInventoryItemDefinition> CatalogItems => new List<IInventoryItemDefinition>(catalog.Values);
 
         public void AddDefinition(IInventoryItemDefinition definition) => catalog[definition.Id] = definition;

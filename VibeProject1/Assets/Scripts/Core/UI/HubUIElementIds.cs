@@ -29,12 +29,19 @@ namespace Game.Core
         // 인벤토리 상시 호출 버튼(PersistentLayer) - 팝업 Id(InventoryPopupIds)로 조립한다.
         public const string InventoryShortcutRoot = "Hub.InventoryShortcuts";
         public static string InventoryShortcutButton(string popupId) => $"Hub.InventoryShortcut.{popupId}";
+        public static string InventoryShortcutKeyLabel(string popupId) => $"Hub.InventoryShortcutKey.{popupId}";
 
         public const string CurrencyPanelRoot = "Hub.CurrencyPanelRoot";
         public const string CurrencyIcon = "Hub.CurrencyIcon";
         public const string CurrencyAmountText = "Hub.CurrencyAmountText";
         public const string CurrencyCapacityTooltip = "Hub.CurrencyCapacityTooltip"; // 프레임(표시/숨김 토글 대상)
         public const string CurrencyCapacityTooltipText = "Hub.CurrencyCapacityTooltipText"; // 텍스트 내용
+        // 재화 HUD 보유 현황(설계 101번 §5.1) - 입력은 골드 구역만 받는다.
+        public const string CurrencyGoldSection = "Hub.CurrencyGoldSection";
+        public const string CurrencyWagonIcon = "Hub.CurrencyWagonIcon";
+        public const string CurrencyWagonCount = "Hub.CurrencyWagonCount";
+        public const string CurrencyUnitIcon = "Hub.CurrencyUnitIcon";
+        public const string CurrencyUnitCount = "Hub.CurrencyUnitCount";
 
         // 게임 날짜 HUD(Docs/설계/85번 §4.1) - 상단 중앙, PopupExemptLayer.
         public const string DatePanelRoot = "Hub.DatePanelRoot";

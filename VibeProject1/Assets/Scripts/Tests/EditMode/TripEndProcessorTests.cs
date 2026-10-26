@@ -28,6 +28,9 @@ namespace Game.Core.Tests
         {
             public readonly List<IFormationUnit> Units = new();
             public IReadOnlyList<IFormationUnit> GetRoster() => Units;
+#pragma warning disable CS0067 // 이 테스트는 보유 목록 변경 알림을 쓰지 않는다.
+            public event Action RosterChanged;
+#pragma warning restore CS0067
             public bool TryRemoveHired(string id) => Units.RemoveAll(u => u.Id == id) > 0;
         }
 

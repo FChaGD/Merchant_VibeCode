@@ -8,6 +8,7 @@ namespace Game.Core
     /// 마구간 보유 영역(Docs/설계/91번 §5.2, 기획 90번 §3-12·§3-13·§4.3). 목록 화면과 개별 정보 화면을 같은 자리에서 하나만 켠다.
     /// StablePanel에서 분리한 이유: 구매와 수리 두 흐름을 한 패널이 같이 갖지 않게(SRP). plain C#이며 HubUIWiring이 Hub 로드마다 새로 만든다 -
     /// 골드·보유·내구도 이벤트를 구독하므로 StablePanel.Dispose가 함께 해제한다. 수리 서비스·내구도 저장소가 없으면 "값 없음" + 수리 비활성.
+    /// 개체 정보 화면의 매각 부분(수리 오른쪽)은 협력 객체 StableSaleController가 그린다(설계 103번 §4.6, 2026-10-26 좌측 이동).
     /// </summary>
     public sealed class StableOwnedSection : IDisposable
     {
@@ -22,13 +23,15 @@ namespace Game.Core
         private readonly ICaravanAssetDurabilityReader durability; // 선택적
         private readonly CaravanAssetRepairService repair;          // 선택적
         private readonly IGoldSpender gold;
+        private readonly StableSaleController sale;                 // 선택적 - 매각 요소가 없으면(인스톨러 미실행) 수리만
         private readonly List<StableOwnedRowView> rows = new();
 
         private string selectedId;
         private bool isOpen;
 
-        public StableOwnedSection(StableOwnedElements elements, IOwnedCaravanAssetReader owned, ICaravanAssetCatalogReader catalog, ICaravanAssetDurabilityReader durability, CaravanAssetRepairService repair, IGoldSpender gold)
+        public StableOwnedSection(StableOwnedElements elements, IOwnedCaravanAssetReader owned, ICaravanAssetCatalogReader catalog, ICaravanAssetDurabilityReader durability, CaravanAssetRepairService repair, IGoldSpender gold, StableSaleController sale)
         {
+            this.sale = sale;
             this.elements = elements;
             this.owned = owned;
             this.catalog = catalog;
@@ -57,13 +60,18 @@ namespace Game.Core
             Refresh();
         }
 
-        public void Close() => isOpen = false;
+        public void Close()
+        {
+            isOpen = false;
+            sale?.Hide();
+        }
 
         public void Dispose()
         {
             gold.Changed -= HandleChanged;
             owned.OnOwnedChanged -= HandleChanged;
             if (durability != null) durability.Changed -= HandleChanged;
+            sale?.Dispose();
         }
 
         private void HandleChanged()
@@ -79,8 +87,16 @@ namespace Game.Core
             var showDetail = selectedId != null;
             elements.ListRoot.SetActive(!showDetail);
             elements.DetailRoot.SetActive(showDetail);
-            if (showDetail) RenderDetail();
-            else RenderList();
+            if (showDetail)
+            {
+                RenderDetail();
+                sale?.Show(selectedId);
+            }
+            else
+            {
+                sale?.Hide();
+                RenderList();
+            }
         }
 
         private void RenderList()

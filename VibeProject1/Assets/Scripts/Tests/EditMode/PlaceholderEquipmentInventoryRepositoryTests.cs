@@ -38,6 +38,31 @@ namespace Game.Core.Tests
             Object.DestroyImmediate(gameObject);
         }
 
+
+        [Test]
+        public void TryDiscard_RemovesAll_RaisesOnChangedOnce()
+        {
+            repository.TryPlaceItem(new FakeItemDefinition(), new GridPosition(0, 0), out var first);
+            repository.TryPlaceItem(new FakeItemDefinition(), new GridPosition(1, 0), out var second);
+            var raised = 0;
+            repository.OnChanged += () => raised++;
+
+            Assert.IsTrue(repository.TryDiscard(new[] { first.InstanceId, second.InstanceId }));
+            Assert.AreEqual(1, raised);
+            Assert.IsFalse(repository.Items.Any(i => i.InstanceId == first.InstanceId || i.InstanceId == second.InstanceId));
+        }
+
+        [Test]
+        public void TryDiscard_Missing_NoChangeNoEvent()
+        {
+            repository.TryPlaceItem(new FakeItemDefinition(), new GridPosition(0, 0), out var first);
+            var raised = 0;
+            repository.OnChanged += () => raised++;
+
+            Assert.IsFalse(repository.TryDiscard(new[] { first.InstanceId, "missing" }));
+            Assert.AreEqual(0, raised);
+            Assert.IsTrue(repository.Items.Any(i => i.InstanceId == first.InstanceId));
+        }
         [Test]
         public void ResolveDependencies_SetsFixedGridSize()
         {

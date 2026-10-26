@@ -415,6 +415,82 @@ namespace Game.Core.Editor
             return text;
         }
 
+        /// <summary>
+        /// 호버·길게 누름 툴팁 모양(Docs/설계/100번 §5.1)을 get-or-create한다. 상행 시작·숙소 휴식·골드 HUD가 같은 모양을 쓴다.
+        /// 배경(Image)과 문구(TMP)는 부모·자식으로 나눈다 - 같은 오브젝트에 함께 붙이면 AddComponent가 실패한다(2026-09-21 사례).
+        /// 높이는 문구 줄 수에 맞춘다. 입력을 가로채지 않게 레이캐스트를 끄고, 저장 상태는 비활성이다. 위치는 호출부가 정한다.
+        /// </summary>
+        public static (GameObject root, TMP_Text text) EnsureTooltip(Transform parent, string name, string rootId, string textId)
+        {
+            var root = GetOrCreateUIObject(parent, name);
+            EnsureImage(root, new Color(0f, 0f, 0f, 1f)).raycastTarget = false;
+            var layout = GetOrAddComponent<VerticalLayoutGroup>(root);
+            layout.padding = new RectOffset(8, 8, 4, 4);
+            layout.childAlignment = TextAnchor.MiddleCenter;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            var fitter = GetOrAddComponent<ContentSizeFitter>(root);
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            EnsureMarker(root, rootId);
+
+            var textGo = GetOrCreateUIObject(root.transform, "Text");
+            var text = EnsureText(textGo);
+            text.text = string.Empty;
+            text.fontSize = 18f;
+            text.enableAutoSizing = false;
+            text.textWrappingMode = TextWrappingModes.Normal;
+            text.alignment = TextAlignmentOptions.Center;
+            text.color = Color.white;
+            text.raycastTarget = false;
+            EnsureMarker(textGo, textId);
+
+            root.SetActive(false);
+            return (root, text);
+        }
+
+        /// <summary>
+        /// 시설 화면의 머리글 달린 패널(배경 + 위 10% 머리글 띠·제목). 숙소·상인조합 조립이 같은 모양을 각자 복사하던 것을 뺐다(2026-10-26 검진).
+        /// </summary>
+        public static RectTransform EnsureHeaderedPanel(RectTransform parent, string name, string title, Vector2 anchorMin, Vector2 anchorMax, Color panelColor, Color headerColor)
+        {
+            var panel = GetOrCreateUIObject(parent, name);
+            var panelRect = panel.GetComponent<RectTransform>();
+            SetAnchors(panelRect, anchorMin, anchorMax);
+            EnsureImage(panel, panelColor);
+
+            var header = GetOrCreateUIObject(panelRect, "Header");
+            SetAnchors(header.GetComponent<RectTransform>(), new Vector2(0f, 0.9f), Vector2.one);
+            EnsureImage(header, headerColor).raycastTarget = false;
+            EnsureLabel(header.transform, title, autoSize: true, minFontSize: 12f, maxFontSize: 26f);
+            return panelRect;
+        }
+
+        /// <summary>앵커 영역의 글자 버튼(배경 + 자동 축소 라벨 12~26 + 마커).</summary>
+        public static GameObject EnsureLabeledButton(RectTransform parent, string name, string text, string id, Vector2 anchorMin, Vector2 anchorMax, Color color)
+        {
+            var go = GetOrCreateUIObject(parent, name);
+            SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
+            EnsureImage(go, color);
+            EnsureButton(go);
+            EnsureLabel(go.transform, text, autoSize: true, minFontSize: 12f, maxFontSize: 26f);
+            EnsureMarker(go, id);
+            return go;
+        }
+
+        /// <summary>앵커 영역의 자동 축소 글자 칸(10~maxFontSize). 런타임이 문구를 채우므로 마커는 TMP 오브젝트에 둔다.</summary>
+        public static TMP_Text EnsureAnchoredLabel(RectTransform parent, string name, string id, Vector2 anchorMin, Vector2 anchorMax, TextAlignmentOptions alignment, float maxFontSize)
+        {
+            var go = GetOrCreateUIObject(parent, name);
+            SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
+            var label = EnsureLabel(go.transform, string.Empty, autoSize: true, minFontSize: 10f, maxFontSize: maxFontSize);
+            label.alignment = alignment;
+            EnsureMarker(label.gameObject, id);
+            return label;
+        }
+
         public static void EnsureMarker(GameObject go, string id)
         {
             var marker = GetOrAddComponent<UIElementMarker>(go);

@@ -41,6 +41,7 @@ namespace Game.Core
 
         public event Action OnHiredChanged;
         public event Action OnOwnedChanged;
+        public event Action RosterChanged;
 
         public void RegisterSelf(IDependencyRegistrar registrar)
         {
@@ -80,10 +81,23 @@ namespace Game.Core
             RebuildRoster();
             // 이 시점 이전에 먼저 해결된 구독자(상단 물류품 저장소 등)도 시작 보유분을 받도록 알린다 - DI 해결 순서와 무관하게
             // 동기화되게 하기 위함이다(설계 64번 §5).
-            OnOwnedChanged?.Invoke();
+            RaiseOwnedChanged();
         }
 
         public IReadOnlyList<IFormationUnit> GetRoster() => roster;
+
+        // 고용·보유 계약 구독자(정비창·상단 물류품 저장소)와 목록만 읽는 구독자(재화 HUD)에게 같은 변경을 함께 알린다(설계 101번 §4.1).
+        private void RaiseHiredChanged()
+        {
+            OnHiredChanged?.Invoke();
+            RosterChanged?.Invoke();
+        }
+
+        private void RaiseOwnedChanged()
+        {
+            OnOwnedChanged?.Invoke();
+            RosterChanged?.Invoke();
+        }
 
         public bool IsHired(string characterId) => characterCatalog != null && characterCatalog.TryGet(characterId, out _) && ownedById.ContainsKey(characterId);
 
@@ -94,7 +108,7 @@ namespace Game.Core
             if (!TryOwnCharacter(characterId)) return false;
 
             RebuildRoster();
-            OnHiredChanged?.Invoke();
+            RaiseHiredChanged();
             return true;
         }
 
@@ -106,7 +120,7 @@ namespace Game.Core
             ownedById.Remove(characterId);
             hiredCountByClass[mercenary.Class] = CountHiredOfClass(mercenary.Class) - 1;
             RebuildRoster();
-            OnHiredChanged?.Invoke();
+            RaiseHiredChanged();
             return true;
         }
 
@@ -127,7 +141,7 @@ namespace Game.Core
             if (!TryOwnAsset(kindId, out instanceId)) return false;
 
             RebuildRoster();
-            OnOwnedChanged?.Invoke();
+            RaiseOwnedChanged();
             return true;
         }
 
@@ -138,7 +152,7 @@ namespace Game.Core
 
             ownedById.Remove(id);
             RebuildRoster();
-            OnOwnedChanged?.Invoke();
+            RaiseOwnedChanged();
             return true;
         }
 

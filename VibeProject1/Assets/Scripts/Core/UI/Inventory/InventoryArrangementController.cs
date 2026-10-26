@@ -4,6 +4,7 @@ namespace Game.Core
 {
     /// <summary>
     /// 인벤토리 그리드 편집(렌더링·드래그 이동·교환·회전·임시 보관·자동 정렬·선택·안내 문구)을 담당한다(Docs/설계/50번 §6.4).
+    /// 버리기(선택 상태·경고 대화상자)는 협력 객체 InventoryDiscardController에 맡기고, 선택 상태인지에 따라 클릭·드래그·정렬만 가른다(설계 102번 §4.3).
     /// 원래 InventoryPopupPanel 안에 있었지만 무역품 구매 화면의 고정 패널도 같은 편집이 필요해 떠 있는 창 기능(창 드래그·
     /// 닫기 버튼·창 위치)과 분리했다. 저장소(Bootstrap 상주)의 OnChanged를 구독하므로 소유자가 교체될 때 반드시 Dispose한다.
     /// 표시 여부는 소유자가 Show/Hide로 알려 준다 - 숨겨진 동안에는 저장소가 바뀌어도 다시 그리지 않는다.
@@ -22,6 +23,7 @@ namespace Game.Core
         private readonly InventoryGridView gridView;
         private readonly InventoryStagingView stagingView; // 임시 보관이 꺼진 화면은 null
         private readonly InventoryItemDragController dragController;
+        private readonly InventoryDiscardController discardController;
         private readonly bool hasSections;
 
         private bool isShown;
@@ -29,7 +31,7 @@ namespace Game.Core
         private string message;
         private string currentSectionId;
 
-        public InventoryArrangementController(InventoryArrangementElements elements, IInventoryReader reader, IInventoryArrangement arrangement, bool allowsRotation, bool hasStaging, bool hasSections)
+        public InventoryArrangementController(InventoryArrangementElements elements, IInputManager input, IGoldItemInfo goldInfo, IInventoryReader reader, IInventoryArrangement arrangement, bool allowsRotation, bool hasStaging, bool hasSections)
         {
             this.elements = elements;
             this.reader = reader;
@@ -40,7 +42,9 @@ namespace Game.Core
             elements.CellTemplate.gameObject.SetActive(false);
             gridView = new InventoryGridView(elements.GridArea, elements.GridCells, elements.GridItems, elements.CellTemplate, elements.ItemTemplate);
             stagingView = hasStaging ? new InventoryStagingView(elements.StagingArea, elements.StagingContent, elements.ItemTemplate) : null;
-            dragController = new InventoryItemDragController(reader, arrangement, gridView, stagingView, elements.DragLayer, elements.ItemTemplate, allowsRotation, () => CurrentSection?.Id, HandleDragFinished);
+            // 버리기(설계 102번 §4.3) - 쓰레기통 버튼이 드롭 대상 영역을 겸한다.
+            discardController = new InventoryDiscardController(elements, arrangement, goldInfo, TryFind, HandleDiscardStateChanged);
+            dragController = new InventoryItemDragController(reader, arrangement, gridView, stagingView, elements.DragLayer, elements.ItemTemplate, allowsRotation, () => CurrentSection?.Id, HandleDragFinished, (UnityEngine.RectTransform)elements.DiscardButton.transform, discardController.RequestDropDiscard, input);
 
             elements.SortButton.onClick.RemoveAllListeners();
             elements.SortButton.onClick.AddListener(Sort);
@@ -81,6 +85,7 @@ namespace Game.Core
         public void Hide()
         {
             dragController.Cancel();
+            discardController.End();
             isShown = false;
             selectedInstanceId = null;
             message = null;
@@ -127,11 +132,13 @@ namespace Game.Core
                 elements.SectionNextHover.CanRepeat = null;
             }
             dragController.Dispose();
+            discardController.Dispose();
         }
 
         // 현재 섹션 아이템 + 임시 보관만 현재 섹션 안에서 정렬한다 - 다른 마차는 그대로(기획 63번 §3.5).
         private void Sort()
         {
+            if (discardController.IsSelecting) return; // 선택 버리기 중에는 정렬을 막는다(기획 95)
             dragController.Cancel();
             var section = CurrentSection;
             if (section != null
@@ -166,7 +173,15 @@ namespace Game.Core
 
         private void HandleInventoryChanged()
         {
+            discardController.Prune();
             if (isShown && !dragController.IsDragging) Refresh();
+        }
+
+        // 선택 버리기 상태·선택이 바뀌면 표시(빨간 표시·정렬 버튼·정보 줄)만 갱신한다 - 뷰를 다시 배치하지 않는다.
+        private void HandleDiscardStateChanged()
+        {
+            if (!isShown) return;
+            ApplySelection();
         }
 
         private void HandleDragFinished()
@@ -185,6 +200,7 @@ namespace Game.Core
             // 드래그 중에는 임시 보관 목록을 다시 그리지 않는다 - 원본이 임시 보관 목록의 뷰일 수 있다.
             // 보유 마차가 없으면 칸 크기가 0이라 목록 높이에 맞춰 그린다.
             if (!dragController.IsDragging) stagingView?.Render(arrangement.StagedItems, gridView.CellSize > 0f ? gridView.CellSize : float.MaxValue, ConfigureItemView);
+            elements.SortButton.interactable = !discardController.IsSelecting;
             UpdateSectionLabel();
             UpdateInfoLabel();
         }
@@ -206,15 +222,25 @@ namespace Game.Core
         private void ConfigureItemView(InventoryItemView view)
         {
             view.SetSelected(view.Item.InstanceId == selectedInstanceId);
+            view.SetDiscardMarked(discardController.IsMarked(view.Item.InstanceId));
             view.SetHandlers(
-                clickHandler: clicked => Select(clicked.Item.InstanceId),
+                clickHandler: HandleItemClicked,
                 beginDragHandler: (dragged, eventData) =>
                 {
+                    // 선택 버리기 중에는 드래그를 시작하지 않는다 - Q 회전 구독도 생기지 않는다(기획 95).
+                    if (discardController.IsSelecting) return;
                     Select(dragged.Item.InstanceId);
                     dragController.Begin(dragged, eventData);
                 },
                 dragHandler: dragController.Drag,
                 endDragHandler: dragController.End);
+        }
+
+        // 선택 버리기 중의 클릭은 정보 선택이 아니라 버릴 아이템 토글이다(기획 95).
+        private void HandleItemClicked(InventoryItemView clicked)
+        {
+            if (discardController.IsSelecting) discardController.HandleItemClicked(clicked.Item.InstanceId);
+            else Select(clicked.Item.InstanceId);
         }
 
         // 아이템 정보는 클릭(또는 드래그 시작)으로 선택했을 때만 표시한다(기획 39번 §3.7).
@@ -236,16 +262,31 @@ namespace Game.Core
         // 다시 배치하면 EventSystem이 붙잡은 드래그 대상과 표시가 어긋날 수 있다.
         private void ApplySelection()
         {
-            foreach (var view in gridView.ItemViews) view.SetSelected(view.gameObject.activeSelf && view.Item.InstanceId == selectedInstanceId);
+            foreach (var view in gridView.ItemViews) ApplyMarks(view);
             if (stagingView != null)
             {
-                foreach (var view in stagingView.ItemViews) view.SetSelected(view.gameObject.activeSelf && view.Item.InstanceId == selectedInstanceId);
+                foreach (var view in stagingView.ItemViews) ApplyMarks(view);
             }
+            elements.SortButton.interactable = !discardController.IsSelecting;
             UpdateInfoLabel();
+        }
+
+        private void ApplyMarks(InventoryItemView view)
+        {
+            var active = view.gameObject.activeSelf;
+            view.SetSelected(active && view.Item.InstanceId == selectedInstanceId);
+            view.SetDiscardMarked(active && discardController.IsMarked(view.Item.InstanceId));
         }
 
         private void UpdateInfoLabel()
         {
+            var discardText = discardController.InfoText;
+            if (discardText != null)
+            {
+                elements.InfoLabel.text = discardText;
+                return;
+            }
+
             if (message != null)
             {
                 elements.InfoLabel.text = message;

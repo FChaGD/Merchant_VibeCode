@@ -1,7 +1,6 @@
 using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.InputSystem;
 
 namespace Game.Core
 {
@@ -14,28 +13,29 @@ namespace Game.Core
     /// 목표 좌상단 칸 = 포인터 칸 − 잡은 칸. Q 회전(시계방향 90°) 시 잡은 칸 좌표도 같이 회전해 잡은 칸이
     /// 포인터 아래를 벗어나지 않는다(기획 39번 §3.4).
     ///
-    /// Q 입력은 드래그 중에만 켜지는 InputAction으로 받는다 - 프로젝트가 Input System 전용 설정이라 구식
-    /// Input.GetKey는 쓸 수 없고, Update 폴링 대신 performed 콜백으로 처리한다. IInputManager는 아직 뼈대뿐이라
-    /// 경유하지 않는다 - 입력 매니저가 설계되면 이 바인딩을 옮긴다(설계 40번 §10).
-    /// 회전을 허용하지 않는 팝업은 입력 액션 자체를 만들지 않고, 임시 보관 뷰가 없으면 그리드 밖 드롭은
-    /// 전부 원위치다(설계 42번 §4.3).
+    /// Q 입력은 드래그 중에만 InputManager에 구독하고 드래그가 끝나면 핸들을 해제한다(설계 99번 §5.2) - 상시 구독하면
+    /// 드래그가 아닐 때의 Q가 다른 기능과 겹친다. 회전을 허용하지 않는 팝업이나 InputManager가 없으면 구독하지 않는다.
+    /// 임시 보관 뷰가 없으면 그리드 밖 드롭은 전부 원위치다(설계 42번 §4.3).
     ///
     /// 드롭 섹션은 드롭 시점에 화면이 보여 주는 섹션이다(currentSectionId) - 드래그 중 스테퍼 호버로 마차를 바꾸면 다른 마차에
     /// 놓게 된다(기획 63번 §3.4). 판정·적용은 한 번의 재배치라 실패하면 원래 마차·원래 칸에 그대로 남는다.
     /// </summary>
     internal sealed class InventoryItemDragController : IDisposable
     {
-        private const string RotateBinding = "<Keyboard>/q";
-
         private readonly IInventoryReader reader;
         private readonly IInventoryArrangement arrangement;
         private readonly InventoryGridView gridView;
         private readonly InventoryStagingView stagingView; // 임시 보관이 꺼진 팝업은 null
         private readonly RectTransform dragLayer;
         private readonly InventoryItemView ghost;
-        private readonly InputAction rotateAction; // 회전을 허용하지 않는 팝업은 null
+        private readonly bool allowsRotation;
+        private readonly IInputManager input; // 없으면 Q 회전만 빠진다
+        private IDisposable rotateSubscription;
         private readonly Func<string> currentSectionId;
         private readonly Action onFinished;
+        // 쓰레기통(설계 102번 §4.4) - 포인터가 이 영역 안이면 다른 대상보다 먼저 버리기 드롭으로 본다.
+        private readonly RectTransform trashArea;
+        private readonly Action<string> onDiscardDrop;
 
         private InventoryItemView sourceView;
         private InventoryItemInstance dragged;
@@ -50,10 +50,14 @@ namespace Game.Core
 
         /// <param name="currentSectionId">드롭할 섹션 - 편집 본문이 지금 보여 주는 섹션.</param>
         /// <param name="onFinished">드롭 처리가 끝난 뒤(성공·실패 모두) - 섹션을 바꾼 채 실패하면 저장소 변경 이벤트가 없어 화면을 따로 정리해야 한다.</param>
-        public InventoryItemDragController(IInventoryReader reader, IInventoryArrangement arrangement, InventoryGridView gridView, InventoryStagingView stagingView, RectTransform dragLayer, InventoryItemView itemTemplate, bool allowsRotation, Func<string> currentSectionId, Action onFinished)
+        public InventoryItemDragController(IInventoryReader reader, IInventoryArrangement arrangement, InventoryGridView gridView, InventoryStagingView stagingView, RectTransform dragLayer, InventoryItemView itemTemplate, bool allowsRotation, Func<string> currentSectionId, Action onFinished, RectTransform trashArea, Action<string> onDiscardDrop, IInputManager input)
         {
             this.currentSectionId = currentSectionId;
             this.onFinished = onFinished;
+            this.trashArea = trashArea;
+            this.onDiscardDrop = onDiscardDrop;
+            this.allowsRotation = allowsRotation;
+            this.input = input;
             this.reader = reader;
             this.arrangement = arrangement;
             this.gridView = gridView;
@@ -63,12 +67,6 @@ namespace Game.Core
             ghost = UnityEngine.Object.Instantiate(itemTemplate, dragLayer);
             ghost.SetRaycastTarget(false);
             ghost.gameObject.SetActive(false);
-
-            if (allowsRotation)
-            {
-                rotateAction = new InputAction("RotateHeldInventoryItem", InputActionType.Button, RotateBinding);
-                rotateAction.performed += _ => Rotate();
-            }
         }
 
         public void Begin(InventoryItemView view, PointerEventData eventData)
@@ -87,7 +85,7 @@ namespace Game.Core
             ghost.Bind(dragged, InventoryItemColorPalette.ColorFor(dragged.Definition.Id));
             ghost.gameObject.SetActive(true);
             ghost.transform.SetAsLastSibling();
-            rotateAction?.Enable();
+            if (allowsRotation && input != null) rotateSubscription = input.Subscribe(GameInputActionIds.RotateHeldItem, Rotate);
             Refresh();
         }
 
@@ -118,6 +116,11 @@ namespace Game.Core
                 var result = InventoryDropResolver.ResolveGridDrop(reader, arrangement, FindCurrent(itemId), currentSectionId(), topLeft, turns);
                 if (result.Kind != InventoryDropKind.Invalid) arrangement.TryApplyPlacements(result.Placements);
             }
+            else if (target == DropTarget.Trash)
+            {
+                // 재배치하지 않는다 - 아이템은 원위치에 둔 채 경고를 띄우고, 확인하면 그때 버린다(기획 95).
+                onDiscardDrop?.Invoke(itemId);
+            }
             else if (target == DropTarget.Staging)
             {
                 arrangement.TryApplyPlacements(new[] { ItemPlacement.ToStaging(itemId, turns) });
@@ -134,7 +137,8 @@ namespace Game.Core
 
         public void Cancel()
         {
-            rotateAction?.Disable();
+            rotateSubscription?.Dispose();
+            rotateSubscription = null;
             if (ghost != null) ghost.gameObject.SetActive(false);
             gridView.ClearPreview();
             if (sourceView != null) sourceView.SetDimmed(false);
@@ -145,7 +149,6 @@ namespace Game.Core
         public void Dispose()
         {
             Cancel();
-            rotateAction?.Dispose();
         }
 
         private void Rotate()
@@ -199,11 +202,13 @@ namespace Game.Core
             None,
             Grid,
             Staging,
+            Trash,
         }
 
         private DropTarget TryGetTarget(out GridPosition topLeft)
         {
             topLeft = default;
+            if (trashArea != null && RectTransformUtility.RectangleContainsScreenPoint(trashArea, pointerPosition, eventCamera)) return DropTarget.Trash;
             if (gridView.ContainsScreenPoint(pointerPosition, eventCamera) && gridView.TryGetCellAt(pointerPosition, eventCamera, out var cell))
             {
                 topLeft = new GridPosition(cell.X - grab.X, cell.Y - grab.Y);

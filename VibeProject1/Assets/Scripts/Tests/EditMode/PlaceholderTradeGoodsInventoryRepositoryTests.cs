@@ -182,6 +182,21 @@ namespace Game.Core.Tests
             Assert.AreEqual(1, repository.Items.Count);
         }
 
+
+        [Test]
+        public void TryDiscard_GoldBox_NoRefund_RaisesOnChangedOnce()
+        {
+            // 버리기는 환급이 없다(기획 95) - 골드 상자도 그냥 사라지고 적재 골드는 재계산으로 준다.
+            repository.TryPlaceItem(GoldBoxDefinition, new GridPosition(0, 0), out var goldBox);
+            var amountAfterPlacing = wallet.CurrentAmount;
+            var raised = 0;
+            repository.OnChanged += () => raised++;
+
+            Assert.IsTrue(repository.TryDiscard(new[] { goldBox.InstanceId }));
+            Assert.AreEqual(1, raised);
+            Assert.AreEqual(amountAfterPlacing, wallet.CurrentAmount);
+            Assert.AreEqual(0, repository.Items.Count);
+        }
         [Test]
         public void RemoveItem_GoldBox_DoesNotRefund()
         {

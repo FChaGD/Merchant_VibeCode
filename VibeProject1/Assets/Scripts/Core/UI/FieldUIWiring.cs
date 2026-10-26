@@ -58,6 +58,10 @@ namespace Game.Core
             // 전투 정산·회수 적재(설계 79번 §5·§7) - 없으면 정산 없이 결과 팝업·마무리만 진행한다.
             registrar.TryResolve<IBattleAftermathApplier>(out var aftermathApplier);
             registrar.TryResolve<ITradeGoodsCargoSettlement>(out var cargoSettlement);
+            // 회수 적재 중 Q 회전(설계 99번 §5.2) - 없으면 회전만 빠진다.
+            registrar.TryResolve<IInputManager>(out var input);
+            // 버리기 경고의 골드 상자 줄(설계 102번 §4.2).
+            registrar.TryResolve<IGoldItemInfo>(out var goldItemInfo);
             registrar.TryResolve<ITradeGoodsInventoryRepository>(out var tradeGoodsInventory);
 
             var sessionState = registrar.Resolve<ISessionState>();
@@ -77,7 +81,7 @@ namespace Game.Core
             tacticsPanel.RegisterTacticsUI(sceneUIRoot, tacticsRepository, uiManager);
             panelRegistrar.RegisterPopupPanel(tacticsPanel);
 
-            RegisterCargoRecovery(sceneUIRoot, panelRegistrar, tradeGoodsInventory, cargoSettlement);
+            RegisterCargoRecovery(sceneUIRoot, panelRegistrar, tradeGoodsInventory, cargoSettlement, input, goldItemInfo);
 
             // 대열 정리 모드(설계 79번 §8)는 정비창 패널이 구현한다 - 위에서 이미 확보한 같은 GameObject의 패널에서 꺼낸다.
             var repairMode = formationPanel.GetComponent<IFormationRepairMode>();
@@ -113,7 +117,7 @@ namespace Game.Core
 
         // 모달 팝업 채널에 등록한다(정비창·방향성 지시와 같은 채널) - 결과 정리 단계가 UIManager.Open/Close로만 연다.
         // 의존성이나 화면 요소가 없으면(인스톨러 미실행) 등록하지 않는다 - ② 회수 적재 단계는 건너뛰고 회수 물품은 임시보관에 남는다.
-        private void RegisterCargoRecovery(SceneUIRoot sceneUIRoot, IPanelRegistrar panelRegistrar, ITradeGoodsInventoryRepository inventory, ITradeGoodsCargoSettlement settlement)
+        private void RegisterCargoRecovery(SceneUIRoot sceneUIRoot, IPanelRegistrar panelRegistrar, ITradeGoodsInventoryRepository inventory, ITradeGoodsCargoSettlement settlement, IInputManager input, IGoldItemInfo goldItemInfo)
         {
             cargoRecoveryPanel?.Dispose();
             cargoRecoveryPanel = null;
@@ -134,7 +138,7 @@ namespace Game.Core
                 return;
             }
 
-            cargoRecoveryPanel = new FieldCargoRecoveryPanel(elements, doneButton, dialog, inventory, settlement);
+            cargoRecoveryPanel = new FieldCargoRecoveryPanel(elements, doneButton, dialog, inventory, settlement, input, goldItemInfo);
             panelRegistrar.RegisterPopupPanel(cargoRecoveryPanel);
         }
 

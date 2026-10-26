@@ -240,5 +240,42 @@ namespace Game.Core.Tests
             Assert.IsTrue(grid.HasSection("a"));
             Assert.IsTrue(grid.TryGetAt("a", new GridPosition(0, 0), out _));
         }
+
+        // ==================== 버리기 일괄 삭제(Docs/설계/102번 §4.1) ====================
+
+        [Test]
+        public void RemoveAll_GridAndStaged_RemovesBoth()
+        {
+            var grid = new InventoryGrid(4, 4);
+            grid.TryPlace(TwoByOne, new GridPosition(0, 0), out var placed);
+            var staged = grid.StageNew(OneByOne);
+
+            Assert.IsTrue(grid.RemoveAll(new[] { placed.InstanceId, staged.InstanceId }));
+            Assert.AreEqual(0, grid.Items.Count);
+            Assert.AreEqual(0, grid.StagedItems.Count);
+        }
+
+        [Test]
+        public void RemoveAll_UnknownId_KeepsEverything()
+        {
+            var grid = new InventoryGrid(4, 4);
+            grid.TryPlace(OneByOne, new GridPosition(0, 0), out var placed);
+            var staged = grid.StageNew(OneByOne);
+
+            Assert.IsFalse(grid.RemoveAll(new[] { placed.InstanceId, staged.InstanceId, "missing" }));
+            Assert.AreEqual(1, grid.Items.Count);
+            Assert.AreEqual(1, grid.StagedItems.Count);
+        }
+
+        [Test]
+        public void RemoveAll_FreesCells()
+        {
+            var grid = new InventoryGrid(2, 1);
+            grid.TryPlace(TwoByOne, new GridPosition(0, 0), out var placed);
+
+            Assert.IsTrue(grid.RemoveAll(new[] { placed.InstanceId }));
+            Assert.IsFalse(grid.TryGetAt(null, new GridPosition(1, 0), out _));
+            Assert.IsTrue(grid.TryPlace(TwoByOne, new GridPosition(0, 0), out _));
+        }
     }
 }

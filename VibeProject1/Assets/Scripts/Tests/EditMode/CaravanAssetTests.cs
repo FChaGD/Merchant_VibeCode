@@ -133,11 +133,14 @@ namespace Game.Core.Tests
 
             var changed = 0;
             roster.OnOwnedChanged += () => changed++;
+            var rosterChanged = 0;
+            roster.RosterChanged += () => rosterChanged++; // 재화 HUD 보유 수 갱신(설계 101번 §4.1)
             // 같은 종류도 여러 대 보유한다(기획 80번 §3-3) - 개체 Id는 발급 Id다(설계 81번 §5.1).
             Assert.IsTrue(roster.TryAddOwned("Wagon03", out var first));
             Assert.IsTrue(roster.TryAddOwned("Wagon03", out var second));
             Assert.IsFalse(roster.TryAddOwned("Missing", out _));
             Assert.AreEqual(2, changed);
+            Assert.AreEqual(2, rosterChanged);
             Assert.AreEqual("Wagon03#1", first);
             Assert.AreEqual("Wagon03#2", second);
 
@@ -154,6 +157,7 @@ namespace Game.Core.Tests
 
             // 앞 개체가 빠지면 번호가 당겨진다(기획 80번 §4-1).
             Assert.IsTrue(roster.TryRemoveOwned(first));
+            Assert.AreEqual(3, rosterChanged);
             Assert.AreEqual("1번 마차이름3", ((IInstanceNamedUnit)wagon).InstanceName);
         }
 

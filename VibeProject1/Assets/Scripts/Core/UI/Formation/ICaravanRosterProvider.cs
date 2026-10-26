@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Game.Core
@@ -9,5 +10,11 @@ namespace Game.Core
     public interface ICaravanRosterProvider
     {
         IReadOnlyList<IFormationUnit> GetRoster();
+
+        /// <summary>
+        /// 고용·사망 제거·구매·파괴 등으로 목록이 바뀌면 발생한다. 목록만 읽는 소비자(재화 HUD 보유 현황)가 쓰기 조작이 섞인
+        /// 고용·보유 계약을 따로 구독하지 않게 여기 둔다(Docs/설계/101번 §3·§4.1).
+        /// </summary>
+        event Action RosterChanged;
     }
 }

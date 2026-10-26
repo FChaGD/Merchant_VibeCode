@@ -24,5 +24,10 @@ namespace Game.Core
         public static string SectionPrevButton(string popupId) => $"{popupId}.SectionPrevButton";
         public static string SectionNextButton(string popupId) => $"{popupId}.SectionNextButton";
         public static string SectionLabel(string popupId) => $"{popupId}.SectionLabel";
+        // 버리기(Docs/설계/102번 §5.1) - 모든 편집 본문에 있다.
+        public static string DiscardButton(string popupId) => $"{popupId}.DiscardButton";
+        public static string DiscardConfirmButton(string popupId) => $"{popupId}.DiscardConfirmButton";
+        public static string DiscardCancelButton(string popupId) => $"{popupId}.DiscardCancelButton";
+        public static string DiscardDialog(string popupId) => $"{popupId}.DiscardDialog";
     }
 }

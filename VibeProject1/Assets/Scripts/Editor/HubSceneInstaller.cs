@@ -81,8 +81,14 @@ namespace Game.Core.Editor
             RosterShopUIBuilder.Build(layers.ModalPopups, RosterShopUIBuilder.MercenaryContact);
             var stableRoot = RosterShopUIBuilder.Build(layers.ModalPopups, RosterShopUIBuilder.Stable);
             StableOwnedUIBuilder.Build(stableRoot); // 마구간 보유 영역(설계 91번 §5.2)
+            // 매각은 StableOwnedUIBuilder가 좌측 개체 정보에 만든다(2026-10-26) - 우측 정보 영역에 있던 옛 매각 버튼 정리.
+            var candidateInfo = stableRoot.Find("CandidatePanel/CandidateInfo");
+            if (candidateInfo != null) EditorUIBuilder.DestroyChildIfExists(candidateInfo, "SellButton");
             // 골드 변환 모달(설계 83번 §6.2) - HUD 짧은 클릭으로 연다.
             GoldConversionUIBuilder.Build(layers.ModalPopups);
+            // 숙소·휴식 진행·상인조합(설계 103번 §5.2) - 시설 화면과 같은 모달 팝업.
+            InnUIBuilder.Build(layers.ModalPopups);
+            MerchantGuildUIBuilder.Build(layers.ModalPopups);
 
             EditorUIBuilder.WarnIfOutsideTransitionRoot(sceneUIRoot.transform, contentRoot, "Hub");
 
@@ -131,6 +137,8 @@ namespace Game.Core.Editor
             EditorUIBuilder.GetOrAddComponent<CanvasGroup>(persistentLayer.gameObject);
             var popupLayer = EnsureStretchLayer(contentRoot, "PopupLayer", HubUIElementIds.PopupLayer);
             var popupExemptLayer = EnsureStretchLayer(contentRoot, "PopupExemptLayer", HubUIElementIds.PopupExemptLayer);
+            // 팝업 축 대상은 아니지만 휴식 진행 중 HUD 입력을 막는 데 쓴다(설계 103번 §3) - 평소엔 기본값(상호작용·레이캐스트 켜짐).
+            EditorUIBuilder.GetOrAddComponent<CanvasGroup>(popupExemptLayer.gameObject);
 
             // Background는 EnsureContentRoot가 첫 자식으로 둔다 - 나머지 레이어는 그 뒤에 아래 순서로.
             depthLayer.SetAsLastSibling();
@@ -258,11 +266,13 @@ namespace Game.Core.Editor
             rootRect.sizeDelta = new Vector2(0f, rootRect.sizeDelta.y);
             EditorUIBuilder.EnsureMarker(root, HubUIElementIds.CurrencyPanelRoot);
             // 패널 배경 - 이게 없으면 아이콘/텍스트만 화면에 떠 있는 것처럼 보여 "패널 형태"로 보이지
-            // 않는다(2026-09-21 실전 확인).
-            // 패널 배경이 입력 대상이다(기획 82번 B2 "골드 표시 패널") - 짧은 클릭=변환 모달, 호버·길게 누름=툴팁(설계 83번 §6.1).
-            EditorUIBuilder.EnsureImage(root, new Color(0f, 0f, 0f, 0.6f)).raycastTarget = true;
-            EditorUIBuilder.GetOrAddComponent<PointerHoverRelay>(root);
-            EditorUIBuilder.GetOrAddComponent<PointerPressRelay>(root);
+            // 않는다(2026-09-21 실전 확인). 입력은 골드 구역만 받으므로(설계 101번 §5.1) 배경은 레이캐스트 대상이 아니다.
+            EditorUIBuilder.EnsureImage(root, new Color(0f, 0f, 0f, 0.6f)).raycastTarget = false;
+            // 예전엔 패널 전체가 입력 대상이었다(설계 83번 §6.1) - 루트의 중계를 걷어낸다.
+            DestroyComponentIfExists<PointerHoverRelay>(root);
+            DestroyComponentIfExists<PointerPressRelay>(root);
+            // 패널 폭(화면 30%)이 바뀌면 세 레이블 공통 글자 크기를 다시 계산한다(설계 101번 §4.4).
+            EditorUIBuilder.GetOrAddComponent<RectTransformDimensionsChangeRelay>(root);
 
             var layout = EditorUIBuilder.GetOrAddComponent<HorizontalLayoutGroup>(root);
             layout.childAlignment = TextAnchor.MiddleLeft;
@@ -279,49 +289,101 @@ namespace Game.Core.Editor
             sizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             sizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            var iconGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "Icon");
-            EditorUIBuilder.EnsureImage(iconGo, Color.white); // currencyIcon 미할당 시 자리표시자
-            EditorUIBuilder.EnsureMarker(iconGo, HubUIElementIds.CurrencyIcon);
-            var iconLayoutElement = EditorUIBuilder.GetOrAddComponent<LayoutElement>(iconGo);
-            iconLayoutElement.preferredWidth = 32f;
-            iconLayoutElement.preferredHeight = 32f;
+            // 골드 구역 = [Icon][금액] - 짧은 클릭=변환 모달, 호버·길게 누름=툴팁(설계 101번 §5.1). 투명 Image라도 UGUI 레이캐스트 대상이 된다.
+            var goldSection = EditorUIBuilder.GetOrCreateUIObject(root.transform, "GoldSection");
+            EditorUIBuilder.EnsureImage(goldSection, new Color(0f, 0f, 0f, 0f)).raycastTarget = true;
+            EditorUIBuilder.GetOrAddComponent<PointerHoverRelay>(goldSection);
+            EditorUIBuilder.GetOrAddComponent<PointerPressRelay>(goldSection);
+            EditorUIBuilder.EnsureMarker(goldSection, HubUIElementIds.CurrencyGoldSection);
+            var goldLayout = EditorUIBuilder.GetOrAddComponent<HorizontalLayoutGroup>(goldSection);
+            goldLayout.childAlignment = TextAnchor.MiddleLeft;
+            goldLayout.spacing = 8f;
+            goldLayout.padding = new RectOffset(0, 0, 0, 0);
+            goldLayout.childControlWidth = true;
+            goldLayout.childControlHeight = true;
+            goldLayout.childForceExpandWidth = false;
+            goldLayout.childForceExpandHeight = false;
+            // 예전 구성은 Icon·Label이 패널 루트 바로 아래였다 - 골드 구역으로 옮긴다(재실행 안전).
+            ReparentChildIfFound(root.transform, "Icon", goldSection.transform);
+            ReparentChildIfFound(root.transform, "Label", goldSection.transform);
 
-            var amountLabel = EditorUIBuilder.EnsureLabel(root.transform, "0");
+            EnsureCurrencyIcon(goldSection.transform, "Icon", HubUIElementIds.CurrencyIcon); // currencyIcon 미할당 시 자리표시자
+
+            var amountLabel = EditorUIBuilder.EnsureLabel(goldSection.transform, "0");
             EditorUIBuilder.EnsureMarker(amountLabel.gameObject, HubUIElementIds.CurrencyAmountText);
-            // 예전엔 금액 텍스트가 호버 대상이었다 - 입력 대상이 패널 배경으로 옮겨져 텍스트의 중계·레이캐스트를 제거한다.
             var legacyHoverRelay = amountLabel.GetComponent<PointerHoverRelay>();
             if (legacyHoverRelay != null) Object.DestroyImmediate(legacyHoverRelay);
-            amountLabel.raycastTarget = false;
-            // EnsureLabel 기본 색상은 검정이다(밝은 배경 버튼 기준) - 이 패널은 어두운 배경이라
-            // 흰색으로 바꿔야 보인다(2026-09-21 실전 확인).
-            amountLabel.color = Color.white;
+            EnsureCurrencyCountLabel(amountLabel);
             var amountLayoutElement = EditorUIBuilder.GetOrAddComponent<LayoutElement>(amountLabel.gameObject);
             amountLayoutElement.minWidth = 60f;
 
-            // 프레임(Image)과 텍스트(TextMeshProUGUI)를 부모/자식으로 분리한다 - 기존 버튼류와 같은
-            // 구조(EnsureImage로 배경, EnsureLabel로 자식 텍스트). 같은 오브젝트에 Image+TMP를 함께
-            // 붙이면 AddComponent가 실패해 NullReferenceException으로 이어진 적이 있어(2026-09-21
-            // 실전 확인) 이 구조로 되돌렸다. 컨트롤러는 프레임(tooltipGo)을 SetActive로 토글하고,
-            // 텍스트(tooltipLabel)는 내용만 갱신한다.
-            // 툴팁 문구(설계 83번 §6.1)가 금액 칸보다 길어 패널 바로 아래 띠로 옮긴다. 패널의 가로 레이아웃에 끼지 않도록 무시 표시한다.
-            // 위아래 앵커가 같은 y=0 지점이라 높이는 sizeDelta.y로 직접 준다(0이면 덮을 영역이 없다, 2026-09-21 실전 확인).
-            EditorUIBuilder.DestroyChildIfExists(amountLabel.transform, "CapacityTooltip");
-            var tooltipGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "CapacityTooltip");
+            // 보유 현황(설계 101번 §5.1) - 아이콘은 자리만(흰 사각형), 입력 없음.
+            EnsureCurrencyIcon(root.transform, "WagonIcon", HubUIElementIds.CurrencyWagonIcon);
+            var wagonCountGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "WagonCount");
+            var wagonCount = EditorUIBuilder.EnsureText(wagonCountGo);
+            wagonCount.text = "-";
+            EnsureCurrencyCountLabel(wagonCount);
+            EditorUIBuilder.EnsureMarker(wagonCountGo, HubUIElementIds.CurrencyWagonCount);
+            EnsureCurrencyIcon(root.transform, "UnitIcon", HubUIElementIds.CurrencyUnitIcon);
+            var unitCountGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "UnitCount");
+            var unitCount = EditorUIBuilder.EnsureText(unitCountGo);
+            unitCount.text = "-";
+            EnsureCurrencyCountLabel(unitCount);
+            EditorUIBuilder.EnsureMarker(unitCountGo, HubUIElementIds.CurrencyUnitCount);
+
+            goldSection.transform.SetSiblingIndex(0);
+            root.transform.Find("WagonIcon").SetSiblingIndex(1);
+            wagonCountGo.transform.SetSiblingIndex(2);
+            root.transform.Find("UnitIcon").SetSiblingIndex(3);
+            unitCountGo.transform.SetSiblingIndex(4);
+
+            // 툴팁(설계 101번 §5.1) - 공용 툴팁 모양. 문구가 금액 칸보다 길어 패널 바로 아래 띠(패널 전체 폭)에 두고, 가로 레이아웃에서 뺀다.
+            // 예전 구조(자식 "Label")는 걷어낸다.
+            var legacyTooltip = root.transform.Find("CapacityTooltip");
+            if (legacyTooltip != null) EditorUIBuilder.DestroyChildIfExists(legacyTooltip, "Label");
+            var (tooltipGo, _) = EditorUIBuilder.EnsureTooltip(root.transform, "CapacityTooltip", HubUIElementIds.CurrencyCapacityTooltip, HubUIElementIds.CurrencyCapacityTooltipText);
             EditorUIBuilder.GetOrAddComponent<LayoutElement>(tooltipGo).ignoreLayout = true;
             var tooltipRect = tooltipGo.GetComponent<RectTransform>();
             tooltipRect.anchorMin = new Vector2(0f, 0f);
             tooltipRect.anchorMax = new Vector2(1f, 0f);
             tooltipRect.pivot = new Vector2(0.5f, 1f);
-            tooltipRect.sizeDelta = new Vector2(0f, 36f);
+            tooltipRect.sizeDelta = new Vector2(0f, tooltipRect.sizeDelta.y);
             tooltipRect.anchoredPosition = new Vector2(0f, -4f);
-            EditorUIBuilder.EnsureImage(tooltipGo, new Color(0f, 0f, 0f, 1f)).raycastTarget = false;
-            EditorUIBuilder.EnsureMarker(tooltipGo, HubUIElementIds.CurrencyCapacityTooltip);
+            tooltipGo.transform.SetAsLastSibling();
+        }
 
-            var tooltipLabel = EditorUIBuilder.EnsureLabel(tooltipGo.transform, "최대량 -", autoSize: true, minFontSize: 10f, maxFontSize: 18f);
-            EditorUIBuilder.EnsureMarker(tooltipLabel.gameObject, HubUIElementIds.CurrencyCapacityTooltipText);
-            tooltipLabel.color = Color.white; // 어두운 배경 기준 - EnsureLabel 기본 검정이면 안 보인다.
+        private static void EnsureCurrencyIcon(Transform parent, string name, string id)
+        {
+            var iconGo = EditorUIBuilder.GetOrCreateUIObject(parent, name);
+            EditorUIBuilder.EnsureImage(iconGo, Color.white).raycastTarget = false;
+            EditorUIBuilder.EnsureMarker(iconGo, id);
+            var iconLayoutElement = EditorUIBuilder.GetOrAddComponent<LayoutElement>(iconGo);
+            iconLayoutElement.preferredWidth = 32f;
+            iconLayoutElement.preferredHeight = 32f;
+        }
 
-            tooltipGo.SetActive(false);
+        // 세 레이블 공통 크기는 런타임 컨트롤러가 정한다(설계 101번 §4.4) - 자동 크기·줄바꿈을 끄고 한 줄로 둔다.
+        // EnsureLabel 기본 색은 검정(밝은 버튼 기준)이라 어두운 패널에 맞춰 흰색으로 바꾼다(2026-09-21 실전 확인).
+        private static void EnsureCurrencyCountLabel(TMP_Text label)
+        {
+            label.enableAutoSizing = false;
+            label.fontSize = 24f;
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.alignment = TextAlignmentOptions.MidlineLeft;
+            label.color = Color.white;
+            label.raycastTarget = false;
+        }
+
+        private static void DestroyComponentIfExists<T>(GameObject go) where T : Component
+        {
+            var component = go.GetComponent<T>();
+            if (component != null) Object.DestroyImmediate(component);
+        }
+
+        private static void ReparentChildIfFound(Transform parent, string name, Transform newParent)
+        {
+            var child = parent.Find(name);
+            if (child != null && newParent.Find(name) == null) child.SetParent(newParent, false);
         }
 
         // ==================== 날짜 HUD ====================
@@ -380,7 +442,9 @@ namespace Game.Core.Editor
             BuildTripStartButton(panelRoot.transform);
             BuildTripDebugMapControls(panelRoot.transform);
             BuildTripDebugConfirmPanel(panelRoot.transform);
-            BuildTripDisconnectedNotice(panelRoot.transform);
+            // 끊어진 대열 안내 레이블은 비활성 사유 툴팁으로 대체됐다(Docs/설계/100번 §5.2) - 옛 오브젝트 정리.
+            EditorUIBuilder.DestroyChildIfExists(panelRoot.transform, "DisconnectedNotice");
+            BuildTripStartBlockTooltip(panelRoot.transform);
             // 배치 유닛 0 출발 경고(Docs/설계/79번 §9.2) - 상행 준비 화면 전체를 덮는 공용 확인 대화상자, 마지막 형제로 최상단.
             EditorUIBuilder.BuildConfirmDialog(panelRoot.transform, "DepartureConfirmDialog", TripUIElementIds.DepartureConfirmDialog);
 
@@ -547,24 +611,23 @@ namespace Game.Core.Editor
             label.color = Color.white;
             label.fontStyle = FontStyles.Bold;
             EditorUIBuilder.EnsureMarker(go, TripUIElementIds.StartButton);
+            // 비활성 사유 툴팁 입력(설계 100번 §5.2) - 비활성 버튼도 진입·이탈·누름 이벤트를 받는다.
+            EditorUIBuilder.GetOrAddComponent<PointerHoverRelay>(go);
+            EditorUIBuilder.GetOrAddComponent<PointerPressRelay>(go);
         }
 
-        // 끊어진 대열 안내(Docs/설계/79번 §9.1) - 상행 시작 버튼 오른쪽 빈 구간(요약 패널 아래). 런타임(TripPanel)이 이 라벨
-        // 오브젝트 자체를 토글하므로 마커를 TMP 오브젝트에 직접 두고, 저장 상태는 비활성이다.
-        private static void BuildTripDisconnectedNotice(Transform parent)
+        // "상행 시작" 비활성 사유 툴팁(Docs/설계/100번 §5.2) - 버튼 폭 그대로, 아래 변을 버튼 윗변 바로 위에 고정하고 높이는 문구 줄 수에 맞춘다.
+        // 출발 확인 대화상자(마지막 형제로 다시 올라감)보다 먼저 만들어 대화상자가 툴팁 위에 그려지게 한다.
+        private static void BuildTripStartBlockTooltip(Transform panelRoot)
         {
-            var go = EditorUIBuilder.GetOrCreateUIObject(parent, "DisconnectedNotice");
-            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(0.72f, 0.03f), new Vector2(0.94f, 0.14f));
-            var label = EditorUIBuilder.EnsureText(go);
-            label.text = string.Empty;
-            label.alignment = TextAlignmentOptions.MidlineLeft;
-            label.enableAutoSizing = true;
-            label.fontSizeMin = 10f;
-            label.fontSizeMax = 20f;
-            label.color = new Color(0.8f, 0.1f, 0.1f, 1f);
-            label.raycastTarget = false;
-            EditorUIBuilder.EnsureMarker(go, TripUIElementIds.DisconnectedNotice);
-            go.SetActive(false);
+            var (tooltipRoot, _) = EditorUIBuilder.EnsureTooltip(panelRoot, "StartBlockTooltip", TripUIElementIds.StartBlockTooltip, TripUIElementIds.StartBlockTooltipText);
+            var rect = tooltipRoot.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.30f, 0.15f);
+            rect.anchorMax = new Vector2(0.70f, 0.15f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(0f, rect.sizeDelta.y);
+            tooltipRoot.transform.SetAsLastSibling();
         }
 
         /// <summary>
@@ -772,6 +835,8 @@ namespace Game.Core.Editor
         // 재실행하면 따라온다. PersistentLayer라 depth 전환과 무관하게 보이지만, 모달 팝업(상행 준비/상단 배치/
         // 방향성 지시)이 열려 있는 동안은 숨는다(사용자 확정, 2026-09-24 - Docs/설계/38번 §1-3).
         private static readonly Color InventoryShortcutButtonColor = new(0.8f, 0.85f, 0.95f, 1f);
+        // 인벤토리 버튼 안에서 키 글자 열이 시작하는 가로 비율(설계 99번 §5.1).
+        private const float KeyLabelColumnMin = 0.8f;
 
         private static void BuildInventoryShortcuts(SceneUIRoot sceneUIRoot, Transform persistentLayer)
         {
@@ -815,8 +880,19 @@ namespace Game.Core.Editor
             var go = EditorUIBuilder.GetOrCreateUIObject(parent, $"Inventory_{popupId}");
             EditorUIBuilder.EnsureImage(go, InventoryShortcutButtonColor);
             EditorUIBuilder.EnsureButton(go);
-            EditorUIBuilder.EnsureLabel(go.transform, label, autoSize: true, minFontSize: minFontSize, maxFontSize: 30f);
+            var nameLabel = EditorUIBuilder.EnsureLabel(go.transform, label, autoSize: true, minFontSize: minFontSize, maxFontSize: 30f);
             EditorUIBuilder.EnsureMarker(go, HubUIElementIds.InventoryShortcutButton(popupId));
+
+            // 키 글자(설계 99번 §5.1) - 바인딩 표시 문자열은 런타임에 InputManager가 채운다. 클릭은 버튼이 받도록 레이캐스트를 끈다.
+            // 작은 버튼(720p 약 67x32px)은 이름 글자가 폭을 다 채워 모서리에 겹쳐 놓을 자리가 없다(2026-10-21 실측) -
+            // 오른쪽 열을 키 글자 전용으로 떼고 이름 글자는 왼쪽 영역에서 자동 축소되게 한다.
+            EditorUIBuilder.SetAnchors(nameLabel.rectTransform, Vector2.zero, new Vector2(KeyLabelColumnMin, 1f));
+            // 좁아진 폭에서 두 줄로 꺾이면 32px 높이를 꽉 채운다 - 한 줄 유지, 자동 축소로만 맞춘다.
+            nameLabel.textWrappingMode = TextWrappingModes.NoWrap;
+            var keyLabel = EditorUIBuilder.EnsureTextBlock(go.transform, "KeyLabel", new Vector2(KeyLabelColumnMin, 0.05f), new Vector2(0.97f, 0.95f), 16f, TextAlignmentOptions.TopRight, Color.black);
+            keyLabel.text = string.Empty;
+            keyLabel.raycastTarget = false;
+            EditorUIBuilder.EnsureMarker(keyLabel.gameObject, HubUIElementIds.InventoryShortcutKeyLabel(popupId));
             return go.GetComponent<RectTransform>();
         }
 

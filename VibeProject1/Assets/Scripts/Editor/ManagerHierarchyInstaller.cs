@@ -138,6 +138,9 @@ namespace Game.Core.Editor
             var dependencyManager = EditorUIBuilder.GetOrCreateManager<DependencyManager>(root.transform, nameof(DependencyManager));
             var gameManager = EditorUIBuilder.GetOrCreateManager<GameManager>(root.transform, nameof(GameManager));
             var inputManager = EditorUIBuilder.GetOrCreateManager<InputManager>(root.transform, nameof(InputManager));
+            // InputManager 산하 컴포넌트 - 전역 DI 대상이 아니라 InputManager가 Awake에서 GetComponent로 조회한다.
+            EditorUIBuilder.GetOrAddComponent<GameInputActionSource>(inputManager.gameObject);
+            EditorUIBuilder.GetOrAddComponent<TextInputFocusGuard>(inputManager.gameObject);
             var uiManager = EditorUIBuilder.GetOrCreateManager<UIManager>(root.transform, nameof(UIManager));
             var sceneTransitionEffectController = EditorUIBuilder.GetOrCreateManager<SceneTransitionEffectController>(root.transform, nameof(SceneTransitionEffectController));
             EnsureSceneTransitionCurtain(root.transform, sceneTransitionEffectController);
@@ -182,6 +185,8 @@ namespace Game.Core.Editor
 
             EditorUIBuilder.GetOrAddComponent<HubUIController>(uiManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<PlayerCurrencyHudController>(uiManager.gameObject);
+            // 툴팁 표시 관리(설계 100번 §4.1) - TripPanel 등 UIManager 하위 사용처가 GetComponent로 조회한다.
+            EditorUIBuilder.GetOrAddComponent<UITooltipController>(uiManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<GameDateHudController>(uiManager.gameObject);
             // 모달 팝업 동안 depth/상시 레이어를 숨기는 팝업 축 게이트(Docs/설계/38번 §6).
             EditorUIBuilder.GetOrAddComponent<PopupLayerGate>(uiManager.gameObject);
@@ -323,6 +328,11 @@ namespace Game.Core.Editor
             var encounterContentProvider = EditorUIBuilder.GetOrCreateManager<EncounterContentProvider>(uiManager.transform, nameof(EncounterContentProvider));
             WireEncounterTable(encounterContentProvider);
 
+            // 숙소 휴식·상인조합 게시판·마구간 매각(설계 103번 §4.1) - 실제 상태 변경이 없는 Placeholder, system 브랜치가 교체한다.
+            var innRestService = EditorUIBuilder.GetOrCreateManager<PlaceholderInnRestService>(uiManager.transform, nameof(PlaceholderInnRestService));
+            var guildQuestBoard = EditorUIBuilder.GetOrCreateManager<PlaceholderGuildQuestBoard>(uiManager.transform, nameof(PlaceholderGuildQuestBoard));
+            var caravanAssetSaleService = EditorUIBuilder.GetOrCreateManager<PlaceholderCaravanAssetSaleService>(uiManager.transform, nameof(PlaceholderCaravanAssetSaleService));
+
             return new MonoBehaviour[]
             {
                 placeholderRosterProvider,
@@ -354,6 +364,9 @@ namespace Game.Core.Editor
                 battleAftermathApplier,
                 encounterHistoryStore,
                 encounterContentProvider,
+                innRestService,
+                guildQuestBoard,
+                caravanAssetSaleService,
             };
         }
 

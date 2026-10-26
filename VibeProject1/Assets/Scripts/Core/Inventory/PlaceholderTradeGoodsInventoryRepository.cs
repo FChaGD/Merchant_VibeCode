@@ -123,6 +123,14 @@ namespace Game.Core
             return staged;
         }
 
+        public bool TryDiscard(IReadOnlyCollection<string> instanceIds)
+        {
+            if (!grid.RemoveAll(instanceIds)) return false;
+
+            OnChanged?.Invoke();
+            return true;
+        }
+
         public void DiscardStaged()
         {
             if (grid.ClearStaged()) OnChanged?.Invoke();

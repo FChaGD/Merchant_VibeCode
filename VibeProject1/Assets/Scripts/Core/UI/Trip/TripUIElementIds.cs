@@ -13,8 +13,9 @@ namespace Game.Core
         public const string CloseButton = "Trip.CloseButton";
         public const string OpenFormationButton = "Trip.OpenFormationButton";
         public const string StartButton = "Trip.StartButton";
-        // 출발 조건·경고(Docs/설계/79번 §9) - 끊어진 대열 안내 라벨(TMP_Text)과 배치 유닛 0 출발 확인 대화상자(ConfirmDialogView).
-        public const string DisconnectedNotice = "Trip.DisconnectedNotice";
+        // 출발 조건·경고 - 비활성 사유 툴팁(배경 루트·문구, Docs/설계/100번 §5.2)과 배치 유닛 0 출발 확인 대화상자(ConfirmDialogView, 79번 §9.2).
+        public const string StartBlockTooltip = "Trip.StartBlockTooltip";
+        public const string StartBlockTooltipText = "Trip.StartBlockTooltipText";
         public const string DepartureConfirmDialog = "Trip.DepartureConfirmDialog";
 
         // 지도 위 디버그 도시 배치/경로 연결 기능(03/04번 기획 문서) - 정식 콘텐츠가 아니다.

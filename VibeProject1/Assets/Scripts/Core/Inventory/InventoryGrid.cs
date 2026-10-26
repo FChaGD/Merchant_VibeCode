@@ -139,6 +139,22 @@ namespace Game.Core
             return stagedItems.RemoveAll(staged => staged.InstanceId == instanceId) > 0;
         }
 
+        /// <summary>
+        /// 여러 아이템을 그리드·임시 보관에서 한꺼번에 지운다(버리기, Docs/설계/102번 §4.1). 하나라도 없으면 아무것도 지우지 않고 false -
+        /// 경고 대화상자가 떠 있는 사이 다른 경로로 일부가 사라졌을 때 반쯤 버려진 상태가 생기지 않는다.
+        /// </summary>
+        public bool RemoveAll(IReadOnlyCollection<string> instanceIds)
+        {
+            if (instanceIds == null || instanceIds.Count == 0) return false;
+            foreach (var instanceId in instanceIds)
+            {
+                if (instanceId == null || !TryFind(instanceId, out _)) return false;
+            }
+
+            foreach (var instanceId in instanceIds) Remove(instanceId);
+            return true;
+        }
+
         /// <summary>임시 보관을 전부 비운다. 비울 것이 있었으면 true.</summary>
         public bool ClearStaged()
         {
