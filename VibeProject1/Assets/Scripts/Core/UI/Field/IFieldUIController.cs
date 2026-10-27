@@ -2,6 +2,10 @@ using UnityEngine;
 
 namespace Game.Core
 {
+    /// <summary>
+    /// Field 배선 전용 계약(등록·씬 전환 대상). 상단 버튼 활성은 IFieldTopButtons, 상행 종료는 ITripFinisher(FieldTripLifecycle)로 나눴다 -
+    /// 결과 정리·이벤트 소비자가 등록 메서드까지 받지 않게 한다(Docs/Refactor/2026-10-26_씬전용.md SS-2).
+    /// </summary>
     public interface IFieldUIController
     {
         /// <summary>
@@ -10,27 +14,13 @@ namespace Game.Core
         /// 결과 처리 흐름 연결을 처리한다. 씬 전환 커튼이 완전히 걷힐 때까지는 정비창 버튼을 막고
         /// 상행 진행(Begin)도 시작하지 않는다(사용자 확정) - sceneRevealSignal이 걷힘을 알려준다.
         /// 전투 정산·회수 적재·대열 정리 의존성(aftermathApplier, cargoSettlement, repairMode, cargoRecoveryPanel)은 전부 선택적이다 -
-        /// null이면 정산 없이 진행하거나 해당 결과 정리 단계를 건너뛴다(설계 79번 §6). tripEndProcessor가 null이면 상행 종료 시 상태 초기화만 한다.
+        /// null이면 정산 없이 진행하거나 해당 결과 정리 단계를 건너뛴다(설계 79번 §6). 상행 시작·종료·도착의 상태 변경은 lifecycle이 한다.
         /// dayRout이 null이면 궤주 날짜 정산 없이 진행한다(설계 93 §4.4).
         /// legDifficulty가 null이면 구간 라벨은 계획 등급명으로 둔다(설계 89 §4.3).
         /// </summary>
-        void RegisterFieldUI(SceneUIRoot sceneUIRoot, IPanelNavigator uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository, ITripCurrentLocationRepository currentLocationRepository, ITripDestinationAssigner destinationAssigner, IFieldFormationActivityRepository fieldActivityRepository, ITripItinerary itinerary, IWorldMapReader worldMap, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, FieldCargoRecoveryPanel cargoRecoveryPanel, TripEndProcessor tripEndProcessor, ITripDayRout dayRout, FieldTripSignals tripSignals, ICurrentLegDifficulty legDifficulty);
+        void RegisterFieldUI(SceneUIRoot sceneUIRoot, IPanelNavigator uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, FieldTripLifecycle lifecycle, ITripCurrentLocationRepository currentLocationRepository, IFieldFormationActivityRepository fieldActivityRepository, ITripItinerary itinerary, IWorldMapReader worldMap, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, FieldCargoRecoveryPanel cargoRecoveryPanel, ITripDayRout dayRout, FieldTripSignals tripSignals, ICurrentLegDifficulty legDifficulty);
 
         /// <summary>Hub↔Field 씬 전환 연출이 슬라이드시킬 대상. RegisterFieldUI 이후에만 유효하다.</summary>
         RectTransform MovementViewRoot { get; }
-
-        /// <summary>
-        /// 정비창/방향성 지시 재호출 버튼의 상호작용 가능 여부를 일괄 설정한다. 씬 전환 커튼(사용자
-        /// 확정) 외에, 인카운터~전투 진행 중에도 눌리면 안 되므로(사용자 확정, 2026-09-07)
-        /// FieldEncounterFlowCoordinator가 인카운터 발생 시 false, 이동 뷰 복귀 슬라이드 시작 직전에
-        /// true로 되돌리는 데 쓴다.
-        /// </summary>
-        void SetTopLevelButtonsInteractable(bool interactable);
-
-        /// <summary>
-        /// 상행 종료(마을 도착) 처리 - 사망 캐릭터 영구 제거 + 전원 상태 초기화(Docs/설계/81번 §6.4). 정상 도착은 내부에서, 궤주 귀환은
-        /// FinishStep이 Hub 전환 직전에 부른다.
-        /// </summary>
-        void FinishTrip();
     }
 }

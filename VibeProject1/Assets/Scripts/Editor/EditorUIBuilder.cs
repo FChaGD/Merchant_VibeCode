@@ -352,6 +352,20 @@ namespace Game.Core.Editor
         // 상시 노출 액션 버튼(배치/정비창, 방향성 지시)처럼 좁은 버튼 안에 라벨이 잘리지 않아야 하는
         // 곳에 쓴다. 이 값들은 인스펙터에서 먼저 확정한 뒤(사용자 확정, 2026-09-07: 18~30) 여기로
         // 옮겨 재실행해도 유지되게 한 것 - 새 버튼에도 같은 패턴을 쓰려면 이 오버로드를 그대로 호출한다.
+        /// <summary>
+        /// 고정 줄 목록 행 안의 레이블 칸(가로 minX~maxX, 세로 전체, 자동 크기 10~maxFontSize) - 시설 화면 목록 4곳(무역품 판매·목록형 구매 후보·마구간 보유·상인조합)이
+        /// 같은 조립을 각자 복사하고 있었다(Docs/Refactor/2026-10-26_씬전용.md H-4, SE-6). raycastTarget=false는 행 버튼 클릭을 레이블이 가로채지 않게 할 때만.
+        /// </summary>
+        public static TMP_Text EnsureRowLabel(Transform row, string name, float minX, float maxX, TextAlignmentOptions alignment, float maxFontSize = 22f, bool raycastTarget = true)
+        {
+            var go = GetOrCreateUIObject(row, name);
+            SetAnchors(go.GetComponent<RectTransform>(), new Vector2(minX, 0f), new Vector2(maxX, 1f));
+            var label = EnsureLabel(go.transform, string.Empty, autoSize: true, minFontSize: 10f, maxFontSize: maxFontSize);
+            label.alignment = alignment;
+            if (!raycastTarget) label.raycastTarget = false;
+            return label;
+        }
+
         public static TMP_Text EnsureLabel(Transform parent, string text, bool autoSize, float minFontSize, float maxFontSize)
         {
             var labelGo = GetOrCreateUIObject(parent, "Label");
@@ -674,6 +688,94 @@ namespace Game.Core.Editor
             importer.SaveAndReimport();
 
             return AssetDatabase.LoadAssetAtPath<Sprite>(SolidSpritePath);
+        }
+
+        // ==================== 씬 요소 조회·재배치(Docs/Refactor/2026-10-26_씬전용.md H-3 - Hub 인스톨러에서 옮김) ====================
+
+        public static void DestroyComponentIfExists<T>(GameObject go) where T : Component
+        {
+            var component = go.GetComponent<T>();
+            if (component != null) Object.DestroyImmediate(component);
+        }
+
+        public static void ReparentChildIfFound(Transform parent, string name, Transform newParent)
+        {
+            var child = parent.Find(name);
+            if (child != null && newParent.Find(name) == null) child.SetParent(newParent, false);
+        }
+
+        public static void DestroyAllDirectChildrenNamed(Transform parent, string name)
+        {
+            for (var i = parent.childCount - 1; i >= 0; i--)
+            {
+                var child = parent.GetChild(i);
+                if (child.name == name)
+                {
+                    Undo.DestroyObjectImmediate(child.gameObject);
+                }
+            }
+        }
+
+        public static void ReparentIfFound(SceneUIRoot sceneUIRoot, string id, Transform newParent)
+        {
+            var found = FindMarker(sceneUIRoot, id);
+            if (found == null)
+            {
+                Debug.LogWarning($"UI에서 '{id}' 요소를 찾을 수 없어 재배치를 건너뛴다. UIElementMarker가 부착되어 있는지 확인하라.");
+                return;
+            }
+
+            if (found.transform.parent != newParent)
+            {
+                Undo.SetTransformParent(found.transform, newParent, $"Reparent {id}");
+            }
+        }
+
+        // 씬에 원래부터 있던(코드로 만들어지지 않은) 버튼의 라벨 텍스트를 갱신할 때 쓴다 - "배치"
+        // 버튼처럼 EditorUIBuilder.EnsureLabel로 만들어진 게 아니라 자식 이름이 "Label"이 아니므로,
+        // EnsureLabel을 그대로 호출하면 새 라벨이 중복 생성된다. 대신 마커로 찾은 뒤 자식 TMP
+        // 컴포넌트를 직접 갱신한다. 폰트 크기도 자동 축소(minFontSize~maxFontSize)로 맞춘다 - 인스펙터에서
+        // 먼저 확정한 값(사용자 확정, 2026-09-07: 18~30)을 여기로 옮겨 재실행해도 유지되게 한다
+        // (EditorUIBuilder.EnsureLabel의 autoSize 오버로드와 같은 값 의미).
+        public static void SetLabelText(SceneUIRoot sceneUIRoot, string id, string text, float minFontSize, float maxFontSize)
+        {
+            var found = FindMarker(sceneUIRoot, id);
+            if (found == null)
+            {
+                Debug.LogWarning($"UI에서 '{id}' 요소를 찾을 수 없어 라벨 텍스트를 갱신하지 못했다.");
+                return;
+            }
+
+            var label = found.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (label == null)
+            {
+                Debug.LogWarning($"'{id}' 요소 밑에서 TextMeshProUGUI 라벨을 찾을 수 없어 텍스트를 갱신하지 못했다.");
+                return;
+            }
+
+            label.text = text;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = minFontSize;
+            label.fontSizeMax = maxFontSize;
+        }
+
+        public static UIElementMarker FindMarker(SceneUIRoot sceneUIRoot, string id)
+        {
+            foreach (var marker in sceneUIRoot.GetComponentsInChildren<UIElementMarker>(true))
+            {
+                if (marker.Id == id)
+                {
+                    return marker;
+                }
+            }
+            return null;
+        }
+        public static Transform EnsureStretchLayer(Transform parent, string name, string markerId)
+        {
+            var go = EditorUIBuilder.GetOrCreateUIObject(parent, name);
+            EditorUIBuilder.SetStretch(go.GetComponent<RectTransform>());
+            EditorUIBuilder.EnsureMarker(go, markerId);
+            return go.transform;
         }
     }
 }

@@ -50,7 +50,7 @@ namespace Game.Core
             elements.BackButton.onClick.RemoveAllListeners();
             elements.BackButton.onClick.AddListener(ShowList);
 
-            gold.Changed += HandleChanged;
+            gold.Changed += HandleGoldChanged;
             owned.OnOwnedChanged += HandleChanged;
             if (durability != null) durability.Changed += HandleChanged;
         }
@@ -71,7 +71,7 @@ namespace Game.Core
 
         public void Dispose()
         {
-            gold.Changed -= HandleChanged;
+            gold.Changed -= HandleGoldChanged;
             owned.OnOwnedChanged -= HandleChanged;
             if (durability != null) durability.Changed -= HandleChanged;
             sale?.Dispose();
@@ -82,6 +82,14 @@ namespace Game.Core
         private void HandleChanged()
         {
             if (isOpen) Refresh();
+        }
+
+        // 골드는 수리 가능 여부(버튼 활성·사유)만 바꾼다 - 목록 전체를 다시 만들지 않는다(Docs/Refactor/2026-10-26_씬전용.md I-3, HO-2).
+        private void HandleGoldChanged()
+        {
+            if (!isOpen) return;
+            if (selectedId != null) RenderRepairButton();
+            else RenderRepairAll();
         }
 
         private void Refresh()
@@ -114,7 +122,11 @@ namespace Game.Core
                 if (entry.IsHeader) row.BindHeader(entry.Name);
                 else row.BindAsset(entry.Name, entry.DurabilityText, entry.Damaged, () => Select(entry.InstanceId));
             });
+            RenderRepairAll();
+        }
 
+        private void RenderRepairAll()
+        {
             var total = repair?.TotalCost() ?? 0;
             var check = repair?.EvaluateAll() ?? CaravanAssetRepairCheck.NotDamaged;
             elements.RepairAllLabel.text = total > 0 ? $"{RepairAllText} ({total:N0})" : RepairAllText;
@@ -130,7 +142,11 @@ namespace Game.Core
             elements.DetailKind.text = asset.Profile.KindLabel;
             elements.DetailDurability.text = "내구도 " + StableOwnedListModel.Describe(durability, selectedId, out _);
             elements.DetailCost.text = repair != null ? $"수리비 {repair.CostOf(selectedId):N0}" : "수리비 " + StableOwnedListModel.MissingText;
+            RenderRepairButton();
+        }
 
+        private void RenderRepairButton()
+        {
             var check = repair?.Evaluate(selectedId);
             elements.RepairButton.interactable = check == CaravanAssetRepairCheck.Available;
             repairTooltip?.SetText(FacilityBlockReasons.ForRepair(check));

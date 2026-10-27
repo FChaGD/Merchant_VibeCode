@@ -10,7 +10,7 @@ namespace Game.Core
     /// 같은 구조라 뷰 클래스 하나를 씬마다 인스턴스로 둔다 - 문구·버튼 라벨·콜백만 호출부가 정한다.
     /// 콜백보다 Hide를 먼저 해 콜백 안에서 같은 대화상자를 다시 Show해도 덮어쓰이지 않게 한다.
     /// </summary>
-    public class ConfirmDialogView : MonoBehaviour
+    public class ConfirmDialogView : MonoBehaviour, IConfirmPrompt
     {
         [SerializeField] private TMP_Text messageLabel;
         [SerializeField] private TMP_Text confirmLabel;

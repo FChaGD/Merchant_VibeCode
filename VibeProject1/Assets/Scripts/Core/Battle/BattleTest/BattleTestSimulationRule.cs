@@ -216,8 +216,8 @@ namespace Game.Core
             }
         }
 
-        // 배치 취소(요구사항) - 세팅 단계 로스터에서만 의미가 있다. 뷰 파괴는 클릭 당시 참조를 이미
-        // 들고 있는 BattleTestUnitInfoPanelView가 직접 처리한다(왕복 이벤트 없이 단순하게).
+        // 배치 취소(요구사항) - 세팅 단계 로스터에서만 의미가 있다. 뷰는 정보 패널의 PlacementCancelled를 받은
+        // 컨트롤러가 풀로 돌려보낸다(Docs/Refactor/2026-10-26_씬전용.md SS-13).
         public void RemoveUnit(bool isAlly, int entryId) => GetSide(isAlly).Roster.Remove(entryId);
 
         // 유닛 정보 패널의 "적용" 버튼이 호출한다 - 다음 BuildSimulation()/미리보기 재생성부터

@@ -21,7 +21,7 @@ namespace Game.Core
     }
 
     /// <summary>Field 말풍선 화면(설계 88 §5) - 화면 아무 데나 클릭(빈 곳)을 진행자에게 알린다.</summary>
-    public interface ITripDialogueView : IDialogueStageView
+    public interface ITripDialogueView : IDialogueStageView, IDialogueOptionsView
     {
         event Action Clicked;
     }

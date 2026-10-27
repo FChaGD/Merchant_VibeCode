@@ -94,12 +94,25 @@ namespace Game.Core
         {
             var count = Mathf.Max(0, pathSlotIndices.Count - 1);
             var weights = new float[count];
-            for (var i = 0; i < count; i++)
-            {
-                var baseCost = SegmentCost(pathSlotIndices[i], pathSlotIndices[i + 1], columnCount);
-                weights[i] = (i == partialSegmentIndex) ? baseCost * partialSegmentWeight : baseCost;
-            }
+            for (var i = 0; i < count; i++) weights[i] = SegmentWeight(pathSlotIndices, i, columnCount, partialSegmentIndex, partialSegmentWeight);
             return weights;
+        }
+
+        /// <summary>
+        /// ComputeSegmentWeights와 같은 값을 호출자 버퍼에 채운다(Docs/Refactor/2026-10-26_씬전용.md B-1) - 정비창 이동 아이콘이 매 프레임 부르는 경로라
+        /// 배열을 새로 만들지 않는다. 버퍼는 비우고 채운다.
+        /// </summary>
+        public static void FillSegmentWeights(IReadOnlyList<int> pathSlotIndices, int columnCount, int partialSegmentIndex, float partialSegmentWeight, List<float> buffer)
+        {
+            buffer.Clear();
+            var count = Mathf.Max(0, pathSlotIndices.Count - 1);
+            for (var i = 0; i < count; i++) buffer.Add(SegmentWeight(pathSlotIndices, i, columnCount, partialSegmentIndex, partialSegmentWeight));
+        }
+
+        private static float SegmentWeight(IReadOnlyList<int> path, int index, int columnCount, int partialSegmentIndex, float partialSegmentWeight)
+        {
+            var baseCost = SegmentCost(path[index], path[index + 1], columnCount);
+            return index == partialSegmentIndex ? baseCost * partialSegmentWeight : baseCost;
         }
 
         private static IEnumerable<(int next, float cost)> GetNeighbors(int index, int columnCount, int rowCount, HashSet<int> blockedSet, int target)

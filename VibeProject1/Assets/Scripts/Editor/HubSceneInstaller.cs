@@ -54,22 +54,22 @@ namespace Game.Core.Editor
             // (재실행 안전성 - 한 번만 정리되면 이후에는 항상 no-op). 문제가 있던 버전을 여러 번
             // 재실행했다면 같은 이름의 직계 자식이 여러 개 쌓여있을 수 있어(Transform.Find는 첫 번째
             // 매치만 반환) 전부 찾아서 지운다.
-            DestroyAllDirectChildrenNamed(sceneUIRoot.transform, "FormationPanel");
-            DestroyAllDirectChildrenNamed(sceneUIRoot.transform, "TripPanel");
+            EditorUIBuilder.DestroyAllDirectChildrenNamed(sceneUIRoot.transform, "FormationPanel");
+            EditorUIBuilder.DestroyAllDirectChildrenNamed(sceneUIRoot.transform, "TripPanel");
 
             // 레이어를 먼저 만들고 기존 요소를 옮긴 "뒤"에 빌드한다 - 빌드가 먼저면 옛 위치를 못 찾고 새 레이어
             // 안에 중복 생성한다(위 ContentRoot 주석과 같은 이유).
             var layers = EnsureLayers(sceneUIRoot, contentRoot);
 
             BuildFormationUI(layers.ModalPopups);
-            BuildTripUI(layers.ModalPopups);
+            TripUIBuilder.Build(layers.ModalPopups);
             BuildTacticsUI(layers.RootDepth, layers.ModalPopups);
             StackActionButtonsAboveDeparture(sceneUIRoot);
             BuildTownCategoryColumn(layers.RootDepth);
             BuildTownCategoryDepth(layers.DepthLayer);
-            BuildPlayerCurrencyHud(layers.PopupExemptLayer);
-            BuildGameDateHud(layers.PopupExemptLayer);
-            BuildInventoryShortcuts(sceneUIRoot, layers.PersistentLayer);
+            HudUIBuilder.BuildCurrencyHud(layers.PopupExemptLayer);
+            HudUIBuilder.BuildDateHud(layers.PopupExemptLayer);
+            InventoryShortcutUIBuilder.Build(sceneUIRoot, layers.PersistentLayer);
             // 비모달 인벤토리 팝업(Docs/설계/40번 §7, 42번 §4.4, 44번 §3). 형제 순서 = 렌더 순서라 계단식 배치에서
             // 뒤에 만든 팝업이 위에 그려진다(열 때는 패널이 맨 앞으로 올린다).
             InventoryPopupUIBuilder.Build(layers.ModelessPopups, InventoryPopupSpecs.TradeGoods);
@@ -133,12 +133,12 @@ namespace Game.Core.Editor
         private static HubLayers EnsureLayers(SceneUIRoot sceneUIRoot, Transform contentRoot)
         {
             // CanvasGroup은 LayerHideGate가 모달 팝업·시설 화면 동안 숨기는 대상이다(팝업 축).
-            var depthLayer = EnsureStretchLayer(contentRoot, "DepthLayer", HubUIElementIds.DepthLayer);
+            var depthLayer = EditorUIBuilder.EnsureStretchLayer(contentRoot, "DepthLayer", HubUIElementIds.DepthLayer);
             EditorUIBuilder.GetOrAddComponent<CanvasGroup>(depthLayer.gameObject);
-            var persistentLayer = EnsureStretchLayer(contentRoot, "PersistentLayer", HubUIElementIds.PersistentLayer);
+            var persistentLayer = EditorUIBuilder.EnsureStretchLayer(contentRoot, "PersistentLayer", HubUIElementIds.PersistentLayer);
             EditorUIBuilder.GetOrAddComponent<CanvasGroup>(persistentLayer.gameObject);
-            var popupLayer = EnsureStretchLayer(contentRoot, "PopupLayer", HubUIElementIds.PopupLayer);
-            var popupExemptLayer = EnsureStretchLayer(contentRoot, "PopupExemptLayer", HubUIElementIds.PopupExemptLayer);
+            var popupLayer = EditorUIBuilder.EnsureStretchLayer(contentRoot, "PopupLayer", HubUIElementIds.PopupLayer);
+            var popupExemptLayer = EditorUIBuilder.EnsureStretchLayer(contentRoot, "PopupExemptLayer", HubUIElementIds.PopupExemptLayer);
             // 팝업 축 대상은 아니지만 휴식 진행 중 HUD 입력을 막는 데 쓴다(설계 103번 §3) - 평소엔 기본값(상호작용·레이캐스트 켜짐).
             EditorUIBuilder.GetOrAddComponent<CanvasGroup>(popupExemptLayer.gameObject);
 
@@ -148,9 +148,9 @@ namespace Game.Core.Editor
             popupLayer.SetAsLastSibling();
             popupExemptLayer.SetAsLastSibling();
 
-            var screens = EnsureStretchLayer(popupLayer, "Screens", HubUIElementIds.Screens);
-            var modalPopups = EnsureStretchLayer(popupLayer, "ModalPopups", HubUIElementIds.ModalPopups);
-            var modelessPopups = EnsureStretchLayer(popupLayer, "ModelessPopups", HubUIElementIds.ModelessPopups);
+            var screens = EditorUIBuilder.EnsureStretchLayer(popupLayer, "Screens", HubUIElementIds.Screens);
+            var modalPopups = EditorUIBuilder.EnsureStretchLayer(popupLayer, "ModalPopups", HubUIElementIds.ModalPopups);
+            var modelessPopups = EditorUIBuilder.EnsureStretchLayer(popupLayer, "ModelessPopups", HubUIElementIds.ModelessPopups);
             // 시설 화면 < 모달 < 인벤토리 팝업 순으로 그린다 - 골드 변환 모달이 시설 화면 위에, 인벤토리 팝업이 모달 위에 뜬다(38번 §3).
             screens.SetAsFirstSibling();
             modalPopups.SetSiblingIndex(screens.GetSiblingIndex() + 1);
@@ -165,30 +165,22 @@ namespace Game.Core.Editor
             // RootDepth는 카테고리 depth보다 아래에 그려져야 한다 - DepthLayer의 첫 자식으로 고정.
             // RootDepth 자신의 CanvasGroup은 씬 전환 커튼 중 루트 depth 버튼 전체를 비활성화하는 용도다
             // (HubUIController) - DepthLayer의 CanvasGroup과 중첩되면 상호작용 차단이 AND로 합쳐져 서로 간섭하지 않는다.
-            var rootDepth = EnsureStretchLayer(depthLayer, "RootDepth", HubUIElementIds.RootDepth);
+            var rootDepth = EditorUIBuilder.EnsureStretchLayer(depthLayer, "RootDepth", HubUIElementIds.RootDepth);
             EditorUIBuilder.GetOrAddComponent<CanvasGroup>(rootDepth.gameObject);
             rootDepth.SetAsFirstSibling();
 
             // 기존 요소를 새 부모로 옮긴다(마커 기준이라 이전 버전 어디에 있든 찾는다) - 상행 준비/상단 배치
             // 버튼은 코드가 아니라 씬에 원래 있던 요소라 get-or-create 대상이 아니고 이동만 한다.
-            ReparentIfFound(sceneUIRoot, HubUIElementIds.DepartureButton, rootDepth);
-            ReparentIfFound(sceneUIRoot, HubUIElementIds.FormationButton, rootDepth);
-            ReparentIfFound(sceneUIRoot, HubUIElementIds.TacticsButton, rootDepth);
-            ReparentIfFound(sceneUIRoot, FormationUIElementIds.PanelRoot, modalPopups);
-            ReparentIfFound(sceneUIRoot, TripUIElementIds.PanelRoot, modalPopups);
-            ReparentIfFound(sceneUIRoot, TacticsUIElementIds.PanelRoot, modalPopups);
-            ReparentIfFound(sceneUIRoot, HubUIElementIds.CurrencyPanelRoot, popupExemptLayer);
-            ReparentIfFound(sceneUIRoot, HubUIElementIds.InventoryShortcutRoot, persistentLayer);
+            EditorUIBuilder.ReparentIfFound(sceneUIRoot, HubUIElementIds.DepartureButton, rootDepth);
+            EditorUIBuilder.ReparentIfFound(sceneUIRoot, HubUIElementIds.FormationButton, rootDepth);
+            EditorUIBuilder.ReparentIfFound(sceneUIRoot, HubUIElementIds.TacticsButton, rootDepth);
+            EditorUIBuilder.ReparentIfFound(sceneUIRoot, FormationUIElementIds.PanelRoot, modalPopups);
+            EditorUIBuilder.ReparentIfFound(sceneUIRoot, TripUIElementIds.PanelRoot, modalPopups);
+            EditorUIBuilder.ReparentIfFound(sceneUIRoot, TacticsUIElementIds.PanelRoot, modalPopups);
+            EditorUIBuilder.ReparentIfFound(sceneUIRoot, HubUIElementIds.CurrencyPanelRoot, popupExemptLayer);
+            EditorUIBuilder.ReparentIfFound(sceneUIRoot, HubUIElementIds.InventoryShortcutRoot, persistentLayer);
 
             return new HubLayers(depthLayer, rootDepth, persistentLayer, screens, modalPopups, modelessPopups, popupExemptLayer);
-        }
-
-        private static Transform EnsureStretchLayer(Transform parent, string name, string markerId)
-        {
-            var go = EditorUIBuilder.GetOrCreateUIObject(parent, name);
-            EditorUIBuilder.SetStretch(go.GetComponent<RectTransform>());
-            EditorUIBuilder.EnsureMarker(go, markerId);
-            return go.transform;
         }
 
         // ==================== 방향성 지시(Tactics) ====================
@@ -217,7 +209,7 @@ namespace Game.Core.Editor
 
         private static void BuildTownCategoryColumn(Transform rootDepth)
         {
-            var column = EnsureStretchLayer(rootDepth, "TownCategoryColumn", HubUIElementIds.TownCategoryColumn);
+            var column = EditorUIBuilder.EnsureStretchLayer(rootDepth, "TownCategoryColumn", HubUIElementIds.TownCategoryColumn);
             EditorUIBuilder.GetOrAddComponent<TownButtonColumnView>(column.gameObject);
 
             foreach (var categoryId in TownFacilityCatalog.CategoryIds)
@@ -231,7 +223,7 @@ namespace Game.Core.Editor
         // TownCategoryPanel이 표시할 시설만 골라 배치한다. 배경은 두지 않는다(오버레이가 아니라 depth 전환).
         private static void BuildTownCategoryDepth(Transform depthLayer)
         {
-            var depthRoot = EnsureStretchLayer(depthLayer, "TownCategoryDepth", TownUIElementIds.CategoryDepthRoot);
+            var depthRoot = EditorUIBuilder.EnsureStretchLayer(depthLayer, "TownCategoryDepth", TownUIElementIds.CategoryDepthRoot);
             EditorUIBuilder.GetOrAddComponent<TownButtonColumnView>(depthRoot.gameObject);
 
             foreach (var facilityId in TownFacilityCatalog.AllFacilityIds)
@@ -254,170 +246,6 @@ namespace Game.Core.Editor
             EditorUIBuilder.EnsureMarker(go, markerId);
         }
 
-        // ==================== 재화 HUD ====================
-        // 스타크래프트류 RTS 자원 바 형태(기획 27번 §3.1) - 항상 노출, 다른 패널이 열려도 가려지지
-        // 않는다(27번 §3.5). 예전엔 SetAsLastSibling()으로 최상단을 강제했지만, 이제 PopupExemptLayer(항상
-        // ContentRoot의 마지막 자식, 모달 팝업 시에도 유지) 안에 두는 것으로 구조적으로 보장된다(Docs/설계/38번 §5).
-        private static void BuildPlayerCurrencyHud(Transform popupExemptLayer)
-        {
-            // 가로폭은 화면의 30%로 고정 요구사항(사용자 확정, 2026-09-23)이 생겨 X축만 스트레치
-            // 앵커(anchorMin.x=0.7~anchorMax.x=1)로 바꿨다 - width가 화면 비율로 결정되므로
-            // 2026-09-21에 겪은 "고정 픽셀 박스가 콘텐츠보다 작아서 아이콘이 밖으로 튀어나오는"
-            // 문제는 재발하지 않는다(30%가 아이콘+텍스트+패딩보다 항상 크다). 세로축은 기존과
-            // 동일하게 한 점 고정 + ContentSizeFitter로 콘텐츠 높이에 맞춘다.
-            var root = EditorUIBuilder.GetOrCreateUIObject(popupExemptLayer, "PlayerCurrencyHud");
-            var rootRect = root.GetComponent<RectTransform>();
-            // 우상단 기준(사용자 확정, 2026-09-21). pivot.x=1/anchorMax.x=1이 겹쳐 anchoredPosition.x는
-            // 화면 우측 모서리로부터의 오프셋으로 동작한다(스트레치 축이어도 점 앵커와 동일하게 계산됨).
-            rootRect.anchorMin = new Vector2(0.7f, 1f);
-            rootRect.anchorMax = new Vector2(1f, 1f);
-            rootRect.pivot = new Vector2(1f, 1f);
-            // 화면 우상단 모서리로부터의 마진 2배 확대(사용자 확정, 2026-09-23: -16 -> -32).
-            rootRect.anchoredPosition = new Vector2(-32f, -32f);
-            rootRect.sizeDelta = new Vector2(0f, rootRect.sizeDelta.y);
-            EditorUIBuilder.EnsureMarker(root, HubUIElementIds.CurrencyPanelRoot);
-            // 패널 배경 - 이게 없으면 아이콘/텍스트만 화면에 떠 있는 것처럼 보여 "패널 형태"로 보이지
-            // 않는다(2026-09-21 실전 확인). 입력은 골드 구역만 받으므로(설계 101번 §5.1) 배경은 레이캐스트 대상이 아니다.
-            EditorUIBuilder.EnsureImage(root, new Color(0f, 0f, 0f, 0.6f)).raycastTarget = false;
-            // 예전엔 패널 전체가 입력 대상이었다(설계 83번 §6.1) - 루트의 중계를 걷어낸다.
-            DestroyComponentIfExists<PointerHoverRelay>(root);
-            DestroyComponentIfExists<PointerPressRelay>(root);
-            // 패널 폭(화면 30%)이 바뀌면 세 레이블 공통 글자 크기를 다시 계산한다(설계 101번 §4.4).
-            EditorUIBuilder.GetOrAddComponent<RectTransformDimensionsChangeRelay>(root);
-
-            var layout = EditorUIBuilder.GetOrAddComponent<HorizontalLayoutGroup>(root);
-            layout.childAlignment = TextAnchor.MiddleLeft;
-            layout.spacing = 8f;
-            layout.padding = new RectOffset(8, 8, 4, 4);
-            layout.childControlWidth = true;
-            layout.childControlHeight = true;
-            layout.childForceExpandWidth = false;
-            layout.childForceExpandHeight = false;
-
-            var sizeFitter = EditorUIBuilder.GetOrAddComponent<ContentSizeFitter>(root);
-            // 가로는 위에서 anchorMin/Max.x(0.7~1)로 화면의 30%를 직접 지정했으므로 ContentSizeFitter가
-            // 다시 콘텐츠 크기로 덮어쓰면 안 된다(Unconstrained) - 세로만 콘텐츠 높이에 맞춘다.
-            sizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-            sizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            // 골드 구역 = [Icon][금액] - 짧은 클릭=변환 모달, 호버·길게 누름=툴팁(설계 101번 §5.1). 투명 Image라도 UGUI 레이캐스트 대상이 된다.
-            var goldSection = EditorUIBuilder.GetOrCreateUIObject(root.transform, "GoldSection");
-            EditorUIBuilder.EnsureImage(goldSection, new Color(0f, 0f, 0f, 0f)).raycastTarget = true;
-            EditorUIBuilder.GetOrAddComponent<PointerHoverRelay>(goldSection);
-            EditorUIBuilder.GetOrAddComponent<PointerPressRelay>(goldSection);
-            EditorUIBuilder.EnsureMarker(goldSection, HubUIElementIds.CurrencyGoldSection);
-            var goldLayout = EditorUIBuilder.GetOrAddComponent<HorizontalLayoutGroup>(goldSection);
-            goldLayout.childAlignment = TextAnchor.MiddleLeft;
-            goldLayout.spacing = 8f;
-            goldLayout.padding = new RectOffset(0, 0, 0, 0);
-            goldLayout.childControlWidth = true;
-            goldLayout.childControlHeight = true;
-            goldLayout.childForceExpandWidth = false;
-            goldLayout.childForceExpandHeight = false;
-            // 예전 구성은 Icon·Label이 패널 루트 바로 아래였다 - 골드 구역으로 옮긴다(재실행 안전).
-            ReparentChildIfFound(root.transform, "Icon", goldSection.transform);
-            ReparentChildIfFound(root.transform, "Label", goldSection.transform);
-
-            EnsureCurrencyIcon(goldSection.transform, "Icon", HubUIElementIds.CurrencyIcon); // currencyIcon 미할당 시 자리표시자
-
-            var amountLabel = EditorUIBuilder.EnsureLabel(goldSection.transform, "0");
-            EditorUIBuilder.EnsureMarker(amountLabel.gameObject, HubUIElementIds.CurrencyAmountText);
-            var legacyHoverRelay = amountLabel.GetComponent<PointerHoverRelay>();
-            if (legacyHoverRelay != null) Object.DestroyImmediate(legacyHoverRelay);
-            EnsureCurrencyCountLabel(amountLabel);
-            var amountLayoutElement = EditorUIBuilder.GetOrAddComponent<LayoutElement>(amountLabel.gameObject);
-            amountLayoutElement.minWidth = 60f;
-
-            // 보유 현황(설계 101번 §5.1) - 아이콘은 자리만(흰 사각형), 입력 없음.
-            EnsureCurrencyIcon(root.transform, "WagonIcon", HubUIElementIds.CurrencyWagonIcon);
-            var wagonCountGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "WagonCount");
-            var wagonCount = EditorUIBuilder.EnsureText(wagonCountGo);
-            wagonCount.text = "-";
-            EnsureCurrencyCountLabel(wagonCount);
-            EditorUIBuilder.EnsureMarker(wagonCountGo, HubUIElementIds.CurrencyWagonCount);
-            EnsureCurrencyIcon(root.transform, "UnitIcon", HubUIElementIds.CurrencyUnitIcon);
-            var unitCountGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "UnitCount");
-            var unitCount = EditorUIBuilder.EnsureText(unitCountGo);
-            unitCount.text = "-";
-            EnsureCurrencyCountLabel(unitCount);
-            EditorUIBuilder.EnsureMarker(unitCountGo, HubUIElementIds.CurrencyUnitCount);
-
-            goldSection.transform.SetSiblingIndex(0);
-            root.transform.Find("WagonIcon").SetSiblingIndex(1);
-            wagonCountGo.transform.SetSiblingIndex(2);
-            root.transform.Find("UnitIcon").SetSiblingIndex(3);
-            unitCountGo.transform.SetSiblingIndex(4);
-
-            // 툴팁(설계 101번 §5.1) - 공용 툴팁 모양. 문구가 금액 칸보다 길어 패널 바로 아래 띠(패널 전체 폭)에 두고, 가로 레이아웃에서 뺀다.
-            // 예전 구조(자식 "Label")는 걷어낸다.
-            var legacyTooltip = root.transform.Find("CapacityTooltip");
-            if (legacyTooltip != null) EditorUIBuilder.DestroyChildIfExists(legacyTooltip, "Label");
-            var (tooltipGo, _) = EditorUIBuilder.EnsureTooltip(root.transform, "CapacityTooltip", HubUIElementIds.CurrencyCapacityTooltip, HubUIElementIds.CurrencyCapacityTooltipText);
-            EditorUIBuilder.GetOrAddComponent<LayoutElement>(tooltipGo).ignoreLayout = true;
-            var tooltipRect = tooltipGo.GetComponent<RectTransform>();
-            tooltipRect.anchorMin = new Vector2(0f, 0f);
-            tooltipRect.anchorMax = new Vector2(1f, 0f);
-            tooltipRect.pivot = new Vector2(0.5f, 1f);
-            tooltipRect.sizeDelta = new Vector2(0f, tooltipRect.sizeDelta.y);
-            tooltipRect.anchoredPosition = new Vector2(0f, -4f);
-            tooltipGo.transform.SetAsLastSibling();
-        }
-
-        private static void EnsureCurrencyIcon(Transform parent, string name, string id)
-        {
-            var iconGo = EditorUIBuilder.GetOrCreateUIObject(parent, name);
-            EditorUIBuilder.EnsureImage(iconGo, Color.white).raycastTarget = false;
-            EditorUIBuilder.EnsureMarker(iconGo, id);
-            var iconLayoutElement = EditorUIBuilder.GetOrAddComponent<LayoutElement>(iconGo);
-            iconLayoutElement.preferredWidth = 32f;
-            iconLayoutElement.preferredHeight = 32f;
-        }
-
-        // 세 레이블 공통 크기는 런타임 컨트롤러가 정한다(설계 101번 §4.4) - 자동 크기·줄바꿈을 끄고 한 줄로 둔다.
-        // EnsureLabel 기본 색은 검정(밝은 버튼 기준)이라 어두운 패널에 맞춰 흰색으로 바꾼다(2026-09-21 실전 확인).
-        private static void EnsureCurrencyCountLabel(TMP_Text label)
-        {
-            label.enableAutoSizing = false;
-            label.fontSize = 24f;
-            label.textWrappingMode = TextWrappingModes.NoWrap;
-            label.alignment = TextAlignmentOptions.MidlineLeft;
-            label.color = Color.white;
-            label.raycastTarget = false;
-        }
-
-        private static void DestroyComponentIfExists<T>(GameObject go) where T : Component
-        {
-            var component = go.GetComponent<T>();
-            if (component != null) Object.DestroyImmediate(component);
-        }
-
-        private static void ReparentChildIfFound(Transform parent, string name, Transform newParent)
-        {
-            var child = parent.Find(name);
-            if (child != null && newParent.Find(name) == null) child.SetParent(newParent, false);
-        }
-
-        // ==================== 날짜 HUD ====================
-        // 상단 중앙(사용자 결정 2026-10-11, 설계 85번 §4.1). 재화 HUD와 같은 PopupExemptLayer라 모달 팝업이 열려도 보인다.
-        // 배경(Image)과 문구(TMP)는 부모/자식으로 나눈다 - 같은 오브젝트에 함께 붙이면 AddComponent가 실패한다(2026-09-21 사례).
-        // 입력 대상이 아니므로 레이캐스트를 끈다 - 아래 UI 클릭을 막지 않게.
-        private static void BuildGameDateHud(Transform popupExemptLayer)
-        {
-            var root = EditorUIBuilder.GetOrCreateUIObject(popupExemptLayer, "GameDateHud");
-            var rootRect = root.GetComponent<RectTransform>();
-            rootRect.anchorMin = new Vector2(0.5f, 1f);
-            rootRect.anchorMax = new Vector2(0.5f, 1f);
-            rootRect.pivot = new Vector2(0.5f, 1f);
-            rootRect.anchoredPosition = new Vector2(0f, -32f); // 재화 HUD와 같은 위 여백
-            rootRect.sizeDelta = new Vector2(200f, 40f);
-            EditorUIBuilder.EnsureImage(root, new Color(0f, 0f, 0f, 0.6f)).raycastTarget = false;
-            EditorUIBuilder.EnsureMarker(root, HubUIElementIds.DatePanelRoot);
-
-            var label = EditorUIBuilder.EnsureLabel(root.transform, "1월 1일", autoSize: true, minFontSize: 14f, maxFontSize: 26f);
-            EditorUIBuilder.EnsureMarker(label.gameObject, HubUIElementIds.DateText);
-            label.color = Color.white; // 어두운 배경 기준
-        }
-
         // ==================== 배치(Formation) UI ====================
         // 실제 조립 로직은 FormationUIBuilder(Hub/Field 공용)에 있다 - Field 씬에서도 "정비창 재호출"이
         // 동작하려면 같은 화면이 필요해서 공용화되어 있다(FieldUIInstaller 참고).
@@ -431,334 +259,6 @@ namespace Game.Core.Editor
             var travelerIconPrefab = FormationUIBuilder.GetOrCreateTravelerIconPrefab();
             var activityOverlayPrefab = FormationUIBuilder.GetOrCreateActivityOverlayPrefab();
             FormationUIBuilder.Build(modalPopups, slotPrefab, iconPrefab, rowPrefab, pathLinePrefab, travelerIconPrefab, activityOverlayPrefab, includeApplyButton: true);
-        }
-
-        // ==================== 상행 준비(Trip) UI ====================
-        private static void BuildTripUI(Transform modalPopups)
-        {
-            // 지도 마커·선 프리팹(TripPanel 연결은 Build Bootstrap Scene이 한다, 설계 69번 §7).
-            TripMapPrefabs.GetOrCreateCityMarker();
-            TripMapPrefabs.GetOrCreateGateMarker();
-            TripMapPrefabs.GetOrCreateRoadLine();
-
-            var panelRoot = EditorUIBuilder.GetOrCreateUIObject(modalPopups, "TripPanel");
-            EditorUIBuilder.SetStretch(panelRoot.GetComponent<RectTransform>());
-            EditorUIBuilder.EnsureMarker(panelRoot, TripUIElementIds.PanelRoot);
-
-            BuildTripTopButtons(panelRoot.transform);
-            BuildTripMap(panelRoot.transform);
-            BuildTripLocationInfo(panelRoot.transform, "OriginInfo", TripUIElementIds.OriginInfoRoot, new Vector2(0.64f, 0.58f), new Vector2(0.94f, TripContentTopY));
-            BuildTripLocationInfo(panelRoot.transform, "DestinationInfo", TripUIElementIds.DestinationInfoRoot, new Vector2(0.64f, 0.37f), new Vector2(0.94f, 0.57f));
-            BuildTripSummary(panelRoot.transform);
-            BuildTripStartButton(panelRoot.transform);
-            BuildTripDebugMapControls(panelRoot.transform);
-            BuildTripDebugConfirmPanel(panelRoot.transform);
-            // 끊어진 대열 안내 레이블은 비활성 사유 툴팁으로 대체됐다(Docs/설계/100번 §5.2) - 옛 오브젝트 정리.
-            EditorUIBuilder.DestroyChildIfExists(panelRoot.transform, "DisconnectedNotice");
-            BuildTripStartBlockTooltip(panelRoot.transform);
-            // 배치 유닛 0 출발 경고(Docs/설계/79번 §9.2) - 상행 준비 화면 전체를 덮는 공용 확인 대화상자, 마지막 형제로 최상단.
-            EditorUIBuilder.BuildConfirmDialog(panelRoot.transform, "DepartureConfirmDialog", TripUIElementIds.DepartureConfirmDialog);
-
-            panelRoot.SetActive(false);
-        }
-
-        // 지도 저장(디버그)과 닫기 버튼은 상단 줄의 같은 구간(0.64~0.79)을 좌/우로 양분한다 - 예전엔
-        // 두 버튼이 0.70~0.78에서 겹쳐 저장 버튼이 닫기 버튼을 가렸다. 간격은 지도(~0.62)와 정보
-        // 패널(0.64~) 사이 간격(0.02)을 그대로 따른다.
-        private const float TripTopSharedMinX = 0.64f;
-        private const float TripTopSharedMaxX = 0.79f;
-        private const float TripTopSharedGap = 0.02f;
-        private const float TripTopSharedButtonWidth = (TripTopSharedMaxX - TripTopSharedMinX - TripTopSharedGap) / 2f;
-
-        // 상단 버튼 줄(디버그 지도 컨트롤/닫기/배치)의 세로 범위. 우상단 재화 HUD(상단 마진 32px +
-        // 높이 약 40px = 화면 위 72px까지, ConstantPixelSize)가 예전 0.90~0.97 줄을 가려서 아래로
-        // 내렸다 - 1080p 기준 줄 윗변은 화면 위에서 약 130px로 HUD 하단과 여유가 있다. 본문(지도/
-        // 정보 패널) 윗변은 이 줄에서 기존 간격 0.02를 둔 TripContentTopY로 함께 압축했다.
-        private const float TripTopRowMinY = 0.81f;
-        private const float TripTopRowMaxY = 0.88f;
-        private const float TripContentTopY = 0.79f;
-
-        private static void BuildTripTopButtons(Transform parent)
-        {
-            var closeGo = EditorUIBuilder.GetOrCreateUIObject(parent, "CloseButton");
-            EditorUIBuilder.SetAnchors(closeGo.GetComponent<RectTransform>(), new Vector2(TripTopSharedMaxX - TripTopSharedButtonWidth, TripTopRowMinY), new Vector2(TripTopSharedMaxX, TripTopRowMaxY));
-            EditorUIBuilder.EnsureImage(closeGo, new Color(0.85f, 0.85f, 0.85f, 1f));
-            EditorUIBuilder.EnsureButton(closeGo);
-            EditorUIBuilder.EnsureLabel(closeGo.transform, "닫기");
-            EditorUIBuilder.EnsureMarker(closeGo, TripUIElementIds.CloseButton);
-
-            var formationGo = EditorUIBuilder.GetOrCreateUIObject(parent, "OpenFormationButton");
-            EditorUIBuilder.SetAnchors(formationGo.GetComponent<RectTransform>(), new Vector2(0.80f, TripTopRowMinY), new Vector2(0.89f, TripTopRowMaxY));
-            EditorUIBuilder.EnsureImage(formationGo, new Color(0.75f, 0.87f, 1f, 1f));
-            EditorUIBuilder.EnsureButton(formationGo);
-            EditorUIBuilder.EnsureLabel(formationGo.transform, "배치");
-            EditorUIBuilder.EnsureMarker(formationGo, TripUIElementIds.OpenFormationButton);
-        }
-
-        private static void BuildTripMap(Transform parent)
-        {
-            var root = EditorUIBuilder.GetOrCreateUIObject(parent, "Map");
-            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.06f, 0.16f), new Vector2(0.62f, TripContentTopY));
-            EditorUIBuilder.EnsureImage(root, new Color(0.85f, 0.9f, 0.85f, 1f));
-            EditorUIBuilder.EnsureMarker(root, TripUIElementIds.MapRoot);
-
-            var (viewport, contentGo) = EditorUIBuilder.CreateViewportAndContent(root.transform);
-            var contentRect = contentGo.GetComponent<RectTransform>();
-            contentRect.anchorMin = new Vector2(0.5f, 0.5f);
-            contentRect.anchorMax = new Vector2(0.5f, 0.5f);
-            contentRect.pivot = new Vector2(0.5f, 0.5f);
-            contentRect.sizeDelta = new Vector2(TripMapView.ContentSize, TripMapView.ContentSize);
-            contentRect.anchoredPosition = Vector2.zero;
-            EditorUIBuilder.EnsureImage(contentGo, new Color(0.55f, 0.75f, 0.55f, 1f));
-
-            // 예전에는 고정 출발/도착 핀(사각형)이었으나, 지도 위에 자유 배치되는 디버그 도시 아이콘이
-            // 그 역할을 대신하게 되면서 더 이상 쓰이지 않는다 - 남아있던 옛 오브젝트를 정리한다.
-            EditorUIBuilder.DestroyChildIfExists(contentRect, "OriginPin");
-            EditorUIBuilder.DestroyChildIfExists(contentRect, "DestinationPin");
-
-            EditorUIBuilder.ConfigureScrollRect(root, viewport, contentRect, horizontal: true, vertical: true);
-
-            // ScrollRect는 기본적으로 마우스 휠도 자체적으로 패닝(스크롤)에 쓴다. 같은 오브젝트의
-            // TripMapView.OnScroll(확대/축소)도 동시에 반응해 휠을 돌리면 줌과 스크롤이 함께 발동됐다.
-            // scrollSensitivity를 0으로 두면 ScrollRect 자신의 휠 반응만 꺼지고(드래그 패닝은 별개 경로라
-            // 그대로 유지), 휠은 온전히 TripMapView의 줌 전용이 된다.
-            var mapScrollRect = root.GetComponent<ScrollRect>();
-            mapScrollRect.scrollSensitivity = 0f;
-            // TripMapView.Awake도 런타임에 같은 값을 강제하지만(09번 설계 §6), 인스톨러가 씬 상태를
-            // 명시적으로 보장하는 기존 관례를 따라 여기서도 설정해 둔다.
-            mapScrollRect.inertia = false;
-
-            EditorUIBuilder.GetOrAddComponent<TripMapView>(root);
-
-            // 지역 선택 드롭다운(기획 68번 §3.2) - 지도 왼쪽 위에 겹쳐 둔다. 뷰포트 뒤에 만들어져야 위에 그려진다.
-            var dropdownGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "RegionDropdown");
-            EditorUIBuilder.SetAnchors(dropdownGo.GetComponent<RectTransform>(), new Vector2(0.02f, 0.92f), new Vector2(0.34f, 0.99f));
-            EditorUIBuilder.EnsureDropdown(dropdownGo);
-            EditorUIBuilder.EnsureMarker(dropdownGo, TripUIElementIds.RegionDropdown);
-            dropdownGo.transform.SetAsLastSibling();
-        }
-
-        private static void BuildTripLocationInfo(Transform parent, string objectName, string markerId, Vector2 anchorMin, Vector2 anchorMax)
-        {
-            var root = EditorUIBuilder.GetOrCreateUIObject(parent, objectName);
-            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), anchorMin, anchorMax);
-            EditorUIBuilder.EnsureImage(root, new Color(1f, 0.9f, 0.78f, 1f));
-            EditorUIBuilder.EnsureMarker(root, markerId);
-
-            var iconGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "Icon");
-            EditorUIBuilder.SetAnchors(iconGo.GetComponent<RectTransform>(), new Vector2(0.06f, 0.55f), new Vector2(0.32f, 0.92f));
-            var iconImage = EditorUIBuilder.EnsureImage(iconGo, Color.white);
-            iconImage.preserveAspect = true;
-
-            var nameGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "NameLabel");
-            EditorUIBuilder.SetAnchors(nameGo.GetComponent<RectTransform>(), new Vector2(0.36f, 0.55f), new Vector2(0.96f, 0.92f));
-            var nameLabel = EditorUIBuilder.EnsureText(nameGo);
-            nameLabel.fontSize = 20;
-            nameLabel.color = Color.black;
-            nameLabel.alignment = TextAlignmentOptions.MidlineLeft;
-            nameLabel.raycastTarget = false;
-
-            var descriptionGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "DescriptionLabel");
-            EditorUIBuilder.SetAnchors(descriptionGo.GetComponent<RectTransform>(), new Vector2(0.06f, 0.06f), new Vector2(0.96f, 0.48f));
-            var descriptionLabel = EditorUIBuilder.EnsureText(descriptionGo);
-            descriptionLabel.fontSize = 16;
-            descriptionLabel.color = Color.black;
-            descriptionLabel.raycastTarget = false;
-
-            var infoView = EditorUIBuilder.GetOrAddComponent<TripLocationInfoView>(root);
-            var so = new SerializedObject(infoView);
-            so.FindProperty("iconImage").objectReferenceValue = iconImage;
-            so.FindProperty("nameText").objectReferenceValue = nameLabel;
-            so.FindProperty("descriptionText").objectReferenceValue = descriptionLabel;
-            so.ApplyModifiedProperties();
-        }
-
-        private static void BuildTripSummary(Transform parent)
-        {
-            var root = EditorUIBuilder.GetOrCreateUIObject(parent, "Summary");
-            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.64f, 0.16f), new Vector2(0.94f, 0.36f));
-            EditorUIBuilder.EnsureImage(root, new Color(0.9f, 0.9f, 0.96f, 1f));
-            EditorUIBuilder.EnsureMarker(root, TripUIElementIds.SummaryRoot);
-
-            var durationLabel = BuildTripSummaryRow(root.transform, "DurationDistanceLabel", 0);
-            var dangerLabel = BuildTripSummaryRow(root.transform, "DangerLabel", 1);
-            var formationLabel = BuildTripSummaryRow(root.transform, "FormationSummaryLabel", 2);
-            var rewardLabel = BuildTripSummaryRow(root.transform, "RewardLabel", 3);
-
-            var summaryView = EditorUIBuilder.GetOrAddComponent<TripSummaryView>(root);
-            var so = new SerializedObject(summaryView);
-            so.FindProperty("durationDistanceText").objectReferenceValue = durationLabel;
-            so.FindProperty("dangerText").objectReferenceValue = dangerLabel;
-            so.FindProperty("formationSummaryText").objectReferenceValue = formationLabel;
-            so.FindProperty("rewardText").objectReferenceValue = rewardLabel;
-            so.ApplyModifiedProperties();
-        }
-
-        private static TextMeshProUGUI BuildTripSummaryRow(Transform parent, string name, int rowIndex)
-        {
-            const int rowCount = 4;
-            const float rowHeight = 1f / rowCount;
-            var top = 1f - rowIndex * rowHeight;
-            var bottom = top - rowHeight;
-
-            var go = EditorUIBuilder.GetOrCreateUIObject(parent, name);
-            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(0.06f, bottom + 0.02f), new Vector2(0.94f, top - 0.02f));
-            var label = EditorUIBuilder.EnsureText(go);
-            label.fontSize = 16;
-            label.color = Color.black;
-            label.alignment = TextAlignmentOptions.MidlineLeft;
-            label.raycastTarget = false;
-            return label;
-        }
-
-        private static void BuildTripStartButton(Transform parent)
-        {
-            var go = EditorUIBuilder.GetOrCreateUIObject(parent, "StartButton");
-            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(0.30f, 0.03f), new Vector2(0.70f, 0.14f));
-            EditorUIBuilder.EnsureImage(go, new Color(0.71f, 0.32f, 0.03f, 1f));
-            EditorUIBuilder.EnsureButton(go);
-            var label = EditorUIBuilder.EnsureLabel(go.transform, "상행 시작");
-            label.fontSize = 30;
-            label.color = Color.white;
-            label.fontStyle = FontStyles.Bold;
-            EditorUIBuilder.EnsureMarker(go, TripUIElementIds.StartButton);
-            // 비활성 사유 툴팁 입력(설계 100번 §5.2) - 비활성 버튼도 진입·이탈·누름 이벤트를 받는다.
-            EditorUIBuilder.GetOrAddComponent<PointerHoverRelay>(go);
-            EditorUIBuilder.GetOrAddComponent<PointerPressRelay>(go);
-        }
-
-        // "상행 시작" 비활성 사유 툴팁(Docs/설계/100번 §5.2) - 버튼 폭 그대로, 아래 변을 버튼 윗변 바로 위에 고정하고 높이는 문구 줄 수에 맞춘다.
-        // 출발 확인 대화상자(마지막 형제로 다시 올라감)보다 먼저 만들어 대화상자가 툴팁 위에 그려지게 한다.
-        private static void BuildTripStartBlockTooltip(Transform panelRoot)
-        {
-            var (tooltipRoot, _) = EditorUIBuilder.EnsureTooltip(panelRoot, "StartBlockTooltip", TripUIElementIds.StartBlockTooltip, TripUIElementIds.StartBlockTooltipText);
-            var rect = tooltipRoot.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.30f, 0.15f);
-            rect.anchorMax = new Vector2(0.70f, 0.15f);
-            rect.pivot = new Vector2(0.5f, 0f);
-            rect.anchoredPosition = Vector2.zero;
-            rect.sizeDelta = new Vector2(0f, rect.sizeDelta.y);
-            tooltipRoot.transform.SetAsLastSibling();
-        }
-
-        /// <summary>
-        /// 지도 위 디버그 도시 배치/경로 연결(03/04번 기획 문서) 전용 컨트롤. 상단 여백(닫기/배치
-        /// 버튼과 같은 줄, 그 왼쪽)에 작게 배치한다 - 원래 지도 아래에 뒀더니 상행 시작 버튼과
-        /// 겹쳤다. 정식 콘텐츠가 아니므로 실제 지역 시스템이 생기면 이 메서드와 관련 프리팹 생성
-        /// 로직을 통째로 제거한다(DEBUG_FEATURES.md §2 참고).
-        /// </summary>
-        private static void BuildTripDebugMapControls(Transform parent)
-        {
-            const float top = TripTopRowMinY;
-            const float bottom = TripTopRowMaxY;
-
-            var paletteGo = EditorUIBuilder.GetOrCreateUIObject(parent, "DebugCityPalette");
-            EditorUIBuilder.SetAnchors(paletteGo.GetComponent<RectTransform>(), new Vector2(0.06f, top), new Vector2(0.12f, bottom));
-            EditorUIBuilder.EnsureMarker(paletteGo, TripUIElementIds.DebugCityPaletteRoot);
-            var paletteIcon = EditorUIBuilder.EnsureImage(paletteGo, Color.white);
-            paletteIcon.sprite = FormationPlaceholderIcons.GetOrCreateCircle();
-            paletteIcon.preserveAspect = true;
-
-            var paletteView = EditorUIBuilder.GetOrAddComponent<TripDebugCityPaletteView>(paletteGo);
-            var paletteSo = new SerializedObject(paletteView);
-            paletteSo.FindProperty("iconImage").objectReferenceValue = paletteIcon;
-            paletteSo.ApplyModifiedProperties();
-
-            var toggleGo = EditorUIBuilder.GetOrCreateUIObject(parent, "DebugRoadToggleButton");
-            EditorUIBuilder.SetAnchors(toggleGo.GetComponent<RectTransform>(), new Vector2(0.14f, top), new Vector2(0.30f, bottom));
-            EditorUIBuilder.EnsureImage(toggleGo, new Color(0.95f, 0.85f, 0.6f, 1f));
-            EditorUIBuilder.EnsureButton(toggleGo);
-            var toggleLabel = EditorUIBuilder.EnsureLabel(toggleGo.transform, "경로 연결: OFF");
-            toggleLabel.fontSize = 11;
-            EditorUIBuilder.EnsureMarker(toggleGo, TripUIElementIds.DebugRoadToggleButton);
-
-            var toggleView = EditorUIBuilder.GetOrAddComponent<TripDebugRoadToggleView>(toggleGo);
-            var toggleSo = new SerializedObject(toggleView);
-            toggleSo.FindProperty("toggleButton").objectReferenceValue = toggleGo.GetComponent<Button>();
-            toggleSo.FindProperty("label").objectReferenceValue = toggleLabel;
-            toggleSo.ApplyModifiedProperties();
-
-            var cityDeleteGo = EditorUIBuilder.GetOrCreateUIObject(parent, "DebugCityBulkDeleteButton");
-            EditorUIBuilder.SetAnchors(cityDeleteGo.GetComponent<RectTransform>(), new Vector2(0.32f, top), new Vector2(0.46f, bottom));
-            EditorUIBuilder.EnsureImage(cityDeleteGo, new Color(0.9f, 0.6f, 0.6f, 1f));
-            EditorUIBuilder.EnsureButton(cityDeleteGo);
-            var cityDeleteLabel = EditorUIBuilder.EnsureLabel(cityDeleteGo.transform, "도시 전체삭제");
-            cityDeleteLabel.fontSize = 10;
-            EditorUIBuilder.EnsureMarker(cityDeleteGo, TripUIElementIds.DebugCityBulkDeleteButton);
-
-            var roadDeleteGo = EditorUIBuilder.GetOrCreateUIObject(parent, "DebugRoadBulkDeleteButton");
-            EditorUIBuilder.SetAnchors(roadDeleteGo.GetComponent<RectTransform>(), new Vector2(0.48f, top), new Vector2(0.62f, bottom));
-            EditorUIBuilder.EnsureImage(roadDeleteGo, new Color(0.9f, 0.6f, 0.6f, 1f));
-            EditorUIBuilder.EnsureButton(roadDeleteGo);
-            var roadDeleteLabel = EditorUIBuilder.EnsureLabel(roadDeleteGo.transform, "경로 전체삭제");
-            roadDeleteLabel.fontSize = 10;
-            EditorUIBuilder.EnsureMarker(roadDeleteGo, TripUIElementIds.DebugRoadBulkDeleteButton);
-
-            // 닫기 버튼과 구간을 양분해 왼쪽 절반에 둔다(TripTopShared* 상수 참고). 저장=긍정 동작이라
-            // 기존 빨강(삭제)/황토(토글)와 구분되는 녹색 계열(Docs/기획/15번 §3.1, 설계 19번 §8).
-            var saveGo = EditorUIBuilder.GetOrCreateUIObject(parent, "DebugMapSaveButton");
-            EditorUIBuilder.SetAnchors(saveGo.GetComponent<RectTransform>(), new Vector2(TripTopSharedMinX, top), new Vector2(TripTopSharedMinX + TripTopSharedButtonWidth, bottom));
-            EditorUIBuilder.EnsureImage(saveGo, new Color(0.6f, 0.85f, 0.6f, 1f));
-            EditorUIBuilder.EnsureButton(saveGo);
-            var saveLabel = EditorUIBuilder.EnsureLabel(saveGo.transform, "지도 저장");
-            saveLabel.fontSize = 10;
-            EditorUIBuilder.EnsureMarker(saveGo, TripUIElementIds.DebugMapSaveButton);
-
-            BuildTripDebugRegionControls(parent);
-        }
-
-        // 지역 시스템 디버그 컨트롤(Docs/설계/69번 §6) - 지도 아래 왼쪽(상행 시작 버튼 왼쪽 빈 구간)에 두 줄로 둔다. 윗줄: 관문
-        // 팔레트 + 연결할 지역 드롭다운(놓기 전에 고른다, 기획 68번 §3.5), 아랫줄: 지역 추가·삭제.
-        private static void BuildTripDebugRegionControls(Transform parent)
-        {
-            var gatePaletteGo = EditorUIBuilder.GetOrCreateUIObject(parent, "DebugGatePalette");
-            EditorUIBuilder.SetAnchors(gatePaletteGo.GetComponent<RectTransform>(), new Vector2(0.06f, 0.085f), new Vector2(0.09f, 0.145f));
-            EditorUIBuilder.EnsureMarker(gatePaletteGo, TripUIElementIds.DebugGatePaletteRoot);
-            var gateIcon = EditorUIBuilder.EnsureImage(gatePaletteGo, new Color(0.55f, 0.35f, 0.75f, 1f));
-            gateIcon.sprite = FormationPlaceholderIcons.GetOrCreateSquare();
-            gateIcon.preserveAspect = true;
-            var gatePaletteView = EditorUIBuilder.GetOrAddComponent<TripDebugCityPaletteView>(gatePaletteGo);
-            var gatePaletteSo = new SerializedObject(gatePaletteView);
-            gatePaletteSo.FindProperty("iconImage").objectReferenceValue = gateIcon;
-            gatePaletteSo.ApplyModifiedProperties();
-
-            var targetGo = EditorUIBuilder.GetOrCreateUIObject(parent, "DebugGateTargetDropdown");
-            EditorUIBuilder.SetAnchors(targetGo.GetComponent<RectTransform>(), new Vector2(0.10f, 0.085f), new Vector2(0.28f, 0.145f));
-            EditorUIBuilder.EnsureDropdown(targetGo);
-            EditorUIBuilder.EnsureMarker(targetGo, TripUIElementIds.DebugGateTargetDropdown);
-
-            BuildTripDebugButton(parent, "DebugAddRegionButton", "지역 추가", TripUIElementIds.DebugAddRegionButton, new Vector2(0.06f, 0.02f), new Vector2(0.16f, 0.075f), new Color(0.6f, 0.85f, 0.6f, 1f));
-            BuildTripDebugButton(parent, "DebugRemoveRegionButton", "지역 삭제", TripUIElementIds.DebugRemoveRegionButton, new Vector2(0.18f, 0.02f), new Vector2(0.28f, 0.075f), new Color(0.9f, 0.6f, 0.6f, 1f));
-        }
-
-        private static void BuildTripDebugButton(Transform parent, string name, string text, string markerId, Vector2 anchorMin, Vector2 anchorMax, Color color)
-        {
-            var go = EditorUIBuilder.GetOrCreateUIObject(parent, name);
-            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), anchorMin, anchorMax);
-            EditorUIBuilder.EnsureImage(go, color);
-            EditorUIBuilder.EnsureButton(go);
-            EditorUIBuilder.EnsureLabel(go.transform, text, autoSize: true, minFontSize: 8f, maxFontSize: 16f);
-            EditorUIBuilder.EnsureMarker(go, markerId);
-        }
-
-        // 지역 삭제 확인·알림 패널(기획 68번 §3.6) - 지도 가운데 위에 겹친다. 평소엔 숨김.
-        private static void BuildTripDebugConfirmPanel(Transform parent)
-        {
-            var root = EditorUIBuilder.GetOrCreateUIObject(parent, "DebugConfirmPanel");
-            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), new Vector2(0.18f, 0.40f), new Vector2(0.50f, 0.58f));
-            EditorUIBuilder.EnsureImage(root, new Color(1f, 1f, 1f, 0.97f));
-            EditorUIBuilder.EnsureMarker(root, TripUIElementIds.DebugConfirmPanel);
-
-            var messageGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "Message");
-            EditorUIBuilder.SetAnchors(messageGo.GetComponent<RectTransform>(), new Vector2(0.05f, 0.42f), new Vector2(0.95f, 0.95f));
-            var message = EditorUIBuilder.EnsureLabel(messageGo.transform, string.Empty, autoSize: true, minFontSize: 10f, maxFontSize: 20f);
-            EditorUIBuilder.EnsureMarker(message.gameObject, TripUIElementIds.DebugConfirmMessage);
-
-            BuildTripDebugButton(root.transform, "OkButton", "확인", TripUIElementIds.DebugConfirmOkButton, new Vector2(0.08f, 0.08f), new Vector2(0.46f, 0.36f), new Color(0.6f, 0.85f, 0.6f, 1f));
-            BuildTripDebugButton(root.transform, "CancelButton", "취소", TripUIElementIds.DebugConfirmCancelButton, new Vector2(0.54f, 0.08f), new Vector2(0.92f, 0.36f), new Color(0.85f, 0.85f, 0.85f, 1f));
-
-            root.transform.SetAsLastSibling();
-            root.SetActive(false);
         }
 
         // ==================== Hub↔Field 전환 연출용 ContentRoot ====================
@@ -780,33 +280,21 @@ namespace Game.Core.Editor
 
             // 상행 준비/상단 배치 버튼은 EnsureLayers가 RootDepth로 옮긴다(Docs/설계/37번 §3.4). Background는
             // 두 레이어보다 항상 아래(첫 자식)에 그려져야 한다.
-            ReparentIfFound(sceneUIRoot, HubUIElementIds.Background, contentRootGo.transform);
-            var background = FindMarker(sceneUIRoot, HubUIElementIds.Background);
+            EditorUIBuilder.ReparentIfFound(sceneUIRoot, HubUIElementIds.Background, contentRootGo.transform);
+            var background = EditorUIBuilder.FindMarker(sceneUIRoot, HubUIElementIds.Background);
             if (background != null)
             {
                 background.transform.SetAsFirstSibling();
             }
             // Field의 같은 역할 버튼(정비창)과 표기를 통일한다(사용자 확정, 2026-09-07).
-            SetLabelText(sceneUIRoot, HubUIElementIds.FormationButton, "상단 배치", minFontSize: 18f, maxFontSize: 30f);
+            EditorUIBuilder.SetLabelText(sceneUIRoot, HubUIElementIds.FormationButton, "상단 배치", minFontSize: 18f, maxFontSize: 30f);
 
             return contentRootGo.transform;
         }
 
-        // 상행 준비 버튼 바로 위 한 줄에 상단 배치(왼쪽) · 방향성 지시(오른쪽)를 나란히 두고, 두 버튼의
-        // 좌우 끝을 상행 준비 버튼의 좌우 끝에 맞춘다(사용자 확정, 2026-09-24 - 이전엔 세로로 쌓고 오른쪽만
-        // 맞췄다). 상행 준비/상단 배치 버튼은 코드가 아니라 씬에 원래 있던 요소라 좌표를 상수로 박지 않고,
-        // 매 실행마다 상행 준비 버튼의 현재 앵커에서 계산한다 - 인스펙터에서 상행 준비 버튼을 옮겨도
-        // 재실행하면 나머지 둘이 따라온다.
-        // 폭은 (상행 준비 폭 − 간격) / 2로 정해지고, 높이는 기존 버튼(Hub.unity 실측 0.1354×0.1154)과
-        // 같은 비율로 함께 줄인다 - 폭만 줄이면 버튼 가로세로 비율이 깨진다(사용자 요구). 간격은 Hub 버튼
-        // 간 기존 관례(0.02)를 가로/세로 모두 그대로 쓴다.
-        private const float HubActionButtonBaseWidth = 0.1354f;
-        private const float HubActionButtonBaseHeight = 0.1154f;
-        private const float HubActionButtonGap = 0.02f;
-
         private static void StackActionButtonsAboveDeparture(SceneUIRoot sceneUIRoot)
         {
-            var departure = FindMarker(sceneUIRoot, HubUIElementIds.DepartureButton);
+            var departure = EditorUIBuilder.FindMarker(sceneUIRoot, HubUIElementIds.DepartureButton);
             if (departure == null)
             {
                 Debug.LogWarning($"Hub UI에서 '{HubUIElementIds.DepartureButton}' 요소를 찾을 수 없어 버튼 정렬을 건너뛴다.");
@@ -814,14 +302,14 @@ namespace Game.Core.Editor
             }
 
             var departureRect = (RectTransform)departure.transform;
-            var width = (departureRect.anchorMax.x - departureRect.anchorMin.x - HubActionButtonGap) / 2f;
-            var height = HubActionButtonBaseHeight * (width / HubActionButtonBaseWidth);
-            var bottomY = departureRect.anchorMax.y + HubActionButtonGap;
+            var width = (departureRect.anchorMax.x - departureRect.anchorMin.x - EditorHubLayout.HubActionButtonGap) / 2f;
+            var height = EditorHubLayout.HubActionButtonBaseHeight * (width / EditorHubLayout.HubActionButtonBaseWidth);
+            var bottomY = departureRect.anchorMax.y + EditorHubLayout.HubActionButtonGap;
             var leftX = departureRect.anchorMin.x;
 
             foreach (var id in new[] { HubUIElementIds.FormationButton, HubUIElementIds.TacticsButton })
             {
-                var marker = FindMarker(sceneUIRoot, id);
+                var marker = EditorUIBuilder.FindMarker(sceneUIRoot, id);
                 if (marker == null)
                 {
                     Debug.LogWarning($"Hub UI에서 '{id}' 요소를 찾을 수 없어 정렬을 건너뛴다.");
@@ -834,144 +322,9 @@ namespace Game.Core.Editor
                 }
 
                 // 한쪽이 없어도 다른 쪽 자리는 고정 - 오른쪽 버튼이 왼쪽으로 당겨지지 않게 한다.
-                leftX += width + HubActionButtonGap;
+                leftX += width + EditorHubLayout.HubActionButtonGap;
             }
         }
 
-        // ==================== 인벤토리 상시 호출 버튼 ====================
-        // 상행 준비 버튼(우하단)과 대칭 위치(우상단에서 같은 비율 거리)에 큰 버튼 1개(상단 물류품) + 그 아래
-        // 작은 버튼 3개를 좌우로 둔다(사용자 확정, 2026-09-24). 큰 버튼은 상행 준비 버튼과 같은 크기,
-        // 작은 버튼은 폭을 3등분하고 높이는 상단 배치/방향성 지시와 같은 가로세로 비율로 맞춘다 - 묶음 전체가
-        // 상행 준비 버튼의 좌우 폭을 넘지 않는다. 상행 준비 버튼 앵커에서 매번 계산하므로 그 버튼을 옮기고
-        // 재실행하면 따라온다. PersistentLayer라 depth 전환과 무관하게 보이지만, 모달 팝업(상행 준비/상단 배치/
-        // 방향성 지시)이 열려 있는 동안은 숨는다(사용자 확정, 2026-09-24 - Docs/설계/38번 §1-3).
-        private static readonly Color InventoryShortcutButtonColor = new(0.8f, 0.85f, 0.95f, 1f);
-        // 인벤토리 버튼 안에서 키 글자 열이 시작하는 가로 비율(설계 99번 §5.1).
-        private const float KeyLabelColumnMin = 0.8f;
-
-        private static void BuildInventoryShortcuts(SceneUIRoot sceneUIRoot, Transform persistentLayer)
-        {
-            var root = EnsureStretchLayer(persistentLayer, "InventoryShortcuts", HubUIElementIds.InventoryShortcutRoot);
-
-            var departure = FindMarker(sceneUIRoot, HubUIElementIds.DepartureButton);
-            if (departure == null)
-            {
-                Debug.LogWarning($"Hub UI에서 '{HubUIElementIds.DepartureButton}' 요소를 찾을 수 없어 인벤토리 버튼 배치를 건너뛴다.");
-                return;
-            }
-
-            var departureRect = (RectTransform)departure.transform;
-            var leftX = departureRect.anchorMin.x;
-            var width = departureRect.anchorMax.x - leftX;
-            var bigHeight = departureRect.anchorMax.y - departureRect.anchorMin.y;
-            // 상행 준비 버튼의 아래쪽 여백(anchorMin.y)을 위쪽 여백으로 그대로 쓴다.
-            var bigTop = 1f - departureRect.anchorMin.y;
-            var bigBottom = bigTop - bigHeight;
-
-            var smallWidth = (width - HubActionButtonGap * 2f) / 3f;
-            var smallHeight = HubActionButtonBaseHeight * (smallWidth / HubActionButtonBaseWidth);
-            var smallTop = bigBottom - HubActionButtonGap;
-
-            var popupSpecs = InventoryPopupSpecs.All; // 표시 순서는 스펙 목록 순서(Docs/Refactor/2026-10-26_공통.md D-2)
-            var big = BuildInventoryShortcutButton(root, popupSpecs[0].PopupId, "상단 물류품", minFontSize: 18f);
-            EditorUIBuilder.SetAnchors(big, new Vector2(leftX, bigBottom), new Vector2(leftX + width, bigTop));
-
-            var smallLabels = new[] { "전투 장비", "소모품", "개인 물품" };
-            for (var i = 0; i < smallLabels.Length; i++)
-            {
-                // 작은 버튼은 1080p 기준 약 100x48px라 기본 최소 글자 크기(18)로는 라벨이 넘친다 - 최소치만 낮춘다.
-                var small = BuildInventoryShortcutButton(root, popupSpecs[i + 1].PopupId, smallLabels[i], minFontSize: 10f);
-                var x = leftX + i * (smallWidth + HubActionButtonGap);
-                EditorUIBuilder.SetAnchors(small, new Vector2(x, smallTop - smallHeight), new Vector2(x + smallWidth, smallTop));
-            }
-        }
-
-        private static RectTransform BuildInventoryShortcutButton(Transform parent, string popupId, string label, float minFontSize)
-        {
-            var go = EditorUIBuilder.GetOrCreateUIObject(parent, $"Inventory_{popupId}");
-            EditorUIBuilder.EnsureImage(go, InventoryShortcutButtonColor);
-            EditorUIBuilder.EnsureButton(go);
-            var nameLabel = EditorUIBuilder.EnsureLabel(go.transform, label, autoSize: true, minFontSize: minFontSize, maxFontSize: 30f);
-            EditorUIBuilder.EnsureMarker(go, HubUIElementIds.InventoryShortcutButton(popupId));
-
-            // 키 글자(설계 99번 §5.1) - 바인딩 표시 문자열은 런타임에 InputManager가 채운다. 클릭은 버튼이 받도록 레이캐스트를 끈다.
-            // 작은 버튼(720p 약 67x32px)은 이름 글자가 폭을 다 채워 모서리에 겹쳐 놓을 자리가 없다(2026-10-21 실측) -
-            // 오른쪽 열을 키 글자 전용으로 떼고 이름 글자는 왼쪽 영역에서 자동 축소되게 한다.
-            EditorUIBuilder.SetAnchors(nameLabel.rectTransform, Vector2.zero, new Vector2(KeyLabelColumnMin, 1f));
-            // 좁아진 폭에서 두 줄로 꺾이면 32px 높이를 꽉 채운다 - 한 줄 유지, 자동 축소로만 맞춘다.
-            nameLabel.textWrappingMode = TextWrappingModes.NoWrap;
-            var keyLabel = EditorUIBuilder.EnsureTextBlock(go.transform, "KeyLabel", new Vector2(KeyLabelColumnMin, 0.05f), new Vector2(0.97f, 0.95f), 16f, TextAlignmentOptions.TopRight, Color.black);
-            keyLabel.text = string.Empty;
-            keyLabel.raycastTarget = false;
-            EditorUIBuilder.EnsureMarker(keyLabel.gameObject, HubUIElementIds.InventoryShortcutKeyLabel(popupId));
-            return go.GetComponent<RectTransform>();
-        }
-
-        private static void DestroyAllDirectChildrenNamed(Transform parent, string name)
-        {
-            for (var i = parent.childCount - 1; i >= 0; i--)
-            {
-                var child = parent.GetChild(i);
-                if (child.name == name)
-                {
-                    Undo.DestroyObjectImmediate(child.gameObject);
-                }
-            }
-        }
-
-        private static void ReparentIfFound(SceneUIRoot sceneUIRoot, string id, Transform newParent)
-        {
-            var found = FindMarker(sceneUIRoot, id);
-            if (found == null)
-            {
-                Debug.LogWarning($"Hub UI에서 '{id}' 요소를 찾을 수 없어 재배치를 건너뛴다. UIElementMarker가 부착되어 있는지 확인하라.");
-                return;
-            }
-
-            if (found.transform.parent != newParent)
-            {
-                Undo.SetTransformParent(found.transform, newParent, $"Reparent {id}");
-            }
-        }
-
-        // 씬에 원래부터 있던(코드로 만들어지지 않은) 버튼의 라벨 텍스트를 갱신할 때 쓴다 - "배치"
-        // 버튼처럼 EditorUIBuilder.EnsureLabel로 만들어진 게 아니라 자식 이름이 "Label"이 아니므로,
-        // EnsureLabel을 그대로 호출하면 새 라벨이 중복 생성된다. 대신 마커로 찾은 뒤 자식 TMP
-        // 컴포넌트를 직접 갱신한다. 폰트 크기도 자동 축소(minFontSize~maxFontSize)로 맞춘다 - 인스펙터에서
-        // 먼저 확정한 값(사용자 확정, 2026-09-07: 18~30)을 여기로 옮겨 재실행해도 유지되게 한다
-        // (EditorUIBuilder.EnsureLabel의 autoSize 오버로드와 같은 값 의미).
-        private static void SetLabelText(SceneUIRoot sceneUIRoot, string id, string text, float minFontSize, float maxFontSize)
-        {
-            var found = FindMarker(sceneUIRoot, id);
-            if (found == null)
-            {
-                Debug.LogWarning($"Hub UI에서 '{id}' 요소를 찾을 수 없어 라벨 텍스트를 갱신하지 못했다.");
-                return;
-            }
-
-            var label = found.GetComponentInChildren<TextMeshProUGUI>(true);
-            if (label == null)
-            {
-                Debug.LogWarning($"'{id}' 요소 밑에서 TextMeshProUGUI 라벨을 찾을 수 없어 텍스트를 갱신하지 못했다.");
-                return;
-            }
-
-            label.text = text;
-            label.enableAutoSizing = true;
-            label.fontSizeMin = minFontSize;
-            label.fontSizeMax = maxFontSize;
-        }
-
-        private static UIElementMarker FindMarker(SceneUIRoot sceneUIRoot, string id)
-        {
-            foreach (var marker in sceneUIRoot.GetComponentsInChildren<UIElementMarker>(true))
-            {
-                if (marker.Id == id)
-                {
-                    return marker;
-                }
-            }
-            return null;
-        }
     }
 }

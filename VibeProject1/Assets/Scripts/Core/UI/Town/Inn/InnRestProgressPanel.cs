@@ -9,10 +9,12 @@ namespace Game.Core
     /// 닫으면 숙소로 돌아간다 - 숙소 패널이 설정·진행·결과를 내부에서 바꿔 끼우지 않는다(SRP). 진행이 끝나면 같은 화면이 결과 상태로 바뀐다.
     /// plain C# 패널은 프레임 갱신이 없어 Bootstrap 상주 MonoBehaviour(HubUIWiring)를 실행 주체로 받아 코루틴을 돌리고, 배속과 무관하게
     /// 실제 시간(unscaledDeltaTime)으로 진행한다.
-    /// 날짜·골드는 표시용 예상값이다 - 실제 변경은 휴식 서비스 구현체(system 브랜치) 몫. 진행 중에는 재화·날짜 HUD 레이어 입력을 막는다 -
+    /// 날짜·골드는 표시용 예상값이다 - 실제 변경은 휴식 서비스 구현체(system 브랜치) 몫. 진행 화면이 열린 동안에는 재화·날짜 HUD 레이어 입력을 막는다 -
     /// 골드 변환으로 개인 골드가 바뀌면 "진행 중 부족 없음" 전제가 깨지기 때문이다(사용자 결정 2026-10-20, 설계 103번 §3). 시설 화면 채널 분리(Docs/Refactor/2026-10-26_공통.md B-1) 뒤로는 모달이 진행 화면을 닫지 않지만 이 전제 때문에 차단은 유지한다(B-5).
+    /// 차단은 이 패널이 레이어를 직접 만지지 않고 RestingCondition을 내면 Hub 배선이 숨김 게이트에 "입력 차단" 규칙으로 등록한다
+    /// (Docs/Refactor/2026-10-26_씬전용.md E-2, SS-5 - 레이어 CanvasGroup 조작 경로를 게이트 하나로).
     /// </summary>
-    public sealed class InnRestProgressPanel : IUIPanel, IDisposable
+    public sealed class InnRestProgressPanel : IUIPanel, IInnRestStarter, IDisposable
     {
         private const string MissingText = PlaceholderText.Missing;
 
@@ -23,7 +25,6 @@ namespace Game.Core
         private readonly IPanelNavigator uiManager;
         private readonly MonoBehaviour runner;
         private readonly RestPacingSettings pacing;
-        private readonly CanvasGroup hudLayer;     // 선택적 - 없으면(인스톨러 미실행) 차단 없이 동작
 
         private RestProgressRun run;
         private GameDate? startDate;
@@ -31,13 +32,14 @@ namespace Game.Core
         private int costPerDay;
         private bool ended;
         private Coroutine ticking;
-        private bool hudBlocked;
-        private bool hudWasInteractable;
-        private bool hudWasBlockingRaycasts;
+        private readonly UIHideToggle resting = new();
 
         public string PanelId => UIPanelIds.InnRestProgress;
 
-        public InnRestProgressPanel(InnRestProgressElements elements, IInnRestService rest, IDateReader date, IGoldHoldingsReader gold, IPanelNavigator uiManager, MonoBehaviour runner, RestPacingSettings pacing, CanvasGroup hudLayer)
+        /// <summary>진행 화면이 열려 있는 동안 참 - Hub 배선이 재화 HUD 입력 차단 규칙의 조건으로 쓴다.</summary>
+        public IUIHideCondition RestingCondition => resting;
+
+        public InnRestProgressPanel(InnRestProgressElements elements, IInnRestService rest, IDateReader date, IGoldHoldingsReader gold, IPanelNavigator uiManager, MonoBehaviour runner, RestPacingSettings pacing)
         {
             this.elements = elements;
             this.rest = rest;
@@ -46,8 +48,6 @@ namespace Game.Core
             this.uiManager = uiManager;
             this.runner = runner;
             this.pacing = pacing ?? new RestPacingSettings();
-            this.hudLayer = hudLayer;
-            if (hudLayer == null) Debug.LogWarning("Hub UI에서 재화 HUD 레이어 CanvasGroup을 찾지 못해 휴식 진행 중 HUD 입력을 막지 않는다(Tools > Game > Build Hub Scene).");
 
             elements.StopButton.onClick.RemoveAllListeners();
             elements.StopButton.onClick.AddListener(StopRest);
@@ -75,7 +75,7 @@ namespace Game.Core
 
             elements.Root.SetActive(true);
             elements.ResultLabel.text = string.Empty;
-            BlockHud();
+            resting.Set(true);
             if (ended)
             {
                 ShowResult();
@@ -95,7 +95,7 @@ namespace Game.Core
         {
             StopTicking();
             EndRun(stopped: true);
-            RestoreHud();
+            resting.Set(false);
             elements.Root.SetActive(false);
         }
 
@@ -103,7 +103,7 @@ namespace Game.Core
         {
             StopTicking();
             EndRun(stopped: true);
-            RestoreHud();
+            resting.Set(false);
         }
 
         private IEnumerator Tick()
@@ -183,25 +183,6 @@ namespace Game.Core
             if (ticking == null) return;
             if (runner != null) runner.StopCoroutine(ticking);
             ticking = null;
-        }
-
-        private void BlockHud()
-        {
-            if (hudLayer == null || hudBlocked) return;
-            hudWasInteractable = hudLayer.interactable;
-            hudWasBlockingRaycasts = hudLayer.blocksRaycasts;
-            hudLayer.interactable = false;
-            hudLayer.blocksRaycasts = false;
-            hudBlocked = true;
-        }
-
-        private void RestoreHud()
-        {
-            if (!hudBlocked) return;
-            hudBlocked = false;
-            if (hudLayer == null) return; // Hub 언로드로 이미 파괴됨
-            hudLayer.interactable = hudWasInteractable;
-            hudLayer.blocksRaycasts = hudWasBlockingRaycasts;
         }
     }
 }

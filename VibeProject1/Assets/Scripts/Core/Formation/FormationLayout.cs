@@ -44,6 +44,14 @@ namespace Game.Core
 
         public void SetUnitId(int slotIndex, string unitId) => slotUnitIds[slotIndex] = unitId;
 
+        /// <summary>유닛(마차·시설·캐릭터 구분 없이)이 놓인 칸 수 - 출발 경고(배치 유닛 0, 기획 77 §4-30)와 편성 요약이 같은 조회를 쓴다.</summary>
+        public int CountPlacedUnits()
+        {
+            var count = 0;
+            foreach (var id in slotUnitIds) if (!string.IsNullOrEmpty(id)) count++;
+            return count;
+        }
+
         public void Clear(int slotIndex) => slotUnitIds[slotIndex] = null;
 
         public void Swap(int slotIndexA, int slotIndexB)

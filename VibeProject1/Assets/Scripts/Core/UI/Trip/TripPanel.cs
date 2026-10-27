@@ -54,20 +54,16 @@ namespace Game.Core
         private ITripInfoProvider tripInfoProvider;
         private ISceneRevealSignal sceneRevealSignal;
         private ITripCurrentLocationReader currentLocationReader;
-        // "상행 시작" 때 구간 계획을 확정한다(Docs/설계/76번 §5). 없으면(인스톨러 미실행) 예전처럼 여정 없이 30초 상행.
-        private ITripDeparture tripDeparture;
         private ITripDestinationAssigner destinationAssigner;
         // 출발 조건(마차 대열 연결) 판정에 배치 Id → 마차·시설 해석이 필요하다(Docs/설계/79번 §9.1). 없으면 유닛을 못 찾아 연결로 본다.
         private ICaravanRosterProvider rosterProvider;
-        // 출발 시 골드 경고·초과분 버림(Docs/설계/83번 §6.3). 없으면(인스톨러 미실행) 골드 경고 없이 출발한다.
-        private IGoldHoldingsReader goldHoldings;
-        private IGoldDepartureSettlement goldDeparture;
+        // 출발 절차(경고 → 버림 → 구간 계획 확정 → 전환, Docs/Refactor/2026-10-26_씬전용.md D-1) - Hub 바인딩마다 이번 씬의 확인 창으로 새로 만든다.
+        private TripDepartureFlow departureFlow;
+        // 시작 버튼 판정은 패널이 열려 있을 때만 한다(HO-3) - 상단 배치 화면 편집마다 대열 연결을 계산하지 않게. 열 때 한 번 판정한다.
+        private bool isOpen;
 
         // 화면(Hub)이 완전히 드러나기 전까지는 "상행 시작"을 막는다(사용자 확정) - 도착지 배정 게이팅과 AND로 합친다.
         private bool sceneRevealed;
-
-        // 임시 보관 영역에 아이템이 있으면 "상행 시작"을 막는다(Docs/설계/40번 §5.5).
-        private IReadOnlyList<IInventoryStagingDiscarder> inventoryStaging = System.Array.Empty<IInventoryStagingDiscarder>();
 
         public void RegisterTripUI(SceneUIRoot sceneUIRoot, IPanelNavigator uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingDiscarder> inventoryStaging, IWorldMapReader worldMap, ITripRouteReader routeReader, ITripDeparture tripDeparture, ICaravanRosterProvider rosterProvider, IGoldHoldingsReader goldHoldings, IGoldDepartureSettlement goldDeparture)
         {
@@ -81,13 +77,9 @@ namespace Game.Core
             this.tripInfoProvider = tripInfoProvider;
             this.sceneRevealSignal = sceneRevealSignal;
             this.currentLocationReader = currentLocationReader;
-            this.tripDeparture = tripDeparture;
             this.destinationAssigner = destinationAssigner;
-            this.goldHoldings = goldHoldings;
-            this.goldDeparture = goldDeparture;
-
-            // 임시 보관은 버튼 활성 조건이 아니라 출발 경고로 다룬다(2026-10-15) - 출발 시점에만 읽으므로 변경 구독이 필요 없다.
-            this.inventoryStaging = inventoryStaging ?? System.Array.Empty<IInventoryStagingDiscarder>();
+            // "상행 시작"은 패널이 열린 채 Field로 넘어가 Close가 불리지 않는다 - 새 Hub 로드는 닫힌 상태에서 시작한다.
+            isOpen = false;
 
             // 이전 Hub 방문의 지도 표시는 파괴된 씬 오브젝트를 가리키므로 버린다.
             mapPresenter?.Dispose();
@@ -103,6 +95,9 @@ namespace Game.Core
             }
 
             boundSceneUIRoot = sceneUIRoot;
+            // 임시 보관은 버튼 활성 조건이 아니라 출발 경고로 다룬다(2026-10-15) - 출발 시점에만 읽으므로 변경 구독이 필요 없다.
+            departureFlow = new TripDepartureFlow(departureConfirmDialog, inventoryStaging, goldHoldings, goldDeparture, tripDeparture, currentLocationReader, destinationAssigner,
+                () => gameManager.RequestSceneTransition(ContentSceneId.Field));
             rootCanvas = panelRoot.GetComponentInParent<Canvas>()?.rootCanvas;
             SetupMapPresenter(worldMap, routeReader);
 
@@ -118,7 +113,7 @@ namespace Game.Core
             openFormationButton.onClick.AddListener(() => uiManager.Open(UIPanelIds.Formation));
 
             startButton.onClick.RemoveAllListeners();
-            startButton.onClick.AddListener(() => StartTrip(gameManager));
+            startButton.onClick.AddListener(() => departureFlow.Start(CountPlacedUnits() > 0));
 
             if (destinationAssigner != null)
             {
@@ -178,7 +173,7 @@ namespace Game.Core
         private void RefreshStartButtonInteractable()
         {
             // destinationAssigner·formationReader(Bootstrap 상주)의 Changed는 Hub가 언로드된 상태에서도 발화할 수 있다 - 버튼이 파괴됐으면 무시한다.
-            if (startButton == null)
+            if (startButton == null || !isOpen)
             {
                 return;
             }
@@ -200,27 +195,9 @@ namespace Game.Core
             return FormationArea.Compute(layout, FormationAreaRules.LookupFrom(rosterProvider)).WagonsConnected;
         }
 
-        // 마차·시설·캐릭터 구분 없이 배치 칸에 Id가 하나라도 있으면 유닛이 있는 것으로 본다(기획 77 §4-30).
-        private bool HasAnyPlacedUnit()
-        {
-            if (formationReader == null || !formationReader.TryLoadCurrent(out var layout) || layout == null)
-            {
-                return false;
-            }
-
-            for (var i = 0; i < layout.SlotCount; i++)
-            {
-                if (!string.IsNullOrEmpty(layout.GetUnitId(i))) return true;
-            }
-            return false;
-        }
-
-        private int CountStagedItems()
-        {
-            var count = 0;
-            foreach (var staging in inventoryStaging) count += staging.StagedItems.Count;
-            return count;
-        }
+        // 마차·시설·캐릭터 구분 없이 배치 칸 수(기획 77 §4-30) - 출발 경고(배치 유닛 0)와 편성 요약이 같은 조회를 쓴다. 배치가 없으면 0.
+        private int CountPlacedUnits()
+            => formationReader != null && formationReader.TryLoadCurrent(out var layout) && layout != null ? layout.CountPlacedUnits() : 0;
 
         private bool TryBind(SceneUIRoot sceneUIRoot)
         {
@@ -340,6 +317,7 @@ namespace Game.Core
             }
 
             // 출발/도착 정보 패널은 여기서 강제로 비우지 않는다 - 배치 UI를 갔다 와도 배정 상태가 유지된다.
+            isOpen = true;
             RefreshSummary();
             RefreshStartButtonInteractable();
 
@@ -358,41 +336,10 @@ namespace Game.Core
                 return;
             }
 
+            isOpen = false;
             mapPresenter?.Hide();
             if (departureConfirmDialog != null) departureConfirmDialog.Hide();
             panelRoot.SetActive(false);
-        }
-
-        // 경고는 독립 판정·순차 표시한다(기획 82번 E4·E5, 설계 83번 §6.3). 모두 확인해야 임시 보관 물류품·초과 골드를 버리고 출발하며, 어느 단계든
-        // 취소하면 아무것도 바꾸지 않는다. 연결 조건(버튼 비활성)과는 별개다(기획 78 §4-35). 대화상자가 없으면(인스톨러 미실행) 경고 없이 출발한다.
-        // 임시 보관은 예전엔 버튼을 이유 없이 비활성화했다 - 마지막 마차가 사라지면 다시 실을 곳이 없어 출발이 막혀 경고+버림으로 바꿨다(2026-10-15).
-        private void StartTrip(IGameManager gameManager)
-        {
-            var warnings = TripDepartureWarnings.Collect(HasAnyPlacedUnit(), CountStagedItems(), goldHoldings?.ExcessGold ?? 0, goldHoldings?.PersonalLimit ?? 0);
-            ConfirmWarningsThenDepart(warnings, 0, gameManager);
-        }
-
-        private void ConfirmWarningsThenDepart(IReadOnlyList<string> warnings, int index, IGameManager gameManager)
-        {
-            if (index >= warnings.Count || departureConfirmDialog == null)
-            {
-                foreach (var staging in inventoryStaging) staging.DiscardStaged();
-                goldDeparture?.DiscardExcess();
-                Depart(gameManager);
-                return;
-            }
-
-            departureConfirmDialog.Show(warnings[index], "출발", "취소", () => ConfirmWarningsThenDepart(warnings, index + 1, gameManager), null);
-        }
-
-        private void Depart(IGameManager gameManager)
-        {
-            if (tripDeparture != null && currentLocationReader != null && destinationAssigner?.DestinationCityId is { } destinationCityId
-                && !tripDeparture.TryDepart(currentLocationReader.CurrentCityId, destinationCityId))
-            {
-                Debug.LogWarning($"{nameof(TripPanel)}: 현재 위치({currentLocationReader.CurrentCityId}) → 도착지({destinationCityId}) 경로를 찾지 못해 여정 없이 출발한다.");
-            }
-            gameManager.RequestSceneTransition(ContentSceneId.Field);
         }
 
         private void RefreshSummary()
@@ -417,16 +364,7 @@ namespace Game.Core
                 return "편성 없음";
             }
 
-            var occupied = 0;
-            for (var i = 0; i < layout.SlotCount; i++)
-            {
-                if (!string.IsNullOrEmpty(layout.GetUnitId(i)))
-                {
-                    occupied++;
-                }
-            }
-
-            return $"{occupied}명 편성";
+            return $"{layout.CountPlacedUnits()}명 편성";
         }
     }
 }

@@ -27,7 +27,8 @@ namespace Game.Core
 
     /// <summary>
     /// 말풍선·좌우 스탠딩 화면 계약(설계 88 §5, 89 이벤트 대화 화면도 같은 계약). 자리·이름·색·밝기 결정은 StagedDialogueView가 하고,
-    /// 구현은 받은 값을 그리기만 한다 - 자리 규칙을 Unity 없이 검증하기 위해서다.
+    /// 구현은 받은 값을 그리기만 한다 - 자리 규칙을 Unity 없이 검증하기 위해서다. 선택지는 IDialogueOptionsView로 나눴다 - 이벤트 대화 화면은
+    /// 선택지를 별도 선택 화면이 맡아 빈 구현으로 채우고 있었다(Docs/Refactor/2026-10-26_씬전용.md SS-12).
     /// </summary>
     public interface IDialogueStageView
     {
@@ -37,6 +38,11 @@ namespace Game.Core
         void SetVisibleCharacters(int count);
         void SetContinueMarker(bool shown);
         void SetStanding(DialogueSide side, StandingState state);
+    }
+
+    /// <summary>말풍선 아래 선택지(설계 88 §5) - 상행 대화 화면만 구현한다. 이벤트 선택지는 선택 화면(EventPresentationTarget)이 맡는다.</summary>
+    public interface IDialogueOptionsView
+    {
         void ShowOptions(IReadOnlyList<DialogueOptionData> options, Action<int> onChosen);
         void SetOptionTimeRemaining(float fraction01);
         void HideOptions();

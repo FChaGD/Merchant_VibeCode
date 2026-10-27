@@ -6,8 +6,8 @@ namespace Game.Core
 {
     /// <summary>
     /// 세팅 단계 유닛을 클릭하면 뜨는 패널 - 수치값을 조회/조절하고, "배치 취소"로 해당 로스터
-    /// 항목과 뷰를 함께 지운다. 뷰 파괴는 이 패널이 직접 처리한다(클릭 시점에 이미
-    /// BattleTestUnitClickTarget 참조를 들고 있으므로 별도 이벤트 왕복 없이 단순하게 끝난다).
+    /// 항목을 지운다. 뷰는 풀에서 재사용되므로 파괴하지 않고 PlacementCancelled로 알려 컨트롤러가 반환한다
+    /// (Docs/Refactor/2026-10-26_씬전용.md SS-13 - 패널이 다른 컴포넌트의 오브젝트를 직접 파괴하지 않는다).
     /// "적용"은 로스터 항목의 StatsOverride만 갱신한다 - BattleCharacterUnit.stats는 생성 후
     /// 불변이라 미리보기 스프라이트 크기가 즉시 다시 그려지진 않는다(다음 리셋/전투 시작부터 반영,
     /// 계획된 단순화).
@@ -28,6 +28,8 @@ namespace Game.Core
         [SerializeField] private BattleTestSimulationRule simulationRule;
 
         private BattleTestUnitClickTarget currentTarget;
+
+        public event System.Action<BattleTestUnitClickTarget> PlacementCancelled;
         // "적용" 시 입력칸에 없는 값(HpRegenPerSecond 등)을 원래 값 그대로 유지하기 위해 보관한다 -
         // 안 그러면 조절 UI가 없는 필드가 조용히 0으로 리셋된다.
         private BattleUnitStats originalStats;
@@ -93,8 +95,9 @@ namespace Game.Core
 
             simulationRule.RemoveUnit(currentTarget.IsAlly, currentTarget.EntryId);
 
-            Destroy(currentTarget.gameObject);
+            var target = currentTarget;
             Hide();
+            PlacementCancelled?.Invoke(target);
         }
 
         private static float ParseOr(TMP_InputField field, float fallback)

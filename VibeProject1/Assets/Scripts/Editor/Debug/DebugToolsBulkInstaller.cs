@@ -30,6 +30,7 @@ namespace Game.Core.Editor.DebugTools
             DialogueDebugInstaller.Install();
             EventDebugInstaller.Install();
             CaravanAssetDurabilityDebugInstaller.Install();
+            TripMapEditorInstaller.Install(); // Hub 씬 대상 - 다른 씬이면 경고 후 건너뛴다
 
             Debug.Log("디버그 도구 전체 설치/동기화 완료.");
         }
@@ -49,6 +50,7 @@ namespace Game.Core.Editor.DebugTools
             DialogueDebugInstaller.Remove();
             EventDebugInstaller.Remove();
             CaravanAssetDurabilityDebugInstaller.Remove();
+            TripMapEditorInstaller.Remove();
 
             Debug.Log("디버그 도구 전체 제거 완료.");
         }

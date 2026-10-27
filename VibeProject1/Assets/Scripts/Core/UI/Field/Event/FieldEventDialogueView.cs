@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,8 +12,6 @@ namespace Game.Core
     /// </summary>
     public class FieldEventDialogueView : MonoBehaviour, IDialogueStageView
     {
-        private const float DimFactor = 0.45f;
-
         [SerializeField] private GameObject body;
         [SerializeField] private FieldDialogueClickCatcher clickCatcher;
         [SerializeField] private TMP_Text speakerNameText;
@@ -55,9 +52,7 @@ namespace Game.Core
 
         public void SetBubble(string speakerName, string text)
         {
-            speakerNameText.text = speakerName;
-            lineText.text = text;
-            lineText.maxVisibleCharacters = 0;
+            DialogueStageRenderer.SetBubble(speakerNameText, lineText, speakerName, text);
         }
 
         public void SetVisibleCharacters(int count) => lineText.maxVisibleCharacters = count;
@@ -75,20 +70,7 @@ namespace Game.Core
             leftTail.SetActive(leftActive);
             rightTail.SetActive(rightActive);
 
-            root.SetActive(state.Visible);
-            if (!state.Visible) return;
-            var color = state.Highlighted ? state.Color : state.Color * DimFactor;
-            color.a = 1f;
-            figure.color = color;
-            nameText.text = state.Name;
+            DialogueStageRenderer.SetStanding(root, figure, nameText, state);
         }
-
-        // 선택지는 선택 화면(FieldEventChoiceView)이 그린다 - EventPresentationTarget이 이 화면으로 보내지 않는다.
-        public void ShowOptions(IReadOnlyList<DialogueOptionData> options, Action<int> onChosen)
-            => Debug.LogWarning($"{nameof(FieldEventDialogueView)}: 선택지는 선택 화면이 그린다.");
-
-        public void SetOptionTimeRemaining(float fraction01) { }
-
-        public void HideOptions() { }
     }
 }

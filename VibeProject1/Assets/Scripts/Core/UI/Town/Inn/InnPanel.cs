@@ -16,7 +16,7 @@ namespace Game.Core
         private readonly InnElements elements;
         private readonly IInnRestService rest;
         private readonly IGoldHoldingsReader gold;
-        private readonly InnRestProgressPanel progress;
+        private readonly IInnRestStarter progress;
         private readonly List<InventoryArrangementController> bodies = new();
         private readonly ITooltipHandle restTooltip;
         private readonly int defaultTabIndex;
@@ -27,7 +27,7 @@ namespace Game.Core
         public string PanelId => UIPanelIds.Facility(TownFacilityIds.Inn);
 
         /// <param name="tabSources">탭 순서대로 각 탭 인벤토리의 조회·정리 계약. elements.Tabs와 같은 순서다.</param>
-        public InnPanel(InnElements elements, IReadOnlyList<(IInventoryReader Reader, IInventoryArrangement Arrangement)> tabSources, IInnRestService rest, IGoldHoldingsReader gold, ITooltipController tooltips, InnRestProgressPanel progress, IPanelNavigator uiManager, IInputManager input)
+        public InnPanel(InnElements elements, IReadOnlyList<(IInventoryReader Reader, IInventoryArrangement Arrangement)> tabSources, IInnRestService rest, IGoldHoldingsReader gold, ITooltipController tooltips, IInnRestStarter progress, IPanelNavigator uiManager, IInputManager input)
         {
             this.elements = elements;
             this.rest = rest;

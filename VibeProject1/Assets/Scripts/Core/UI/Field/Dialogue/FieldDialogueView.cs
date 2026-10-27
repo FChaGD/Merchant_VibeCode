@@ -13,7 +13,6 @@ namespace Game.Core
     /// </summary>
     public class FieldDialogueView : MonoBehaviour, ITripDialogueView
     {
-        private const float DimFactor = 0.45f;
         private const float LockedAlpha = 0.5f;
 
         [SerializeField] private GameObject body;
@@ -64,9 +63,7 @@ namespace Game.Core
 
         public void SetBubble(string speakerName, string text)
         {
-            speakerNameText.text = speakerName;
-            lineText.text = text;
-            lineText.maxVisibleCharacters = 0;
+            DialogueStageRenderer.SetBubble(speakerNameText, lineText, speakerName, text);
         }
 
         public void SetVisibleCharacters(int count) => lineText.maxVisibleCharacters = count;
@@ -78,12 +75,7 @@ namespace Game.Core
             var root = side == DialogueSide.Left ? leftRoot : rightRoot;
             var figure = side == DialogueSide.Left ? leftFigure : rightFigure;
             var nameText = side == DialogueSide.Left ? leftName : rightName;
-            root.SetActive(state.Visible);
-            if (!state.Visible) return;
-            var color = state.Highlighted ? state.Color : state.Color * DimFactor;
-            color.a = 1f;
-            figure.color = color;
-            nameText.text = state.Name;
+            DialogueStageRenderer.SetStanding(root, figure, nameText, state);
         }
 
         public void ShowOptions(IReadOnlyList<DialogueOptionData> options, Action<int> onChosen)

@@ -160,7 +160,7 @@ namespace Game.Core
         private bool Start(DialogueEntry entry)
         {
             if (dialogueView == null) return false;
-            var controller = new DialoguePlaybackController(new StagedDialogueView(dialogueView, speakers), DialoguePlaybackOptions.Trip);
+            var controller = new DialoguePlaybackController(new StagedDialogueView(dialogueView, speakers, dialogueView), DialoguePlaybackOptions.Trip);
             if (modalOpen) controller.SetPaused(ModalPauseReason, true);
             var run = new Run { Entry = entry, Controller = controller };
             current = run;

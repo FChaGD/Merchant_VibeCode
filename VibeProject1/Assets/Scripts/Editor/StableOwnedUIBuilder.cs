@@ -68,8 +68,8 @@ namespace Game.Core.Editor
             var row = EditorUIBuilder.GetOrCreateUIObject(templates.transform, "OwnedRowTemplate");
             var background = EditorUIBuilder.EnsureImage(row, EditorUIColors.Row);
             var button = EditorUIBuilder.EnsureButton(row);
-            var nameLabel = BuildRowLabel(row.transform, "Name", 0.03f, 0.65f, TextAlignmentOptions.MidlineLeft);
-            var durabilityLabel = BuildRowLabel(row.transform, "Durability", 0.65f, 0.97f, TextAlignmentOptions.MidlineRight);
+            var nameLabel = EditorUIBuilder.EnsureRowLabel(row.transform, "Name", 0.03f, 0.65f, TextAlignmentOptions.MidlineLeft);
+            var durabilityLabel = EditorUIBuilder.EnsureRowLabel(row.transform, "Durability", 0.65f, 0.97f, TextAlignmentOptions.MidlineRight);
 
             var view = EditorUIBuilder.GetOrAddComponent<StableOwnedRowView>(row);
             var so = new SerializedObject(view);
@@ -128,13 +128,5 @@ namespace Game.Core.Editor
             return (button, label);
         }
 
-        private static TMP_Text BuildRowLabel(Transform row, string name, float minX, float maxX, TextAlignmentOptions alignment)
-        {
-            var go = EditorUIBuilder.GetOrCreateUIObject(row, name);
-            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(minX, 0f), new Vector2(maxX, 1f));
-            var label = EditorUIBuilder.EnsureLabel(go.transform, string.Empty, autoSize: true, minFontSize: 10f, maxFontSize: 22f);
-            label.alignment = alignment;
-            return label;
-        }
     }
 }

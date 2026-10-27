@@ -168,7 +168,7 @@ namespace Game.Core.Editor
         private static void WireBattleManagerDependents(BattleManager battleManager)
         {
             var liveBattleSimulationRule = EditorUIBuilder.GetOrAddComponent<LiveBattleSimulationRule>(battleManager.gameObject);
-            WireTableAssets(liveBattleSimulationRule);
+            EditorTableWiring.WireBattleStatTables(liveBattleSimulationRule);
             EditorUIBuilder.GetOrAddComponent<PlaceholderDefeatConsequenceRule>(battleManager.gameObject);
         }
 
@@ -198,9 +198,9 @@ namespace Game.Core.Editor
             EditorUIBuilder.GetOrAddComponent<FieldFormationPanel>(uiManager.gameObject);
             WireTripMapPrefabs(EditorUIBuilder.GetOrAddComponent<TripPanel>(uiManager.gameObject));
             var tacticsPanel = EditorUIBuilder.GetOrAddComponent<TacticsPanel>(uiManager.gameObject);
-            WirePartyPolicyCatalog(tacticsPanel);
-            WireRoleGroupCatalog(tacticsPanel);
-            WireTacticsStringTables(tacticsPanel);
+            EditorTableWiring.WirePartyPolicyCatalog(tacticsPanel);
+            EditorTableWiring.WireRoleGroupCatalog(tacticsPanel);
+            EditorTableWiring.WireTacticsStringTables(tacticsPanel);
 
             // 전투 뷰 유닛 프리팹은 EditorUIBuilder(공용 조립 로직)가 자산으로 만들어 두고, 여기
             // (Bootstrap 담당)서는 그 자산을 FieldUIController 필드에 연결만 한다.
@@ -235,12 +235,12 @@ namespace Game.Core.Editor
             // 상행 동안 보유 유닛 HP/사망 상태를 저장하는 대상(설계 15번) - formationRepository와 같은
             // 성격의 인메모리 저장소.
             var unitConditionRepository = EditorUIBuilder.GetOrCreateManager<InMemoryUnitConditionRepository>(uiManager.transform, nameof(InMemoryUnitConditionRepository));
-            WireTableAssets(unitConditionRepository);
+            EditorTableWiring.WireCharacterStatsTable(unitConditionRepository);
 
             // 방향성 지시 UI(TacticsPanel)가 반영할 대상 - 배치와 같은 성격의 인메모리 저장소.
             var tacticsRepository = EditorUIBuilder.GetOrCreateManager<InMemoryTacticsRepository>(uiManager.transform, nameof(InMemoryTacticsRepository));
-            WirePartyPolicyCatalog(tacticsRepository);
-            WireRoleGroupCatalog(tacticsRepository);
+            EditorTableWiring.WirePartyPolicyCatalog(tacticsRepository);
+            EditorTableWiring.WireRoleGroupCatalog(tacticsRepository);
 
             // 상행정보 패널 요약 - 현재 위치 → 도착지 구간 계획에서 문구를 만든다(Docs/설계/76번 §7.1).
             EditorUIBuilder.DestroyChildIfExists(uiManager.transform, RemovedPlaceholderTripInfoProviderName);
@@ -573,65 +573,6 @@ namespace Game.Core.Editor
             serializedProvider.ApplyModifiedProperties();
         }
 
-        // roleGroupMap과 같은 배선 전례(Docs/설계/17번 §1/§6) - 엑셀 임포트 결과 테이블은 DI로
-        // 등록하지 않고 소비자마다 SerializeField로 개별 배선한다. 에셋이 아직 임포트 전(Tools/Game/
-        // Table/Import Character Stats 미실행)이라 없을 수 있으므로 null 배선을 경고 없이 허용한다 -
-        // 그 상태로 실행하면 TableBattleUnitStatProvider가 조회 시점에 즉시 예외로 드러낸다.
-        private static void WireTableAssets(LiveBattleSimulationRule rule)
-        {
-            var so = new SerializedObject(rule);
-            so.FindProperty("characterStatsTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<CharacterStatsTableAsset>(TableAssetPaths.CharacterStatsTable);
-            so.FindProperty("enemyStatsTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<EnemyStatsTableAsset>(TableAssetPaths.EnemyStatsTable);
-            so.FindProperty("enemyEncounterCompositionTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<EnemyEncounterCompositionTableAsset>(TableAssetPaths.EnemyEncounterCompositionTable);
-            so.ApplyModifiedProperties();
-        }
-
-        private static void WireTableAssets(InMemoryUnitConditionRepository repository)
-        {
-            var so = new SerializedObject(repository);
-            so.FindProperty("characterStatsTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<CharacterStatsTableAsset>(TableAssetPaths.CharacterStatsTable);
-            so.ApplyModifiedProperties();
-        }
-
-        // roleGroupMap/catalog와 달리(수동 인스펙터 연결 전례) 이 에셋은 처음 생기는 것이라 두
-        // 소비자(TacticsPanel/InMemoryTacticsRepository) 모두 자동 배선한다(Docs/설계/17번 §10.5).
-        private static void WirePartyPolicyCatalog(TacticsPanel panel)
-        {
-            var so = new SerializedObject(panel);
-            so.FindProperty("partyPolicyCatalog").objectReferenceValue = AssetDatabase.LoadAssetAtPath<PartyTacticsPolicyCatalogAsset>(TableAssetPaths.PartyPolicyCatalog);
-            so.ApplyModifiedProperties();
-        }
-
-        private static void WirePartyPolicyCatalog(InMemoryTacticsRepository repository)
-        {
-            var so = new SerializedObject(repository);
-            so.FindProperty("partyPolicyCatalog").objectReferenceValue = AssetDatabase.LoadAssetAtPath<PartyTacticsPolicyCatalogAsset>(TableAssetPaths.PartyPolicyCatalog);
-            so.ApplyModifiedProperties();
-        }
-
-        // 저장소 8개를 UIManager 산하로 재배치한 뒤(2026-09-08 Bootstrap 리팩토링, 커밋 02c5dee)
-        // 새로 발견된 배선 누락: InMemoryTacticsRepository/TacticsPanel의 catalog(RoleGroupTacticsCatalogAsset)
-        // 필드는 예전엔 재사용되던 같은 오브젝트에 수동으로 인스펙터 연결돼 있었는데, GetOrCreateManager가
-        // 이름+부모 기준으로만 찾다 보니(부모가 root→uiManager로 바뀜) 매칭에 실패해 매번 새 GameObject를
-        // 만들면서 그 수동 연결이 사라졌다 - roleGroupOverride.TargetPriority가 enum 0(default)으로
-        // 새어나가 TargetSelectorFactory.Create에서 ArgumentOutOfRangeException을 던지는 실전 크래시로
-        // 이어졌다(전투 시작 시점). partyPolicyCatalog와 마찬가지로 코드로 배선해 재실행에도 안전하게 한다.
-        private static void WireRoleGroupCatalog(InMemoryTacticsRepository repository)
-        {
-            var so = new SerializedObject(repository);
-            so.FindProperty("catalog").objectReferenceValue = AssetDatabase.LoadAssetAtPath<RoleGroupTacticsCatalogAsset>(TableAssetPaths.RoleGroupTacticsCatalog);
-            so.ApplyModifiedProperties();
-        }
-
-        // TacticsPanel도 같은 이유로 catalog 배선이 누락돼 있었다(위 InMemoryTacticsRepository 사례와
-        // 동일 원인) - 이쪽은 화면 드롭다운 채우기용이라 크래시 자체의 원인은 아니지만 함께 정정한다.
-        private static void WireRoleGroupCatalog(TacticsPanel panel)
-        {
-            var so = new SerializedObject(panel);
-            so.FindProperty("catalog").objectReferenceValue = AssetDatabase.LoadAssetAtPath<RoleGroupTacticsCatalogAsset>(TableAssetPaths.RoleGroupTacticsCatalog);
-            so.ApplyModifiedProperties();
-        }
-
         // 아이템 카테고리 4종이 전부 같은 필드 이름(itemTable/itemStrings)을 쓰므로 경로만 받는 공용
         // 배선 헬퍼 하나로 처리한다(Docs/설계/35번 §8 - 클래스 공유 결정과 같은 DRY 이유).
         private static void WireItemCatalog(Component repository, string dataAssetPath, string stringAssetPath)
@@ -696,17 +637,6 @@ namespace Game.Core.Editor
                 Debug.LogWarning($"'{assetPath}' 테이블 자산이 아직 없다 - Play 1회(자동 임포트) 후 Build Bootstrap Scene을 다시 실행하라.");
             }
             return asset;
-        }
-
-        // 라벨 조회용 String 에셋 2종 - catalog(값)와 마찬가지로 처음 생기는 에셋이라 자동 배선한다
-        // (Docs/설계/18번 §8.2). InMemoryTacticsRepository는 라벨을 다루지 않아(값/정책만 저장) 배선
-        // 대상이 아니다 - TacticsPanel(UI 계층)만 필요로 한다.
-        private static void WireTacticsStringTables(TacticsPanel panel)
-        {
-            var so = new SerializedObject(panel);
-            so.FindProperty("partyPolicyStrings").objectReferenceValue = AssetDatabase.LoadAssetAtPath<PartyTacticsPolicyStringsTableAsset>(TableAssetPaths.PartyPolicyStringsTable);
-            so.FindProperty("roleGroupTacticsStrings").objectReferenceValue = AssetDatabase.LoadAssetAtPath<RoleGroupTacticsStringsTableAsset>(TableAssetPaths.RoleGroupTacticsStringsTable);
-            so.ApplyModifiedProperties();
         }
 
         private static void SyncManagedComponents(DependencyManager dependencyManager, MonoBehaviour[] managedComponents)

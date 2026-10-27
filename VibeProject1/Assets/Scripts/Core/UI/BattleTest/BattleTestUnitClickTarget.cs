@@ -12,6 +12,7 @@ namespace Game.Core
     /// 레거시 Input Manager 기반이라 새 Input System 프로젝트에서 아예 발화하지 않아 쓸 수 없다).
     /// CircleCollider2D는 여기서 동적으로 추가한다 - BattleCharacterUnitView 프리팹(Field 씬과 공유)
     /// 자체에는 필요 없는 컴포넌트라 프리팹에 넣지 않고 배틀 테스트 씬의 인스턴스에만 붙인다.
+    /// 뷰가 풀로 반환(비활성)되면 스스로 꺼진다 - 같은 뷰가 실제 전투 유닛으로 재사용될 때 클릭되지 않게 한다(Docs/Refactor/2026-10-26_씬전용.md 적용 조건 ③).
     /// </summary>
     [RequireComponent(typeof(CircleCollider2D))]
     public class BattleTestUnitClickTarget : MonoBehaviour
@@ -32,6 +33,14 @@ namespace Game.Core
             // 잡히도록 트리거가 아닌 일반 콜라이더로 둔다(다른 Rigidbody2D와 얽힐 일이 없어 부작용 없음).
             circleCollider.isTrigger = false;
             circleCollider.radius = ClickRadius;
+            circleCollider.enabled = true;
+            enabled = true;
+        }
+
+        private void OnDisable()
+        {
+            if (TryGetComponent<CircleCollider2D>(out var circleCollider)) circleCollider.enabled = false;
+            enabled = false;
         }
     }
 }

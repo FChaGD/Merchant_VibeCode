@@ -132,9 +132,9 @@ namespace Game.Core.Editor
             iconImage.raycastTarget = false;
             iconImage.preserveAspect = true;
 
-            var nameLabel = BuildRowLabel(row.transform, "Name", 0.12f, 0.5f, TextAlignmentOptions.MidlineLeft);
-            var kindLabel = BuildRowLabel(row.transform, "Kind", 0.5f, 0.72f, TextAlignmentOptions.Center);
-            var priceLabel = BuildRowLabel(row.transform, "Price", 0.72f, 0.97f, TextAlignmentOptions.MidlineRight);
+            var nameLabel = EditorUIBuilder.EnsureRowLabel(row.transform, "Name", 0.12f, 0.5f, TextAlignmentOptions.MidlineLeft);
+            var kindLabel = EditorUIBuilder.EnsureRowLabel(row.transform, "Kind", 0.5f, 0.72f, TextAlignmentOptions.Center);
+            var priceLabel = EditorUIBuilder.EnsureRowLabel(row.transform, "Price", 0.72f, 0.97f, TextAlignmentOptions.MidlineRight);
 
             var view = EditorUIBuilder.GetOrAddComponent<RosterShopCandidateRowView>(row);
             var so = new SerializedObject(view);
@@ -147,15 +147,6 @@ namespace Game.Core.Editor
             so.ApplyModifiedProperties();
             EditorUIBuilder.EnsureMarker(row, Id(spec, RosterShopUIElementIds.CandidateRowTemplate));
             row.SetActive(false);
-        }
-
-        private static TMP_Text BuildRowLabel(Transform row, string name, float minX, float maxX, TextAlignmentOptions alignment)
-        {
-            var go = EditorUIBuilder.GetOrCreateUIObject(row, name);
-            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(minX, 0f), new Vector2(maxX, 1f));
-            var label = EditorUIBuilder.EnsureLabel(go.transform, string.Empty, autoSize: true, minFontSize: 10f, maxFontSize: 22f);
-            label.alignment = alignment;
-            return label;
         }
 
         // 후보 정보 - 패널 하단 약 45%: 이름 / 종류 / 상세(용병 스탯, 마구간은 비움) / 가격 / 사유 문구 / 실행 버튼.

@@ -9,7 +9,8 @@ namespace Game.Core
     /// </summary>
     internal sealed class FinishStep : IBattleAftermathStep
     {
-        private readonly IFieldUIController fieldUIController;
+        private readonly IFieldTopButtons fieldUIController;
+        private readonly ITripFinisher tripFinisher; // 궤주 귀환도 상행 종료다(설계 81번 §6.4)
         private readonly FieldCameraController cameraController;
         private readonly IFieldFormationActivityRepository fieldActivityRepository; // 선택적 - 없으면 null-조건부 호출로 건너뜀
         private readonly ISessionState sessionState;
@@ -17,11 +18,12 @@ namespace Game.Core
         private readonly ITripDayRout dayRout; // 선택적 - 없으면 날짜 없이 진행(FieldManager 미설치)
         private readonly FieldTripSignals tripSignals; // 정지 조율·계기 신호(설계 87 §6) - 없으면 예전처럼 직접 재개
 
-        public FinishStep(IFieldUIController fieldUIController, FieldCameraController cameraController, IFieldFormationActivityRepository fieldActivityRepository, ISessionState sessionState, IGameManager gameManager, ITripDayRout dayRout, FieldTripSignals tripSignals)
+        public FinishStep(IFieldTopButtons fieldUIController, ITripFinisher tripFinisher, FieldCameraController cameraController, IFieldFormationActivityRepository fieldActivityRepository, ISessionState sessionState, IGameManager gameManager, ITripDayRout dayRout, FieldTripSignals tripSignals)
         {
             this.dayRout = dayRout;
             this.tripSignals = tripSignals ?? new FieldTripSignals(null, null);
             this.fieldUIController = fieldUIController;
+            this.tripFinisher = tripFinisher;
             this.cameraController = cameraController;
             this.fieldActivityRepository = fieldActivityRepository;
             this.sessionState = sessionState;
@@ -66,7 +68,7 @@ namespace Game.Core
                 cameraController.TransitionToMovement(onComplete: () =>
                 {
                     onDone();
-                    fieldUIController.FinishTrip(); // 궤주 귀환도 상행 종료다(설계 81번 §6.4)
+                    tripFinisher.FinishTrip(); // 궤주 귀환도 상행 종료다(설계 81번 §6.4)
                     gameManager.RequestSceneTransition(ContentSceneId.Hub);
                 });
                 return;

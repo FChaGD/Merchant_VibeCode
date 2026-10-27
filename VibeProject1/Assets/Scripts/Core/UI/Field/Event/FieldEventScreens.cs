@@ -15,11 +15,11 @@ namespace Game.Core
         private readonly ViewRootPanel dialoguePanel;
         private readonly ViewRootPanel choicePanel;
         private readonly FieldCargoRecoveryPanel cargoRecovery;   // 선택적
-        private readonly IFieldUIController fieldUI;
+        private readonly IFieldTopButtons fieldUI;
         private readonly IFormationViewOnlyMode formation;          // 선택적
 
         public FieldEventScreens(IPanelNavigator uiManager, FieldEventDialogueView dialogue, FieldEventChoiceView choice, ViewRootPanel dialoguePanel, ViewRootPanel choicePanel,
-            FieldCargoRecoveryPanel cargoRecovery, IFieldUIController fieldUI, IFormationViewOnlyMode formation)
+            FieldCargoRecoveryPanel cargoRecovery, IFieldTopButtons fieldUI, IFormationViewOnlyMode formation)
         {
             this.uiManager = uiManager;
             this.dialogue = dialogue;

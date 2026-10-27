@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Game.Core.Tests
 {
     public class DialogueStageTests
     {
-        private sealed class FakeStage : IDialogueStageView
+        private sealed class FakeStage : IDialogueStageView, IDialogueOptionsView
         {
             public bool Visible;
             public string Name;
@@ -93,7 +95,7 @@ namespace Game.Core.Tests
         public void Staged_ForwardsTypingAndOptions()
         {
             var stage = new FakeStage();
-            var view = new StagedDialogueView(stage, new SpeakerPresentation(null));
+            var view = new StagedDialogueView(stage, new SpeakerPresentation(null), stage);
             view.SetVisibleLength(3);
             view.SetTypingComplete(true);
             view.ShowOptions(new[] { new DialogueOptionData(0, "예", true, null) }, _ => { });
@@ -102,6 +104,29 @@ namespace Game.Core.Tests
             Assert.AreEqual(1, stage.Options.Count);
             view.HideOptions();
             Assert.IsNull(stage.Options);
+        }
+
+        // 선택지 계약 분리(Docs/Refactor/2026-10-26_씬전용.md G-1, SS-12) - 선택지를 그리지 않는 화면(이벤트 대화)은 선택지 계약 없이 쓴다.
+        // 그 화면에 선택지가 오면 경고로 드러내고, 숨김 호출은 조용히 넘긴다.
+        [Test]
+        public void ShowOptions_WithoutOptionsView_Warns()
+        {
+            var view = new StagedDialogueView(new FakeStage(), new SpeakerPresentation(null));
+            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("선택지"));
+            view.ShowOptions(new[] { new DialogueOptionData(0, "예", true, null) }, _ => { });
+        }
+
+        [Test]
+        public void HideOptions_WithoutOptionsView_IsSilent()
+        {
+            var view = new StagedDialogueView(new FakeStage(), new SpeakerPresentation(null));
+            Assert.DoesNotThrow(() =>
+            {
+                view.HideOptions();
+                view.SetOptionTimeRemaining(0.5f);
+                view.Hide();
+            });
+            LogAssert.NoUnexpectedReceived();
         }
 
         [Test]

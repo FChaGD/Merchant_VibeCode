@@ -37,7 +37,8 @@ namespace Game.Core
         private ITripDayRout dayRout;
 
         private MonoBehaviour coroutineRunner;
-        private IFieldUIController fieldUIController;
+        private IFieldTopButtons fieldUIController;
+        private ITripFinisher tripFinisher;
         private FieldCameraController cameraController;
         private FieldEncounterWarningView warningView;
         private FieldResultPopupView resultPopupView;
@@ -77,10 +78,11 @@ namespace Game.Core
             eventsBound = true;
         }
 
-        public void RebindViews(MonoBehaviour coroutineRunner, IFieldUIController fieldUIController, FieldCameraController cameraController, FieldEncounterWarningView warningView, FieldResultPopupView resultPopupView, FieldTransitionCurtainView transitionCurtain, FieldCargoRecoveryPanel cargoRecoveryPanel)
+        public void RebindViews(MonoBehaviour coroutineRunner, IFieldTopButtons fieldUIController, ITripFinisher tripFinisher, FieldCameraController cameraController, FieldEncounterWarningView warningView, FieldResultPopupView resultPopupView, FieldTransitionCurtainView transitionCurtain, FieldCargoRecoveryPanel cargoRecoveryPanel)
         {
             this.coroutineRunner = coroutineRunner;
             this.fieldUIController = fieldUIController;
+            this.tripFinisher = tripFinisher;
             this.cameraController = cameraController;
             this.warningView = warningView;
             this.resultPopupView = resultPopupView;
@@ -98,7 +100,7 @@ namespace Game.Core
                 new CargoRecoveryStep(uiManager, cargoSettlement, cargoRecoveryPanel),
                 new FormationRepairStep(uiManager, repairMode),
             };
-            flow = new BattleAftermathFlow(steps, new FinishStep(fieldUIController, cameraController, fieldActivityRepository, sessionState, gameManager, dayRout, tripSignals));
+            flow = new BattleAftermathFlow(steps, new FinishStep(fieldUIController, tripFinisher, cameraController, fieldActivityRepository, sessionState, gameManager, dayRout, tripSignals));
             return flow;
         }
 

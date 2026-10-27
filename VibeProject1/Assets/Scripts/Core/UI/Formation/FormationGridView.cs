@@ -338,6 +338,8 @@ namespace Game.Core
         private RectTransform travelerLayer;
         // 이동마다 프레임당 한 번 계산하는 경로 좌표(경로선·이동 아이콘 공유, A-3). 경로선은 좌표를 받아 바로 배치하고 목록을 보관하지 않으므로 재사용해도 안전하다.
         private readonly List<List<Vector2>> waypointBuffers = new();
+        // 이동 아이콘 보간용 구간 가중치(대각선 √2배) - 이동마다 버퍼를 재사용한다(Docs/Refactor/2026-10-26_씬전용.md B-1).
+        private readonly List<List<float>> weightBuffers = new();
 
         private void EnsureVisualLayers()
         {
@@ -442,7 +444,9 @@ namespace Game.Core
                         var move = moves[i];
                         // 대각선 구간(√2배, 설계 26번 §10)이 섞일 수 있어 균등 보간이 아니라 구간별
                         // 실제 비용 배열로 보간한다.
-                        var weights = FormationPathFinder.ComputeSegmentWeights(move.PathSlotIndices, boardColumns, move.PartialSegmentIndex, move.PartialSegmentWeight);
+                        while (weightBuffers.Count <= i) weightBuffers.Add(new List<float>());
+                        var weights = weightBuffers[i];
+                        FormationPathFinder.FillSegmentWeights(move.PathSlotIndices, boardColumns, move.PartialSegmentIndex, move.PartialSegmentWeight, weights);
                         var traveler = travelerIcons[i];
                         traveler.gameObject.SetActive(true);
                         traveler.sprite = move.Icon;

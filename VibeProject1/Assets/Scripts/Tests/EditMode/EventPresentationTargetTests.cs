@@ -41,9 +41,6 @@ namespace Game.Core.Tests
             public void SetVisibleCharacters(int count) { }
             public void SetContinueMarker(bool shown) { }
             public void SetStanding(DialogueSide side, StandingState state) { }
-            public void ShowOptions(IReadOnlyList<DialogueOptionData> options, Action<int> onChosen) { }
-            public void SetOptionTimeRemaining(float fraction01) { }
-            public void HideOptions() { }
         }
 
         private static (EventPresentationTarget target, FakeScreens screens, DialoguePlaybackController playback) Make()

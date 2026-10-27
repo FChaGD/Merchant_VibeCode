@@ -276,10 +276,10 @@ namespace Game.Core
             var icon = cityMarkerPrefab != null ? cityMarkerPrefab.Icon : null;
             if (!map.TryGetCity(cityId, out var city))
             {
-                return new PlaceholderTripLocationInfo(cityId, $"디버그 도시 {cityId}", MissingText, icon);
+                return new PlaceholderTripLocationInfo(cityId, TripCityNames.Fallback(cityId), MissingText, icon);
             }
 
-            var name = string.IsNullOrEmpty(city.Name) ? $"디버그 도시 {cityId}" : city.Name;
+            var name = TripCityNames.DisplayName(map, cityId);
             var regionName = map.TryGetRegion(city.RegionId, out var region) ? region.Name : MissingText;
             var description = string.IsNullOrEmpty(city.Description) ? MissingText : city.Description;
             return new PlaceholderTripLocationInfo(cityId, $"{name} ({regionName})", description, icon);

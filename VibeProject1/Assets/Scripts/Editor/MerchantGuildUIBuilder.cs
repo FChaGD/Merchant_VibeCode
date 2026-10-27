@@ -69,9 +69,9 @@ namespace Game.Core.Editor
             outline.effectDistance = new Vector2(3f, -3f);
             outline.enabled = false;
 
-            var title = BuildRowLabel(row.transform, "Title", 0.03f, 0.55f, TextAlignmentOptions.MidlineLeft);
-            var requester = BuildRowLabel(row.transform, "Requester", 0.55f, 0.8f, TextAlignmentOptions.MidlineLeft);
-            var status = BuildRowLabel(row.transform, "Status", 0.8f, 0.97f, TextAlignmentOptions.MidlineRight);
+            var title = EditorUIBuilder.EnsureRowLabel(row.transform, "Title", 0.03f, 0.55f, TextAlignmentOptions.MidlineLeft, raycastTarget: false);
+            var requester = EditorUIBuilder.EnsureRowLabel(row.transform, "Requester", 0.55f, 0.8f, TextAlignmentOptions.MidlineLeft, raycastTarget: false);
+            var status = EditorUIBuilder.EnsureRowLabel(row.transform, "Status", 0.8f, 0.97f, TextAlignmentOptions.MidlineRight, raycastTarget: false);
 
             var view = EditorUIBuilder.GetOrAddComponent<GuildQuestRowView>(row);
             var so = new SerializedObject(view);
@@ -104,14 +104,5 @@ namespace Game.Core.Editor
         private static void BuildText(RectTransform parent, string name, string id, Vector2 min, Vector2 max, TextAlignmentOptions alignment, float maxFontSize)
             => EditorUIBuilder.EnsureAnchoredLabel(parent, name, id, min, max, alignment, maxFontSize);
 
-        private static TMP_Text BuildRowLabel(Transform row, string name, float minX, float maxX, TextAlignmentOptions alignment)
-        {
-            var go = EditorUIBuilder.GetOrCreateUIObject(row, name);
-            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), new Vector2(minX, 0f), new Vector2(maxX, 1f));
-            var label = EditorUIBuilder.EnsureLabel(go.transform, string.Empty, autoSize: true, minFontSize: 10f, maxFontSize: 22f);
-            label.alignment = alignment;
-            label.raycastTarget = false;
-            return label;
-        }
     }
 }

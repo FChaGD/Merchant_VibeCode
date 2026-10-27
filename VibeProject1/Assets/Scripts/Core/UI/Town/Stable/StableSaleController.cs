@@ -100,7 +100,8 @@ namespace Game.Core
             if (sale == null || instanceId == null || !owned.TryGetOwned(instanceId, out var asset)) return;
 
             var id = instanceId;
-            dialog.Show($"{OwnedCaravanAssetNames.Format(asset)}을 {sale.SalePriceOf(id):N0}골드에 매각합니다", ConfirmText, CancelText, () =>
+            var assetName = OwnedCaravanAssetNames.Format(asset);
+            dialog.Show($"{assetName}{KoreanParticle.EulReul(assetName)} {sale.SalePriceOf(id):N0}골드에 매각합니다", ConfirmText, CancelText, () =>
             {
                 sale.TrySell(id); // 성공하면 보유 변경 이벤트로 개체 정보 화면이 목록으로 돌아간다. Placeholder는 무동작이라 다시 그려 상태를 맞춘다.
                 Render();

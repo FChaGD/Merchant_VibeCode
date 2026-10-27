@@ -10,7 +10,8 @@ namespace Game.Core
     /// 신호) 게이지바도 같은 비율로 함께 커지고 위치도 자연히 본체 위에 맞는다(별도 역스케일 보정
     /// 불필요 - 이 컴포넌트의 Width/Height/오프셋은 "부모 스케일 1일 때" 기준 로컬 값이다).
     /// HpRegenPerSecond(괴수 재생, 기획 08번 §13.1)처럼 이벤트 없이 매 틱 조금씩 바뀌는 값도 있어
-    /// OnDamaged 이벤트만으로는 못 따라간다 - Update()에서 매 프레임 갱신한다.
+    /// OnDamaged 이벤트만으로는 못 따라간다 - 소유 뷰가 Tick을 부른다(캐릭터 뷰는 매 프레임, 재생이 없는 보호 대상 뷰는 피격 때).
+    /// 게이지가 따로 Update를 두지 않아 유닛당 Update가 하나이고, 비율이 바뀐 때만 트랜스폼을 쓴다(Docs/Refactor/2026-10-26_씬전용.md FO-2).
     /// </summary>
     public class BattleHealthGaugeView : MonoBehaviour
     {
@@ -30,6 +31,7 @@ namespace Game.Core
 
         private IDamageable unit;
         private float fillFullScaleX;
+        private float shownRatio = -1f;
 
         private void Awake()
         {
@@ -42,7 +44,7 @@ namespace Game.Core
 
             // 좌측 피벗 스프라이트로 만들어봤으나 실제로는 중앙 기준으로 줄어드는 결과가 나왔다(실전투
             // 확인됨) - 대신 배경과 같은 중앙 피벗 스프라이트를 쓰고, 폭(scale.x)과 중심 위치(localPosition.x)를
-            // 매 프레임 함께 계산해 왼쪽 끝이 고정된 것처럼 보이게 한다(Refresh 참고) - 스프라이트
+            // 갱신 때마다 함께 계산해 왼쪽 끝이 고정된 것처럼 보이게 한다(Tick 참고) - 스프라이트
             // 피벗에 의존하지 않아 더 확실하다.
             fillRenderer.sprite = BattleGaugeSprite.Centered;
             fillRenderer.color = FillColor;
@@ -51,22 +53,24 @@ namespace Game.Core
             fillFullScaleX = fillRenderer.transform.localScale.x;
         }
 
+        /// <summary>풀 재사용 시 이전 유닛의 페이드·잔해 숨김(알파)을 되돌린다.</summary>
         public void Bind(IDamageable unit)
         {
             this.unit = unit;
-            unit.OnDamaged += HandleDamaged;
-            Refresh();
+            shownRatio = -1f;
+            SetAlpha(1f);
+            Tick();
         }
 
-        private void Update() => Refresh();
+        public void Unbind() => unit = null;
 
-        private void HandleDamaged(float amount) => Refresh();
-
-        private void Refresh()
+        public void Tick()
         {
             if (unit == null || unit.MaxHp <= 0f) return;
 
             var ratio = Mathf.Clamp01(unit.CurrentHp / unit.MaxHp);
+            if (Mathf.Approximately(ratio, shownRatio)) return;
+            shownRatio = ratio;
 
             var scale = fillRenderer.transform.localScale;
             scale.x = fillFullScaleX * ratio;

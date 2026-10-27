@@ -9,7 +9,7 @@ namespace Game.Core
     /// (게이지 100%↔OnArrived)만은 인카운터/전투와 무관한 단순 이벤트→뷰 반영이라 이 클래스가 직접
     /// 처리한다(Docs/설계/04-2026-08-25-Field씬_아키텍처.md §5.3).
     /// </summary>
-    public class FieldUIController : MonoBehaviour, IFieldUIController
+    public class FieldUIController : MonoBehaviour, IFieldUIController, IFieldTopButtons
     {
         [SerializeField] private Sprite backgroundSprite;
         [SerializeField] private BattleCharacterUnitView battleCharacterViewPrefab;
@@ -47,23 +47,11 @@ namespace Game.Core
         private IGameManager gameManager;
         private ISessionState sessionState;
         private IPanelNavigator uiManager;
-        // 상행 시작/종료(허브 복귀) 시 보유 유닛 HP를 리셋하는 데 쓴다(설계 15번) - 없어도(TryResolve
-        // 실패) 상행 진행 자체는 정상 동작한다(null-조건부 호출).
-        private IUnitConditionRepository unitConditionRepository;
-        // 도착 판정 성립 시 "현재 위치"를 이번 상행의 도착지로 갱신하는 데 쓴다(기획 16번 §4, 설계
-        // 21번 §7) - 없어도(TryResolve 실패) 상행 진행 자체는 정상 동작한다(null-조건부 호출).
-        private ITripCurrentLocationRepository currentLocationRepository;
-        private ITripDestinationAssigner destinationAssigner;
-        // 도착(상행 종료) 시점에 진행 중이던 Field 배치/이동을 즉시 도착지로 확정하는 데 쓴다(HandleArrived) -
-        // 그러지 않으면 이동 중이던 유닛의 FormationLayout이 여전히 출발 슬롯에 남아 있어(설계 25번 §3.2)
-        // Hub 진입 시 출발지로 되돌아간 것처럼 보이는 버그가 있었다(실전 확인, 2026-09-06).
-        private IFieldFormationActivityRepository fieldActivityRepository;
-        // 상행 종료 처리(설계 81번 §6.4) - 사망 캐릭터 영구 제거 + 상태 초기화. null이면 초기화만 한다.
-        private TripEndProcessor tripEndProcessor;
-        // 상행 시작·종료 계기 신호(설계 87번 §6.4) - 이번 상행 기록·판정 시계·정지 원인 초기화. 없으면 신호 없이 진행한다.
-        private FieldTripSignals tripSignals;
+        // 상행 시작·종료·최종 도착의 상태 변경(회복·사망 제거·계기 신호·현재 위치·도착지) - Field 로드마다 배선이 새로 만든다
+        // (Docs/Refactor/2026-10-26_씬전용.md C-1). 이 클래스는 화면·버튼·게이지만 다룬다.
+        private FieldTripLifecycle lifecycle;
 
-        public void RegisterFieldUI(SceneUIRoot sceneUIRoot, IPanelNavigator uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, IUnitConditionRepository unitConditionRepository, ITripCurrentLocationRepository currentLocationRepository, ITripDestinationAssigner destinationAssigner, IFieldFormationActivityRepository fieldActivityRepository, ITripItinerary itinerary, IWorldMapReader worldMap, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, FieldCargoRecoveryPanel cargoRecoveryPanel, TripEndProcessor tripEndProcessor, ITripDayRout dayRout, FieldTripSignals tripSignals, ICurrentLegDifficulty legDifficulty)
+        public void RegisterFieldUI(SceneUIRoot sceneUIRoot, IPanelNavigator uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, FieldTripLifecycle lifecycle, ITripCurrentLocationRepository currentLocationRepository, IFieldFormationActivityRepository fieldActivityRepository, ITripItinerary itinerary, IWorldMapReader worldMap, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, FieldCargoRecoveryPanel cargoRecoveryPanel, ITripDayRout dayRout, FieldTripSignals tripSignals, ICurrentLegDifficulty legDifficulty)
         {
             if (!TryBind(sceneUIRoot))
             {
@@ -73,12 +61,7 @@ namespace Game.Core
             this.gameManager = gameManager;
             this.sessionState = sessionState;
             this.uiManager = uiManager;
-            this.unitConditionRepository = unitConditionRepository;
-            this.currentLocationRepository = currentLocationRepository;
-            this.destinationAssigner = destinationAssigner;
-            this.fieldActivityRepository = fieldActivityRepository;
-            this.tripEndProcessor = tripEndProcessor;
-            this.tripSignals = tripSignals;
+            this.lifecycle = lifecycle;
             legCoordinator = new FieldTripLegCoordinator(sessionState, itinerary, currentLocationRepository, worldMap, gaugeView, legArrivalNoticeView, HandleTripArrived, tripSignals?.Milestones, legDifficulty);
             // 여정 상태는 Bootstrap 상주라 Field 재로드마다 해제 후 재구독한다(sessionState와 같은 규칙, 설계 89 §4.3 구간 라벨).
             if (this.legDifficulty != null) this.legDifficulty.Changed -= HandleLegDifficultyChanged;
@@ -113,7 +96,7 @@ namespace Game.Core
             flowCoordinator.Bind(uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, gameManager, fieldActivityRepository, aftermathApplier, cargoSettlement, repairMode, dayRout, tripSignals);
             var cameraController = new FieldCameraController(this, movementViewRoot, battleViewRoot, battleWorldRoot.gameObject, battleCameraView, transitionCurtain);
             // 회수 적재 패널도 이번 씬의 화면 요소로 만든 것이라(FieldUIWiring) 뷰와 함께 매번 다시 넘긴다.
-            flowCoordinator.RebindViews(this, this, cameraController, warningView, resultPopupView, transitionCurtain, cargoRecoveryPanel);
+            flowCoordinator.RebindViews(this, this, lifecycle, cameraController, warningView, resultPopupView, transitionCurtain, cargoRecoveryPanel);
 
             // battleSimulationEvents도 Bootstrap 상주 영속 객체(BattleManager)라 같은 이유로
             // viewPresenter를 재생성하지 않는다 - Bind(이벤트 구독)는 최초 1회, RebindViews(이번 씬의
@@ -134,16 +117,8 @@ namespace Game.Core
             }
 
             SetTopLevelButtonsInteractable(true);
-            unitConditionRepository?.ResetAllToFull(); // 상행 시작 = 전원 만피로 출발(기획 13번 §4-1, 설계 15번 §4)
-            tripSignals?.Milestones?.Raise(TripMilestone.TripStarted); // 이번 상행 기록·판정 시계·정지 원인 초기화(설계 87번 §6.4)
+            lifecycle.BeginTrip(); // 전원 만피 출발 + 상행 시작 신호
             legCoordinator.BeginFirstLeg(); // 구간마다 소요시간이 다르다(Docs/설계/76번 §6.2)
-        }
-
-        public void FinishTrip()
-        {
-            if (tripEndProcessor != null) tripEndProcessor.Finish();
-            else unitConditionRepository?.ResetAllToFull(); // 처리기 없이도 기존 상행 종료 회복은 유지한다(기획 13번 §4-3).
-            tripSignals?.Milestones?.Raise(TripMilestone.TripEnded);
         }
 
         public void SetTopLevelButtonsInteractable(bool interactable)
@@ -178,16 +153,7 @@ namespace Game.Core
         // 재사용한다(문구·버튼 라벨·콜백만 다름). 중간 도시 도착은 여기 오지 않는다(FieldTripLegCoordinator).
         private void HandleTripArrived()
         {
-            fieldActivityRepository?.ForceCompleteAll(); // 이동 중이던 배치를 도착지로 즉시 확정(위 필드 선언부 주석 참고)
-            FinishTrip(); // 상행 종료 = 사망 제거 + 전원 회복(기획 13번 §4-3, 설계 81번 §6.4)
-
-            // "현재 위치"를 이번 상행의 도착지로 갱신한다(기획 16번 §4) - 빌드에서는 도착지를 고를
-            // 방법이 없어 DestinationCityId가 항상 null이므로 자연히 아무 일도 일어나지 않는다.
-            if (destinationAssigner?.DestinationCityId is { } destinationCityId)
-            {
-                currentLocationRepository?.SetCurrentCity(destinationCityId);
-                destinationAssigner.Reset(); // 다음 상행 준비 UI가 빈 도착지로 시작하도록.
-            }
+            lifecycle.CompleteArrival(); // 진행 배치 확정 → 상행 종료 → 현재 위치 갱신·도착지 초기화
 
             // 인카운터 발생 시 FieldEncounterFlowCoordinator.HandleEncounterTriggered가 배치/방향성
             // 지시를 닫는 것과 같은 이유 - 열려있는 채로 도착 팝업이 뜨면 그 위로 안 닫힌 패널이 남는다.
@@ -277,14 +243,14 @@ namespace Game.Core
                 return false;
             }
 
-            battleAllyLayer = battleWorldRoot.transform.Find("AllyLayer");
+            battleAllyLayer = battleWorldRoot.transform.Find(BattleWorldLayerNames.Ally);
             if (battleAllyLayer == null)
             {
                 WarnMissing(nameof(BattleWorldRoot) + "/AllyLayer");
                 return false;
             }
 
-            battleEnemyLayer = battleWorldRoot.transform.Find("EnemyLayer");
+            battleEnemyLayer = battleWorldRoot.transform.Find(BattleWorldLayerNames.Enemy);
             if (battleEnemyLayer == null)
             {
                 WarnMissing(nameof(BattleWorldRoot) + "/EnemyLayer");

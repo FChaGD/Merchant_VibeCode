@@ -67,11 +67,11 @@ namespace Game.Core.Editor.DebugTools
             var battleTestSimulation = EditorUIBuilder.GetOrAddComponent<BattleTestSimulationRule>(battleManager.gameObject);
             EditorUIBuilder.GetOrAddComponent<PlaceholderDefeatConsequenceRule>(battleManager.gameObject);
             WireRoleGroupMap(battleTestSimulation);
-            WireCharacterStatsTables(battleTestSimulation);
+            EditorTableWiring.WireBattleStatTables(battleTestSimulation);
 
             var tacticsRepository = EditorUIBuilder.GetOrCreateManager<InMemoryTacticsRepository>(managersRoot.transform, "InMemoryTacticsRepository");
-            WireTacticsCatalog(tacticsRepository);
-            WirePartyPolicyCatalog(tacticsRepository);
+            EditorTableWiring.WireRoleGroupCatalog(tacticsRepository);
+            EditorTableWiring.WirePartyPolicyCatalog(tacticsRepository);
 
             // 전투 디버그 기즈모 4종을 이 씬에서는 항상 켜둔다(요구사항 #5) - Bootstrap과 달리
             // Tools/Game/Debug/Install Battle Gizmos 토글을 거치지 않고 인스톨러가 직접 부착한다.
@@ -103,9 +103,9 @@ namespace Game.Core.Editor.DebugTools
             // ==================== 배틀 테스트 씬 조율자(BattleTestPanelHost/TacticsPanel/BattleTestController) ====================
             var panelHost = EditorUIBuilder.GetOrCreateManager<BattleTestPanelHost>(managersRoot.transform, "BattleTestUI");
             var tacticsPanel = EditorUIBuilder.GetOrAddComponent<TacticsPanel>(panelHost.gameObject);
-            WireTacticsPanelCatalog(tacticsPanel);
-            WirePartyPolicyCatalog(tacticsPanel);
-            WireTacticsStringTables(tacticsPanel);
+            EditorTableWiring.WireRoleGroupCatalog(tacticsPanel);
+            EditorTableWiring.WirePartyPolicyCatalog(tacticsPanel);
+            EditorTableWiring.WireTacticsStringTables(tacticsPanel);
             var battleTestController = EditorUIBuilder.GetOrAddComponent<BattleTestController>(panelHost.gameObject);
             WireBattleTestController(battleTestController, startButton, pauseButton, resetButton, tacticsButton, battleWorldRoot, cameraView, paletteView, resultPopupView, unitInfoPanelView, unitPickerView, spawnPointPanelView, battleTestSimulation);
 
@@ -363,7 +363,7 @@ namespace Game.Core.Editor.DebugTools
             var battleLayer = LayerMask.NameToLayer(BattleFieldGeometry.BattleLayerName);
             var boxGo = EditorUIBuilder.GetOrCreateWorldChild(worldParent, "ExtentBox", battleLayer >= 0 ? battleLayer : 0);
             var lineRenderer = EditorUIBuilder.GetOrAddComponent<LineRenderer>(boxGo);
-            lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+            EnsureSpritesDefaultMaterial(lineRenderer);
             lineRenderer.startColor = Color.yellow;
             lineRenderer.endColor = Color.yellow;
             lineRenderer.startWidth = 0.08f;
@@ -419,7 +419,7 @@ namespace Game.Core.Editor.DebugTools
 
             var circleGo = EditorUIBuilder.GetOrCreateWorldChild(worldParent, "SpawnRadiusCircle", layer);
             var circleRenderer = EditorUIBuilder.GetOrAddComponent<LineRenderer>(circleGo);
-            circleRenderer.material = new Material(Shader.Find("Sprites/Default"));
+            EnsureSpritesDefaultMaterial(circleRenderer);
             circleRenderer.startColor = new Color(0.3f, 0.7f, 1f, 0.6f);
             circleRenderer.endColor = new Color(0.3f, 0.7f, 1f, 0.6f);
             circleRenderer.startWidth = 0.06f;
@@ -715,82 +715,6 @@ namespace Game.Core.Editor.DebugTools
             so.ApplyModifiedProperties();
         }
 
-        // roleGroupMap과 같은 배선 전례(Docs/설계/17번 §6) - 에셋이 아직 임포트 전이라 없을 수
-        // 있으므로 null 배선을 경고 없이 허용한다(TableBattleUnitStatProvider/
-        // TableEnemyTypeCompositionProvider가 조회 시점에 즉시 예외로 드러낸다).
-        private static void WireCharacterStatsTables(BattleTestSimulationRule rule)
-        {
-            var so = new SerializedObject(rule);
-            so.FindProperty("characterStatsTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<CharacterStatsTableAsset>(TableAssetPaths.CharacterStatsTable);
-            so.FindProperty("enemyStatsTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<EnemyStatsTableAsset>(TableAssetPaths.EnemyStatsTable);
-            so.FindProperty("enemyEncounterCompositionTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<EnemyEncounterCompositionTableAsset>(TableAssetPaths.EnemyEncounterCompositionTable);
-            so.ApplyModifiedProperties();
-        }
-
-        // roleGroupMap/catalog와 달리(수동 인스펙터 연결 전례) 이 에셋은 처음 생기는 것이라 두
-        // 소비자 모두 자동 배선한다(Docs/설계/17번 §10.5).
-        private static void WirePartyPolicyCatalog(TacticsPanel panel)
-        {
-            var so = new SerializedObject(panel);
-            so.FindProperty("partyPolicyCatalog").objectReferenceValue = AssetDatabase.LoadAssetAtPath<PartyTacticsPolicyCatalogAsset>(TableAssetPaths.PartyPolicyCatalog);
-            so.ApplyModifiedProperties();
-        }
-
-        private static void WirePartyPolicyCatalog(InMemoryTacticsRepository repository)
-        {
-            var so = new SerializedObject(repository);
-            so.FindProperty("partyPolicyCatalog").objectReferenceValue = AssetDatabase.LoadAssetAtPath<PartyTacticsPolicyCatalogAsset>(TableAssetPaths.PartyPolicyCatalog);
-            so.ApplyModifiedProperties();
-        }
-
-        // 라벨 조회용 String 에셋 2종 - catalog(값)와 마찬가지로 처음 생기는 에셋이라 자동 배선한다
-        // (Docs/설계/18번 §8.2). InMemoryTacticsRepository는 라벨을 다루지 않아 배선 대상이 아니다.
-        private static void WireTacticsStringTables(TacticsPanel panel)
-        {
-            var so = new SerializedObject(panel);
-            so.FindProperty("partyPolicyStrings").objectReferenceValue = AssetDatabase.LoadAssetAtPath<PartyTacticsPolicyStringsTableAsset>(TableAssetPaths.PartyPolicyStringsTable);
-            so.FindProperty("roleGroupTacticsStrings").objectReferenceValue = AssetDatabase.LoadAssetAtPath<RoleGroupTacticsStringsTableAsset>(TableAssetPaths.RoleGroupTacticsStringsTable);
-            so.ApplyModifiedProperties();
-        }
-
-        private static void WireTacticsCatalog(InMemoryTacticsRepository repository)
-        {
-            var asset = LoadTacticsCatalogAsset();
-            if (asset == null)
-            {
-                return;
-            }
-
-            var so = new SerializedObject(repository);
-            so.FindProperty("catalog").objectReferenceValue = asset;
-            so.ApplyModifiedProperties();
-        }
-
-        // TacticsPanel도 InMemoryTacticsRepository와 별개로 자신만의 catalog 필드를 갖는다(같은 에셋을
-        // 각자 참조 - RoleGroupTacticsOverride 후보 UI를 그리는 데 필요).
-        private static void WireTacticsPanelCatalog(TacticsPanel panel)
-        {
-            var asset = LoadTacticsCatalogAsset();
-            if (asset == null)
-            {
-                return;
-            }
-
-            var so = new SerializedObject(panel);
-            so.FindProperty("catalog").objectReferenceValue = asset;
-            so.ApplyModifiedProperties();
-        }
-
-        private static RoleGroupTacticsCatalogAsset LoadTacticsCatalogAsset()
-        {
-            var asset = AssetDatabase.LoadAssetAtPath<RoleGroupTacticsCatalogAsset>(TableAssetPaths.RoleGroupTacticsCatalog);
-            if (asset == null)
-            {
-                Debug.LogWarning($"'{TableAssetPaths.RoleGroupTacticsCatalog}'를 찾을 수 없어 catalog를 연결하지 못했다.");
-            }
-            return asset;
-        }
-
         private static void WireBattleTestController(
             BattleTestController controller, Button startButton, Button pauseButton, Button resetButton, Button tacticsButton,
             BattleWorldRoot battleWorldRoot, BattleFieldWorldCameraView cameraView, BattleTestUnitPaletteView paletteView,
@@ -802,8 +726,8 @@ namespace Game.Core.Editor.DebugTools
             so.FindProperty("pauseButton").objectReferenceValue = pauseButton;
             so.FindProperty("resetButton").objectReferenceValue = resetButton;
             so.FindProperty("tacticsButton").objectReferenceValue = tacticsButton;
-            so.FindProperty("allyContainer").objectReferenceValue = battleWorldRoot.transform.Find("AllyLayer");
-            so.FindProperty("enemyContainer").objectReferenceValue = battleWorldRoot.transform.Find("EnemyLayer");
+            so.FindProperty("allyContainer").objectReferenceValue = battleWorldRoot.transform.Find(BattleWorldLayerNames.Ally);
+            so.FindProperty("enemyContainer").objectReferenceValue = battleWorldRoot.transform.Find(BattleWorldLayerNames.Enemy);
             so.FindProperty("characterViewPrefab").objectReferenceValue = EditorBattleWorldBuilder.GetOrCreateBattleCharacterViewPrefab();
             so.FindProperty("protectedViewPrefab").objectReferenceValue = EditorBattleWorldBuilder.GetOrCreateBattleProtectedViewPrefab();
             so.FindProperty("cameraView").objectReferenceValue = cameraView;
@@ -830,5 +754,15 @@ namespace Game.Core.Editor.DebugTools
 
             so.ApplyModifiedProperties();
         }
+
+        // 선 렌더러 머티리얼은 이미 같은 셰이더면 그대로 쓴다(Docs/Refactor/2026-10-26_씬전용.md H-5, SE-8) - 실행마다 새 머티리얼을 대입하면
+        // 씬에 내장된 이전 머티리얼이 버려지고 새 것이 생겨 재실행할 때마다 씬 파일이 바뀌었다(get-or-create 위반).
+        private static void EnsureSpritesDefaultMaterial(LineRenderer renderer)
+        {
+            var current = renderer.sharedMaterial;
+            if (current != null && current.shader != null && current.shader.name == "Sprites/Default") return;
+            renderer.sharedMaterial = new Material(Shader.Find("Sprites/Default"));
+        }
+
     }
 }

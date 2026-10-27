@@ -88,6 +88,7 @@ namespace Game.Core
             battleTestSimulation.OnReset += HandleSimulationReset;
             battleTestSimulation.OnUnitAdded += HandleUnitAdded;
             battleTestSimulation.OnEnemyRosterCleared += HandleEnemyRosterCleared;
+            unitInfoPanelView.PlacementCancelled += HandlePlacementCancelled;
 
             // 세팅 단계(전투 시작 전)에도 카메라 팬/줌이 동작해야 하므로, 첫 전투가 시작되기 전에
             // 미리 한 번 경계를 잡아둔다(안 하면 RecomputeBounds가 한 번도 안 불려 팬/줌이 원점에
@@ -106,26 +107,30 @@ namespace Game.Core
 
         // BattleViewPresenter는 OnSimulationBuilt(Evaluate() 1회)에만 반응해 유닛 뷰를 스폰하므로,
         // 팔레트로 추가된 유닛(세팅 단계 미리보기 포함)은 이 컨트롤러가 직접 뷰를 만들어줘야 눈에
-        // 보인다 - BattleViewPresenter.SpawnCharacterView와 같은 절차(Instantiate+Bind)를 그대로 쓴다.
-        // 세팅 단계(!IsRunning)인 유닛에만 클릭 대상(BattleTestUnitClickTarget)을 붙인다 - 전투 중
-        // 실시간 추가 유닛은 이미 싸우고 있어 "배치 취소"/수치 조절 대상이 아니다.
+        // 보인다 - BattleViewPresenter의 같은 풀에서 꺼낸다(Docs/Refactor/2026-10-26_씬전용.md A-3, 생성 경로 하나).
+        // 세팅 단계(!IsRunning)인 유닛에만 클릭 대상(BattleTestUnitClickTarget)을 켠다 - 전투 중
+        // 실시간 추가 유닛은 이미 싸우고 있어 "배치 취소"/수치 조절 대상이 아니다. 풀 재사용 뷰라 이미 붙어 있으면 다시 쓴다
+        // (반환되며 꺼진다 - BattleTestUnitClickTarget.OnDisable).
         private void HandleUnitAdded(IBattleCombatant unit, bool isAlly, int entryId)
         {
-            var parent = isAlly ? allyContainer : enemyContainer;
-            if (parent == null || characterViewPrefab == null)
+            var view = viewPresenter.SpawnCharacter(unit, isAlly);
+            if (view == null)
             {
                 Debug.LogWarning($"{nameof(BattleTestController)}: allyContainer/enemyContainer 또는 characterViewPrefab이 비어 있어 유닛 뷰를 만들지 못했다(인스톨러 배선 확인).");
                 return;
             }
 
-            var view = Instantiate(characterViewPrefab, parent);
-            view.Bind(unit);
-
             if (!battleTestSimulation.IsRunning)
             {
-                var clickTarget = view.gameObject.AddComponent<BattleTestUnitClickTarget>();
+                if (!view.TryGetComponent<BattleTestUnitClickTarget>(out var clickTarget)) clickTarget = view.gameObject.AddComponent<BattleTestUnitClickTarget>();
                 clickTarget.Initialize(isAlly, entryId);
             }
+        }
+
+        // 배치 취소(정보 패널) - 시뮬레이션 로스터 제거는 패널이 했고, 뷰는 풀로 돌려보낸다.
+        private void HandlePlacementCancelled(BattleTestUnitClickTarget target)
+        {
+            if (target != null) viewPresenter.Release(target.GetComponent<BattleCharacterUnitView>());
         }
 
         private void HandleUnitClicked(BattleTestUnitClickTarget target) => unitInfoPanelView.Show(target);
@@ -134,11 +139,8 @@ namespace Game.Core
         // "시작"을 누를 때마다 매번 새 전투로 재시작돼 버린다. 요구사항은 시작/중지/리셋 3버튼만
         // 요구하므로 "재개"는 시작 버튼이 겸한다. 다만 승패가 이미 갈린 뒤(IsFinished)라면 재개할
         // 대상이 없으므로 리셋 없이도 새로 시작한다.
-        // BattleViewPresenter.Present()가 내부 Clear()로 정리하는 대상은 "자신이 직접 스폰한 뷰
-        // 목록"뿐이다 - 세팅 단계 미리보기 뷰는 HandleUnitAdded가 별도로 Instantiate했으므로 그
-        // 목록에 없어 지워지지 않는다(실전투 확인된 버그). 그래서 새 전투를 실제로 짓기 직전에
-        // ClearSpawnedViews()로 컨테이너를 통째로 비운다 - Present()가 그 뒤에 실제 시뮬레이션
-        // 유닛 뷰를 새로 스폰한다.
+        // 새 전투를 짓기 직전에 세팅 단계 미리보기 뷰를 모두 풀로 돌려보낸다 - 미리보기와 실제 전투 뷰가
+        // 같은 풀을 쓰므로, Present()가 곧바로 그 뷰를 다시 꺼내 시뮬레이션 유닛에 묶는다.
         private void HandleStartClicked()
         {
             resultPopupView.Hide();
@@ -169,16 +171,10 @@ namespace Game.Core
         private void HandleEnemyRosterCleared()
         {
             unitInfoPanelView.Hide(); // 지워질 적 유닛을 패널이 참조 중이었을 수 있다.
-            for (var i = enemyContainer.childCount - 1; i >= 0; i--) Destroy(enemyContainer.GetChild(i).gameObject);
+            viewPresenter.ClearSide(isAlly: false);
         }
 
-        // BattleViewPresenter.Clear()는 private이라(FieldUIController 전용 설계, 프로덕션 파일 변경
-        // 범위 밖) 스폰된 유닛 뷰는 여기서 직접 정리한다 - 리셋은 다음 전투 시작을 기다리지 않고
-        // 즉시 지워야 한다.
-        private void ClearSpawnedViews()
-        {
-            for (var i = allyContainer.childCount - 1; i >= 0; i--) Destroy(allyContainer.GetChild(i).gameObject);
-            for (var i = enemyContainer.childCount - 1; i >= 0; i--) Destroy(enemyContainer.GetChild(i).gameObject);
-        }
+        // 리셋은 다음 전투 시작을 기다리지 않고 즉시 지워야 한다 - 미리보기·전투 뷰 모두 같은 풀이라 한 번에 반환된다.
+        private void ClearSpawnedViews() => viewPresenter.ClearAll();
     }
 }

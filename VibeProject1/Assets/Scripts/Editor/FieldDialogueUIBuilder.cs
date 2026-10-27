@@ -57,8 +57,8 @@ namespace Game.Core.Editor
             marker.text = "▼";
 
             // 스탠딩: 일러1(왼쪽, 그림만 좌우반전) x .16~.32, 일러2(오른쪽, 원본) x .68~.84, y .06~.34
-            BuildStanding(body.transform, "LeftStanding", new Vector2(0.16f, 0.06f), new Vector2(0.32f, 0.34f), flip: true, out var leftRoot, out var leftFigure, out var leftName);
-            BuildStanding(body.transform, "RightStanding", new Vector2(0.68f, 0.06f), new Vector2(0.84f, 0.34f), flip: false, out var rightRoot, out var rightFigure, out var rightName);
+            EditorDialogueBuilder.BuildStanding(body.transform, "LeftStanding", new Vector2(0.16f, 0.06f), new Vector2(0.32f, 0.34f), flip: true, figureMinY: 0.15f, nameMaxY: 0.14f, nameFontSize: 20f, out var leftRoot, out var leftFigure, out var leftName);
+            EditorDialogueBuilder.BuildStanding(body.transform, "RightStanding", new Vector2(0.68f, 0.06f), new Vector2(0.84f, 0.34f), flip: false, figureMinY: 0.15f, nameMaxY: 0.14f, nameFontSize: 20f, out var rightRoot, out var rightFigure, out var rightName);
 
             // 선택지 x .34~.66, y .14~.28 / 남은 시간 막대 y .12~.135
             var options = EditorUIBuilder.GetOrCreateUIObject(body.transform, "Options");
@@ -98,23 +98,6 @@ namespace Game.Core.Editor
             so.ApplyModifiedProperties();
 
             body.SetActive(false);
-        }
-
-        private static void BuildStanding(Transform parent, string name, Vector2 min, Vector2 max, bool flip, out GameObject root, out Image figure, out TMP_Text nameText)
-        {
-            root = EditorUIBuilder.GetOrCreateUIObject(parent, name);
-            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), min, max);
-
-            var figureGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "Figure");
-            var figureRect = figureGo.GetComponent<RectTransform>();
-            EditorUIBuilder.SetAnchors(figureRect, new Vector2(0f, 0.15f), new Vector2(1f, 1f));
-            // 원본 일러스트는 오른쪽 자리 기준 방향이라 왼쪽만 그림을 뒤집는다(설계 88 §5.2) - 이름은 별도 요소라 반전되지 않는다.
-            figureRect.localScale = new Vector3(flip ? -1f : 1f, 1f, 1f);
-            figure = EditorUIBuilder.EnsureImage(figureGo, Color.white);
-            figure.raycastTarget = false;
-
-            nameText = Text(root.transform, "Name", new Vector2(0f, 0f), new Vector2(1f, 0.14f), 20f, TextAlignmentOptions.Center, Color.white);
-            root.SetActive(false);
         }
 
         private static void BuildManualTalk(Transform parent)

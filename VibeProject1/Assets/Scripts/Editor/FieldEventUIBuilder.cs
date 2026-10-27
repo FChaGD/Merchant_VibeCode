@@ -45,8 +45,8 @@ namespace Game.Core.Editor
             EditorUIBuilder.SetStretch(body.GetComponent<RectTransform>());
 
             // 스탠딩 왼쪽 x .04~.28, 오른쪽 x .72~.96, y .14~.86 - 말풍선보다 먼저 만들어 뒤에 그린다.
-            BuildStanding(body.transform, "LeftStanding", new Vector2(0.04f, 0.14f), new Vector2(0.28f, 0.86f), flip: true, out var leftRoot, out var leftFigure, out var leftName);
-            BuildStanding(body.transform, "RightStanding", new Vector2(0.72f, 0.14f), new Vector2(0.96f, 0.86f), flip: false, out var rightRoot, out var rightFigure, out var rightName);
+            EditorDialogueBuilder.BuildStanding(body.transform, "LeftStanding", new Vector2(0.04f, 0.14f), new Vector2(0.28f, 0.86f), flip: true, figureMinY: 0.08f, nameMaxY: 0.07f, nameFontSize: 22f, out var leftRoot, out var leftFigure, out var leftName);
+            EditorDialogueBuilder.BuildStanding(body.transform, "RightStanding", new Vector2(0.72f, 0.14f), new Vector2(0.96f, 0.86f), flip: false, figureMinY: 0.08f, nameMaxY: 0.07f, nameFontSize: 22f, out var rightRoot, out var rightFigure, out var rightName);
 
             // 말풍선 x .30~.70, y .36~.62
             var bubble = EditorUIBuilder.GetOrCreateUIObject(body.transform, "Bubble");
@@ -175,22 +175,6 @@ namespace Game.Core.Editor
             EditorUIBuilder.EnsureLabel(go.transform, "정비창 보기", autoSize: true, minFontSize: 16f, maxFontSize: 26f);
             go.transform.SetAsLastSibling();
             return button;
-        }
-
-        // 이벤트 화면 스탠딩은 대화 화면보다 크게(높이 72%) 그려 이름 칸 비율이 다르다 - 대화 화면 빌더와 모양을 공유하지 않는다.
-        private static void BuildStanding(Transform parent, string name, Vector2 min, Vector2 max, bool flip, out GameObject root, out Image figure, out TMP_Text nameText)
-        {
-            root = EditorUIBuilder.GetOrCreateUIObject(parent, name);
-            EditorUIBuilder.SetAnchors(root.GetComponent<RectTransform>(), min, max);
-            var figureGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "Figure");
-            var figureRect = figureGo.GetComponent<RectTransform>();
-            EditorUIBuilder.SetAnchors(figureRect, new Vector2(0f, 0.08f), new Vector2(1f, 1f));
-            // 일러1(왼쪽)만 그림을 좌우반전한다(설계 88 §5.2와 같음) - 이름은 별도 요소라 반전되지 않는다.
-            figureRect.localScale = new Vector3(flip ? -1f : 1f, 1f, 1f);
-            figure = EditorUIBuilder.EnsureImage(figureGo, Color.white);
-            figure.raycastTarget = false;
-            nameText = EditorUIBuilder.EnsureTextBlock(root.transform, "Name", new Vector2(0f, 0f), new Vector2(1f, 0.07f), 22f, TextAlignmentOptions.Center, Color.white);
-            root.SetActive(false);
         }
 
         private static GameObject Tail(Transform parent, string name, Vector2 min, Vector2 max)

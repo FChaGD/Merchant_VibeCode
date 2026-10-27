@@ -107,5 +107,60 @@ namespace Game.Core.Tests
 
             Assert.DoesNotThrow(() => condition.Set(true));
         }
+
+        // 입력 차단 방식(Docs/Refactor/2026-10-26_씬전용.md E-2) - 휴식 진행 중 재화 HUD는 보이되 누를 수 없다.
+        [Test]
+        public void BlockInput_KeepsAlpha_BlocksRaycast()
+        {
+            var condition = new Condition();
+            gate.Register(new[] { new LayerHideRule(condition, new[] { layer }, LayerHideMode.BlockInput) });
+            condition.Set(true);
+            Assert.AreEqual(1f, layer.alpha);
+            Assert.IsFalse(layer.interactable);
+            Assert.IsFalse(layer.blocksRaycasts);
+
+            condition.Set(false);
+            Assert.IsTrue(layer.interactable);
+            Assert.IsTrue(layer.blocksRaycasts);
+        }
+
+        [Test]
+        public void LayerHideGate_HideWinsOverBlock()
+        {
+            var hide = new Condition();
+            var block = new Condition();
+            gate.Register(new[] { new LayerHideRule(hide, new[] { layer }), new LayerHideRule(block, new[] { layer }, LayerHideMode.BlockInput) });
+            block.Set(true);
+            hide.Set(true);
+            Assert.AreEqual(0f, layer.alpha, "숨김이 우선");
+            Assert.IsFalse(layer.blocksRaycasts);
+        }
+
+        [Test]
+        public void LayerHideGate_HideReleased_BlockRemains()
+        {
+            var hide = new Condition();
+            var block = new Condition();
+            gate.Register(new[] { new LayerHideRule(hide, new[] { layer }), new LayerHideRule(block, new[] { layer }, LayerHideMode.BlockInput) });
+            hide.Set(true);
+            block.Set(true);
+            hide.Set(false);
+            Assert.AreEqual(1f, layer.alpha);
+            Assert.IsFalse(layer.interactable, "입력 차단은 남는다");
+            Assert.IsFalse(layer.blocksRaycasts);
+        }
+
+        [Test]
+        public void UIHideToggle_RaisesChangedOnlyOnChange()
+        {
+            var toggle = new UIHideToggle();
+            var count = 0;
+            toggle.Changed += () => count++;
+            toggle.Set(true);
+            toggle.Set(true);
+            toggle.Set(false);
+            Assert.AreEqual(2, count);
+            Assert.IsFalse(toggle.IsActive);
+        }
     }
 }

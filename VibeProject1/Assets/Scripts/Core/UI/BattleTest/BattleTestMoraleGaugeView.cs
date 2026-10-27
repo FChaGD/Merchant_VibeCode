@@ -15,12 +15,21 @@ namespace Game.Core
         [SerializeField] private Image enemyFillImage;
         [SerializeField] private BattleTestSimulationRule simulationRule;
 
+        private float shownAlly = -1f;
+        private float shownEnemy = -1f;
+
+        // 사기 값은 이벤트가 없어 매 프레임 읽지만, 값이 바뀐 프레임에만 다시 그린다(Docs/Refactor/2026-10-26_씬전용.md I-4, FO-3).
         private void Update()
         {
             if (simulationRule == null) return;
 
-            allyFillImage.fillAmount = simulationRule.AllyMoraleValue / MoraleMax;
-            enemyFillImage.fillAmount = simulationRule.EnemyMoraleValue / MoraleMax;
+            var ally = simulationRule.AllyMoraleValue;
+            var enemy = simulationRule.EnemyMoraleValue;
+            if (Mathf.Approximately(ally, shownAlly) && Mathf.Approximately(enemy, shownEnemy)) return;
+            shownAlly = ally;
+            shownEnemy = enemy;
+            allyFillImage.fillAmount = ally / MoraleMax;
+            enemyFillImage.fillAmount = enemy / MoraleMax;
         }
     }
 }

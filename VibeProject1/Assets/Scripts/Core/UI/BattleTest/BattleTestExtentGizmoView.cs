@@ -30,9 +30,33 @@ namespace Game.Core
             SyncInputsFromLayout();
         }
 
+        private Vector2 shownMin = new(float.NaN, float.NaN);
+        private Vector2 shownMax;
+        private Vector3 shownCameraPosition;
+        private float shownCameraSize = -1f;
+        private Vector2Int shownScreen;
+
+        // 범위가 바뀐 프레임에만 상자를 다시 그리고, 핸들(화면 좌표)은 범위·카메라 이동/줌·화면 크기가 바뀐 프레임에만 옮긴다
+        // (Docs/Refactor/2026-10-26_씬전용.md I-4, FO-3).
         private void Update()
         {
-            DrawBox();
+            var min = FieldLayout.ExtentMin;
+            var max = FieldLayout.ExtentMax;
+            var extentChanged = min != shownMin || max != shownMax;
+            if (extentChanged)
+            {
+                shownMin = min;
+                shownMax = max;
+                DrawBox();
+            }
+
+            var camera = Camera.main;
+            if (camera == null) return;
+            var screen = new Vector2Int(Screen.width, Screen.height);
+            if (!extentChanged && camera.transform.position == shownCameraPosition && Mathf.Approximately(camera.orthographicSize, shownCameraSize) && screen == shownScreen) return;
+            shownCameraPosition = camera.transform.position;
+            shownCameraSize = camera.orthographicSize;
+            shownScreen = screen;
             RepositionHandles();
         }
 

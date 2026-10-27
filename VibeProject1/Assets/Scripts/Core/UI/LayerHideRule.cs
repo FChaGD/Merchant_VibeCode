@@ -11,16 +11,42 @@ namespace Game.Core
         event Action Changed;
     }
 
-    /// <summary>조건이 참인 동안 숨길 레이어 목록(Docs/Refactor/2026-10-26_공통.md B-4). 씬 배선이 규칙표로 등록한다.</summary>
+    /// <summary>
+    /// 숨김(안 보이고 못 누름) / 입력 차단(보이지만 못 누름, Docs/Refactor/2026-10-26_씬전용.md E-2 - 휴식 진행 중 재화 HUD).
+    /// 같은 레이어에 둘이 함께 걸리면 숨김이 우선이다.
+    /// </summary>
+    public enum LayerHideMode
+    {
+        Hide,
+        BlockInput,
+    }
+
+    /// <summary>조건이 참인 동안 숨기거나 입력을 막을 레이어 목록(Docs/Refactor/2026-10-26_공통.md B-4). 씬 배선이 규칙표로 등록한다.</summary>
     public readonly struct LayerHideRule
     {
         public IUIHideCondition Condition { get; }
         public IReadOnlyList<CanvasGroup> Layers { get; }
+        public LayerHideMode Mode { get; }
 
-        public LayerHideRule(IUIHideCondition condition, IReadOnlyList<CanvasGroup> layers)
+        public LayerHideRule(IUIHideCondition condition, IReadOnlyList<CanvasGroup> layers, LayerHideMode mode = LayerHideMode.Hide)
         {
             Condition = condition;
             Layers = layers;
+            Mode = mode;
+        }
+    }
+
+    /// <summary>값을 직접 켜고 끄는 조건 - 패널이 자기 상태(예: 휴식 진행 중)를 규칙 조건으로 내보낼 때 쓴다. 값이 실제로 바뀔 때만 Changed를 낸다.</summary>
+    public sealed class UIHideToggle : IUIHideCondition
+    {
+        public bool IsActive { get; private set; }
+        public event Action Changed;
+
+        public void Set(bool active)
+        {
+            if (IsActive == active) return;
+            IsActive = active;
+            Changed?.Invoke();
         }
     }
 

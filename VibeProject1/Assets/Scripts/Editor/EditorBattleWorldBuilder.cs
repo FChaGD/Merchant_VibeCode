@@ -51,8 +51,8 @@ namespace Game.Core.Editor
                 battleLayer = 0;
             }
 
-            EnsureBattleUnitLayer(root.transform, "AllyLayer", battleLayer);
-            EnsureBattleUnitLayer(root.transform, "EnemyLayer", battleLayer);
+            EnsureBattleUnitLayer(root.transform, BattleWorldLayerNames.Ally, battleLayer);
+            EnsureBattleUnitLayer(root.transform, BattleWorldLayerNames.Enemy, battleLayer);
             EditorUIBuilder.GetOrAddComponent<BattleBackgroundGridView>(root);
 
             return battleWorldRoot;

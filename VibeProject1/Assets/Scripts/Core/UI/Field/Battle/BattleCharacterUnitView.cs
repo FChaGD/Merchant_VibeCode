@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 
@@ -9,6 +10,8 @@ namespace Game.Core
     /// UGUI Screen Space Overlay와 시뮬레이션 좌표계의 스케일 차이가 커서 Scene 뷰 디버그 도구 등이
     /// 화면 구석에 조그맣게 그려지는 문제로 전환됨). 이동은 매 프레임 Position을 그대로 따라가고,
     /// 공격/피격/사망/도주는 유닛이 발행하는 이벤트에 반응해서만 처리한다(폴링 없음).
+    /// 풀에서 재사용된다(Docs/Refactor/2026-10-26_씬전용.md A-1·A-2) - 사망·도주 페이드가 끝나면 파괴하지 않고 onFinished로 반환을 알리고,
+    /// 반환 전 Unbind가 구독·코루틴·연출 상태를 되돌린다. 다음 Bind가 색·크기를 새 유닛 기준으로 다시 쓴다.
     /// </summary>
     public class BattleCharacterUnitView : MonoBehaviour
     {
@@ -42,19 +45,22 @@ namespace Game.Core
         private IBattleCombatant unit;
         private Color baseColor;
         // 이 유닛이 원거리 공격을 할 때마다 재사용하는 투사체 - 매 발사마다 Destroy+Instantiate하지
-        // 않는다(CLAUDE.md 최적화 규칙). transform이 아니라 transform.parent의 자식이라 이 유닛
-        // (공격자)이 파괴돼도 함께 파괴되지 않는다 - 발사 후 공격자가 죽어도 날아가는 중인 투사체는
-        // 그대로 유지된다는 기존 동작과 동일하다.
+        // 않는다(CLAUDE.md 최적화 규칙). transform이 아니라 transform.parent의 자식이다 - 뷰 자식이면 유닛 크기 스케일을
+        // 물려받는다. 뷰가 풀에서 재사용되므로 투사체도 뷰마다 하나로 유지되고 쌓이지 않는다(FO-5).
         private SpriteRenderer projectileRenderer;
+        private Action<BattleCharacterUnitView> onFinished;
 
         private void Awake()
         {
             if (bodyRenderer == null) bodyRenderer = GetComponent<SpriteRenderer>();
         }
 
-        public void Bind(IBattleCombatant unit)
+        /// <param name="onFinished">사망·도주 페이드가 끝났을 때 - 풀 반환. null이면 예전처럼 스스로 파괴한다.</param>
+        public void Bind(IBattleCombatant unit, Action<BattleCharacterUnitView> onFinished)
         {
+            if (bodyRenderer == null) bodyRenderer = GetComponent<SpriteRenderer>();
             this.unit = unit;
+            this.onFinished = onFinished;
             // 적 진영 구분(기획 08번 §13.1) - unit.Icon이 있으면(약탈자/괴수/적대자 도형) 그대로 쓰고,
             // 없으면(아군, 아직 직업별 아이콘 미도입) 기존 단색 사각형으로 대체한다. 흰색 스프라이트라
             // 아래 진영 틴트가 그대로 곱해져 도형과 무관하게 색 구분은 유지된다(BattlePlaceholderSprite 참고).
@@ -73,18 +79,42 @@ namespace Game.Core
             unit.OnFled += HandleFled;
         }
 
+        /// <summary>풀 반환 직전 - 유닛 이벤트 해제, 진행 중 연출(깜빡임·찌르기·투사체·페이드) 정지. 이후 늦게 오는 이벤트에 반응하지 않는다.</summary>
+        public void Unbind()
+        {
+            if (unit != null)
+            {
+                unit.OnDamaged -= HandleDamaged;
+                unit.OnAttacked -= HandleAttacked;
+                unit.OnDied -= HandleDied;
+                unit.OnFled -= HandleFled;
+            }
+            unit = null;
+            onFinished = null;
+            StopAllCoroutines();
+            if (projectileRenderer != null) projectileRenderer.gameObject.SetActive(false);
+            gaugeView?.Unbind();
+        }
+
+        // 체력 게이지도 여기서 갱신한다 - 재생처럼 이벤트 없이 바뀌는 체력이 있어 매 프레임 확인하되, 게이지가 따로 Update를 갖지 않게 했다(FO-2).
         private void Update()
         {
             if (unit == null || !unit.IsAlive) return;
             transform.position = ToWorld(unit.Position);
             UpdateSortingOrder();
+            gaugeView?.Tick();
         }
 
         private void UpdateSortingOrder() => bodyRenderer.sortingOrder = -Mathf.RoundToInt(transform.position.y * SortingOrderYScale);
 
         private static Vector3 ToWorld(Vector2 position) => new(position.x, position.y, 0f);
 
-        private void HandleDamaged(float amount) => StartCoroutine(FlashWhite());
+        // 피격마다 게이지도 갱신한다 - 마지막 일격은 HP 차감 뒤 사망해 Update가 더는 돌지 않으므로, 여기서 0을 반영해야 빈 게이지로 사라진다.
+        private void HandleDamaged(float amount)
+        {
+            gaugeView?.Tick();
+            StartCoroutine(FlashWhite());
+        }
 
         private void HandleAttacked(IDamageable target)
         {
@@ -167,6 +197,12 @@ namespace Game.Core
             projectileRenderer.gameObject.SetActive(false);
         }
 
+        private void Finish()
+        {
+            if (onFinished != null) onFinished(this);
+            else Destroy(gameObject);
+        }
+
         private IEnumerator FadeOutAndDestroy()
         {
             var elapsed = 0f;
@@ -179,7 +215,7 @@ namespace Game.Core
                 gaugeView?.SetAlpha(alpha);
                 yield return null;
             }
-            Destroy(gameObject);
+            Finish();
         }
 
         // FadeOutAndDestroy와 거의 같지만, 도주는 정지 상태로 페이드아웃하지 않는다 - OnFled 이후에도
@@ -199,7 +235,7 @@ namespace Game.Core
                 gaugeView?.SetAlpha(alpha);
                 yield return null;
             }
-            Destroy(gameObject);
+            Finish();
         }
     }
 }

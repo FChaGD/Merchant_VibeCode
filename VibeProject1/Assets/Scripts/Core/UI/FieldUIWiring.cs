@@ -38,6 +38,12 @@ namespace Game.Core
                 throw new InvalidOperationException($"{nameof(FieldUIWiring)}와 같은 GameObject에 {nameof(IFieldUIController)} 구현체가 없다.");
             }
 
+            var topButtons = GetComponent<IFieldTopButtons>();
+            if (topButtons == null)
+            {
+                throw new InvalidOperationException($"{nameof(FieldUIWiring)}와 같은 GameObject에 {nameof(IFieldTopButtons)} 구현체가 없다.");
+            }
+
             var tacticsPanel = GetComponent<ITacticsPanel>();
             if (tacticsPanel == null)
             {
@@ -97,10 +103,13 @@ namespace Game.Core
             var tripSignals = FieldTripSignals.Resolve(registrar);
             registrar.TryResolve<ICurrentLegDifficulty>(out var legDifficulty); // 구간 라벨 등급명 갱신(설계 89 §4.3)
 
-            fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, unitConditionRepository, currentLocationRepository, destinationAssigner, fieldActivityRepository, tripItinerary, worldMap, aftermathApplier, cargoSettlement, repairMode, cargoRecoveryPanel, tripEndProcessor, dayRout, tripSignals, legDifficulty);
+            // 상행 시작·종료·도착 처리(Docs/Refactor/2026-10-26_씬전용.md C-1) - Field 로드마다 새로 만든다(구독 없음, 호출만).
+            var lifecycle = new FieldTripLifecycle(unitConditionRepository, tripSignals?.Milestones, tripEndProcessor, fieldActivityRepository, currentLocationRepository, destinationAssigner);
+
+            fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, lifecycle, currentLocationRepository, fieldActivityRepository, tripItinerary, worldMap, aftermathApplier, cargoSettlement, repairMode, cargoRecoveryPanel, dayRout, tripSignals, legDifficulty);
             BindMovementViewHider(registrar, fieldUIController.MovementViewRoot);
             BindTripDialogue(registrar, sceneUIRoot);
-            BindEventEncounter(registrar, sceneUIRoot, uiManager, panelRegistrar, fieldUIController, formationPanel.GetComponent<IFormationViewOnlyMode>());
+            BindEventEncounter(registrar, sceneUIRoot, uiManager, panelRegistrar, topButtons, formationPanel.GetComponent<IFormationViewOnlyMode>());
 
             // Hub↔Field 씬 전환 연출(SceneTransitionEffectController)이 다음 전환 때 슬라이드시킬 대상을
             // 등록한다. 예전엔 이동 뷰 루트만 등록해 전투 뷰/패널/결과 팝업이 전환 중 제자리에 남았다 - 이제
@@ -156,7 +165,7 @@ namespace Game.Core
 
         // 이벤트 화면(설계 89 §6.3) - 진행자는 Bootstrap 상주라 Field를 로드할 때마다 이번 씬의 화면 묶음으로 바꿔 끼운다. 두 화면은 정비창과 같은 모달 묶음.
         // 회수 적재 패널(무역품 공간 부족 정리)은 위에서 이번 씬 것으로 만든 것을 넘긴다 - 없으면 넘친 무역품이 임시 보관에 남는다.
-        private void BindEventEncounter(IDependencyResolver registrar, SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IFieldUIController fieldUIController, IFormationViewOnlyMode viewOnly)
+        private void BindEventEncounter(IDependencyResolver registrar, SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IFieldTopButtons fieldUIController, IFormationViewOnlyMode viewOnly)
         {
             if (!registrar.TryResolve<IEventEncounterViewBinder>(out var binder)) return;
             var ok = sceneUIRoot.TryGetElement(FieldEventUIElementIds.DialogueRoot, out FieldEventDialogueView dialogue)

@@ -82,6 +82,6 @@ namespace Game.Core
         }
 
         private string CityName(int cityId)
-            => worldMap != null && worldMap.TryGetCity(cityId, out var city) && !string.IsNullOrEmpty(city.Name) ? city.Name : $"디버그 도시 {cityId}";
+            => TripCityNames.DisplayName(worldMap, cityId);
     }
 }
