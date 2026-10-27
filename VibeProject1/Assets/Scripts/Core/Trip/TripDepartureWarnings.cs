@@ -15,14 +15,21 @@ namespace Game.Core
         public static string FormatStaged(int stagedCount)
             => $"임시 보관소의 물류품 {stagedCount:N0}개가 버려집니다. 그래도 출발하시겠습니까?";
 
+        /// <summary>임시 보관에 진행 중 퀘스트의 지급 의뢰 화물이 있으면 버리기 경고와 같은 줄을 더한다(설계 107번 §8.4).</summary>
+        public static string FormatStaged(int stagedCount, IReadOnlyList<string> questNames)
+        {
+            var line = InventoryDiscardWarning.QuestCargoLine(questNames);
+            return line == null ? FormatStaged(stagedCount) : $"{FormatStaged(stagedCount)}\n{line}";
+        }
+
         public static string FormatGold(int personalLimit, int excessGold)
             => $"개인 소유 가능량 {personalLimit:N0}을 넘는 {excessGold:N0}골드가 버려집니다. 마차에 적재하거나 은행에 보관하지 않은 골드는 버려집니다. 그래도 출발하시겠습니까?";
 
-        public static List<string> Collect(bool hasPlacedUnit, int stagedCount, int excessGold, int personalLimit)
+        public static List<string> Collect(bool hasPlacedUnit, int stagedCount, int excessGold, int personalLimit, IReadOnlyList<string> stagedQuestNames = null)
         {
             var warnings = new List<string>(3);
             if (!hasPlacedUnit) warnings.Add(EmptyFormation);
-            if (stagedCount > 0) warnings.Add(FormatStaged(stagedCount));
+            if (stagedCount > 0) warnings.Add(FormatStaged(stagedCount, stagedQuestNames));
             if (excessGold > 0) warnings.Add(FormatGold(personalLimit, excessGold));
             return warnings;
         }

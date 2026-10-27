@@ -33,3 +33,8 @@ MonoBehaviour:
     FootprintHeight: 2
     Icon: {fileID: 0}
     Price: 400
+  - Id: quest-box
+    FootprintWidth: 1
+    FootprintHeight: 1
+    Icon: {fileID: 0}
+    Price: 100

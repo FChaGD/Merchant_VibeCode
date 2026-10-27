@@ -11,8 +11,9 @@ namespace Game.Core
         /// (Docs/설계/40번 §5.5) - 인벤토리 카테고리 공통 조건이라 목록으로 받는다.
         /// worldMap·routeReader는 지역 지도 표시와 도착지 도달 판정(Docs/설계/69번 §5).
         /// rosterProvider는 출발 조건(마차 대열 연결)을 판정할 때 배치의 유닛 Id를 마차·시설로 해석하는 데 쓴다(Docs/설계/79번 §9.1).
+        /// questWarnings는 임시 보관 버림 경고에 의뢰 화물 줄을 더하는 데 쓴다(설계 107번 §8.4) - 없으면 줄 없이 경고한다.
         /// </summary>
-        void RegisterTripUI(SceneUIRoot sceneUIRoot, IPanelNavigator uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingDiscarder> inventoryStaging, IWorldMapReader worldMap, ITripRouteReader routeReader, ITripDeparture tripDeparture, ICaravanRosterProvider rosterProvider, IGoldHoldingsReader goldHoldings, IGoldDepartureSettlement goldDeparture);
+        void RegisterTripUI(SceneUIRoot sceneUIRoot, IPanelNavigator uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingDiscarder> inventoryStaging, IWorldMapReader worldMap, ITripRouteReader routeReader, ITripDeparture tripDeparture, ICaravanRosterProvider rosterProvider, IGoldHoldingsReader goldHoldings, IGoldDepartureSettlement goldDeparture, IQuestCargoWarnings questWarnings = null);
 
 #if UNITY_EDITOR
         /// <summary>지도 디버그 편집(배치·도로·관문·지역 추가/삭제·저장, 설계 69번 §6)을 붙인다. RegisterTripUI 뒤에 부른다.</summary>

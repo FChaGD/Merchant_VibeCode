@@ -1,0 +1,253 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e4638aa116e0d5c4c8cc23823e362d95, type: 3}
+  m_Name: QuestTable
+  m_EditorClassIdentifier: Game.Core::Game.Core.QuestTableAsset
+  quests:
+  - Id: Q_T1
+    Kind: 1
+    Repeat: 0
+    Acceptance: 0
+    Completion: 0
+    ReportCityId: 0
+    BoardCityIds: 04000000
+    RequiredQuestId: 
+    HasMinReputation: 0
+    MinReputation: 0
+    HasRepostDays: 0
+    RepostDays: 0
+    FailReputation: -5
+    FailGold: 100
+    ReturnCargoOnFail: 1
+    BonusTiming: 0
+    Title: "\uD14C\uC2A4\uD2B8: \uC989\uC2DC \uB0A9\uD488(\uC9C0\uAE09\uD615)"
+    Requester: "\uAC12 \uC5C6\uC74C"
+    Description: "\uAC12 \uC5C6\uC74C"
+    Objectives:
+    - Id: deliver
+      Role: 0
+      Type: 1
+      CityId: 6
+      ItemId: quest-box
+      Count: 1
+      EnemyType: 
+      QuestBattleOnly: 0
+      HasDeadlineDays: 0
+      DeadlineDays: 0
+      HasDeadlineDate: 0
+      DeadlineTotalDays: 0
+      Label: "\uAC12 \uC5C6\uC74C"
+    - Id: preserve
+      Role: 1
+      Type: 4
+      CityId: 0
+      ItemId: 
+      Count: 0
+      EnemyType: 
+      QuestBattleOnly: 0
+      HasDeadlineDays: 0
+      DeadlineDays: 0
+      HasDeadlineDate: 0
+      DeadlineTotalDays: 0
+      Label: "\uAC12 \uC5C6\uC74C"
+    Rewards:
+    - ObjectiveId: 
+      Type: 0
+      ItemId: 
+      Amount: 300
+    - ObjectiveId: 
+      Type: 1
+      ItemId: 
+      Amount: 5
+    - ObjectiveId: preserve
+      Type: 0
+      ItemId: 
+      Amount: 50
+    Cargo:
+    - ItemId: quest-box
+      Count: 1
+    Effects:
+    - Scope: 0
+      DifficultyBonus: 10
+      EventId: QE1
+      EventRepeat: 0
+      EventTiming: 0
+      ProgressMin: 0.5
+      ProgressMax: 0.5
+    FollowUps:
+    - NextQuestId: Q_T4
+      Mode: 0
+      RequiredBonusId: 
+  - Id: Q_T2
+    Kind: 1
+    Repeat: 1
+    Acceptance: 0
+    Completion: 1
+    ReportCityId: 4
+    BoardCityIds: 04000000
+    RequiredQuestId: 
+    HasMinReputation: 0
+    MinReputation: 0
+    HasRepostDays: 1
+    RepostDays: 3
+    FailReputation: -3
+    FailGold: 0
+    ReturnCargoOnFail: 0
+    BonusTiming: 0
+    Title: "\uD14C\uC2A4\uD2B8: \uBCF4\uACE0\uD615 \uC870\uB2EC"
+    Requester: "\uAC12 \uC5C6\uC74C"
+    Description: "\uAC12 \uC5C6\uC74C"
+    Objectives:
+    - Id: deliver
+      Role: 0
+      Type: 1
+      CityId: 4
+      ItemId: placeholder-1x1
+      Count: 2
+      EnemyType: 
+      QuestBattleOnly: 0
+      HasDeadlineDays: 0
+      DeadlineDays: 0
+      HasDeadlineDate: 0
+      DeadlineTotalDays: 0
+      Label: "\uAC12 \uC5C6\uC74C"
+    - Id: deadline
+      Role: 0
+      Type: 2
+      CityId: 0
+      ItemId: 
+      Count: 0
+      EnemyType: 
+      QuestBattleOnly: 0
+      HasDeadlineDays: 1
+      DeadlineDays: 10
+      HasDeadlineDate: 0
+      DeadlineTotalDays: 0
+      Label: "\uAC12 \uC5C6\uC74C"
+    Rewards:
+    - ObjectiveId: 
+      Type: 0
+      ItemId: 
+      Amount: 200
+    - ObjectiveId: 
+      Type: 2
+      ItemId: placeholder-2x1
+      Amount: 1
+    Cargo: []
+    Effects: []
+    FollowUps: []
+  - Id: Q_T3
+    Kind: 1
+    Repeat: 1
+    Acceptance: 0
+    Completion: 0
+    ReportCityId: 0
+    BoardCityIds: 04000000
+    RequiredQuestId: 
+    HasMinReputation: 0
+    MinReputation: 0
+    HasRepostDays: 1
+    RepostDays: 1
+    FailReputation: 0
+    FailGold: 0
+    ReturnCargoOnFail: 0
+    BonusTiming: 1
+    Title: "\uD14C\uC2A4\uD2B8: \uBC18\uBCF5 \uC804\uD22C"
+    Requester: "\uAC12 \uC5C6\uC74C"
+    Description: "\uAC12 \uC5C6\uC74C"
+    Objectives:
+    - Id: win
+      Role: 0
+      Type: 3
+      CityId: 0
+      ItemId: 
+      Count: 1
+      EnemyType: 
+      QuestBattleOnly: 1
+      HasDeadlineDays: 0
+      DeadlineDays: 0
+      HasDeadlineDate: 0
+      DeadlineTotalDays: 0
+      Label: "\uAC12 \uC5C6\uC74C"
+    - Id: wins
+      Role: 1
+      Type: 3
+      CityId: 0
+      ItemId: 
+      Count: 2
+      EnemyType: 
+      QuestBattleOnly: 0
+      HasDeadlineDays: 0
+      DeadlineDays: 0
+      HasDeadlineDate: 0
+      DeadlineTotalDays: 0
+      Label: "\uAC12 \uC5C6\uC74C"
+    Rewards:
+    - ObjectiveId: 
+      Type: 0
+      ItemId: 
+      Amount: 100
+    - ObjectiveId: wins
+      Type: 2
+      ItemId: placeholder-2x2
+      Amount: 3
+    Cargo: []
+    Effects:
+    - Scope: 1
+      DifficultyBonus: 0
+      EventId: QE2
+      EventRepeat: 1
+      EventTiming: 1
+      ProgressMin: 0.2
+      ProgressMax: 0.8
+    FollowUps: []
+  - Id: Q_T4
+    Kind: 1
+    Repeat: 0
+    Acceptance: 0
+    Completion: 0
+    ReportCityId: 0
+    BoardCityIds: 04000000
+    RequiredQuestId: Q_T1
+    HasMinReputation: 0
+    MinReputation: 0
+    HasRepostDays: 0
+    RepostDays: 0
+    FailReputation: 0
+    FailGold: 0
+    ReturnCargoOnFail: 0
+    BonusTiming: 0
+    Title: "\uD14C\uC2A4\uD2B8: \uD6C4\uC18D \uB3C4\uCC29"
+    Requester: "\uAC12 \uC5C6\uC74C"
+    Description: "\uAC12 \uC5C6\uC74C"
+    Objectives:
+    - Id: arrive
+      Role: 0
+      Type: 0
+      CityId: 2
+      ItemId: 
+      Count: 0
+      EnemyType: 
+      QuestBattleOnly: 0
+      HasDeadlineDays: 0
+      DeadlineDays: 0
+      HasDeadlineDate: 0
+      DeadlineTotalDays: 0
+      Label: "\uAC12 \uC5C6\uC74C"
+    Rewards:
+    - ObjectiveId: 
+      Type: 0
+      ItemId: 
+      Amount: 100
+    Cargo: []
+    Effects: []
+    FollowUps: []

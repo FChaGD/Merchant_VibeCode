@@ -23,6 +23,8 @@ namespace Game.Core.Editor
             TownStockTableImporter.Import();
             // 화자 검증이 캐릭터 원본 엑셀을 직접 읽으므로 순서와 무관하지만, 참조 대상 뒤에 둔다(설계 87번 §3.1).
             EncounterTableImporter.Import();
+            // 도시·무역품·적·이벤트 원본 엑셀을 직접 읽어 검증하므로 순서와 무관하지만, 참조 대상 뒤에 둔다(설계 107번 §4).
+            QuestTableImporter.Import();
         }
     }
 }

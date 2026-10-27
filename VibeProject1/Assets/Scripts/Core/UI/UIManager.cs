@@ -80,6 +80,11 @@ namespace Game.Core
 
         public void ToggleInventoryPopup(string popupId) => inventoryPopupCoordinator.Toggle(popupId);
 
+        public void OpenInventoryPopup(string popupId)
+        {
+            if (!inventoryPopupCoordinator.IsOpen(popupId)) inventoryPopupCoordinator.Toggle(popupId);
+        }
+
         public void CloseAllInventoryPopups() => inventoryPopupCoordinator.CloseAll();
 
         private void HandleSceneLoaded(string sceneName)

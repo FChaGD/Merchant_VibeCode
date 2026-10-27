@@ -17,8 +17,10 @@ namespace Game.Core
         public const string To = "to";
         public const string Flag = "flag";
         public const string Seen = "seen";
+        /// <summary>`quest:퀘스트Id` - 그 퀘스트의 확정 사건 위치에 도달했고 아직 발생하지 않았다(설계 107번 §9.3).</summary>
+        public const string Quest = "quest";
 
-        private static readonly HashSet<string> Known = new() { Month, Date, Progress, Region, Road, From, To, Flag, Seen };
+        private static readonly HashSet<string> Known = new() { Month, Date, Progress, Region, Road, From, To, Flag, Seen, Quest };
 
         public static IReadOnlyCollection<string> All => Known;
 

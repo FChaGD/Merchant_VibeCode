@@ -95,6 +95,31 @@ namespace Game.Core.Tests
             CollectionAssert.AreEqual(new[] { TripMilestone.TripEnded }, milestones.Raised);
         }
 
+        private sealed class Arrival : ITripArrivalSink
+        {
+            public readonly List<int> Cities = new();
+            public Func<int> ReadLocation;
+            public int LocationAtNotify = -1;
+            public void NotifyFinalArrival(int cityId)
+            {
+                Cities.Add(cityId);
+                LocationAtNotify = ReadLocation();
+            }
+        }
+
+        [Test]
+        public void CompleteArrival_NotifiesAfterLocation()
+        {
+            var arrival = new Arrival { ReadLocation = () => location.CurrentCityId };
+            new FieldTripLifecycle(new Conditions(), null, null, activities, location, new Destination { DestinationCityId = 9 }, arrival).CompleteArrival();
+            CollectionAssert.AreEqual(new[] { 9 }, arrival.Cities);
+            Assert.AreEqual(9, arrival.LocationAtNotify, "위치 갱신 뒤에 알린다");
+
+            var none = new Arrival { ReadLocation = () => location.CurrentCityId };
+            new FieldTripLifecycle(new Conditions(), null, null, activities, location, new Destination(), none).CompleteArrival();
+            Assert.IsEmpty(none.Cities, "목적지가 없으면 알리지 않는다");
+        }
+
         [Test]
         public void CompleteArrival_NoDestination_KeepsLocation()
         {

@@ -21,6 +21,7 @@ namespace Game.Core
         private CurrentLegRuntime runtime;
         private ICityPairDifficultyReader pairs;
         private ITripClockAdjuster clock; // 선택적 - 없으면 빈도만 바뀌고 시간은 그대로
+        private IQuestDifficultyModifier quests; // 선택적 - 퀘스트 난이도 가산(설계 107번 §9.2)
 
         public event Action Changed;
 
@@ -31,6 +32,7 @@ namespace Game.Core
         public int CurrentLegIndex => currentLegIndex;
         public TripLeg CurrentLeg => HasItinerary ? plan.Legs[currentLegIndex] : default;
         public bool HasNextLeg => HasItinerary && currentLegIndex < plan.Legs.Count - 1;
+        public TripPlan CurrentPlan => HasItinerary ? plan : null;
 
         public float EncountersPerFiveMinutes => HasLeg
             ? runtime.EncountersPerFiveMinutes
@@ -61,10 +63,13 @@ namespace Game.Core
         {
             // 실행 값은 지도가 없어도 만든다 - 구간이 없으면 아무것도 바꾸지 않는다.
             if (pairs != null) pairs.Changed -= HandlePairChanged;
+            if (quests != null) quests.BonusChanged -= HandleQuestBonusChanged;
             registrar.TryResolve(out pairs);
             registrar.TryResolve(out clock);
-            runtime = new CurrentLegRuntime(() => Settings, pairs);
+            registrar.TryResolve(out quests);
+            runtime = new CurrentLegRuntime(() => Settings, pairs, () => quests?.GetBonus(DestinationCityId) ?? 0);
             if (pairs != null) pairs.Changed += HandlePairChanged;
+            if (quests != null) quests.BonusChanged += HandleQuestBonusChanged;
 
             if (!registrar.TryResolve<IWorldMapReader>(out var worldMap))
             {
@@ -72,8 +77,11 @@ namespace Game.Core
                 return;
             }
             registrar.TryResolve<IRoadDifficultyReader>(out var difficulties);
-            planner = new TripRoutePlanner(worldMap, difficulties ?? new BaseDifficultyReader(worldMap), () => Settings, pairs);
+            planner = new TripRoutePlanner(worldMap, difficulties ?? new BaseDifficultyReader(worldMap), () => Settings, pairs, quests);
         }
+
+        // 이번 상행의 최종 목적지 - 퀘스트 가산의 적용 판정 기준(설계 107번 §9.1).
+        private int DestinationCityId => HasItinerary ? plan.Legs[plan.Legs.Count - 1].ToCityId : -1;
 
         public bool TryPlan(int fromCityId, int toCityId, out TripPlan newPlan)
         {
@@ -120,6 +128,12 @@ namespace Game.Core
             if (runtime.Recompute()) ApplyRuntimeChange();
         }
 
+        // 상행 중 퀘스트가 끝나거나(완료·실패·포기) 생기면 진행 중 구간의 실행 난이도를 다시 계산한다. 출발 계획(예상 일수)은 그대로.
+        private void HandleQuestBonusChanged()
+        {
+            if (HasLeg && runtime.Recompute()) ApplyRuntimeChange();
+        }
+
         // 진행 비율 유지·추가 시간 보존은 시계가 맡는다(TripLegClock.Rebase).
         private void ApplyRuntimeChange()
         {
@@ -130,6 +144,7 @@ namespace Game.Core
         private void OnDestroy()
         {
             if (pairs != null) pairs.Changed -= HandlePairChanged;
+            if (quests != null) quests.BonusChanged -= HandleQuestBonusChanged;
         }
 
         // 도로 난이도 상태가 등록되지 않은 경우(인스톨러 미실행) 지도 기본값만 쓴다.

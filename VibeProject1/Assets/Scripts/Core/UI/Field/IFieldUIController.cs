@@ -22,5 +22,8 @@ namespace Game.Core
 
         /// <summary>Hub↔Field 씬 전환 연출이 슬라이드시킬 대상. RegisterFieldUI 이후에만 유효하다.</summary>
         RectTransform MovementViewRoot { get; }
+
+        /// <summary>최종 도착 시 퀘스트 보상 정리 화면을 도착 팝업보다 먼저 연다(설계 107번 §8.3). null이면 바로 도착 팝업.</summary>
+        void SetQuestRewardCleanup(FieldQuestRewardCleanup cleanup);
     }
 }

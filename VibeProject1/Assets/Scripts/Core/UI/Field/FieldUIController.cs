@@ -50,6 +50,10 @@ namespace Game.Core
         // 상행 시작·종료·최종 도착의 상태 변경(회복·사망 제거·계기 신호·현재 위치·도착지) - Field 로드마다 배선이 새로 만든다
         // (Docs/Refactor/2026-10-26_씬전용.md C-1). 이 클래스는 화면·버튼·게이지만 다룬다.
         private FieldTripLifecycle lifecycle;
+        // 퀘스트 보상 정리(설계 107번 §8.3) - Field 로드마다 배선이 새로 만든다. 없으면 도착 팝업을 바로 띄운다.
+        private FieldQuestRewardCleanup questRewardCleanup;
+
+        public void SetQuestRewardCleanup(FieldQuestRewardCleanup cleanup) => questRewardCleanup = cleanup;
 
         public void RegisterFieldUI(SceneUIRoot sceneUIRoot, IPanelNavigator uiManager, ISessionState sessionState, IEncounterManager encounterManager, IBattleController battleController, IBattleResultSource battleResultSource, IDefeatConsequenceSource defeatConsequenceSource, IBattleSimulationEvents battleSimulationEvents, IGameManager gameManager, ISceneRevealSignal sceneRevealSignal, FieldTripLifecycle lifecycle, ITripCurrentLocationRepository currentLocationRepository, IFieldFormationActivityRepository fieldActivityRepository, ITripItinerary itinerary, IWorldMapReader worldMap, IBattleAftermathApplier aftermathApplier, ITradeGoodsCargoSettlement cargoSettlement, IFormationRepairMode repairMode, FieldCargoRecoveryPanel cargoRecoveryPanel, ITripDayRout dayRout, FieldTripSignals tripSignals, ICurrentLegDifficulty legDifficulty)
         {
@@ -153,15 +157,21 @@ namespace Game.Core
         // 재사용한다(문구·버튼 라벨·콜백만 다름). 중간 도시 도착은 여기 오지 않는다(FieldTripLegCoordinator).
         private void HandleTripArrived()
         {
-            lifecycle.CompleteArrival(); // 진행 배치 확정 → 상행 종료 → 현재 위치 갱신·도착지 초기화
+            questRewardCleanup?.BeginArrival(); // 도착 처리 안의 퀘스트 완료가 정리 화면을 먼저 열지 않게
+            lifecycle.CompleteArrival(); // 진행 배치 확정 → 상행 종료 → 현재 위치 갱신·도착지 초기화(+ 최종 도착 신호 → 퀘스트 즉시 완료)
 
             // 인카운터 발생 시 FieldEncounterFlowCoordinator.HandleEncounterTriggered가 배치/방향성
             // 지시를 닫는 것과 같은 이유 - 열려있는 채로 도착 팝업이 뜨면 그 위로 안 닫힌 패널이 남는다.
             // 둘 다 Close가 멱등이라 열려있지 않아도 안전하다.
             uiManager.Close(UIPanelIds.Formation);
             uiManager.Close(UIPanelIds.Tactics);
-            resultPopupView.Show("도착 성공", "도시 입장", onConfirm: () => gameManager.RequestSceneTransition(ContentSceneId.Hub));
+            // 보상이 임시 보관으로 갔으면 정리 화면을 먼저 열고 닫힌 뒤 도착 팝업(설계 107번 §8.3).
+            if (questRewardCleanup != null) questRewardCleanup.TryRunBeforeArrival(ShowArrivalPopup);
+            else ShowArrivalPopup();
         }
+
+        private void ShowArrivalPopup()
+            => resultPopupView.Show("도착 성공", "도시 입장", onConfirm: () => gameManager.RequestSceneTransition(ContentSceneId.Hub));
 
         private bool TryBind(SceneUIRoot sceneUIRoot)
         {

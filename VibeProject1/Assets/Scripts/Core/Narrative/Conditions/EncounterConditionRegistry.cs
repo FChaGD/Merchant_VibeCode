@@ -43,6 +43,7 @@ namespace Game.Core
             registry.Register(new DelegateEvaluator(EncounterConditionKeys.To, IsInt, (a, c) => c.HasLeg && TryInt(a, out var id) && c.ToCityId == id));
             registry.Register(new DelegateEvaluator(EncounterConditionKeys.Flag, IsNonEmpty, (a, c) => c.History != null && c.History.HasFlag(a)));
             registry.Register(new DelegateEvaluator(EncounterConditionKeys.Seen, IsNonEmpty, (a, c) => c.History != null && c.History.HasOccurred(a)));
+            registry.Register(new DelegateEvaluator(EncounterConditionKeys.Quest, IsNonEmpty, (a, c) => c.Quests != null && c.Quests.IsEventDue(a.Trim(), c.Progress)));
             return registry;
         }
 

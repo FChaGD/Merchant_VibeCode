@@ -67,7 +67,7 @@ namespace Game.Core
             removed = 0;
             if (itemId == null || !inventory.TryGetDefinition(itemId, out var definition)) return false;
             name = definition.DisplayName;
-            foreach (var instanceId in OrderedInstances(itemId))
+            foreach (var instanceId in RemovalOrder(itemId))
             {
                 if (removed >= count) break;
                 if (settlement.RemoveWithoutRefund(instanceId)) removed++;
@@ -112,8 +112,8 @@ namespace Game.Core
             return n;
         }
 
-        // 임시 보관 → 적재(섹션 = 보유 마차 순서, 위 행·왼쪽부터 - InventoryAutoSorter와 같은 Y 작을수록 위).
-        private List<string> OrderedInstances(string itemId)
+        /// <summary>품목 지정 제거 순서 - 임시 보관 → 적재(섹션 = 보유 마차 순서, 위 행·왼쪽부터 - InventoryAutoSorter와 같은 Y 작을수록 위). 제거 결과를 미리 판정하는 쪽(퀘스트 보고 공간)도 같은 순서를 쓴다.</summary>
+        public List<string> RemovalOrder(string itemId)
         {
             var ids = new List<string>();
             foreach (var item in settlement.StagedItems) if (item.Definition.Id == itemId) ids.Add(item.InstanceId);

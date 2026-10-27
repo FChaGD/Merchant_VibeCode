@@ -44,6 +44,8 @@ namespace Game.Core
         public const string CurrencyWagonCount = "Hub.CurrencyWagonCount";
         public const string CurrencyUnitIcon = "Hub.CurrencyUnitIcon";
         public const string CurrencyUnitCount = "Hub.CurrencyUnitCount";
+        // 평판 칸(Docs/설계/107번 §10).
+        public const string CurrencyReputation = "Hub.CurrencyReputation";
 
         // 게임 날짜 HUD(Docs/설계/85번 §4.1) - 상단 중앙, PopupExemptLayer.
         public const string DatePanelRoot = "Hub.DatePanelRoot";

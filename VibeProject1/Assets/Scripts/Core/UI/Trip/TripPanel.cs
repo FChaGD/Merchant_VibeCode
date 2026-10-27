@@ -65,7 +65,7 @@ namespace Game.Core
         // 화면(Hub)이 완전히 드러나기 전까지는 "상행 시작"을 막는다(사용자 확정) - 도착지 배정 게이팅과 AND로 합친다.
         private bool sceneRevealed;
 
-        public void RegisterTripUI(SceneUIRoot sceneUIRoot, IPanelNavigator uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingDiscarder> inventoryStaging, IWorldMapReader worldMap, ITripRouteReader routeReader, ITripDeparture tripDeparture, ICaravanRosterProvider rosterProvider, IGoldHoldingsReader goldHoldings, IGoldDepartureSettlement goldDeparture)
+        public void RegisterTripUI(SceneUIRoot sceneUIRoot, IPanelNavigator uiManager, IGameManager gameManager, IFormationReader formationReader, ITripInfoProvider tripInfoProvider, ISceneRevealSignal sceneRevealSignal, ITripCurrentLocationReader currentLocationReader, ITripDestinationAssigner destinationAssigner, IReadOnlyList<IInventoryStagingDiscarder> inventoryStaging, IWorldMapReader worldMap, ITripRouteReader routeReader, ITripDeparture tripDeparture, ICaravanRosterProvider rosterProvider, IGoldHoldingsReader goldHoldings, IGoldDepartureSettlement goldDeparture, IQuestCargoWarnings questWarnings = null)
         {
             this.uiManager = uiManager;
             this.gameManager = gameManager;
@@ -97,7 +97,7 @@ namespace Game.Core
             boundSceneUIRoot = sceneUIRoot;
             // 임시 보관은 버튼 활성 조건이 아니라 출발 경고로 다룬다(2026-10-15) - 출발 시점에만 읽으므로 변경 구독이 필요 없다.
             departureFlow = new TripDepartureFlow(departureConfirmDialog, inventoryStaging, goldHoldings, goldDeparture, tripDeparture, currentLocationReader, destinationAssigner,
-                () => gameManager.RequestSceneTransition(ContentSceneId.Field));
+                () => gameManager.RequestSceneTransition(ContentSceneId.Field), questWarnings);
             rootCanvas = panelRoot.GetComponentInParent<Canvas>()?.rootCanvas;
             SetupMapPresenter(worldMap, routeReader);
 

@@ -75,6 +75,10 @@ namespace Game.Core
     {
         bool IsRunning { get; }
         string CurrentEventId { get; }
+        /// <summary>
+        /// 이벤트 실행이 시작됐다(이벤트 Id) - 퀘스트 확정 사건 발생 기록용(설계 107번 §9.3). 이벤트는 중단되지 않으므로 시작 = 발생으로 본다(설계 89 §4).
+        /// </summary>
+        event Action<string> EventStarted;
         /// <summary>정비창·방향성 지시가 닫히기를 기다리는 이벤트(없으면 null).</summary>
         string PendingEventId { get; }
         IReadOnlyList<EventEntry> QueuedEvents { get; }

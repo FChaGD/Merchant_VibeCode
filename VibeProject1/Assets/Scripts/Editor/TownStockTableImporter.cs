@@ -72,6 +72,7 @@ namespace Game.Core.Editor
                 [TownStockCategory.Facility] = ReadIds(TablePath("Caravan/Facility.xlsx"), "Facility"),
                 [TownStockCategory.TradeGoods] = ReadIds(TablePath("Item/TradeGoods.xlsx"), "ItemData"),
             };
+            var questCargoIds = ReadQuestCargoIds(TablePath("Item/TradeGoods.xlsx"));
             var seen = new HashSet<(int, TownStockCategory, string)>();
 
             foreach (var entry in entries)
@@ -79,6 +80,7 @@ namespace Game.Core.Editor
                 var label = $"TownStock 행(CityId {entry.CityId}, {entry.Category}, '{entry.ItemId}')";
                 if (!cityIds.Contains(entry.CityId.ToString())) throw new FormatException($"{label}: City.xlsx CityData에 없는 CityId.");
                 if (!idsByCategory[entry.Category].Contains(entry.ItemId)) throw new FormatException($"{label}: {entry.Category} 테이블에 없는 ItemId.");
+                if (entry.Category == TownStockCategory.TradeGoods && questCargoIds.Contains(entry.ItemId)) throw new FormatException($"{label}: 의뢰 화물(TradeKind QuestCargo)은 마을 재고에 넣을 수 없다(설계 107번 §4).");
                 if (entry.Quantity <= 0) throw new FormatException($"{label}: Quantity는 1 이상이어야 한다.");
                 if (!seen.Add((entry.CityId, entry.Category, entry.ItemId))) throw new FormatException($"{label}: 같은 (CityId, Category, ItemId) 행이 중복됐다.");
             }
@@ -91,6 +93,17 @@ namespace Game.Core.Editor
             foreach (var row in EditorTableReader.ReadSheet(workbookPath, sheetName))
             {
                 if (row.TryGetValue("Id", out var id) && !string.IsNullOrWhiteSpace(id)) ids.Add(id.Trim());
+            }
+            return ids;
+        }
+
+        private static HashSet<string> ReadQuestCargoIds(string workbookPath)
+        {
+            var ids = new HashSet<string>();
+            var questCargo = ((int)TradeGoodsKind.QuestCargo).ToString();
+            foreach (var row in EditorTableReader.ReadSheet(workbookPath, "ItemData"))
+            {
+                if (row.TryGetValue("Id", out var id) && row.TryGetValue("TradeKind", out var kind) && kind?.Trim() == questCargo) ids.Add(id.Trim());
             }
             return ids;
         }

@@ -44,6 +44,7 @@ namespace Game.Core
             events = Require<EventEncounterCoordinator>();
             registrar.Register<IEventEncounterViewBinder>(events);
             registrar.Register<IEventEncounterDebug>(events);
+            registrar.Register<IEventEncounterStatus>(events);   // 퀘스트(설계 107번)는 조회·시작 신호만 쓴다 - 읽기 타입은 따로 등록해야 조회된다
             registrar.Register<IEventBattleOutcomeSink>(events);
 
             uiHide = Require<FieldUIHideCoordinator>();

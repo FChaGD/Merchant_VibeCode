@@ -11,6 +11,7 @@ namespace Game.Core
         private readonly IWorldMapReader worldMap;
         private readonly ISessionState session;
         private readonly IEncounterHistoryReader history;
+        private readonly IQuestEncounterGate quests; // 선택적 - 없으면 `quest` 조건은 거짓(설계 107번 §9.3)
 
         public EncounterContextSource(IDependencyResolver registrar)
         {
@@ -19,13 +20,14 @@ namespace Game.Core
             registrar.TryResolve(out worldMap);
             registrar.TryResolve(out session);
             registrar.TryResolve(out history);
+            registrar.TryResolve(out quests);
         }
 
         public EncounterConditionContext Build()
         {
             var hasLeg = itinerary != null && itinerary.HasItinerary;
             var today = date != null ? date.Today : default;
-            return EncounterConditionContextFactory.Create(today, hasLeg, hasLeg ? itinerary.CurrentLeg : default, RegionOf, session != null ? session.Progress : 0f, history);
+            return EncounterConditionContextFactory.Create(today, hasLeg, hasLeg ? itinerary.CurrentLeg : default, RegionOf, session != null ? session.Progress : 0f, history, quests);
         }
 
         private int RegionOf(int cityId) => worldMap != null && worldMap.TryGetCity(cityId, out var city) ? city.RegionId : -1;

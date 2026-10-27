@@ -24,12 +24,13 @@ namespace Game.Core
         // 여러 팝업 사이의 표시 순서를 정하는 PopupFocusOnPress가 창 루트를 받는다(Docs/설계/46번 §3).
         public UnityEngine.RectTransform WindowRoot => elements.Arrangement.Root;
 
-        public InventoryPopupPanel(InventoryPopupSpec spec, InventoryPopupElements elements, IInventoryReader reader, IInventoryArrangement arrangement, IInventoryPopupToggle uiManager, PopupWindowPositionStore windowPositions, IInputManager input, IGoldItemInfo goldInfo)
+        public InventoryPopupPanel(InventoryPopupSpec spec, InventoryPopupElements elements, IInventoryReader reader, IInventoryArrangement arrangement, IInventoryPopupToggle uiManager, PopupWindowPositionStore windowPositions, IInputManager input, IGoldItemInfo goldInfo,
+            IQuestCargoWarnings questWarnings = null)
         {
             PanelId = spec.PopupId;
             this.elements = elements;
             this.windowPositions = windowPositions;
-            arrangementController = new InventoryArrangementController(elements.Arrangement, input, goldInfo, reader, arrangement, spec.AllowsRotation, spec.HasStaging, spec.HasSections);
+            arrangementController = new InventoryArrangementController(elements.Arrangement, input, goldInfo, reader, arrangement, spec.AllowsRotation, spec.HasStaging, spec.HasSections, questWarnings);
 
             // 닫기 버튼도 상시 호출 버튼과 같은 토글 경로를 탄다 - 닫기 차단(IPanelCloseGuard)이 코디네이터 한 곳에서만 확인된다.
             elements.CloseButton.onClick.RemoveAllListeners();

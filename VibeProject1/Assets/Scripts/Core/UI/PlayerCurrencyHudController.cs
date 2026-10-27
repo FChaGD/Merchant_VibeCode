@@ -32,12 +32,14 @@ namespace Game.Core
         private TMP_Text amountText;
         private TMP_Text wagonCountText;
         private TMP_Text unitCountText;
+        private TMP_Text reputationText;
+        private IReputationReader reputation;
         private PointerPressRelay pressRelay;
         private RectTransformDimensionsChangeRelay dimensionsRelay;
         private ITooltipHandle tooltip;
         private float fittedPanelWidth = -1f;
 
-        public void RegisterCurrencyUI(SceneUIRoot sceneUIRoot, IGoldHoldingsReader goldHoldings, IPanelNavigator uiManager, ICaravanRosterProvider roster)
+        public void RegisterCurrencyUI(SceneUIRoot sceneUIRoot, IGoldHoldingsReader goldHoldings, IPanelNavigator uiManager, ICaravanRosterProvider roster, IReputationReader reputation = null)
         {
             Unbind();
 
@@ -73,6 +75,18 @@ namespace Game.Core
                 unitCountText = null;
             }
 
+            // 평판 칸(설계 107번 §10) - 평판 계약이 없으면 숨기고, 칸이 없으면(인스톨러 미실행) 경고 후 생략한다.
+            if (sceneUIRoot.TryGetElement(HubUIElementIds.CurrencyReputation, out reputationText))
+            {
+                reputationText.gameObject.SetActive(reputation != null);
+                if (reputation == null) reputationText = null;
+            }
+            else
+            {
+                Debug.LogWarning($"Hub UI에서 재화 HUD 평판 칸을 찾을 수 없다(Tools > Game > Build Hub Scene).");
+            }
+            this.reputation = reputationText != null ? reputation : null;
+
             BindGoldSection(sceneUIRoot);
 
             if (panelRoot.TryGetComponent(out dimensionsRelay))
@@ -82,6 +96,7 @@ namespace Game.Core
 
             goldHoldings.Changed += Refresh;
             if (roster != null) roster.RosterChanged += Refresh;
+            if (this.reputation != null) this.reputation.Changed += Refresh;
             Refresh();
         }
 
@@ -118,12 +133,15 @@ namespace Game.Core
         {
             if (goldHoldings != null) goldHoldings.Changed -= Refresh;
             if (roster != null) roster.RosterChanged -= Refresh;
+            if (reputation != null) reputation.Changed -= Refresh;
             if (pressRelay != null) pressRelay.ShortClicked -= OpenConversion;
             if (dimensionsRelay != null) dimensionsRelay.DimensionsChanged -= HandlePanelResized;
             tooltip?.Dispose();
 
             goldHoldings = null;
             roster = null;
+            reputation = null;
+            reputationText = null;
             pressRelay = null;
             dimensionsRelay = null;
             tooltip = null;
@@ -156,6 +174,8 @@ namespace Game.Core
                 }
             }
 
+            if (reputationText != null && reputation != null) reputationText.text = reputation.Value > 0 ? $"평판 +{reputation.Value}" : $"평판 {reputation.Value}";
+
             tooltip?.SetText($"최대량 {goldHoldings.CarryCapacity:N0} (개인 {goldHoldings.PersonalLimit:N0} / 적재 {goldHoldings.LoadedGold:N0} / 여유 공간 {goldHoldings.FreeSpaceGold:N0})");
             FitFontSize();
         }
@@ -171,9 +191,14 @@ namespace Game.Core
         {
             if (panelRoot == null || amountText == null) return;
 
-            var labels = wagonCountText != null && unitCountText != null
-                ? new[] { amountText, wagonCountText, unitCountText }
-                : new[] { amountText };
+            var list = new System.Collections.Generic.List<TMP_Text> { amountText };
+            if (wagonCountText != null && unitCountText != null)
+            {
+                list.Add(wagonCountText);
+                list.Add(unitCountText);
+            }
+            if (reputationText != null) list.Add(reputationText);
+            var labels = list.ToArray();
 
             var required = new float[labels.Length];
             for (var i = 0; i < labels.Length; i++)

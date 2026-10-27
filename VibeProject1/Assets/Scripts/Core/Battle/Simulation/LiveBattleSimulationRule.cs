@@ -49,6 +49,8 @@ namespace Game.Core
         private BattleSimulationLoop simulation;
         // 이번 전투의 화물 기록(설계 79번 §3.2) - BuildSimulation()마다 새로 만들고 Report()에서 보고서로 넘긴다.
         private BattleCargoLedger cargoLedger;
+        // 이번 전투의 적 종류 - BuildEnemies()가 채우고 Report()에서 결과로 넘긴다.
+        private string currentEnemyType;
         private Action<BattleResult> onResult;
         private bool resultReported;
         // 이번 전투에 참여한 아군의 unitId - 전투 종료 시 각자 최종 HP를 unitConditionRepository에
@@ -180,7 +182,7 @@ namespace Game.Core
             OnPendingReinforcementsChanged?.Invoke(Array.Empty<PendingReinforcementInfo>());
             // 패배 원인·화물 보고서를 함께 넘긴다 - 저장소 반영은 결과 판정 뒤 정산이 한 번에 한다(설계 79번 §4.2·§15-2).
             var defeatCause = outcome == BattleOutcome.Defeat ? simulation.DefeatCause : BattleDefeatCause.None;
-            onResult(new BattleResult(outcome, defeatCause, cargoLedger?.BuildReport() ?? BattleCargoReport.Empty, BuildProtectedUnitRecords()));
+            onResult(new BattleResult(outcome, defeatCause, cargoLedger?.BuildReport() ?? BattleCargoReport.Empty, BuildProtectedUnitRecords(), currentEnemyType));
         }
 
         // 전투 중 Field 배치 타이머가 완료됐을 때 호출된다(IFieldFormationActivityRepository.OnActivityCompleted
@@ -391,7 +393,9 @@ namespace Game.Core
 
         private List<IBattleCombatant> BuildEnemies(Vector2 spawnCenter, PartyMorale enemyMorale, MoraleWaveCoordinator enemyWaveCoordinator, float fleeTravelDistance)
         {
-            return enemyProvider.GetEncounterComposition()
+            var composition = enemyProvider.GetEncounterComposition();
+            currentEnemyType = composition.Count > 0 ? composition[0].EnemyType : null; // 전투마다 한 종류 - 결과에 실어 퀘스트가 거른다(설계 107번 §6.1)
+            return composition
                 .Select(enemyStats => (IBattleCombatant)new BattleCharacterUnit(
                     spawnCenter, isAlly: false, enemyStats, damageFormula, enemyMorale, enemyWaveCoordinator, spatialQuery, fleeTravelDistance,
                     icon: BattlePlaceholderSprite.ForEnemyType(enemyStats.EnemyType), obstacleNavigator: midBattleObstacleNavigator))

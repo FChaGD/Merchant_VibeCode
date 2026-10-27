@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Game.Core
 {
@@ -15,6 +16,10 @@ namespace Game.Core
         // 회수 적재 패널(plain C#, 설계 79번 §7)은 Field 로드마다 이번 씬의 화면 요소로 새로 만든다 - 저장소(Bootstrap 상주) 이벤트를
         // 구독하므로 이전 패널은 Dispose한다(HubUIWiring의 시설 화면과 같은 방식).
         private FieldCargoRecoveryPanel cargoRecoveryPanel;
+        // 퀘스트 보상 정리(설계 107번 §8.3) - Bootstrap 상주 신호를 구독하므로 Field 언로드 때 해제한다 - 남겨 두면 Hub에서 난 보상 알림에
+        // 파괴된 Field 화면을 열려고 한다(2026-10-27 검진 2).
+        private FieldQuestRewardCleanup questRewardCleanup;
+        private IFieldUIController questCleanupHost;
 
         public void Wire(IDependencyResolver registrar, IUIManager uiManager, IPanelRegistrar panelRegistrar, IInventoryPopupRegistrar inventoryRegistrar)
         {
@@ -86,7 +91,8 @@ namespace Game.Core
             tacticsPanel.RegisterTacticsUI(sceneUIRoot, tacticsRepository, uiManager);
             panelRegistrar.RegisterPopupPanel(tacticsPanel);
 
-            RegisterCargoRecovery(sceneUIRoot, panelRegistrar, tradeGoodsInventory, cargoSettlement, input, goldItemInfo);
+            registrar.TryResolve<IQuestCargoWarnings>(out var questCargoWarnings); // 넘어가기 경고의 의뢰 화물 줄(설계 107번 §8.4)
+            RegisterCargoRecovery(sceneUIRoot, panelRegistrar, tradeGoodsInventory, cargoSettlement, input, goldItemInfo, questCargoWarnings);
 
             // 대열 정리 모드(설계 79번 §8)는 정비창 패널이 구현한다 - 위에서 이미 확보한 같은 GameObject의 패널에서 꺼낸다.
             var repairMode = formationPanel.GetComponent<IFormationRepairMode>();
@@ -104,9 +110,11 @@ namespace Game.Core
             registrar.TryResolve<ICurrentLegDifficulty>(out var legDifficulty); // 구간 라벨 등급명 갱신(설계 89 §4.3)
 
             // 상행 시작·종료·도착 처리(Docs/Refactor/2026-10-26_씬전용.md C-1) - Field 로드마다 새로 만든다(구독 없음, 호출만).
-            var lifecycle = new FieldTripLifecycle(unitConditionRepository, tripSignals?.Milestones, tripEndProcessor, fieldActivityRepository, currentLocationRepository, destinationAssigner);
+            registrar.TryResolve<ITripArrivalSink>(out var arrivalSink); // 퀘스트 최종 도착 판정(설계 107번 §6.2) - 없으면 신호 없이 도착
+            var lifecycle = new FieldTripLifecycle(unitConditionRepository, tripSignals?.Milestones, tripEndProcessor, fieldActivityRepository, currentLocationRepository, destinationAssigner, arrivalSink);
 
             fieldUIController.RegisterFieldUI(sceneUIRoot, uiManager, sessionState, encounterManager, battleController, battleResultSource, defeatConsequenceSource, battleSimulationEvents, gameManager, sceneRevealSignal, lifecycle, currentLocationRepository, fieldActivityRepository, tripItinerary, worldMap, aftermathApplier, cargoSettlement, repairMode, cargoRecoveryPanel, dayRout, tripSignals, legDifficulty);
+            BindQuestRewardCleanup(registrar, uiManager, fieldUIController, tripSignals);
             BindMovementViewHider(registrar, fieldUIController.MovementViewRoot);
             BindTripDialogue(registrar, sceneUIRoot);
             BindEventEncounter(registrar, sceneUIRoot, uiManager, panelRegistrar, topButtons, formationPanel.GetComponent<IFormationViewOnlyMode>());
@@ -125,7 +133,7 @@ namespace Game.Core
 
         // 모달 팝업 채널에 등록한다(정비창·방향성 지시와 같은 채널) - 결과 정리 단계가 UIManager.Open/Close로만 연다.
         // 의존성이나 화면 요소가 없으면(인스톨러 미실행) 등록하지 않는다 - ② 회수 적재 단계는 건너뛰고 회수 물품은 임시보관에 남는다.
-        private void RegisterCargoRecovery(SceneUIRoot sceneUIRoot, IPanelRegistrar panelRegistrar, ITradeGoodsInventoryRepository inventory, ITradeGoodsCargoSettlement settlement, IInputManager input, IGoldItemInfo goldItemInfo)
+        private void RegisterCargoRecovery(SceneUIRoot sceneUIRoot, IPanelRegistrar panelRegistrar, ITradeGoodsInventoryRepository inventory, ITradeGoodsCargoSettlement settlement, IInputManager input, IGoldItemInfo goldItemInfo, IQuestCargoWarnings questCargoWarnings)
         {
             cargoRecoveryPanel?.Dispose();
             cargoRecoveryPanel = null;
@@ -146,8 +154,29 @@ namespace Game.Core
                 return;
             }
 
-            cargoRecoveryPanel = new FieldCargoRecoveryPanel(elements, doneButton, dialog, inventory, settlement, input, goldItemInfo);
+            cargoRecoveryPanel = new FieldCargoRecoveryPanel(elements, doneButton, dialog, inventory, settlement, input, goldItemInfo, questCargoWarnings);
             panelRegistrar.RegisterPopupPanel(cargoRecoveryPanel);
+        }
+
+        // 퀘스트 보상 정리 화면(설계 107번 §8.3) - 회수 적재 패널을 그대로 쓴다. 퀘스트가 없으면(Bootstrap 미재빌드) 만들지 않는다.
+        private void BindQuestRewardCleanup(IDependencyResolver registrar, IUIManager uiManager, IFieldUIController fieldUIController, FieldTripSignals tripSignals)
+        {
+            DisposeQuestRewardCleanup();
+            questCleanupHost = fieldUIController;
+            if (registrar.TryResolve<IQuestRewardCleanupSource>(out var source))
+            {
+                registrar.TryResolve<IEventEncounterStatus>(out var events);
+                registrar.TryResolve<ITripMilestoneSource>(out var milestones);
+                var panel = cargoRecoveryPanel;
+                questRewardCleanup = new FieldQuestRewardCleanup(source, tripSignals?.Halt, events, uiManager, milestones,
+                    onDone =>
+                    {
+                        if (panel == null) return false;
+                        panel.ShowVia(uiManager, onDone);
+                        return true;
+                    });
+            }
+            fieldUIController.SetQuestRewardCleanup(questRewardCleanup);
         }
 
         // 상행 대화 화면(설계 88 §2 씬 연결) - 진행자는 Bootstrap 상주라 Field를 로드할 때마다 이번 씬의 화면으로 바꿔 끼운다.
@@ -209,9 +238,27 @@ namespace Game.Core
             gate.Register(new[] { new LayerHideRule(UIHideConditions.From(reader), new[] { group }) });
         }
 
+        private void DisposeQuestRewardCleanup()
+        {
+            questRewardCleanup?.Dispose();
+            questRewardCleanup = null;
+            questCleanupHost?.SetQuestRewardCleanup(null);
+            questCleanupHost = null;
+        }
+
+        private void OnEnable() => SceneManager.sceneUnloaded += HandleSceneUnloaded;
+
+        private void OnDisable() => SceneManager.sceneUnloaded -= HandleSceneUnloaded;
+
+        private void HandleSceneUnloaded(Scene scene)
+        {
+            if (scene.name == SceneNames.Field) DisposeQuestRewardCleanup();
+        }
+
         private void OnDestroy()
         {
             cargoRecoveryPanel?.Dispose();
+            DisposeQuestRewardCleanup();
         }
     }
 }

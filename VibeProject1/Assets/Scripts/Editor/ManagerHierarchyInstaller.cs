@@ -60,6 +60,8 @@ namespace Game.Core.Editor
         // 실제 숙소 휴식·마구간 매각 서비스로 교체되며 삭제된 임시 구현(Docs/설계/104번 §5·105번 §4).
         private const string RemovedPlaceholderInnRestServiceName = "PlaceholderInnRestService";
         private const string RemovedPlaceholderCaravanAssetSaleServiceName = "PlaceholderCaravanAssetSaleService";
+        // 실제 퀘스트 게시판으로 교체되며 삭제된 임시 구현(Docs/설계/107번 §11.3).
+        private const string RemovedPlaceholderGuildQuestBoardName = "PlaceholderGuildQuestBoard";
 
         [MenuItem("Tools/Game/Build Bootstrap Scene")]
         public static void BuildManagerHierarchy()
@@ -331,12 +333,19 @@ namespace Game.Core.Editor
             var encounterContentProvider = EditorUIBuilder.GetOrCreateManager<EncounterContentProvider>(uiManager.transform, nameof(EncounterContentProvider));
             WireEncounterTable(encounterContentProvider);
 
-            // 숙소 휴식(설계 105번)·상인조합 게시판(설계 103번 §4.1 Placeholder)·마구간 매각(설계 104번).
+            // 숙소 휴식(설계 105번)·마구간 매각(설계 104번).
             EditorUIBuilder.DestroyChildIfExists(uiManager.transform, RemovedPlaceholderInnRestServiceName);
             EditorUIBuilder.DestroyChildIfExists(uiManager.transform, RemovedPlaceholderCaravanAssetSaleServiceName);
             var innRestService = EditorUIBuilder.GetOrCreateManager<InnRestService>(uiManager.transform, nameof(InnRestService));
-            var guildQuestBoard = EditorUIBuilder.GetOrCreateManager<PlaceholderGuildQuestBoard>(uiManager.transform, nameof(PlaceholderGuildQuestBoard));
             var caravanAssetSaleService = EditorUIBuilder.GetOrCreateManager<CaravanAssetSaleService>(uiManager.transform, nameof(CaravanAssetSaleService));
+
+            // 퀘스트(설계 107번) - 상태 저장소·평판·최종 도착 신호·상인조합 게시판.
+            EditorUIBuilder.DestroyChildIfExists(uiManager.transform, RemovedPlaceholderGuildQuestBoardName);
+            var questManager = EditorUIBuilder.GetOrCreateManager<QuestManager>(uiManager.transform, nameof(QuestManager));
+            WireQuestTable(questManager);
+            var reputationManager = EditorUIBuilder.GetOrCreateManager<ReputationManager>(uiManager.transform, nameof(ReputationManager));
+            var tripArrivalSignal = EditorUIBuilder.GetOrCreateManager<TripArrivalSignal>(uiManager.transform, nameof(TripArrivalSignal));
+            var guildQuestBoard = EditorUIBuilder.GetOrCreateManager<GuildQuestBoard>(uiManager.transform, nameof(GuildQuestBoard));
 
             return new MonoBehaviour[]
             {
@@ -370,9 +379,20 @@ namespace Game.Core.Editor
                 encounterHistoryStore,
                 encounterContentProvider,
                 innRestService,
-                guildQuestBoard,
                 caravanAssetSaleService,
+                questManager,
+                reputationManager,
+                tripArrivalSignal,
+                guildQuestBoard,
             };
+        }
+
+        // 퀘스트 테이블(설계 107번 §4) - 워크북이 없어 자산이 없으면 null로 두고 QuestManager가 경고한다(퀘스트 없음).
+        private static void WireQuestTable(QuestManager manager)
+        {
+            var so = new SerializedObject(manager);
+            so.FindProperty("questTable").objectReferenceValue = AssetDatabase.LoadAssetAtPath<QuestTableAsset>(TableAssetPaths.QuestTable);
+            so.ApplyModifiedProperties();
         }
 
         private static void WireWorldMapTables(WorldMapProvider provider)

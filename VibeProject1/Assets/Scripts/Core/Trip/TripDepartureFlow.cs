@@ -24,9 +24,12 @@ namespace Game.Core
         private readonly ITripCurrentLocationReader location;
         private readonly ITripDestinationReader destination;
         private readonly Action requestTransition;
+        private readonly IQuestCargoWarnings questWarnings; // 선택적 - 임시 보관에 의뢰 화물이 있으면 경고에 퀘스트 이름을 더한다(설계 107번 §8.4)
 
-        public TripDepartureFlow(IConfirmPrompt prompt, IReadOnlyList<IInventoryStagingDiscarder> staging, IGoldHoldingsReader gold, IGoldDepartureSettlement goldDeparture, ITripDeparture departure, ITripCurrentLocationReader location, ITripDestinationReader destination, Action requestTransition)
+        public TripDepartureFlow(IConfirmPrompt prompt, IReadOnlyList<IInventoryStagingDiscarder> staging, IGoldHoldingsReader gold, IGoldDepartureSettlement goldDeparture, ITripDeparture departure, ITripCurrentLocationReader location, ITripDestinationReader destination, Action requestTransition,
+            IQuestCargoWarnings questWarnings = null)
         {
+            this.questWarnings = questWarnings;
             this.prompt = prompt;
             this.staging = staging ?? Array.Empty<IInventoryStagingDiscarder>();
             this.gold = gold;
@@ -39,8 +42,16 @@ namespace Game.Core
 
         public void Start(bool hasPlacedUnit)
         {
-            var warnings = TripDepartureWarnings.Collect(hasPlacedUnit, CountStagedItems(), gold?.ExcessGold ?? 0, gold?.PersonalLimit ?? 0);
+            var warnings = TripDepartureWarnings.Collect(hasPlacedUnit, CountStagedItems(), gold?.ExcessGold ?? 0, gold?.PersonalLimit ?? 0, StagedQuestNames());
             ConfirmThenDepart(warnings, 0);
+        }
+
+        private IReadOnlyList<string> StagedQuestNames()
+        {
+            if (questWarnings == null) return null;
+            var ids = new List<string>();
+            foreach (var discarder in staging) ids.AddRange(InventoryDiscardWarning.ItemIds(discarder.StagedItems));
+            return questWarnings.Describe(ids);
         }
 
         private void ConfirmThenDepart(IReadOnlyList<string> warnings, int index)

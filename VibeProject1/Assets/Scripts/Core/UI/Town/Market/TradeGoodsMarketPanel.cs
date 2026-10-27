@@ -38,7 +38,8 @@ namespace Game.Core
 
         public string PanelId => UIPanelIds.Facility(TownFacilityIds.TradeGoodsMarket);
 
-        public TradeGoodsMarketPanel(TradeGoodsMarketElements elements, ITradeGoodsInventoryRepository inventory, IGoldSpender gold, ITownShopStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, IPanelNavigator uiManager, ITooltipHandle actionTooltip, IInputManager input, IGoldItemInfo goldInfo)
+        public TradeGoodsMarketPanel(TradeGoodsMarketElements elements, ITradeGoodsInventoryRepository inventory, IGoldSpender gold, ITownShopStockReader stockReader, ITownStockConsumer stockConsumer, ITripCurrentLocationReader currentLocation, IPanelNavigator uiManager, ITooltipHandle actionTooltip, IInputManager input, IGoldItemInfo goldInfo,
+            IQuestCargoWarnings questWarnings = null)
         {
             this.actionTooltip = actionTooltip;
             this.elements = elements;
@@ -49,7 +50,7 @@ namespace Game.Core
 
             // 회전·임시 보관 여부는 상단 물류품 팝업과 같은 스펙을 따른다 - 같은 인벤토리를 두 화면이 다른 규칙으로 다루지 않게.
             var spec = InventoryPopupSpecs.TradeGoods;
-            inventoryController = new InventoryArrangementController(elements.Inventory, input, goldInfo, inventory, inventory, spec.AllowsRotation, spec.HasStaging, spec.HasSections);
+            inventoryController = new InventoryArrangementController(elements.Inventory, input, goldInfo, inventory, inventory, spec.AllowsRotation, spec.HasStaging, spec.HasSections, questWarnings);
             purchaseService = new ShopPurchaseService(gold, inventory, inventory, spec.AllowsRotation, stockConsumer);
 
             elements.StockRowTemplate.gameObject.SetActive(false);

@@ -60,6 +60,9 @@ namespace Game.Core
 
         // 이벤트·대화 발생 정보(Docs/설계/87번 §3.1).
         public const string EncounterTable = Folder + "/EncounterTable.asset";
+
+        // 퀘스트 정의(Docs/설계/107번 §4).
+        public const string QuestTable = Folder + "/QuestTable.asset";
     }
 }
 #endif

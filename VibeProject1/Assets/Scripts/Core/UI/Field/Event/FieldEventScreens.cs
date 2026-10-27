@@ -82,12 +82,7 @@ namespace Game.Core
         public bool TryShowCargoRecovery(Action onDone)
         {
             if (cargoRecovery == null) return false;
-            cargoRecovery.SetCompletion(() =>
-            {
-                uiManager.Close(UIPanelIds.CargoRecovery);
-                onDone?.Invoke();
-            });
-            uiManager.Open(UIPanelIds.CargoRecovery);
+            cargoRecovery.ShowVia(uiManager, onDone);
             return true;
         }
 

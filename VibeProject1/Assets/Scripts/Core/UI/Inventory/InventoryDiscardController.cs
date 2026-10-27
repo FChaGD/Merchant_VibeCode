@@ -24,16 +24,19 @@ namespace Game.Core
         private readonly InventoryArrangementElements elements;
         private readonly IInventoryArrangement arrangement;
         private readonly IGoldItemInfo goldInfo; // 상단 물류품 화면만 - 없으면 골드 상자 줄을 적지 않는다
+        private readonly IQuestCargoWarnings questWarnings; // 상단 물류품 화면만 - 없으면 의뢰 화물 줄을 적지 않는다(설계 107번 §8.4)
         private readonly ItemFinder findItem;
         private readonly Action onStateChanged;
         private readonly InventoryDiscardSelection selection = new();
         private string failedMessage;
 
-        public InventoryDiscardController(InventoryArrangementElements elements, IInventoryArrangement arrangement, IGoldItemInfo goldInfo, ItemFinder findItem, Action onStateChanged)
+        public InventoryDiscardController(InventoryArrangementElements elements, IInventoryArrangement arrangement, IGoldItemInfo goldInfo, ItemFinder findItem, Action onStateChanged,
+            IQuestCargoWarnings questWarnings = null)
         {
             this.elements = elements;
             this.arrangement = arrangement;
             this.goldInfo = goldInfo;
+            this.questWarnings = questWarnings;
             this.findItem = findItem;
             this.onStateChanged = onStateChanged;
 
@@ -142,7 +145,7 @@ namespace Game.Core
 
         private void ShowWarning(IReadOnlyList<InventoryItemInstance> items, Action onConfirm)
         {
-            elements.DiscardDialog.Show(InventoryDiscardWarning.Compose(items, goldInfo), ConfirmText, CancelText, onConfirm, null);
+            elements.DiscardDialog.Show(InventoryDiscardWarning.Compose(items, goldInfo, questWarnings), ConfirmText, CancelText, onConfirm, null);
         }
 
         private void Discard(IReadOnlyCollection<string> ids)

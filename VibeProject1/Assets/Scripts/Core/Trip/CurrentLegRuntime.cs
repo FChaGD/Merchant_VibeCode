@@ -12,11 +12,13 @@ namespace Game.Core
     {
         private readonly Func<TripTravelSettings> settings;
         private readonly ICityPairDifficultyReader pairs; // 선택적 - 없으면 구간 기본값
+        private readonly Func<int> questBonus; // 선택적 - 이번 상행의 퀘스트 가산(설계 107번 §9.2)
 
-        public CurrentLegRuntime(Func<TripTravelSettings> settings, ICityPairDifficultyReader pairs)
+        public CurrentLegRuntime(Func<TripTravelSettings> settings, ICityPairDifficultyReader pairs, Func<int> questBonus = null)
         {
             this.settings = settings;
             this.pairs = pairs;
+            this.questBonus = questBonus;
         }
 
         public bool HasLeg { get; private set; }
@@ -64,7 +66,9 @@ namespace Game.Core
         {
             if (!HasLeg) return false;
             var pairValue = pairs?.GetDifficulty(Pair, Leg.BaseDifficulty) ?? TripTravelRules.ClampDifficulty(Leg.BaseDifficulty);
-            var next = TripTravelRules.ClampDifficulty(pairValue + LegOnlyChange);
+            // 퀘스트 가산은 도시 쌍 값과 같은 단계에서 자른 뒤 이번 구간 증감을 더한다 - 계획(TripRoutePlanner)의 구간 난이도와 시작 값이 일치한다.
+            var withQuests = TripTravelRules.ClampDifficulty(pairValue + (questBonus?.Invoke() ?? 0));
+            var next = TripTravelRules.ClampDifficulty(withQuests + LegOnlyChange);
             if (next == Difficulty) return false;
             Difficulty = next;
             var grade = TripTravelRules.ResolveGrade(settings(), next);

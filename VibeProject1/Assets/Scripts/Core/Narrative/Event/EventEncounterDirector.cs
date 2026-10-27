@@ -64,6 +64,7 @@ namespace Game.Core
 
         public bool IsRunning => phase == Phase.Running;
         public string CurrentEventId => current?.Entry.Id;
+        public event Action<string> EventStarted;
         public string PendingEventId => phase == Phase.Pending ? pendingEntry?.Id : null;
         public IReadOnlyList<EventEntry> QueuedEvents => queue.Snapshot();
 
@@ -235,6 +236,7 @@ namespace Game.Core
             screens.SetEventControls(true);
             sources.UIHide?.Acquire(FieldUIHideReason.Event);
             screens.ShowDialogue();
+            EventStarted?.Invoke(entry.Id);
 
             if (!sources.Runner.TryRun(entry.YarnNode, run.Target, completed => HandleScriptFinished(run, completed)))
             {

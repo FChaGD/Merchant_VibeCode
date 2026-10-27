@@ -8,11 +8,12 @@ namespace Game.Core
     /// </summary>
     public static class EncounterConditionContextFactory
     {
-        public static EncounterConditionContext Create(GameDate today, bool hasLeg, TripLeg leg, Func<int, int> regionOfCity, float progress, IEncounterHistoryReader history)
+        public static EncounterConditionContext Create(GameDate today, bool hasLeg, TripLeg leg, Func<int, int> regionOfCity, float progress, IEncounterHistoryReader history,
+            IQuestEncounterGate quests = null)
         {
-            if (!hasLeg) return new EncounterConditionContext(today, false, 0, 0, 0, 0, progress, history);
+            if (!hasLeg) return new EncounterConditionContext(today, false, 0, 0, 0, 0, progress, history, quests);
             return new EncounterConditionContext(today, true, leg.FromCityId, leg.ToCityId,
-                regionOfCity(leg.FromCityId), regionOfCity(leg.ToCityId), progress, history);
+                regionOfCity(leg.FromCityId), regionOfCity(leg.ToCityId), progress, history, quests);
         }
     }
 }

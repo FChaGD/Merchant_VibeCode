@@ -44,6 +44,26 @@ MonoBehaviour:
     - Key: flag
       Negated: 0
       Argument: helped_cart
+  - Id: QE1
+    YarnNode: QuestTest_Event
+    Occurrence: 1
+    Importance: 3
+    Repeat: 1
+    Weight: 100
+    Conditions:
+    - Key: quest
+      Negated: 0
+      Argument: Q_T1
+  - Id: QE2
+    YarnNode: QuestTest_Battle
+    Occurrence: 1
+    Importance: 3
+    Repeat: 1
+    Weight: 100
+    Conditions:
+    - Key: quest
+      Negated: 0
+      Argument: Q_T3
   dialogues:
   - Id: D1
     YarnNode: D1_Departure

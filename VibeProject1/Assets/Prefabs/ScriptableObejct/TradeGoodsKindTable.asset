@@ -21,3 +21,5 @@ MonoBehaviour:
     Kind: 1
   - Id: placeholder-2x2
     Kind: 1
+  - Id: quest-box
+    Kind: 3

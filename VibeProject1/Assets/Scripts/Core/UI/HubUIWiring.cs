@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Game.Core
 {
@@ -25,6 +26,8 @@ namespace Game.Core
         [SerializeField] private RestPacingSettings restPacing = new();
         // 인벤토리 상시 호출 버튼·키(설계 99번 §5.1) - 키 구독을 들고 있어 한 번만 만들고 Hub 로드마다 다시 묶는다.
         private HubInventoryShortcutBinder inventoryShortcuts;
+        // 퀘스트 보상 정리(설계 107번 §8.3 Hub 발생) - Bootstrap 상주 신호를 구독하므로 Hub 언로드 때 해제한다(Field에서 인벤토리 팝업을 열지 않게).
+        private HubQuestRewardCleanup questRewardCleanup;
 
         public void Wire(IDependencyResolver registrar, IUIManager uiManager, IPanelRegistrar panelRegistrar, IInventoryPopupRegistrar inventoryRegistrar)
         {
@@ -111,6 +114,8 @@ namespace Game.Core
             registrar.TryResolve<IInputManager>(out var input);
             // 버리기 경고의 골드 상자 줄(설계 102번 §4.2) - 상단 물류품 화면에만 넘긴다. 없으면 골드 줄 없이 버린다.
             registrar.TryResolve<IGoldItemInfo>(out var goldItemInfo);
+            // 버리기·출발 경고의 의뢰 화물 줄(설계 107번 §8.4) - 상단 물류품 화면에만 넘긴다. 없으면 줄 없이 경고한다.
+            registrar.TryResolve<IQuestCargoWarnings>(out var questCargoWarnings);
             // 인벤토리 팝업 저장소(Placeholder라 선택적, Docs/설계/42번 §4.5) - "스펙 → 저장소" 대응표 한 곳(Docs/Refactor/2026-10-26_씬전용.md F-2).
             var inventoryPopupSources = HubInventorySources.Resolve(registrar);
 
@@ -123,7 +128,8 @@ namespace Game.Core
             }
 
             hubUIController.RegisterHubUI(sceneUIRoot, uiManager, sceneRevealSignal, townFacilityFilter);
-            currencyHudController.RegisterCurrencyUI(sceneUIRoot, goldHoldings, uiManager, caravanRosterProvider);
+            registrar.TryResolve<IReputationReader>(out var reputation); // 평판 칸(설계 107번 §10)
+            currencyHudController.RegisterCurrencyUI(sceneUIRoot, goldHoldings, uiManager, caravanRosterProvider, reputation);
             dateHudController.RegisterDateUI(sceneUIRoot, dateReader);
             inventoryShortcuts ??= new HubInventoryShortcutBinder(input);
             inventoryShortcuts.Bind(sceneUIRoot, uiManager);
@@ -131,7 +137,7 @@ namespace Game.Core
             formationPanel.RegisterFormationUI(sceneUIRoot, caravanRosterProvider, formationRepository, unitConditionRepository, uiManager);
             panelRegistrar.RegisterPopupPanel(formationPanel);
 
-            tripPanel.RegisterTripUI(sceneUIRoot, uiManager, gameManager, formationRepository, tripInfoProvider, sceneRevealSignal, currentLocationRepository, destinationAssigner, inventoryStaging, worldMap, routeReader, tripDeparture, caravanRosterProvider, goldHoldings, goldDeparture);
+            tripPanel.RegisterTripUI(sceneUIRoot, uiManager, gameManager, formationRepository, tripInfoProvider, sceneRevealSignal, currentLocationRepository, destinationAssigner, inventoryStaging, worldMap, routeReader, tripDeparture, caravanRosterProvider, goldHoldings, goldDeparture, questCargoWarnings);
 #if UNITY_EDITOR
             if (registrar.TryResolve<IWorldMapEditor>(out var worldMapEditor)) tripPanel.RegisterDebugMapEditor(worldMapEditor);
 #endif
@@ -150,7 +156,8 @@ namespace Game.Core
                 }
             }
 
-            RegisterInventoryPopups(sceneUIRoot, uiManager, inventoryRegistrar, inventoryPopupSources, input, goldItemInfo);
+            RegisterInventoryPopups(sceneUIRoot, uiManager, inventoryRegistrar, inventoryPopupSources, input, goldItemInfo, questCargoWarnings);
+            BindQuestRewardCleanup(registrar, uiManager);
             screenBindings ??= new List<IHubScreenBinding>
             {
                 new TradeGoodsMarketScreenBinding(),
@@ -184,7 +191,7 @@ namespace Game.Core
 
         // 비모달 인벤토리 팝업(Docs/설계/40번 §6, 42번 §4.5). 화면 요소가 없으면(인스톨러 미실행) 그 팝업만 건너뛴다 -
         // 해당 인벤토리 버튼은 기존처럼 "팝업 미등록" 경고만 낸다.
-        private void RegisterInventoryPopups(SceneUIRoot sceneUIRoot, IUIManager uiManager, IInventoryPopupRegistrar inventoryRegistrar, List<InventoryPopupSource> sources, IInputManager input, IGoldItemInfo goldItemInfo)
+        private void RegisterInventoryPopups(SceneUIRoot sceneUIRoot, IUIManager uiManager, IInventoryPopupRegistrar inventoryRegistrar, List<InventoryPopupSource> sources, IInputManager input, IGoldItemInfo goldItemInfo, IQuestCargoWarnings questCargoWarnings)
         {
             foreach (var previous in inventoryPopups) previous.Dispose();
             inventoryPopups.Clear();
@@ -194,7 +201,9 @@ namespace Game.Core
             {
                 if (!InventoryPopupElements.TryBind(sceneUIRoot, source.Spec, out var elements)) continue;
 
-                var popup = new InventoryPopupPanel(source.Spec, elements, source.Reader, source.Arrangement, uiManager, inventoryWindowPositions, input, source.Spec.PopupId == InventoryPopupIds.TradeGoods ? goldItemInfo : null);
+                var isTradeGoods = source.Spec.PopupId == InventoryPopupIds.TradeGoods;
+                var popup = new InventoryPopupPanel(source.Spec, elements, source.Reader, source.Arrangement, uiManager, inventoryWindowPositions, input,
+                    isTradeGoods ? goldItemInfo : null, isTradeGoods ? questCargoWarnings : null);
                 inventoryPopups.Add(popup);
                 windowRoots.Add(popup.WindowRoot);
                 inventoryRegistrar.RegisterInventoryPopup(popup);
@@ -214,8 +223,31 @@ namespace Game.Core
             return tooltips;
         }
 
+        private void BindQuestRewardCleanup(IDependencyResolver registrar, IUIManager uiManager)
+        {
+            DisposeQuestRewardCleanup();
+            if (!registrar.TryResolve<IQuestRewardCleanupSource>(out var source)) return;
+            questRewardCleanup = new HubQuestRewardCleanup(source, uiManager, () => uiManager.OpenInventoryPopup(InventoryPopupIds.TradeGoods));
+        }
+
+        private void DisposeQuestRewardCleanup()
+        {
+            questRewardCleanup?.Dispose();
+            questRewardCleanup = null;
+        }
+
+        private void OnEnable() => SceneManager.sceneUnloaded += HandleSceneUnloaded;
+
+        private void OnDisable() => SceneManager.sceneUnloaded -= HandleSceneUnloaded;
+
+        private void HandleSceneUnloaded(Scene scene)
+        {
+            if (scene.name == SceneNames.Hub) DisposeQuestRewardCleanup();
+        }
+
         private void OnDestroy()
         {
+            DisposeQuestRewardCleanup();
             if (screenBindings != null) foreach (var binding in screenBindings) binding.Dispose();
             foreach (var popup in inventoryPopups) popup.Dispose();
             inventoryPopups.Clear();

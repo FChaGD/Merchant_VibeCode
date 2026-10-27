@@ -21,21 +21,24 @@ namespace Game.Core
         private readonly ConfirmDialogView dialog;
         private readonly ITradeGoodsCargoSettlement settlement;
         private readonly InventoryArrangementController inventoryController;
+        private readonly IQuestCargoWarnings questWarnings; // 선택적 - 넘어가기로 버려질 의뢰 화물 경고(설계 107번 §8.4)
 
         private Action onCompleted;
 
         public string PanelId => UIPanelIds.CargoRecovery;
 
-        public FieldCargoRecoveryPanel(InventoryArrangementElements elements, Button doneButton, ConfirmDialogView dialog, ITradeGoodsInventoryRepository inventory, ITradeGoodsCargoSettlement settlement, IInputManager input, IGoldItemInfo goldInfo)
+        public FieldCargoRecoveryPanel(InventoryArrangementElements elements, Button doneButton, ConfirmDialogView dialog, ITradeGoodsInventoryRepository inventory, ITradeGoodsCargoSettlement settlement, IInputManager input, IGoldItemInfo goldInfo,
+            IQuestCargoWarnings questWarnings = null)
         {
             this.elements = elements;
             this.doneButton = doneButton;
             this.dialog = dialog;
             this.settlement = settlement;
+            this.questWarnings = questWarnings;
 
             // 같은 인벤토리를 다른 화면과 다른 규칙으로 다루지 않게 상단 물류품 팝업 스펙을 따른다.
             var spec = InventoryPopupSpecs.TradeGoods;
-            inventoryController = new InventoryArrangementController(elements, input, goldInfo, inventory, inventory, spec.AllowsRotation, spec.HasStaging, spec.HasSections);
+            inventoryController = new InventoryArrangementController(elements, input, goldInfo, inventory, inventory, spec.AllowsRotation, spec.HasStaging, spec.HasSections, questWarnings);
 
             doneButton.onClick.RemoveAllListeners();
             doneButton.onClick.AddListener(HandleDone);
@@ -48,6 +51,19 @@ namespace Game.Core
         public void SetCompletion(Action onCompleted)
         {
             this.onCompleted = onCompleted;
+        }
+
+        /// <summary>
+        /// 결과 정리 단계 밖에서 여는 공용 절차 - 이벤트 무역품·퀘스트 보상 정리가 쓴다(설계 89 §6, 107번 §8.3). [완료] 시 UIManager로 닫은 뒤 onDone.
+        /// </summary>
+        public void ShowVia(IPanelNavigator uiManager, Action onDone)
+        {
+            SetCompletion(() =>
+            {
+                uiManager.Close(PanelId);
+                onDone?.Invoke();
+            });
+            uiManager.Open(PanelId);
         }
 
         public void Open()
@@ -81,7 +97,12 @@ namespace Game.Core
                 return;
             }
 
-            dialog.Show(string.Format(DiscardWarningFormat, remaining), DiscardConfirmText, DiscardCancelText,
+            var message = string.Format(DiscardWarningFormat, remaining);
+            if (questWarnings != null && InventoryDiscardWarning.QuestCargoLine(questWarnings.Describe(InventoryDiscardWarning.ItemIds(settlement.StagedItems))) is { } questLine)
+            {
+                message += "\n" + questLine;
+            }
+            dialog.Show(message, DiscardConfirmText, DiscardCancelText,
                 onConfirm: () =>
                 {
                     settlement.DiscardStaged();

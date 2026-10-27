@@ -21,6 +21,8 @@ namespace Game.Core.Editor
             EditorFacilityScreenBuilder.EnsureExitButton(rootRect, MerchantGuildUIElementIds.ExitButton);
             BuildListPanel(rootRect);
             BuildDetailPanel(rootRect);
+            // 포기 확인(설계 107번 §11.2) - 화면 전체를 덮어야 하므로 루트 아래 마지막 형제로 둔다.
+            EditorUIBuilder.BuildConfirmDialog(rootRect, "ConfirmDialog", MerchantGuildUIElementIds.ConfirmDialog);
 
             // 런타임 패널이 등록될 때 숨기지만, 씬 편집 화면에서 다른 UI를 가리지 않도록 저장 상태도 비활성.
             root.SetActive(false);
@@ -89,16 +91,24 @@ namespace Game.Core.Editor
         {
             var panel = EditorFacilityScreenBuilder.EnsurePanel(root, "DetailPanel", "의뢰 상세", 0.43f, 0.98f);
 
-            BuildText(panel, "Title", MerchantGuildUIElementIds.DetailTitle, new Vector2(0.05f, 0.74f), new Vector2(0.95f, 0.87f), TextAlignmentOptions.MidlineLeft, 28f);
-            BuildText(panel, "Description", MerchantGuildUIElementIds.DetailDescription, new Vector2(0.05f, 0.38f), new Vector2(0.95f, 0.72f), TextAlignmentOptions.TopLeft, 22f);
-            BuildText(panel, "Reward", MerchantGuildUIElementIds.DetailReward, new Vector2(0.05f, 0.26f), new Vector2(0.95f, 0.36f), TextAlignmentOptions.MidlineLeft, 22f);
-            BuildText(panel, "Status", MerchantGuildUIElementIds.StatusLabel, new Vector2(0.05f, 0.03f), new Vector2(0.6f, 0.15f), TextAlignmentOptions.MidlineLeft, 22f);
-            BuildButton(panel, "AcceptButton", "수락", MerchantGuildUIElementIds.AcceptButton, new Vector2(0.65f, 0.03f), new Vector2(0.95f, 0.15f));
+            // 목표·기한이 추가되며(설계 107번 §11.2) 위에서부터 제목 / 설명 / 목표 / 기한 / 보상 / 상태 / 버튼 줄로 나눈다.
+            BuildText(panel, "Title", MerchantGuildUIElementIds.DetailTitle, new Vector2(0.05f, 0.79f), new Vector2(0.95f, 0.88f), TextAlignmentOptions.MidlineLeft, 28f);
+            BuildText(panel, "Description", MerchantGuildUIElementIds.DetailDescription, new Vector2(0.05f, 0.62f), new Vector2(0.95f, 0.78f), TextAlignmentOptions.TopLeft, 20f);
+            BuildText(panel, "Objectives", MerchantGuildUIElementIds.DetailObjectives, new Vector2(0.05f, 0.40f), new Vector2(0.95f, 0.61f), TextAlignmentOptions.TopLeft, 20f);
+            BuildText(panel, "Deadline", MerchantGuildUIElementIds.DetailDeadline, new Vector2(0.05f, 0.33f), new Vector2(0.95f, 0.39f), TextAlignmentOptions.MidlineLeft, 20f);
+            BuildText(panel, "Reward", MerchantGuildUIElementIds.DetailReward, new Vector2(0.05f, 0.20f), new Vector2(0.95f, 0.32f), TextAlignmentOptions.TopLeft, 20f);
+            BuildText(panel, "Status", MerchantGuildUIElementIds.StatusLabel, new Vector2(0.05f, 0.13f), new Vector2(0.95f, 0.19f), TextAlignmentOptions.MidlineLeft, 22f);
+            var accept = BuildButton(panel, "AcceptButton", "수락", MerchantGuildUIElementIds.AcceptButton, new Vector2(0.05f, 0.03f), new Vector2(0.33f, 0.11f));
+            var abandon = BuildButton(panel, "AbandonButton", "포기", MerchantGuildUIElementIds.AbandonButton, new Vector2(0.36f, 0.03f), new Vector2(0.64f, 0.11f));
+            var report = BuildButton(panel, "ReportButton", "보고", MerchantGuildUIElementIds.ReportButton, new Vector2(0.67f, 0.03f), new Vector2(0.95f, 0.11f));
+            EditorUIBuilder.EnsureButtonTooltip(panel, accept, "AcceptTooltip", MerchantGuildUIElementIds.AcceptTooltip, MerchantGuildUIElementIds.AcceptTooltipText, 0.05f, 0.33f, 0.12f);
+            EditorUIBuilder.EnsureButtonTooltip(panel, abandon, "AbandonTooltip", MerchantGuildUIElementIds.AbandonTooltip, MerchantGuildUIElementIds.AbandonTooltipText, 0.36f, 0.64f, 0.12f);
+            EditorUIBuilder.EnsureButtonTooltip(panel, report, "ReportTooltip", MerchantGuildUIElementIds.ReportTooltip, MerchantGuildUIElementIds.ReportTooltipText, 0.67f, 0.95f, 0.12f);
         }
 
         // 저수준 조립은 공용 EditorUIBuilder에 있다 - 여기서는 이 화면의 색만 정해 넘긴다.
 
-        private static void BuildButton(RectTransform parent, string name, string text, string id, Vector2 min, Vector2 max)
+        private static GameObject BuildButton(RectTransform parent, string name, string text, string id, Vector2 min, Vector2 max)
             => EditorUIBuilder.EnsureLabeledButton(parent, name, text, id, min, max, EditorUIColors.Button);
 
         private static void BuildText(RectTransform parent, string name, string id, Vector2 min, Vector2 max, TextAlignmentOptions alignment, float maxFontSize)

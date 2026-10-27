@@ -17,13 +17,15 @@ namespace Game.Core
         private readonly IRoadDifficultyReader difficulties;
         private readonly Func<TripTravelSettings> settings;
         private readonly ICityPairDifficultyReader pairs; // 선택적 - 없으면 기본값 그대로
+        private readonly IQuestDifficultyModifier quests; // 선택적 - 없으면 퀘스트 가산 없음(설계 107번 §9.2)
 
-        public TripRoutePlanner(IWorldMapReader map, IRoadDifficultyReader difficulties, Func<TripTravelSettings> settings, ICityPairDifficultyReader pairs = null)
+        public TripRoutePlanner(IWorldMapReader map, IRoadDifficultyReader difficulties, Func<TripTravelSettings> settings, ICityPairDifficultyReader pairs = null, IQuestDifficultyModifier quests = null)
         {
             this.map = map;
             this.difficulties = difficulties;
             this.settings = settings;
             this.pairs = pairs;
+            this.quests = quests;
         }
 
         public bool TryPlan(int fromCityId, int toCityId, out TripPlan plan)
@@ -33,7 +35,7 @@ namespace Game.Core
             if (!TryFindShortestPath(MapNodeId.City(fromCityId), MapNodeId.City(toCityId), out var path)) return false;
 
             var travelSettings = settings();
-            plan = new TripPlan(BuildLegs(path, travelSettings), travelSettings);
+            plan = new TripPlan(BuildLegs(path, travelSettings, quests?.GetBonus(toCityId) ?? 0), travelSettings);
             return true;
         }
 
@@ -87,20 +89,21 @@ namespace Game.Core
         private float RoadLength(MapNodeId a, MapNodeId b)
             => map.TryGetNodePosition(a, out _, out var pa) && map.TryGetNodePosition(b, out _, out var pb) ? Vector2.Distance(pa, pb) : 0f;
 
-        private List<TripLeg> BuildLegs(List<MapNodeId> path, TripTravelSettings travel)
+        // 퀘스트 가산은 상행(최종 목적지) 단위라 모든 구간에 같은 값을 더한다(설계 107번 §9.2·§13-11).
+        private List<TripLeg> BuildLegs(List<MapNodeId> path, TripTravelSettings travel, int questBonus)
         {
             var legs = new List<TripLeg>();
             var legStart = 0;
             for (var i = 1; i < path.Count; i++)
             {
                 if (!path[i].IsCity) continue;
-                legs.Add(BuildLeg(path, legStart, i, travel));
+                legs.Add(BuildLeg(path, legStart, i, travel, questBonus));
                 legStart = i;
             }
             return legs;
         }
 
-        private TripLeg BuildLeg(List<MapNodeId> path, int startIndex, int endIndex, TripTravelSettings travel)
+        private TripLeg BuildLeg(List<MapNodeId> path, int startIndex, int endIndex, TripTravelSettings travel, int questBonus)
         {
             var distance = 0f;
             var weightedDifficulty = 0f;
@@ -124,7 +127,7 @@ namespace Game.Core
                 ? Mathf.RoundToInt(weightedDifficulty / distance)
                 : difficulties.GetDifficulty(RoadKey.Of(path[startIndex], path[startIndex + 1])));
             var pair = CityPairKey.Of(path[startIndex].Id, path[endIndex].Id);
-            var difficulty = pairs?.GetDifficulty(pair, baseDifficulty) ?? baseDifficulty;
+            var difficulty = TripTravelRules.ClampDifficulty((pairs?.GetDifficulty(pair, baseDifficulty) ?? baseDifficulty) + questBonus);
 
             var band = travel.DistanceBands[TripTravelRules.ResolveBandIndex(travel, distance, crossesRegion)];
             var grade = TripTravelRules.ResolveGrade(travel, difficulty);

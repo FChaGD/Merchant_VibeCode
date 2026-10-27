@@ -25,7 +25,8 @@ namespace Game.Core
 
             // 구매 버튼 비활성 사유 툴팁(Docs/Refactor/2026-10-26_공통.md D-1) - 요소가 없으면 사유만 빠진다.
             var buyTooltip = ButtonTooltip.TryRegister(context.Tooltips, elements.BuyButton, sceneUIRoot, TradeGoodsMarketUIElementIds.BuyTooltip, TradeGoodsMarketUIElementIds.BuyTooltipText);
-            var panel = new TradeGoodsMarketPanel(elements, inventory, gold, stockReader, context.Optional<ITownStockConsumer>(), context.CurrentLocation, context.UIManager, buyTooltip, context.Input, context.GoldItemInfo);
+            var panel = new TradeGoodsMarketPanel(elements, inventory, gold, stockReader, context.Optional<ITownStockConsumer>(), context.CurrentLocation, context.UIManager, buyTooltip, context.Input, context.GoldItemInfo,
+                context.Optional<IQuestCargoWarnings>());
             context.Panels.RegisterScreenPanel(panel);
             return panel;
         }

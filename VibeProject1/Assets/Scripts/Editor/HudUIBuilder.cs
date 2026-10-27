@@ -98,12 +98,19 @@ namespace Game.Core.Editor
             unitCount.text = "-";
             EnsureCurrencyCountLabel(unitCount);
             EditorUIBuilder.EnsureMarker(unitCountGo, HubUIElementIds.CurrencyUnitCount);
+            // 평판(기획 106 §4.4, 설계 107번 §10) - 같은 줄 끝에 글자만(아이콘 없음), 입력 없음.
+            var reputationGo = EditorUIBuilder.GetOrCreateUIObject(root.transform, "ReputationCount");
+            var reputation = EditorUIBuilder.EnsureText(reputationGo);
+            reputation.text = "평판 0";
+            EnsureCurrencyCountLabel(reputation);
+            EditorUIBuilder.EnsureMarker(reputationGo, HubUIElementIds.CurrencyReputation);
 
             goldSection.transform.SetSiblingIndex(0);
             root.transform.Find("WagonIcon").SetSiblingIndex(1);
             wagonCountGo.transform.SetSiblingIndex(2);
             root.transform.Find("UnitIcon").SetSiblingIndex(3);
             unitCountGo.transform.SetSiblingIndex(4);
+            reputationGo.transform.SetSiblingIndex(5);
 
             // 툴팁(설계 101번 §5.1) - 공용 툴팁 모양. 문구가 금액 칸보다 길어 패널 바로 아래 띠(패널 전체 폭)에 두고, 가로 레이아웃에서 뺀다.
             // 예전 구조(자식 "Label")는 걷어낸다.

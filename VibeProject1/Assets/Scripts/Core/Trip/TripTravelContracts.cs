@@ -29,6 +29,8 @@ namespace Game.Core
         int CurrentLegIndex { get; }
         TripLeg CurrentLeg { get; }
         bool HasNextLeg { get; }
+        /// <summary>출발 때 확정한 계획(여정 없으면 null) - 퀘스트 확정 사건 위치 계산이 구간별 소요시간·최종 목적지를 읽는다(설계 107번 §9.3).</summary>
+        TripPlan CurrentPlan { get; }
         void AdvanceLeg();
         void Clear();
     }

@@ -221,6 +221,19 @@ namespace Game.Core.Tests
         }
 
         [Test]
+        public void EventStarted_RaisedOncePerRun()
+        {
+            var director = Make();
+            var started = new System.Collections.Generic.List<string>();
+            director.EventStarted += started.Add;
+            director.OnEventCheck();
+            director.RequestBattle(() => { });
+            director.OnEventBattleFinished(EventBattleOutcome.Victory);
+            runner.Complete(true);
+            CollectionAssert.AreEqual(new[] { "E1" }, started, "전투 승리 후 화면 재오픈은 시작이 아니다");
+        }
+
+        [Test]
         public void Check_StartsEvent_HaltsLocksShowsRuns()
         {
             var director = Make();

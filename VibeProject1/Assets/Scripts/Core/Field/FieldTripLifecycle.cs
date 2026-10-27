@@ -14,8 +14,9 @@ namespace Game.Core
         private readonly IFieldFormationActivityRepository activities;
         private readonly ITripCurrentLocationRepository currentLocation;
         private readonly ITripDestinationAssigner destination;
+        private readonly ITripArrivalSink arrival;
 
-        public FieldTripLifecycle(IUnitConditionRepository conditions, ITripMilestoneSink milestones, TripEndProcessor endProcessor, IFieldFormationActivityRepository activities, ITripCurrentLocationRepository currentLocation, ITripDestinationAssigner destination)
+        public FieldTripLifecycle(IUnitConditionRepository conditions, ITripMilestoneSink milestones, TripEndProcessor endProcessor, IFieldFormationActivityRepository activities, ITripCurrentLocationRepository currentLocation, ITripDestinationAssigner destination, ITripArrivalSink arrival = null)
         {
             this.conditions = conditions;
             this.milestones = milestones;
@@ -23,6 +24,7 @@ namespace Game.Core
             this.activities = activities;
             this.currentLocation = currentLocation;
             this.destination = destination;
+            this.arrival = arrival;
         }
 
         /// <summary>상행 시작(화면이 드러난 뒤) - 전원 만피로 출발(기획 13번 §4-1, 설계 15번 §4), 이번 상행 기록·판정 시계·정지 원인 초기화(설계 87번 §6.4).</summary>
@@ -43,6 +45,7 @@ namespace Game.Core
         /// <summary>
         /// 최종 도착. 진행 중이던 배치·이동을 도착지로 즉시 확정한다 - 그러지 않으면 이동 중이던 유닛이 출발 칸에 남아 Hub에서 되돌아간 것처럼
         /// 보였다(2026-09-06 실전 확인, 설계 25번 §3.2). 현재 위치를 도착지로 바꾸고(기획 16번 §4) 다음 상행 준비가 빈 도착지로 시작하게 한다.
+        /// 최종 도착 신호(퀘스트 판정, 설계 107번 §6.2)는 위치 갱신 뒤에 보낸다 - 수신자가 현재 위치를 읽어도 도착지와 일치하게.
         /// </summary>
         public void CompleteArrival()
         {
@@ -52,6 +55,7 @@ namespace Game.Core
             {
                 currentLocation?.SetCurrentCity(destinationCityId);
                 destination.Reset();
+                arrival?.NotifyFinalArrival(destinationCityId);
             }
         }
     }

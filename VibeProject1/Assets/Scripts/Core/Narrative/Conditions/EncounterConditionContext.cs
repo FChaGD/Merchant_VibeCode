@@ -14,9 +14,13 @@ namespace Game.Core
         public int ToRegionId { get; }
         public float Progress { get; }
         public IEncounterHistoryReader History { get; }
+        /// <summary>퀘스트 확정 사건 판정(설계 107번 §9.3). 없으면 null - `quest` 조건은 거짓.</summary>
+        public IQuestEncounterGate Quests { get; }
 
-        public EncounterConditionContext(GameDate today, bool hasLeg, int fromCityId, int toCityId, int fromRegionId, int toRegionId, float progress, IEncounterHistoryReader history)
+        public EncounterConditionContext(GameDate today, bool hasLeg, int fromCityId, int toCityId, int fromRegionId, int toRegionId, float progress, IEncounterHistoryReader history,
+            IQuestEncounterGate quests = null)
         {
+            Quests = quests;
             Today = today;
             HasLeg = hasLeg;
             FromCityId = fromCityId;

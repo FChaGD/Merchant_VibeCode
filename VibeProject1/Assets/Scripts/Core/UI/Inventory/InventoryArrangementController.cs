@@ -31,7 +31,8 @@ namespace Game.Core
         private string message;
         private string currentSectionId;
 
-        public InventoryArrangementController(InventoryArrangementElements elements, IInputManager input, IGoldItemInfo goldInfo, IInventoryReader reader, IInventoryArrangement arrangement, bool allowsRotation, bool hasStaging, bool hasSections)
+        public InventoryArrangementController(InventoryArrangementElements elements, IInputManager input, IGoldItemInfo goldInfo, IInventoryReader reader, IInventoryArrangement arrangement, bool allowsRotation, bool hasStaging, bool hasSections,
+            IQuestCargoWarnings questWarnings = null)
         {
             this.elements = elements;
             this.reader = reader;
@@ -43,7 +44,7 @@ namespace Game.Core
             gridView = new InventoryGridView(elements.GridArea, elements.GridCells, elements.GridItems, elements.CellTemplate, elements.ItemTemplate);
             stagingView = hasStaging ? new InventoryStagingView(elements.StagingArea, elements.StagingContent, elements.ItemTemplate) : null;
             // 버리기(설계 102번 §4.3) - 쓰레기통 버튼이 드롭 대상 영역을 겸한다.
-            discardController = new InventoryDiscardController(elements, arrangement, goldInfo, TryFind, HandleDiscardStateChanged);
+            discardController = new InventoryDiscardController(elements, arrangement, goldInfo, TryFind, HandleDiscardStateChanged, questWarnings);
             dragController = new InventoryItemDragController(reader, arrangement, gridView, stagingView, elements.DragLayer, elements.ItemTemplate, allowsRotation, () => CurrentSection?.Id, HandleDragFinished, (UnityEngine.RectTransform)elements.DiscardButton.transform, discardController.RequestDropDiscard, input);
 
             elements.SortButton.onClick.RemoveAllListeners();

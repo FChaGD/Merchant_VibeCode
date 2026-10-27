@@ -27,6 +27,8 @@ namespace Game.Core
         public string CurrentEventId => director?.CurrentEventId;
         public string PendingEventId => director?.PendingEventId;
         public IReadOnlyList<EventEntry> QueuedEvents => director != null ? director.QueuedEvents : NoEvents;
+        // 진행자는 Configure마다 새로 만들어지므로 구독자(Bootstrap 상주 퀘스트)가 끊기지 않게 여기서 중계한다.
+        public event Action<string> EventStarted;
 
         public void Configure(IDependencyResolver registrar, ITripCheckSignal checks, ITripMilestoneSource milestones, ITripHaltControl halt, ITripMilestoneSink milestoneSink)
         {
@@ -75,6 +77,7 @@ namespace Game.Core
                 registeredOn = commands;
             }
 
+            director.EventStarted += RelayEventStarted;
             if (checks != null) checks.EventCheck += director.OnEventCheck;
             if (milestones != null) milestones.Raised += director.OnMilestone;
             if (visibility != null)
@@ -144,9 +147,12 @@ namespace Game.Core
             return content.TryGetPerson(id, out var person) ? person.Name : null;
         }
 
+        private void RelayEventStarted(string eventId) => EventStarted?.Invoke(eventId);
+
         private void Unsubscribe()
         {
             if (director == null) return;
+            director.EventStarted -= RelayEventStarted;
             if (checks != null) checks.EventCheck -= director.OnEventCheck;
             if (milestones != null) milestones.Raised -= director.OnMilestone;
             if (visibility != null) visibility.ModalPopupOpenChanged -= director.SetModalOpen;

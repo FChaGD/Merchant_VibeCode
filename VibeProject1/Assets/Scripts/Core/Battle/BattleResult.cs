@@ -37,11 +37,21 @@ namespace Game.Core
         }
 
         public BattleResult(BattleOutcome outcome, BattleDefeatCause defeatCause, BattleCargoReport cargoReport, IReadOnlyList<ProtectedUnitRecord> protectedUnits)
+            : this(outcome, defeatCause, cargoReport, protectedUnits, null)
+        {
+        }
+
+        public BattleResult(BattleOutcome outcome, BattleDefeatCause defeatCause, BattleCargoReport cargoReport, IReadOnlyList<ProtectedUnitRecord> protectedUnits, string enemyType)
         {
             Outcome = outcome;
             DefeatCause = defeatCause;
             this.cargoReport = cargoReport;
             this.protectedUnits = protectedUnits;
+            EnemyType = enemyType;
         }
+
+        // 이번 전투의 적 종류(적 스탯 테이블 Id, 전투마다 한 종류 - 기획 08번 §13.1). 퀘스트 전투 승리 목표의 필터에 쓴다(설계 107번 §6.1).
+        // 배틀 테스트 씬·Placeholder는 null.
+        public string EnemyType { get; }
     }
 }
