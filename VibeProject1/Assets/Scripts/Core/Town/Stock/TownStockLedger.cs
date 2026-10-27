@@ -15,6 +15,8 @@ namespace Game.Core
         private readonly IReadOnlyList<TownStockEntry> source;
         private readonly Func<int, TownStockCategory, bool> isSellable;
         private readonly Dictionary<(int cityId, TownStockCategory category), List<TownStockLine>> lines = new();
+        // 빈 목록만으로는 "판매 불가"와 "행이 없음"을 구분할 수 없어 반환(매각) 판정용으로 따로 기억한다.
+        private readonly HashSet<(int cityId, TownStockCategory category)> unsellable = new();
 
         public TownStockLedger(IReadOnlyList<TownStockEntry> source, Func<int, TownStockCategory, bool> isSellable)
         {
@@ -38,6 +40,23 @@ namespace Game.Core
             return false;
         }
 
+        // 매각 반환(기획 80번 §3-6 예외) - 같은 종류 행이 있으면 +1, 없으면 끝에 수량 1로 추가한다.
+        public bool TryReturn(int cityId, TownStockCategory category, string itemId)
+        {
+            if (string.IsNullOrEmpty(itemId)) return false;
+            var list = GetOrCreate(cityId, category);
+            if (unsellable.Contains((cityId, category))) return false;
+
+            for (var i = 0; i < list.Count; i++)
+            {
+                if (list[i].ItemId != itemId) continue;
+                list[i] = new TownStockLine(itemId, list[i].Remaining + 1);
+                return true;
+            }
+            list.Add(new TownStockLine(itemId, 1));
+            return true;
+        }
+
         // 판매 불가로 판정된 조합은 빈 목록을 저장해 판정을 다시 하지 않는다(경고 1회).
         private List<TownStockLine> GetOrCreate(int cityId, TownStockCategory category)
         {
@@ -52,6 +71,10 @@ namespace Game.Core
                 {
                     if (entry.CityId == cityId && entry.Category == category) created.Add(new TownStockLine(entry.ItemId, entry.Quantity));
                 }
+            }
+            else
+            {
+                unsellable.Add(key);
             }
             lines[key] = created;
             return created;

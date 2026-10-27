@@ -9,7 +9,7 @@ namespace Game.Core
     /// 상위·하위 타입 등록으로는 조회되지 않는다. ResolveDependencies가 다시 불리면 장부를 새로 만들지만, 소비자는 이 컴포넌트의
     /// Changed를 구독하므로 구독이 끊기지 않는다.
     /// </summary>
-    public class GoldHoldingsService : MonoBehaviour, IGoldHoldingsReader, IGoldSpender, IGoldBoxConverter, IGoldDepartureSettlement, IGoldEventAdjuster, IGoldItemInfo, IManagedComponent
+    public class GoldHoldingsService : MonoBehaviour, IGoldHoldingsReader, IGoldSpender, IGoldBoxConverter, IGoldDepartureSettlement, IGoldEventAdjuster, IGoldItemInfo, IGoldIncome, IManagedComponent
     {
         // 골드 아이템(기획 82번 B1 - 기존 gold-box Placeholder 재사용)과 그 가치. 골드 아이템 종류가 늘면 이 두 값을 목록으로 바꾼다(§10).
         [SerializeField] private string goldItemId = "gold-box";
@@ -27,6 +27,7 @@ namespace Game.Core
             registrar.Register<IGoldDepartureSettlement>(this);
             registrar.Register<IGoldEventAdjuster>(this);   // 이벤트 골드 효과(설계 89 §5.1)
             registrar.Register<IGoldItemInfo>(this);        // 버리기 경고의 골드 상자 줄(설계 102 §4.2)
+            registrar.Register<IGoldIncome>(this);          // 마구간 매각 지급(설계 104 §4)
         }
 
         public void ResolveDependencies(IDependencyResolver registrar)
@@ -69,6 +70,7 @@ namespace Game.Core
         public int Convert(int boxCount) => ledger?.Convert(boxCount) ?? 0;
         public int DiscardExcess() => ledger?.DiscardExcess() ?? 0;
         public int Gain(int amount) => ledger?.Gain(amount) ?? 0;
+        public int Earn(int amount) => ledger?.Gain(amount) ?? 0;
         public int LoseUpTo(int amount) => ledger?.LoseUpTo(amount) ?? 0;
         public bool IsGoldItem(string itemId) => itemId != null && itemId == goldItemId;
 

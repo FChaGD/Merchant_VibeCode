@@ -43,5 +43,23 @@ namespace Game.Core.Tests
         {
             Assert.AreEqual(expected, CaravanAssetSaleRules.SalePrice(price, ratio));
         }
+
+        [TestCase(1000, 0.5f, 0.6f, 300)]
+        [TestCase(999, 0.5f, 0.5f, 249)]
+        [TestCase(1000, 0.5f, 0f, 0)]
+        [TestCase(1000, 0.5f, 1.5f, 500)]
+        [TestCase(1000, 0.5f, -1f, 0)]
+        public void SalePrice_ScalesByDurability_Clamped(int price, float ratio, float durability, int expected)
+        {
+            Assert.AreEqual(expected, CaravanAssetSaleRules.SalePrice(price, ratio, durability));
+        }
+
+        [Test]
+        public void DurabilityRatio_NoRecordOrZeroMax_IsOne()
+        {
+            Assert.AreEqual(1f, CaravanAssetSaleRules.DurabilityRatio(false, 3f, 10));
+            Assert.AreEqual(1f, CaravanAssetSaleRules.DurabilityRatio(true, 3f, 0));
+            Assert.AreEqual(0.3f, CaravanAssetSaleRules.DurabilityRatio(true, 3f, 10), 1e-6f);
+        }
     }
 }

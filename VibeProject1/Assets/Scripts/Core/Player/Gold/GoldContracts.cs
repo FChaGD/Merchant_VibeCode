@@ -38,6 +38,16 @@ namespace Game.Core
         event Action Changed;
     }
 
+    /// <summary>
+    /// 골드 수입(Docs/설계/104번 §4) - 마구간 매각용. 개인 골드에 더한다(상한 없음 - 출발 시 초과분 버림, 기획 82).
+    /// IGoldEventAdjuster의 획득과 같은 동작이지만 매각 소비자에게 "가진 만큼 잃기" 같은 이벤트 전용 조작을 노출하지 않으려고 따로 뒀다(ISP).
+    /// </summary>
+    public interface IGoldIncome
+    {
+        /// <summary>실제 더한 양. 0 이하 요청은 0.</summary>
+        int Earn(int amount);
+    }
+
     /// <summary>개인 골드 → 골드 상자 변환(Docs/설계/83번 §4.4) - 변환 모달용.</summary>
     public interface IGoldBoxConverter
     {

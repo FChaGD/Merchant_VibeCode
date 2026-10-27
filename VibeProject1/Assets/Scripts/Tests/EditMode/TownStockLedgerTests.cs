@@ -73,5 +73,38 @@ namespace Game.Core.Tests
             Assert.AreEqual(0, ledger.GetLines(1, TownStockCategory.Wagon).Count);
             Assert.AreEqual(1, asked, "같은 마을·Category는 한 번만 판정(경고 1회)");
         }
+
+        [Test]
+        public void TryReturn_ExistingRow_AddsOne()
+        {
+            var ledger = Create();
+            ledger.TryConsume(4, TownStockCategory.Wagon, "Wagon02");
+
+            Assert.IsTrue(ledger.TryReturn(4, TownStockCategory.Wagon, "Wagon02"));
+            Assert.AreEqual(1, ledger.GetLines(4, TownStockCategory.Wagon)[1].Remaining, "0에서 1로 - 다시 살 수 있다");
+            Assert.IsTrue(ledger.TryConsume(4, TownStockCategory.Wagon, "Wagon02"));
+        }
+
+        [Test]
+        public void TryReturn_MissingRow_AppendsWithOne()
+        {
+            var ledger = Create();
+
+            Assert.IsTrue(ledger.TryReturn(4, TownStockCategory.Wagon, "Wagon05"));
+            var lines = ledger.GetLines(4, TownStockCategory.Wagon);
+            Assert.AreEqual(3, lines.Count);
+            Assert.AreEqual("Wagon05", lines[2].ItemId);
+            Assert.AreEqual(1, lines[2].Remaining);
+        }
+
+        [Test]
+        public void TryReturn_UnsellableCityOrEmptyId_Fails()
+        {
+            var ledger = Create((city, category) => city != 1);
+
+            Assert.IsFalse(ledger.TryReturn(1, TownStockCategory.Wagon, "Wagon01"));
+            Assert.AreEqual(0, ledger.GetLines(1, TownStockCategory.Wagon).Count);
+            Assert.IsFalse(ledger.TryReturn(4, TownStockCategory.Wagon, null));
+        }
     }
 }

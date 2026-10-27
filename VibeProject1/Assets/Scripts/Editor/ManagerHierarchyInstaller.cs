@@ -57,6 +57,9 @@ namespace Game.Core.Editor
         // 마을 재고 시스템으로 교체되며 삭제된 임시 제공자(Docs/설계/81번 §3.5). 클래스가 없어 nameof를 못 쓴다.
         private const string RemovedPlaceholderTownShopStockProviderName = "PlaceholderTownShopStockProvider";
         private const string RemovedPlaceholderCaravanAssetCandidateProviderName = "PlaceholderCaravanAssetCandidateProvider";
+        // 실제 숙소 휴식·마구간 매각 서비스로 교체되며 삭제된 임시 구현(Docs/설계/104번 §5·105번 §4).
+        private const string RemovedPlaceholderInnRestServiceName = "PlaceholderInnRestService";
+        private const string RemovedPlaceholderCaravanAssetSaleServiceName = "PlaceholderCaravanAssetSaleService";
 
         [MenuItem("Tools/Game/Build Bootstrap Scene")]
         public static void BuildManagerHierarchy()
@@ -328,10 +331,12 @@ namespace Game.Core.Editor
             var encounterContentProvider = EditorUIBuilder.GetOrCreateManager<EncounterContentProvider>(uiManager.transform, nameof(EncounterContentProvider));
             WireEncounterTable(encounterContentProvider);
 
-            // 숙소 휴식·상인조합 게시판·마구간 매각(설계 103번 §4.1) - 실제 상태 변경이 없는 Placeholder, system 브랜치가 교체한다.
-            var innRestService = EditorUIBuilder.GetOrCreateManager<PlaceholderInnRestService>(uiManager.transform, nameof(PlaceholderInnRestService));
+            // 숙소 휴식(설계 105번)·상인조합 게시판(설계 103번 §4.1 Placeholder)·마구간 매각(설계 104번).
+            EditorUIBuilder.DestroyChildIfExists(uiManager.transform, RemovedPlaceholderInnRestServiceName);
+            EditorUIBuilder.DestroyChildIfExists(uiManager.transform, RemovedPlaceholderCaravanAssetSaleServiceName);
+            var innRestService = EditorUIBuilder.GetOrCreateManager<InnRestService>(uiManager.transform, nameof(InnRestService));
             var guildQuestBoard = EditorUIBuilder.GetOrCreateManager<PlaceholderGuildQuestBoard>(uiManager.transform, nameof(PlaceholderGuildQuestBoard));
-            var caravanAssetSaleService = EditorUIBuilder.GetOrCreateManager<PlaceholderCaravanAssetSaleService>(uiManager.transform, nameof(PlaceholderCaravanAssetSaleService));
+            var caravanAssetSaleService = EditorUIBuilder.GetOrCreateManager<CaravanAssetSaleService>(uiManager.transform, nameof(CaravanAssetSaleService));
 
             return new MonoBehaviour[]
             {

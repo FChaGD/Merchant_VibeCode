@@ -6,9 +6,9 @@ namespace Game.Core
 {
     /// <summary>
     /// 마을 재고의 Bootstrap 상주 저장소(Docs/설계/81번 §3.4). 로직은 TownStockLedger에 있고 이 클래스는 DI·테이블 배선·규모 경고만 맡는다.
-    /// 읽기·차감 계약을 각각 등록한다 - 상위 타입 등록으로는 보조 계약이 조회되지 않는다.
+    /// 읽기·차감·반환 계약을 각각 등록한다 - 상위 타입 등록으로는 보조 계약이 조회되지 않는다.
     /// </summary>
-    public class InMemoryTownStockRepository : MonoBehaviour, ITownStockReader, ITownStockConsumer, IManagedComponent
+    public class InMemoryTownStockRepository : MonoBehaviour, ITownStockReader, ITownStockConsumer, ITownStockReturner, IManagedComponent
     {
         [SerializeField] private TownStockTableAsset stockTable;
 
@@ -21,6 +21,7 @@ namespace Game.Core
         {
             registrar.Register<ITownStockReader>(this);
             registrar.Register<ITownStockConsumer>(this);
+            registrar.Register<ITownStockReturner>(this);
         }
 
         public void ResolveDependencies(IDependencyResolver registrar)
@@ -40,6 +41,13 @@ namespace Game.Core
         public bool TryConsume(int cityId, TownStockCategory category, string itemId)
         {
             if (!ledger.TryConsume(cityId, category, itemId)) return false;
+            OnStockChanged?.Invoke();
+            return true;
+        }
+
+        public bool TryReturn(int cityId, TownStockCategory category, string itemId)
+        {
+            if (!ledger.TryReturn(cityId, category, itemId)) return false;
             OnStockChanged?.Invoke();
             return true;
         }
