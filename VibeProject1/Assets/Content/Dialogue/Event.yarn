@@ -59,3 +59,40 @@ title: QuestTest_Battle
 퀘스트 Q_T3(테스트 - 반복 전투)의 확정 전투. 무작위 구간(진행률 20~80%)에서 발생한다.
 <<battle>>
 ===
+
+title: Rest_Fixed1
+---
+숙소 문을 두드리는 소리가 난다. 행상인이 물건 꾸러미를 내민다.
+Warrior01: 단장, 싸게 넘기겠답니다. 어떻게 할까요? #left
+행상인이 무역품 세 꾸러미를 골드 30에 넘기겠다고 한다. #choice
+-> 산다
+    <<gold -30>>
+    <<goods_add placeholder-1x1 3>>
+    Warrior01: 짐칸을 정리해 두겠습니다.
+-> 거절한다
+    Warrior01: 다음에 보지요.
+===
+
+title: Rest_Random1
+---
+여관 식당에서 떠돌이 궁수가 일거리를 찾고 있다.
+Warrior01: 쓸 만해 보입니다. 데려갈까요? #left
+궁수가 상단에 합류하고 싶어 한다. #choice
+-> 받아들인다
+    <<join Archer05>>
+-> 거절한다
+    Warrior01: 인원은 충분합니다.
+===
+
+title: Rest_Random2
+---
+밤중에 여관 밖이 소란스럽다. 술 취한 무리가 시비를 건다.
+Warrior01: 단장, 여기 더 머물면 골치 아파질 것 같습니다. #left
+소란이 커지고 있다. #choice
+-> 숙소를 떠난다
+    <<rest_end>>
+    Warrior01: 짐을 챙기겠습니다.
+-> 모른 척 잔다
+    <<gold -10>>
+    Warrior01: 문을 잠가 두겠습니다.
+===

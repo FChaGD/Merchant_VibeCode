@@ -31,6 +31,45 @@ namespace Game.Core.Tests
         [TestCase("to:4", false)]
         public void BuiltInKeys(string text, bool expected) => Assert.AreEqual(expected, Eval(text, Ctx()));
 
+        // 휴식 문맥(설계 109 §3.2) - 체류 도시 5, 그 지역 3.
+        private static EncounterConditionContext TownCtx()
+            => EncounterConditionContextFactory.CreateForTown(new GameDate(69), 5, city => city == 5 ? 3 : -1, new EncounterHistory());
+
+        [Test] public void Town_TripContext_False() => Assert.IsFalse(Eval("town:4", Ctx()));
+        [Test] public void Town_MatchesCurrentCity() => Assert.IsTrue(Eval("town:5", TownCtx()) && !Eval("town:4", TownCtx()));
+        [Test] public void Region_TownContext_UsesTownRegion() => Assert.IsTrue(Eval("region:3", TownCtx()) && !Eval("region:1", TownCtx()));
+        [Test] public void Region_NoLegNoTown_False() => Assert.IsFalse(Eval("region:1", Ctx(hasLeg: false)));
+
+        [Test]
+        public void Region_LegTakesPrecedence()
+        {
+            var ctx = new EncounterConditionContext(new GameDate(69), true, 4, 7, 1, 2, 0.5f, new EncounterHistory(), null, hasTown: true, townCityId: 5, townRegionId: 3);
+            Assert.IsTrue(Eval("region:1", ctx));
+            Assert.IsFalse(Eval("region:3", ctx));
+        }
+
+        [Test] public void TownContext_LegKeysFalse() => Assert.IsFalse(Eval("from:5", TownCtx()) || Eval("progress:0-1", TownCtx()));
+
+        [TestCase("from")]
+        [TestCase("to")]
+        [TestCase("road")]
+        [TestCase("progress")]
+        [TestCase("quest")]
+        public void IsAllowedAt_TripOnlyKeysRejectedAtRest(string key)
+        {
+            Assert.IsFalse(EncounterConditionKeys.IsAllowedAt(key, EventPlace.Rest));
+            Assert.IsTrue(EncounterConditionKeys.IsAllowedAt(key, EventPlace.Trip));
+        }
+
+        [Test]
+        public void IsAllowedAt_TownRejectedAtTrip()
+        {
+            Assert.IsFalse(EncounterConditionKeys.IsAllowedAt(EncounterConditionKeys.Town, EventPlace.Trip));
+            Assert.IsTrue(EncounterConditionKeys.IsAllowedAt(EncounterConditionKeys.Town, EventPlace.Rest));
+            Assert.IsTrue(EncounterConditionKeys.IsAllowedAt(EncounterConditionKeys.Region, EventPlace.Rest));
+            Assert.IsTrue(EncounterConditionKeys.IsAllowedAt(EncounterConditionKeys.Flag, EventPlace.Trip));
+        }
+
         [Test]
         public void FlagAndSeen_ReadHistory()
         {

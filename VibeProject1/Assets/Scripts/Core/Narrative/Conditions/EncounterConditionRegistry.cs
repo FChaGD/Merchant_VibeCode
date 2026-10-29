@@ -32,9 +32,10 @@ namespace Game.Core
                     && EncounterRange.InCyclicRange((c.Today.Month - 1) * GameDate.DaysPerMonth + (c.Today.Day - 1), s, e)));
             registry.Register(new DelegateEvaluator(EncounterConditionKeys.Progress,
                 a => EncounterRange.TryParseFloat(a, out var lo, out var hi) && lo <= hi,
-                (a, c) => EncounterRange.TryParseFloat(a, out var lo, out var hi) && c.Progress >= lo && c.Progress <= hi));
+                // 휴식 문맥은 진행률이 없다(설계 109 §3.2) - 상행의 구간 없는 문맥은 기존대로 진행률로 판정한다.
+                (a, c) => !c.HasTown && EncounterRange.TryParseFloat(a, out var lo, out var hi) && c.Progress >= lo && c.Progress <= hi));
             registry.Register(new DelegateEvaluator(EncounterConditionKeys.Region, IsInt,
-                (a, c) => c.HasLeg && TryInt(a, out var r) && (c.FromRegionId == r || c.ToRegionId == r)));
+                (a, c) => TryInt(a, out var r) && (c.HasLeg ? c.FromRegionId == r || c.ToRegionId == r : c.HasTown && c.TownRegionId == r)));
             registry.Register(new DelegateEvaluator(EncounterConditionKeys.Road,
                 a => TryRoad(a, out _, out _),
                 (a, c) => c.HasLeg && TryRoad(a, out var x, out var y)
@@ -43,6 +44,7 @@ namespace Game.Core
             registry.Register(new DelegateEvaluator(EncounterConditionKeys.To, IsInt, (a, c) => c.HasLeg && TryInt(a, out var id) && c.ToCityId == id));
             registry.Register(new DelegateEvaluator(EncounterConditionKeys.Flag, IsNonEmpty, (a, c) => c.History != null && c.History.HasFlag(a)));
             registry.Register(new DelegateEvaluator(EncounterConditionKeys.Seen, IsNonEmpty, (a, c) => c.History != null && c.History.HasOccurred(a)));
+            registry.Register(new DelegateEvaluator(EncounterConditionKeys.Town, IsInt, (a, c) => c.HasTown && TryInt(a, out var id) && c.TownCityId == id));
             registry.Register(new DelegateEvaluator(EncounterConditionKeys.Quest, IsNonEmpty, (a, c) => c.Quests != null && c.Quests.IsEventDue(a.Trim(), c.Progress)));
             return registry;
         }

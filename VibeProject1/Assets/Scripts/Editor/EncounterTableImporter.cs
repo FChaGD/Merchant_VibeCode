@@ -53,22 +53,53 @@ namespace Game.Core.Editor
 
         private static List<EventEntry> ReadEvents(string path, EncounterConditionRegistry registry)
         {
+            var titles = ReadEventTitles(path);
             var list = new List<EventEntry>();
             foreach (var row in EditorTableReader.ReadSheet(path, "Event"))
             {
                 var id = EditorTableReader.ParseRequiredString(row, "Id").Trim();
+                var placeText = Optional(row, "Place");
+                var place = placeText == null ? EventPlace.Trip : ParseNameText<EventPlace>(placeText, "Place", id);
+                titles.TryGetValue(id, out var title);
+                // 휴식 이벤트는 진행 화면 기록 목록에 제목을 보인다(설계 109 §3.1) - 상행 이벤트는 제목을 쓰는 곳이 없어 선택.
+                if (place == EventPlace.Rest && string.IsNullOrWhiteSpace(title)) throw new FormatException($"Event '{id}': {EventPlaceNames.Of(place)} 이벤트는 EventStrings 시트에 제목이 있어야 한다.");
+                var conditions = ParseConditions(row, id, registry);
+                // 장소에 없는 값을 보는 조건은 항상 거짓이라 작성 실수다(설계 109 §3.4) - 조건을 읽은 행에서 바로 막는다.
+                foreach (var c in conditions)
+                {
+                    if (!EncounterConditionKeys.IsAllowedAt(c.Key, place)) throw new FormatException($"Event '{id}': 조건 '{c.Key}'는 {EventPlaceNames.Of(place)} 이벤트에서 쓸 수 없다.");
+                }
                 list.Add(new EventEntry
                 {
                     Id = id,
                     YarnNode = EditorTableReader.ParseRequiredString(row, "YarnNode").Trim(),
                     Occurrence = ParseName<EventOccurrence>(row, "Occurrence", id),
+                    Place = place,
+                    Title = title ?? string.Empty,
                     Importance = ParseName<EventImportance>(row, "Importance", id),
                     Repeat = ParseName<EventRepeat>(row, "Repeat", id),
                     Weight = ParseWeight(row, id),
-                    Conditions = ParseConditions(row, id, registry),
+                    Conditions = conditions,
                 });
             }
             return list;
+        }
+
+        // EventStrings 시트는 휴식 이벤트(설계 109)와 함께 생겼다 - 시트가 없는 이전 엑셀도 상행 이벤트만이면 그대로 임포트되게 한다.
+        private static Dictionary<string, string> ReadEventTitles(string path)
+        {
+            var titles = new Dictionary<string, string>();
+            IReadOnlyList<IReadOnlyDictionary<string, string>> rows;
+            try
+            {
+                rows = EditorTableReader.ReadSheet(path, "EventStrings");
+            }
+            catch (InvalidOperationException)
+            {
+                return titles;
+            }
+            foreach (var row in rows) titles[EditorTableReader.ParseRequiredString(row, "Id").Trim()] = Optional(row, "Title") ?? string.Empty;
+            return titles;
         }
 
         private static List<DialogueEntry> ReadDialogues(string path, EncounterConditionRegistry registry)
@@ -214,6 +245,8 @@ namespace Game.Core.Editor
                 e.FindPropertyRelative("Id").stringValue = events[i].Id;
                 e.FindPropertyRelative("YarnNode").stringValue = events[i].YarnNode;
                 EditorTableReader.SetEnumValue(e.FindPropertyRelative("Occurrence"), events[i].Occurrence);
+                EditorTableReader.SetEnumValue(e.FindPropertyRelative("Place"), events[i].Place);
+                e.FindPropertyRelative("Title").stringValue = events[i].Title;
                 EditorTableReader.SetEnumValue(e.FindPropertyRelative("Importance"), events[i].Importance);
                 EditorTableReader.SetEnumValue(e.FindPropertyRelative("Repeat"), events[i].Repeat);
                 e.FindPropertyRelative("Weight").intValue = events[i].Weight;

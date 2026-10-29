@@ -89,6 +89,11 @@ namespace Game.Core.Editor
             // 숙소·휴식 진행·상인조합(설계 103번 §5.2) - 시설 화면.
             InnUIBuilder.Build(layers.Screens);
             MerchantGuildUIBuilder.Build(layers.Screens);
+            // 휴식 중 이벤트 화면(설계 109 §6.1) - Field와 같은 회수 적재·이벤트 대화·선택 조립을 시설 화면(휴식 진행) 위 모달 묶음에 둔다.
+            // 형제 순서 = 렌더 순서라 모달 묶음 맨 뒤에 회수 적재 → 대화 → 선택 순으로 둔다(재실행해도 같은 순서).
+            var cargoRecovery = CargoRecoveryUIBuilder.Build(layers.ModalPopups, null);
+            cargoRecovery.SetAsLastSibling();
+            FieldEventUIBuilder.Build(layers.ModalPopups, cargoRecovery);
 
             EditorUIBuilder.WarnIfOutsideTransitionRoot(sceneUIRoot.transform, contentRoot, "Hub");
 

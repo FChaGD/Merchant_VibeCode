@@ -46,6 +46,12 @@ namespace Game.Core
         }
 
         private void RaiseClicked() => Clicked?.Invoke();
+        /// <summary>Hub(휴식 이벤트)는 정비창 열람 모드가 없어 버튼을 숨긴다(설계 109 §6.2) - 편집 화면이 열리면 이벤트 중 대열을 바꿀 수 있게 된다.</summary>
+        public void SetFormationButtonVisible(bool visible)
+        {
+            if (formationButton != null) formationButton.gameObject.SetActive(visible);
+        }
+
         private void RaiseFormation() => FormationRequested?.Invoke();
 
         public void SetVisible(bool visible) => body.SetActive(visible);

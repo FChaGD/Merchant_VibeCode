@@ -8,7 +8,9 @@ namespace Game.Core
     /// 콘텐츠 정합성 검사(설계 87 §9). 테이블: YarnNode 존재. 대본: 화자 Id 존재, 선택지 묶음마다 `#timeout` 0~1개. 선택지 묶음 = 같은 들여쓰기의 연속
     /// 선택지(사이의 더 깊은 줄은 선택지 본문). 선택지 앞 질문 줄의 `#ask`는 요구하지 않는다 - Yarn이 그 줄에 lastline을 자동으로 붙인다.
     /// 좌우 자리(88 §5.3): 화자마다 첫 대사에 `#left`/`#right`, 한 노드에서 같은 자리를 두 화자가 쓰지 않는다.
-    /// 이벤트 대본(89 §5.4): 명령 이름·인자, 품목·캐릭터·인물 Id, 선택지 묶음마다 `#choice` 줄.
+    /// 이벤트 대본(89 §5.4): 명령 이름·인자, 품목·캐릭터·인물 Id, 선택지 묶음마다 `#choice` 줄, 장소에서 쓸 수 없는 명령(109 §3.4).
+    /// 오류 검사는 두 곳으로 나눈다 - 표 한 행만 보면 아는 것(열 형식·조건 장소·휴식 제목 등)은 임포터(EncounterTableImporter)가 임포트를 막고, 대본·다른
+    /// 테이블과 맞춰 봐야 아는 것은 이 검증기가 자산 테스트(EncounterContentAssetTests)에서 모아 알린다. 같은 검사를 두 곳에 두지 않는다.
     /// </summary>
     public static class EncounterContentValidator
     {
@@ -89,18 +91,19 @@ namespace Game.Core
         /// 이벤트 대본 검사(설계 89 §5.1·§5.4). 이벤트 노드(테이블 YarnNode)만 본다. 명령 이름·인자 개수·숫자 형식, 품목·캐릭터 Id 존재, `#people` 인물 존재,
         /// 선택지 묶음마다 바로 앞(명령 줄 건너뜀)에 `#choice` 줄. 효과 실행기의 "건너뛰고 계속" 규칙과 별개로, 작성 실수를 Play 전에 잡기 위해서다.
         /// </summary>
-        public static List<string> ValidateEventScripts(IReadOnlyList<YarnScriptNode> nodes, ICollection<string> eventNodeTitles, EventScriptRules rules)
+        /// <param name="eventNodePlaces">이벤트 노드 → 장소. 장소에서 쓸 수 없는 명령(설계 109 §3.4)도 오류로 본다.</param>
+        public static List<string> ValidateEventScripts(IReadOnlyList<YarnScriptNode> nodes, IReadOnlyDictionary<string, EventPlace> eventNodePlaces, EventScriptRules rules)
         {
             var errors = new List<string>();
             foreach (var node in nodes)
             {
-                if (!eventNodeTitles.Contains(node.Title)) continue;
+                if (!eventNodePlaces.TryGetValue(node.Title, out var place)) continue;
                 var lines = node.Lines;
                 for (var i = 0; i < lines.Count; i++)
                 {
                     var line = lines[i];
                     var at = $"{node.Title}:{line.LineNumber}";
-                    if (line.IsCommand) ValidateCommand(line, at, rules, errors);
+                    if (line.IsCommand) ValidateCommand(line, at, place, rules, errors);
                     if (line.Tags.Count > 0) ValidatePeople(line, at, rules, errors);
                     if (line.IsOption && !IsContinuationOfGroup(lines, i) && !HasChoiceLineBefore(lines, i))
                     {
@@ -111,7 +114,7 @@ namespace Game.Core
             return errors;
         }
 
-        private static void ValidateCommand(YarnScriptLine line, string at, EventScriptRules rules, List<string> errors)
+        private static void ValidateCommand(YarnScriptLine line, string at, EventPlace place, EventScriptRules rules, List<string> errors)
         {
             var name = line.CommandName;
             var args = line.CommandArgs;
@@ -120,6 +123,11 @@ namespace Game.Core
             if (!EventCommandSpecs.TryGetCommand(name, out var spec))
             {
                 errors.Add($"{at} 알 수 없는 명령 <<{name}>>.");
+                return;
+            }
+            if (!EventCommandSpecs.IsAllowedAt(spec, place))
+            {
+                errors.Add($"{at} <<{name}>>는 {EventPlaceNames.Of(place)} 이벤트에서 쓸 수 없다.");
                 return;
             }
             var exact = name == EventCommandSpecs.Difficulty && args.Count >= 2 ? EventCommandSpecs.DifficultyArgCount(args[1]) : -1;

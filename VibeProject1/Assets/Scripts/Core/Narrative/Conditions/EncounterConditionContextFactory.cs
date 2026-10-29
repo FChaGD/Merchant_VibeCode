@@ -15,5 +15,12 @@ namespace Game.Core
             return new EncounterConditionContext(today, true, leg.FromCityId, leg.ToCityId,
                 regionOfCity(leg.FromCityId), regionOfCity(leg.ToCityId), progress, history, quests);
         }
+
+        /// <summary>숙소 휴식 문맥(설계 109 §3.2) - 구간이 없어 상행 장소 조건은 거짓, 체류 도시가 없으면(Id 0 이하) `town`·`region`도 거짓.</summary>
+        public static EncounterConditionContext CreateForTown(GameDate today, int cityId, Func<int, int> regionOfCity, IEncounterHistoryReader history)
+        {
+            var hasTown = cityId > 0;
+            return new EncounterConditionContext(today, false, 0, 0, 0, 0, 0f, history, null, hasTown, hasTown ? cityId : 0, hasTown ? regionOfCity(cityId) : 0);
+        }
     }
 }

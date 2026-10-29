@@ -6,6 +6,9 @@ namespace Game.Core
     /// <summary>효과 명령 인자 종류(설계 89 §5.6). 품목·캐릭터 존재는 검증기가 테이블 조회 함수로 확인한다.</summary>
     public enum EventArgKind { Int, PositiveInt, Seconds, ItemId, ItemIdOrRandom, CharacterId, DifficultyMode }
 
+    /// <summary>명령을 쓸 수 있는 이벤트 장소(설계 109 §3.4) - 상행 시계·도로·전투가 없는 휴식에서 상행 명령을 막는다.</summary>
+    public enum EventCommandPlaces { Trip, Rest, Both }
+
     public sealed class EventCommandSpec
     {
         public string Name { get; }
@@ -13,9 +16,13 @@ namespace Game.Core
         public string Usage { get; }
         public int MinArgs { get; }
         public IReadOnlyList<EventArgKind> Args { get; }
+        public EventCommandPlaces Places { get; }
 
-        public EventCommandSpec(string name, string usage, int minArgs, params EventArgKind[] args)
+        public EventCommandSpec(string name, string usage, int minArgs, params EventArgKind[] args) : this(name, usage, EventCommandPlaces.Both, minArgs, args) { }
+
+        public EventCommandSpec(string name, string usage, EventCommandPlaces places, int minArgs, params EventArgKind[] args)
         {
+            Places = places;
             Name = name;
             Usage = usage;
             MinArgs = minArgs;
@@ -52,6 +59,7 @@ namespace Game.Core
         public const string Difficulty = "difficulty";
         public const string Join = "join";
         public const string Leave = "leave";
+        public const string RestEnd = "rest_end";
 
         public const string GoldFunction = "gold";
         public const string GoodsFunction = "goods";
@@ -59,16 +67,18 @@ namespace Game.Core
 
         public static readonly IReadOnlyList<EventCommandSpec> Commands = new[]
         {
-            new EventCommandSpec(Battle, "<<battle>>", 0),
+            new EventCommandSpec(Battle, "<<battle>>", EventCommandPlaces.Trip, 0),
             new EventCommandSpec(Gold, "<<gold 정수>>", 1, EventArgKind.Int),
             new EventCommandSpec(GoodsAdd, "<<goods_add 품목Id 양수>>", 2, EventArgKind.ItemId, EventArgKind.PositiveInt),
             new EventCommandSpec(GoodsRemove, "<<goods_remove 품목Id|random 양수>>", 2, EventArgKind.ItemIdOrRandom, EventArgKind.PositiveInt),
-            new EventCommandSpec(Delay, "<<delay 초>>", 1, EventArgKind.Seconds),
+            new EventCommandSpec(Delay, "<<delay 초>>", EventCommandPlaces.Trip, 1, EventArgKind.Seconds),
             // days 방식만 3번째 인자(일수)를 받는다 - 방식별 개수는 DifficultyArgCount.
-            new EventCommandSpec(Difficulty, "<<difficulty 증감 leg|permanent>> 또는 <<difficulty 증감 days 양수>>", 2,
+            new EventCommandSpec(Difficulty, "<<difficulty 증감 leg|permanent>> 또는 <<difficulty 증감 days 양수>>", EventCommandPlaces.Trip, 2,
                 EventArgKind.Int, EventArgKind.DifficultyMode, EventArgKind.PositiveInt),
             new EventCommandSpec(Join, "<<join 캐릭터Id>>", 1, EventArgKind.CharacterId),
             new EventCommandSpec(Leave, "<<leave 캐릭터Id>>", 1, EventArgKind.CharacterId),
+            // 휴식 강제 종료(설계 109 §5.4) - 그날을 미성립으로 끝낸다. 대본은 끝까지 진행한다.
+            new EventCommandSpec(RestEnd, "<<rest_end>>", EventCommandPlaces.Rest, 0),
         };
 
         public static readonly IReadOnlyList<EventFunctionSpec> Functions = new[]
@@ -89,6 +99,9 @@ namespace Game.Core
             spec = null;
             return false;
         }
+
+        public static bool IsAllowedAt(EventCommandSpec spec, EventPlace place)
+            => spec.Places == EventCommandPlaces.Both || (spec.Places == EventCommandPlaces.Rest) == (place == EventPlace.Rest);
 
         /// <summary>인자 종류가 Yarn 명령 처리기에서 받는 형식.</summary>
         public static Type ClrTypeOf(EventArgKind kind) => kind switch

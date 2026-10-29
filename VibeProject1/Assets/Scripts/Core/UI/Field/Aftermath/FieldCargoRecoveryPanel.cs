@@ -6,7 +6,7 @@ namespace Game.Core
     /// <summary>
     /// ② 회수 적재 패널(설계 79번 §7). 무역품 구매 화면의 고정 패널과 같은 편집 본문(InventoryArrangementController)을 상단 물류품
     /// 사양(InventoryPopupSpecs.TradeGoods - 회전·임시보관·마차 스테퍼) 그대로 쓴다. 닫기 버튼·창 드래그 없이 [완료]만 둔다(기획 78번 §4-11).
-    /// 패널은 완료 콜백만 부르고 닫기는 단계가 UIManager.Close로 한다. plain C#이며 FieldUIWiring이 Field 로드마다 새로 만든다 -
+    /// 패널은 완료 콜백만 부르고 닫기는 단계가 UIManager.Close로 한다. plain C#이며 FieldUIWiring·HubUIWiring이 씬 로드마다 새로 만든다 -
     /// 저장소(Bootstrap 상주) 이벤트를 구독하므로 교체 시 반드시 Dispose한다.
     /// 패널 루트는 편집 본문 루트와 같은 오브젝트다(FieldCargoRecoveryUIElementIds 요약 주석 참고).
     /// </summary>
@@ -26,6 +26,24 @@ namespace Game.Core
         private Action onCompleted;
 
         public string PanelId => UIPanelIds.CargoRecovery;
+
+        /// <summary>
+        /// 씬의 회수 적재 화면 요소로 패널을 만들어 모달 묶음에 등록한다 - Field(전투 후·이벤트)·Hub(휴식 이벤트) 배선이 같이 쓴다(설계 109 §6.2).
+        /// 요소가 없으면 null(경고 문구는 씬마다 달라 호출자가 낸다). 저장소 확인은 호출자 몫이다.
+        /// </summary>
+        public static FieldCargoRecoveryPanel TryCreate(SceneUIRoot sceneUIRoot, IPanelRegistrar panelRegistrar, ITradeGoodsInventoryRepository inventory,
+            ITradeGoodsCargoSettlement settlement, IInputManager input, IGoldItemInfo goldInfo, IQuestCargoWarnings questWarnings)
+        {
+            var spec = InventoryPopupSpecs.TradeGoods;
+            var ok = InventoryArrangementElements.TryBind(sceneUIRoot, FieldCargoRecoveryUIElementIds.InventoryPrefix, spec.HasStaging, spec.HasSections, out var elements)
+                & InventoryArrangementElements.TryGet(sceneUIRoot, FieldCargoRecoveryUIElementIds.DoneButton, out Button doneButton)
+                & InventoryArrangementElements.TryGet(sceneUIRoot, FieldCargoRecoveryUIElementIds.ConfirmDialog, out ConfirmDialogView dialog);
+            if (!ok) return null;
+
+            var panel = new FieldCargoRecoveryPanel(elements, doneButton, dialog, inventory, settlement, input, goldInfo, questWarnings);
+            panelRegistrar.RegisterPopupPanel(panel);
+            return panel;
+        }
 
         public FieldCargoRecoveryPanel(InventoryArrangementElements elements, Button doneButton, ConfirmDialogView dialog, ITradeGoodsInventoryRepository inventory, ITradeGoodsCargoSettlement settlement, IInputManager input, IGoldItemInfo goldInfo,
             IQuestCargoWarnings questWarnings = null)

@@ -16,6 +16,8 @@ MonoBehaviour:
   - Id: E1
     YarnNode: E1_BrokenCart
     Occurrence: 0
+    Place: 0
+    Title: 
     Importance: 3
     Repeat: 0
     Weight: 100
@@ -23,6 +25,8 @@ MonoBehaviour:
   - Id: E2
     YarnNode: E2_Toll
     Occurrence: 0
+    Place: 0
+    Title: 
     Importance: 3
     Repeat: 1
     Weight: 100
@@ -30,6 +34,8 @@ MonoBehaviour:
   - Id: E3
     YarnNode: E3_Storm
     Occurrence: 0
+    Place: 0
+    Title: 
     Importance: 3
     Repeat: 1
     Weight: 100
@@ -37,6 +43,8 @@ MonoBehaviour:
   - Id: E4
     YarnNode: E4_CartOwnerReturns
     Occurrence: 1
+    Place: 0
+    Title: 
     Importance: 2
     Repeat: 0
     Weight: 100
@@ -47,6 +55,8 @@ MonoBehaviour:
   - Id: QE1
     YarnNode: QuestTest_Event
     Occurrence: 1
+    Place: 0
+    Title: 
     Importance: 3
     Repeat: 1
     Weight: 100
@@ -57,6 +67,8 @@ MonoBehaviour:
   - Id: QE2
     YarnNode: QuestTest_Battle
     Occurrence: 1
+    Place: 0
+    Title: 
     Importance: 3
     Repeat: 1
     Weight: 100
@@ -64,6 +76,36 @@ MonoBehaviour:
     - Key: quest
       Negated: 0
       Argument: Q_T3
+  - Id: Rest_Fixed1
+    YarnNode: Rest_Fixed1
+    Occurrence: 1
+    Place: 1
+    Title: "\uC218\uC0C1\uD55C \uD589\uC0C1\uC778"
+    Importance: 3
+    Repeat: 0
+    Weight: 100
+    Conditions:
+    - Key: town
+      Negated: 0
+      Argument: 4
+  - Id: Rest_Random1
+    YarnNode: Rest_Random1
+    Occurrence: 0
+    Place: 1
+    Title: "\uB5A0\uB3CC\uC774 \uAD81\uC218"
+    Importance: 3
+    Repeat: 1
+    Weight: 100
+    Conditions: []
+  - Id: Rest_Random2
+    YarnNode: Rest_Random2
+    Occurrence: 0
+    Place: 1
+    Title: "\uC5EC\uAD00 \uBC16 \uC18C\uB780"
+    Importance: 3
+    Repeat: 1
+    Weight: 100
+    Conditions: []
   dialogues:
   - Id: D1
     YarnNode: D1_Departure

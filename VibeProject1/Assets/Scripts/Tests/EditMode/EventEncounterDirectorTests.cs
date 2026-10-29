@@ -11,6 +11,7 @@ namespace Game.Core.Tests
         {
             public readonly List<EventEntry> List = new();
             public IReadOnlyList<EventEntry> Events => List;
+            public IReadOnlyList<EventEntry> EventsAt(EventPlace place) => List.FindAll(e => e.Place == place);
             public IReadOnlyList<DialogueEntry> Dialogues => Array.Empty<DialogueEntry>();
             public IReadOnlyList<PersonEntry> People => Array.Empty<PersonEntry>();
             public bool TryGetEvent(string id, out EventEntry entry) { entry = List.Find(e => e.Id == id); return entry != null; }
@@ -106,11 +107,13 @@ namespace Game.Core.Tests
             uiHide = new UIHide();
         }
 
-        private EventEncounterDirector Make(bool withHide = true)
+        private EventEncounterDirector Make(bool withHide = true, bool tripOnly = false, IEventEffectRouter router = null)
         {
             content.List.Add(new EventEntry { Id = "E1", YarnNode = "E1_Node", Occurrence = EventOccurrence.Fixed });
             var director = new EventEncounterDirector(new EventEncounterSources
             {
+                Router = router,
+                Candidates = tripOnly ? content.EventsAt(EventPlace.Trip) : null,
                 Content = content,
                 History = history,
                 HistoryWriter = history,
@@ -399,6 +402,110 @@ namespace Game.Core.Tests
             director.OnEventCheck();
             screens.RaiseFormationView();
             CollectionAssert.Contains(screens.Calls, "Formation");
+        }
+
+        // 설계 109 §5.2 - 휴식 흐름이 쓰는 시작·끝 알림·중단.
+        private EventEntry E1 => content.List.Find(e => e.Id == "E1");
+
+        [Test]
+        public void TryBegin_StartsRun()
+        {
+            var director = Make();
+            Assert.IsTrue(director.TryBegin(E1));
+            Assert.IsTrue(director.IsRunning);
+            Assert.AreEqual("E1_Node", runner.Node);
+        }
+
+        [Test]
+        public void TryBegin_WhileRunning_False()
+        {
+            var director = Make();
+            director.TryBegin(E1);
+            Assert.IsFalse(director.TryBegin(E1));
+        }
+
+        [Test]
+        public void TryBegin_RunFails_FalseWithoutFinished()
+        {
+            runner.Accept = false;
+            var director = Make();
+            var finished = 0;
+            director.Finished += _ => finished++;
+            Assert.IsFalse(director.TryBegin(E1));
+            Assert.AreEqual(0, finished);
+        }
+
+        [Test]
+        public void Finished_RecordedOnComplete()
+        {
+            var director = Make();
+            EventFinish? finish = null;
+            director.Finished += f => finish = f;
+            director.TryBegin(E1);
+            runner.Complete(true);
+            Assert.IsTrue(finish.HasValue);
+            Assert.AreEqual("E1", finish.Value.EventId);
+            Assert.IsTrue(finish.Value.Recorded);
+        }
+
+        [Test]
+        public void Finished_CollectsResultLines()
+        {
+            var director = Make();
+            EventFinish? finish = null;
+            director.Finished += f => finish = f;
+            director.TryBegin(E1);
+            director.PresentResult("골드 +10", () => { });
+            director.PresentResult("밀 ×2 획득", () => { });
+            runner.Complete(true);
+            CollectionAssert.AreEqual(new[] { "골드 +10", "밀 ×2 획득" }, finish.Value.ResultLines);
+        }
+
+        [Test]
+        public void Abort_NoRecordNoSignal()
+        {
+            var director = Make();
+            var finished = 0;
+            director.Finished += _ => finished++;
+            director.TryBegin(E1);
+            director.Abort();
+            Assert.IsFalse(director.IsRunning);
+            Assert.IsFalse(history.HasOccurred("E1"));
+            CollectionAssert.IsEmpty(sink.Raised);
+            Assert.AreEqual(0, finished, "중단은 부른 쪽이 알고 있다 - 끝 알림 없음");
+            Assert.IsTrue(director.TryBegin(E1), "중단 뒤 다시 시작할 수 있다");
+        }
+
+        [Test]
+        public void Router_EnterOnStart_ExitOnEnd()
+        {
+            var router = new EventEffectCommandRouter();
+            var director = Make(router: router);
+            director.TryBegin(E1);
+            Assert.IsTrue(router.IsRunning);
+            runner.Complete(true);
+            Assert.IsFalse(router.IsRunning);
+        }
+
+        [Test]
+        public void Router_ExitOnAbort()
+        {
+            var router = new EventEffectCommandRouter();
+            var director = Make(router: router);
+            director.TryBegin(E1);
+            director.Abort();
+            Assert.IsFalse(router.IsRunning);
+        }
+
+        [Test]
+        public void PickForCheck_UsesCandidatesOnly()
+        {
+            content.List.Add(new EventEntry { Id = "R1", YarnNode = "R1_Node", Occurrence = EventOccurrence.Fixed, Place = EventPlace.Rest });
+            var director = Make(tripOnly: true);
+            director.OnEventCheck();
+            Assert.AreEqual("E1", director.CurrentEventId, "휴식 이벤트는 상행 판정에 나오지 않는다");
+            runner.Complete(true);
+            Assert.IsFalse(director.DebugStart("R1"), "디버그 시작도 상행 목록만");
         }
     }
 }

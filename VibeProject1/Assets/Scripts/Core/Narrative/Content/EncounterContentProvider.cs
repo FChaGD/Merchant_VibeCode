@@ -8,6 +8,8 @@ namespace Game.Core
     public interface IEncounterContentReader
     {
         IReadOnlyList<EventEntry> Events { get; }
+        /// <summary>발생 장소별 이벤트(테이블 순서, 설계 109 §3.1).</summary>
+        IReadOnlyList<EventEntry> EventsAt(EventPlace place);
         IReadOnlyList<DialogueEntry> Dialogues { get; }
         IReadOnlyList<PersonEntry> People { get; }
         bool TryGetEvent(string id, out EventEntry entry);
@@ -26,10 +28,13 @@ namespace Game.Core
         private readonly Dictionary<string, EventEntry> eventsById = new();
         private readonly Dictionary<string, DialogueEntry> dialoguesById = new();
         private readonly Dictionary<string, PersonEntry> peopleById = new();
+        private EncounterEventLists eventLists = new(null);
 
         public IReadOnlyList<EventEntry> Events => table != null ? table.Events : Array.Empty<EventEntry>();
         public IReadOnlyList<DialogueEntry> Dialogues => table != null ? table.Dialogues : Array.Empty<DialogueEntry>();
         public IReadOnlyList<PersonEntry> People => table != null ? table.People : Array.Empty<PersonEntry>();
+
+        public IReadOnlyList<EventEntry> EventsAt(EventPlace place) => eventLists.At(place);
 
         public void RegisterSelf(IDependencyRegistrar registrar)
         {
@@ -41,6 +46,7 @@ namespace Game.Core
             eventsById.Clear();
             dialoguesById.Clear();
             peopleById.Clear();
+            eventLists = new EncounterEventLists(table != null ? table.Events : null);
             if (table == null)
             {
                 Debug.LogWarning($"{nameof(EncounterContentProvider)}: Encounter 테이블 자산이 연결되지 않아 이벤트·대화가 발생하지 않는다(Play로 임포트 → Tools > Game > Build Bootstrap Scene).");

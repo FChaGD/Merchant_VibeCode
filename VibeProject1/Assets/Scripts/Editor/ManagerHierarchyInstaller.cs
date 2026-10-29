@@ -89,6 +89,8 @@ namespace Game.Core.Editor
             WireUIManagerPanels(uiManager);
             var dataRepositories = BuildUIManagerDataRepositories(root, uiManager);
             var dialogueScriptRunner = WireDialogueRunner(root);
+            // 효과 명령 라우터(설계 109 §5.1) - 상행·휴식 이벤트가 같은 Yarn 명령을 쓰도록 등록을 한 곳에서 한 번만 한다.
+            var eventEffectCommandHub = EditorUIBuilder.GetOrCreateManager<EventEffectCommandHub>(root.transform, nameof(EventEffectCommandHub));
 
             // 전투 디버그 기즈모(포위망/방진선/이동 목적지)는 여기서 설치하지 않는다 - "게임 빌드"와
             // "디버그 도구 켜고 끄기"는 다른 관심사라 DebugBootstrapReentryGuard와 같은 자리
@@ -118,7 +120,7 @@ namespace Game.Core.Editor
             // 유지 - RegisterSelf 전부 끝난 뒤 ResolveDependencies를 호출하는 2단계 구조라 실제
             // 순서 의존성은 없다) - coreManagers와 분리된 배열로 두어 "순서에 민감한 부분"과
             // "무관한 부분"의 경계를 코드 구조 자체로 드러낸다.
-            SyncManagedComponents(dependencyManager, coreManagers.Concat(dataRepositories).Append(dialogueScriptRunner).ToArray());
+            SyncManagedComponents(dependencyManager, coreManagers.Concat(dataRepositories).Append(dialogueScriptRunner).Append(eventEffectCommandHub).ToArray());
 
             EditorSceneManager.MarkSceneDirty(root.scene);
             Debug.Log("매니저 하이어라키 생성/동기화 완료. 씬을 저장(Ctrl+S)해야 변경사항이 파일에 반영된다.");
@@ -337,6 +339,7 @@ namespace Game.Core.Editor
             EditorUIBuilder.DestroyChildIfExists(uiManager.transform, RemovedPlaceholderInnRestServiceName);
             EditorUIBuilder.DestroyChildIfExists(uiManager.transform, RemovedPlaceholderCaravanAssetSaleServiceName);
             var innRestService = EditorUIBuilder.GetOrCreateManager<InnRestService>(uiManager.transform, nameof(InnRestService));
+            var innRestEventCoordinator = EditorUIBuilder.GetOrCreateManager<InnRestEventCoordinator>(uiManager.transform, nameof(InnRestEventCoordinator)); // 휴식 중 이벤트(설계 109 §5.3)
             var caravanAssetSaleService = EditorUIBuilder.GetOrCreateManager<CaravanAssetSaleService>(uiManager.transform, nameof(CaravanAssetSaleService));
 
             // 퀘스트(설계 107번) - 상태 저장소·평판·최종 도착 신호·상인조합 게시판.
@@ -379,6 +382,7 @@ namespace Game.Core.Editor
                 encounterHistoryStore,
                 encounterContentProvider,
                 innRestService,
+                innRestEventCoordinator,
                 caravanAssetSaleService,
                 questManager,
                 reputationManager,

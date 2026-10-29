@@ -12,6 +12,7 @@ namespace Game.Core
         private const string Minus = "−";
         public const string NoGoodsLost = "잃은 무역품 없음";
         public const string NoGoldLost = "잃은 골드 없음";
+        public const string RestEnded = "휴식이 중단되었다.";
 
         public static string Gold(int signedAmount) => signedAmount >= 0 ? $"골드 +{signedAmount}" : $"골드 {Minus}{-signedAmount}";
         public static string GoodsGained(string name, int count) => $"{name} ×{count} 획득";

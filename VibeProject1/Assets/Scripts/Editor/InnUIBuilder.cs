@@ -99,10 +99,10 @@ namespace Game.Core.Editor
             EditorUIBuilder.SetAnchors(panelRect, new Vector2(0.2f, 0.2f), new Vector2(0.8f, 0.75f));
             EditorUIBuilder.EnsureImage(panel, EditorUIColors.Panel);
 
-            BuildText(panelRect, "Days", InnUIElementIds.ProgressDays, new Vector2(0.05f, 0.8f), new Vector2(0.95f, 0.94f), TextAlignmentOptions.Center, 30f);
+            BuildText(panelRect, "Days", InnUIElementIds.ProgressDays, new Vector2(0.05f, 0.84f), new Vector2(0.95f, 0.95f), TextAlignmentOptions.Center, 30f);
 
             var gauge = EditorUIBuilder.GetOrCreateUIObject(panelRect, "Gauge");
-            EditorUIBuilder.SetAnchors(gauge.GetComponent<RectTransform>(), new Vector2(0.05f, 0.68f), new Vector2(0.95f, 0.77f));
+            EditorUIBuilder.SetAnchors(gauge.GetComponent<RectTransform>(), new Vector2(0.05f, 0.74f), new Vector2(0.95f, 0.82f));
             EditorUIBuilder.EnsureImage(gauge, GaugeBackColor).raycastTarget = false;
             var fill = EditorUIBuilder.GetOrCreateUIObject(gauge.transform, "Fill");
             // 런타임이 anchorMax.x를 진행 비율로 바꾼다.
@@ -110,15 +110,17 @@ namespace Game.Core.Editor
             EditorUIBuilder.EnsureImage(fill, GaugeFillColor).raycastTarget = false;
             EditorUIBuilder.EnsureMarker(fill, InnUIElementIds.ProgressGaugeFill);
 
-            BuildText(panelRect, "Date", InnUIElementIds.ProgressDate, new Vector2(0.05f, 0.57f), new Vector2(0.95f, 0.66f), TextAlignmentOptions.Center, 22f);
-            BuildText(panelRect, "Cost", InnUIElementIds.ProgressCost, new Vector2(0.05f, 0.48f), new Vector2(0.95f, 0.57f), TextAlignmentOptions.Center, 22f);
-            BuildText(panelRect, "Gold", InnUIElementIds.ProgressGold, new Vector2(0.05f, 0.39f), new Vector2(0.95f, 0.48f), TextAlignmentOptions.Center, 22f);
+            BuildText(panelRect, "Date", InnUIElementIds.ProgressDate, new Vector2(0.05f, 0.66f), new Vector2(0.95f, 0.73f), TextAlignmentOptions.Center, 22f);
+            BuildText(panelRect, "Cost", InnUIElementIds.ProgressCost, new Vector2(0.05f, 0.59f), new Vector2(0.95f, 0.66f), TextAlignmentOptions.Center, 22f);
+            BuildText(panelRect, "Gold", InnUIElementIds.ProgressGold, new Vector2(0.05f, 0.52f), new Vector2(0.95f, 0.59f), TextAlignmentOptions.Center, 22f);
+            BuildText(panelRect, "BoxGold", InnUIElementIds.ProgressBoxGold, new Vector2(0.05f, 0.45f), new Vector2(0.95f, 0.52f), TextAlignmentOptions.Center, 22f);
 
-            // 이벤트 알림·회복 표시 자리(기획 94 4-7) - 내용은 system 브랜치가 채운다. 지금은 빈 영역.
-            BuildArea(panelRect, "EventArea", InnUIElementIds.ProgressEventArea, new Vector2(0.05f, 0.25f), new Vector2(0.48f, 0.37f));
-            BuildArea(panelRect, "RecoveryArea", InnUIElementIds.ProgressRecoveryArea, new Vector2(0.52f, 0.25f), new Vector2(0.95f, 0.37f));
+            // 이벤트 기록 목록(설계 109 §6.3)·회복 표시 자리(지략·행정력 구현 때 - 지금은 빈 영역).
+            var eventArea = BuildArea(panelRect, "EventArea", InnUIElementIds.ProgressEventArea, new Vector2(0.05f, 0.21f), new Vector2(0.48f, 0.43f));
+            BuildText(eventArea, "EventLog", InnUIElementIds.ProgressEventLog, new Vector2(0.03f, 0.04f), new Vector2(0.97f, 0.96f), TextAlignmentOptions.TopLeft, 18f);
+            BuildArea(panelRect, "RecoveryArea", InnUIElementIds.ProgressRecoveryArea, new Vector2(0.52f, 0.21f), new Vector2(0.95f, 0.43f));
 
-            BuildText(panelRect, "Result", InnUIElementIds.ProgressResult, new Vector2(0.05f, 0.14f), new Vector2(0.95f, 0.24f), TextAlignmentOptions.Center, 24f);
+            BuildText(panelRect, "Result", InnUIElementIds.ProgressResult, new Vector2(0.05f, 0.13f), new Vector2(0.95f, 0.2f), TextAlignmentOptions.Center, 24f);
             // 중단과 확인은 같은 자리 - 진행 중엔 중단, 결과 상태엔 확인만 보인다(기획 94 4-13).
             BuildButton(panelRect, "StopButton", "휴식 중단", InnUIElementIds.ProgressStopButton, new Vector2(0.35f, 0.03f), new Vector2(0.65f, 0.13f));
             BuildButton(panelRect, "ConfirmButton", "확인", InnUIElementIds.ProgressConfirmButton, new Vector2(0.35f, 0.03f), new Vector2(0.65f, 0.13f)).SetActive(false);
@@ -134,12 +136,14 @@ namespace Game.Core.Editor
         private static void BuildText(RectTransform parent, string name, string id, Vector2 min, Vector2 max, TextAlignmentOptions alignment, float maxFontSize)
             => EditorUIBuilder.EnsureAnchoredLabel(parent, name, id, min, max, alignment, maxFontSize);
 
-        private static void BuildArea(RectTransform parent, string name, string id, Vector2 min, Vector2 max)
+        private static RectTransform BuildArea(RectTransform parent, string name, string id, Vector2 min, Vector2 max)
         {
             var go = EditorUIBuilder.GetOrCreateUIObject(parent, name);
-            EditorUIBuilder.SetAnchors(go.GetComponent<RectTransform>(), min, max);
+            var rect = go.GetComponent<RectTransform>();
+            EditorUIBuilder.SetAnchors(rect, min, max);
             EditorUIBuilder.EnsureImage(go, EditorUIColors.List).raycastTarget = false;
             EditorUIBuilder.EnsureMarker(go, id);
+            return rect;
         }
     }
 }

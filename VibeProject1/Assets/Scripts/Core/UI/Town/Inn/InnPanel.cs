@@ -7,7 +7,8 @@ namespace Game.Core
     /// 숙소 화면(기획 94 4-1~4-6·4-11, Docs/설계/103번 §4.3). 좌측 휴식 설정, 우측 탭(전투 장비/전투 소모품/개인 물품) 편집. 무역품 구매 화면과 같은
     /// 시설 화면 방식이라 시설 화면 채널에 등록되고 HubUIWiring이 Hub 로드마다 새로 만든다 - 골드·저장소(Bootstrap 상주) 이벤트를 구독하므로 교체 시 Dispose한다.
     /// 탭마다 편집 본문 컨트롤러를 따로 둔다 - 탭을 바꿀 때 보이는 본문만 Show하고 나머지는 Hide해 드래그·버리기 선택 상태가 남지 않게 한다.
-    /// 휴식 가능 여부는 InnRestPlan 하나로 판정해 버튼 활성과 툴팁 사유가 어긋나지 않는다.
+    /// 휴식 가능 여부는 InnRestPlan 하나로 판정해 버튼 활성과 툴팁 사유가 어긋나지 않는다. 판정 기준은 휴식 결제와 같은 지출 계약(개인 → 골드 상자,
+    /// 설계 109 §4.5)이다 - 표시용 보유 조회는 변경 알림만 쓴다.
     /// </summary>
     public sealed class InnPanel : IUIPanel, IPanelCloseGuard, IDisposable
     {
@@ -16,6 +17,7 @@ namespace Game.Core
         private readonly InnElements elements;
         private readonly IInnRestService rest;
         private readonly IGoldHoldingsReader gold;
+        private readonly IGoldSpender spender;
         private readonly IInnRestStarter progress;
         private readonly List<InventoryArrangementController> bodies = new();
         private readonly ITooltipHandle restTooltip;
@@ -27,11 +29,12 @@ namespace Game.Core
         public string PanelId => UIPanelIds.Facility(TownFacilityIds.Inn);
 
         /// <param name="tabSources">탭 순서대로 각 탭 인벤토리의 조회·정리 계약. elements.Tabs와 같은 순서다.</param>
-        public InnPanel(InnElements elements, IReadOnlyList<(IInventoryReader Reader, IInventoryArrangement Arrangement)> tabSources, IInnRestService rest, IGoldHoldingsReader gold, ITooltipController tooltips, IInnRestStarter progress, IPanelNavigator uiManager, IInputManager input)
+        public InnPanel(InnElements elements, IReadOnlyList<(IInventoryReader Reader, IInventoryArrangement Arrangement)> tabSources, IInnRestService rest, IGoldHoldingsReader gold, IGoldSpender spender, ITooltipController tooltips, IInnRestStarter progress, IPanelNavigator uiManager, IInputManager input)
         {
             this.elements = elements;
             this.rest = rest;
             this.gold = gold;
+            this.spender = spender;
             this.progress = progress;
 
             for (var i = 0; i < elements.Tabs.Count; i++)
@@ -143,14 +146,14 @@ namespace Game.Core
             elements.DaysDownButton.interactable = days > InnRestPlan.MinDays;
             elements.DaysUpButton.interactable = days < InnRestPlan.MaxDays;
 
-            var reason = InnRestPlan.BlockReason(days, costPerDay, gold?.PersonalGold ?? 0);
+            var reason = InnRestPlan.BlockReason(days, costPerDay, spender.CanAfford);
             elements.RestButton.interactable = reason == null;
             restTooltip?.SetText(reason);
         }
 
         private void StartRest()
         {
-            if (InnRestPlan.BlockReason(days, rest.CostPerDay, gold?.PersonalGold ?? 0) != null) return;
+            if (InnRestPlan.BlockReason(days, rest.CostPerDay, spender.CanAfford) != null) return;
             progress.Begin(days); // 진행 화면이 같은 채널에서 열리며 채널이 이 패널을 숨긴다.
         }
     }

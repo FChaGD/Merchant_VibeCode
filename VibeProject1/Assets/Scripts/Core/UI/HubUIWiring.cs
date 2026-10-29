@@ -28,6 +28,8 @@ namespace Game.Core
         private HubInventoryShortcutBinder inventoryShortcuts;
         // 퀘스트 보상 정리(설계 107번 §8.3 Hub 발생) - Bootstrap 상주 신호를 구독하므로 Hub 언로드 때 해제한다(Field에서 인벤토리 팝업을 열지 않게).
         private HubQuestRewardCleanup questRewardCleanup;
+        // 휴식 이벤트 무역품 정리 화면(설계 109 §6.2) - Bootstrap 상주 저장소를 구독하므로 Hub 언로드·재로드 때 해제한다.
+        private FieldCargoRecoveryPanel restCargoRecovery;
 
         public void Wire(IDependencyResolver registrar, IUIManager uiManager, IPanelRegistrar panelRegistrar, IInventoryPopupRegistrar inventoryRegistrar)
         {
@@ -169,6 +171,7 @@ namespace Game.Core
             };
             var screenContext = new HubScreenContext(registrar, sceneUIRoot, uiManager, panelRegistrar, GetTooltipController(), inventoryPopupSources, input, goldItemInfo, currentLocationRepository, this);
             foreach (var binding in screenBindings) binding.Bind(screenContext);
+            BindRestEvents(registrar, sceneUIRoot, uiManager, panelRegistrar, input, goldItemInfo, questCargoWarnings);
 
             // 팝업 축(Docs/설계/38번 §5·§6, Docs/Refactor/2026-10-26_공통.md B-4) - 모달 팝업이나 시설 화면이 열리면 DepthLayer/PersistentLayer를 숨긴다.
             // PersistentLayer에는 인벤토리 버튼이 있다. PopupExemptLayer(재화 HUD)는 숨기지 않고 휴식 진행 중 입력만 막는다. PopupLayer는 대상이 아니다.
@@ -236,18 +239,53 @@ namespace Game.Core
             questRewardCleanup = null;
         }
 
+        // 휴식 중 이벤트 화면(설계 109 §6.2) - Field와 같은 화면 묶음(FieldEventScreens)을 Hub 화면으로 만들어 휴식 진행자에 연결한다. 상단 버튼·정비창 열람
+        // 모드는 Hub에 없어 넘기지 않고, 정비창 보기 버튼은 숨긴다(Hub 정비창은 편집 화면). 회수 적재 패널은 없으면 넘친 무역품이 임시 보관에 남는다.
+        private void BindRestEvents(IDependencyResolver registrar, SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IInputManager input,
+            IGoldItemInfo goldItemInfo, IQuestCargoWarnings questCargoWarnings)
+        {
+            DisposeRestCargoRecovery();
+            if (!registrar.TryResolve<IRestEventViewBinder>(out var binder)) return;
+
+            registrar.TryResolve<ITradeGoodsInventoryRepository>(out var inventory);
+            registrar.TryResolve<ITradeGoodsCargoSettlement>(out var settlement);
+            if (inventory != null && settlement != null)
+            {
+                restCargoRecovery = FieldCargoRecoveryPanel.TryCreate(sceneUIRoot, panelRegistrar, inventory, settlement, input, goldItemInfo, questCargoWarnings);
+            }
+            if (restCargoRecovery == null)
+            {
+                Debug.LogWarning("Hub 회수 적재 화면이 없어 휴식 이벤트로 넘친 무역품이 임시 보관에 남는다(Tools > Game > Build Hub Scene).");
+            }
+
+            if (!FieldEventScreens.TryCreate(sceneUIRoot, uiManager, panelRegistrar, restCargoRecovery, null, null, formationButtonVisible: false, out var screens))
+            {
+                Debug.LogWarning("Hub에 이벤트 화면 요소가 없어 휴식 중 이벤트가 발생하지 않는다(Tools > Game > Build Hub Scene).");
+            }
+            binder.BindScreens(screens);
+        }
+
+        private void DisposeRestCargoRecovery()
+        {
+            restCargoRecovery?.Dispose();
+            restCargoRecovery = null;
+        }
+
         private void OnEnable() => SceneManager.sceneUnloaded += HandleSceneUnloaded;
 
         private void OnDisable() => SceneManager.sceneUnloaded -= HandleSceneUnloaded;
 
         private void HandleSceneUnloaded(Scene scene)
         {
-            if (scene.name == SceneNames.Hub) DisposeQuestRewardCleanup();
+            if (scene.name != SceneNames.Hub) return;
+            DisposeQuestRewardCleanup();
+            DisposeRestCargoRecovery();
         }
 
         private void OnDestroy()
         {
             DisposeQuestRewardCleanup();
+            DisposeRestCargoRecovery();
             if (screenBindings != null) foreach (var binding in screenBindings) binding.Dispose();
             foreach (var popup in inventoryPopups) popup.Dispose();
             inventoryPopups.Clear();

@@ -13,7 +13,9 @@ namespace Game.Core
         bool TryGetFlag(string flag, out bool value);
         /// <summary>게임 전체에서 끝까지 진행된 적이 있는지(1회성 판정·조건 seen).</summary>
         bool HasOccurred(string contentId);
-        /// <summary>이번 상행에서 끝까지 진행됐는지(상행당 1회 판정).</summary>
+        /// <summary>
+        /// 이번 회차(상행 1회 또는 숙소 휴식 1회)에서 끝까지 진행됐는지(회차당 1회 판정, 설계 109 §3.3). 이름은 상행 시절 그대로 둔다 - 휴식 시작에도 비운다.
+        /// </summary>
         bool OccurredThisTrip(string contentId);
         IReadOnlyCollection<string> ActiveFlags { get; }
         IReadOnlyCollection<string> OccurredIds { get; }

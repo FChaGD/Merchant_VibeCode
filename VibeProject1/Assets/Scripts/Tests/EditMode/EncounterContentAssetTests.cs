@@ -38,8 +38,8 @@ namespace Game.Core.Tests
             errors.AddRange(EncounterContentValidator.ValidateScripts(nodes, id => personIds.Contains(id) || (stats != null && stats.TryGetEntry(id, out _))));
 
             // 이벤트 대본(설계 89 §5.4) - 명령·인자·Id·#choice.
-            var eventNodes = new HashSet<string>();
-            foreach (var e in table.Events) eventNodes.Add(e.YarnNode);
+            var eventNodes = new Dictionary<string, EventPlace>();
+            foreach (var e in table.Events) eventNodes[e.YarnNode] = e.Place;
             var items = AssetDatabase.LoadAssetAtPath<ItemDefinitionTableAsset>(TableAssetPaths.TradeGoodsItemTable);
             errors.AddRange(EncounterContentValidator.ValidateEventScripts(nodes, eventNodes, new EventScriptRules
             {

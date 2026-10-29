@@ -19,8 +19,17 @@ namespace Game.Core
         public const string Seen = "seen";
         /// <summary>`quest:퀘스트Id` - 그 퀘스트의 확정 사건 위치에 도달했고 아직 발생하지 않았다(설계 107번 §9.3).</summary>
         public const string Quest = "quest";
+        /// <summary>`town:도시Id` - 숙소 휴식 중 체류 도시(설계 109 §3.2). 상행 중엔 거짓.</summary>
+        public const string Town = "town";
 
-        private static readonly HashSet<string> Known = new() { Month, Date, Progress, Region, Road, From, To, Flag, Seen, Quest };
+        private static readonly HashSet<string> Known = new() { Month, Date, Progress, Region, Road, From, To, Flag, Seen, Quest, Town };
+
+        // 장소에 없는 값을 보는 조건은 그 장소에서 항상 거짓이라 작성 실수다 - 임포트·검증에서 막는다(설계 109 §3.4).
+        private static readonly HashSet<string> TripOnly = new() { From, To, Road, Progress, Quest };
+        private static readonly HashSet<string> RestOnly = new() { Town };
+
+        public static bool IsAllowedAt(string key, EventPlace place)
+            => place == EventPlace.Rest ? !TripOnly.Contains(key) : !RestOnly.Contains(key);
 
         public static IReadOnlyCollection<string> All => Known;
 

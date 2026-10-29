@@ -26,7 +26,9 @@ namespace Game.Core
         public const string ProgressDate = "InnRestProgress.Date";
         public const string ProgressCost = "InnRestProgress.Cost";
         public const string ProgressGold = "InnRestProgress.Gold";
+        public const string ProgressBoxGold = "InnRestProgress.BoxGold";
         public const string ProgressEventArea = "InnRestProgress.EventArea";
+        public const string ProgressEventLog = "InnRestProgress.EventLog";
         public const string ProgressRecoveryArea = "InnRestProgress.RecoveryArea";
         public const string ProgressResult = "InnRestProgress.Result";
         public const string ProgressStopButton = "InnRestProgress.StopButton";

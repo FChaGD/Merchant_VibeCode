@@ -96,6 +96,8 @@ namespace Game.Core
         public TMP_Text DateLabel { get; private set; }
         public TMP_Text CostLabel { get; private set; }
         public TMP_Text GoldLabel { get; private set; }
+        public TMP_Text BoxGoldLabel { get; private set; }
+        public TMP_Text EventLogLabel { get; private set; }
         public TMP_Text ResultLabel { get; private set; }
         public Button StopButton { get; private set; }
         public Button ConfirmButton { get; private set; }
@@ -109,6 +111,8 @@ namespace Game.Core
                 & InventoryArrangementElements.TryGet(sceneUIRoot, InnUIElementIds.ProgressDate, out TMP_Text date)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, InnUIElementIds.ProgressCost, out TMP_Text cost)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, InnUIElementIds.ProgressGold, out TMP_Text gold)
+                & InventoryArrangementElements.TryGet(sceneUIRoot, InnUIElementIds.ProgressBoxGold, out TMP_Text boxGold)
+                & InventoryArrangementElements.TryGet(sceneUIRoot, InnUIElementIds.ProgressEventLog, out TMP_Text eventLog)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, InnUIElementIds.ProgressResult, out TMP_Text result)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, InnUIElementIds.ProgressStopButton, out Button stop)
                 & InventoryArrangementElements.TryGet(sceneUIRoot, InnUIElementIds.ProgressConfirmButton, out Button confirm);
@@ -122,6 +126,8 @@ namespace Game.Core
                 DateLabel = date,
                 CostLabel = cost,
                 GoldLabel = gold,
+                BoxGoldLabel = boxGold,
+                EventLogLabel = eventLog,
                 ResultLabel = result,
                 StopButton = stop,
                 ConfirmButton = confirm,

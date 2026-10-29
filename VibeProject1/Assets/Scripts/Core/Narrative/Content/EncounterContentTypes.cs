@@ -5,6 +5,15 @@ namespace Game.Core
 {
     public enum EventOccurrence { Random, Fixed }
 
+    /// <summary>발생 장소(설계 109 §3.1) - 상행 이벤트와 숙소 휴식 이벤트는 후보 목록을 섞지 않는다.</summary>
+    public enum EventPlace { Trip, Rest }
+
+    /// <summary>장소 오류 문구용 이름 - 임포터(표 검사)와 검증기(대본 검사)가 같은 말로 알린다.</summary>
+    public static class EventPlaceNames
+    {
+        public static string Of(EventPlace place) => place == EventPlace.Rest ? "휴식" : "상행";
+    }
+
     /// <summary>확정 이벤트 대기열 우선순위(설계 87 §5.4) - 선언 순서가 곧 우선순위다(작을수록 먼저). 값 순서를 바꾸지 말 것.</summary>
     public enum EventImportance { Scenario, Core, Side, Normal }
 
@@ -22,6 +31,9 @@ namespace Game.Core
         public string Id;
         public string YarnNode;
         public EventOccurrence Occurrence;
+        public EventPlace Place = EventPlace.Trip;
+        /// <summary>EventStrings 시트의 제목 - 휴식 진행 화면 이벤트 기록 목록에 쓴다(설계 109 §3.1). 휴식 이벤트는 필수.</summary>
+        public string Title = string.Empty;
         public EventImportance Importance = EventImportance.Normal;
         public EventRepeat Repeat = EventRepeat.PerTrip;
         public int Weight = 100;

@@ -6,16 +6,27 @@ using Game.Core;
 
 namespace Game.Core.Tests
 {
-    /// <summary>숙소 휴식 날짜·비용(Docs/설계/105번 §5). 하루 경과마다 개인 골드 −1일 비용, 날짜 +1.</summary>
+    /// <summary>숙소 휴식 하루 처리(Docs/설계/105번 §5, 109번 §4.3). 결제 성공일만 날짜 +1·회복, 결제 부족일은 상태 변경 없음.</summary>
     public class InnRestServiceTests
     {
-        private sealed class FakeWallet : IPlayerCurrencyWallet
+        // 개인 골드 → 골드 상자(가치 boxValue) 순 지출 가짜.
+        private sealed class FakeSpender : IGoldSpender
         {
-            public int CurrentAmount { get; set; }
-            public int PersonalLimit => 1000;
-            public event Action<int> OnAmountChanged { add { } remove { } }
-            public int Add(int amount) { if (amount <= 0) return 0; CurrentAmount += amount; return amount; }
-            public bool TrySpend(int amount) { if (amount > CurrentAmount) return false; CurrentAmount -= amount; return true; }
+            public int Personal;
+            public int Boxes;
+            public int BoxValue = 50;
+            public int OwnedGold => Personal + Boxes * BoxValue;
+            public bool CanAfford(int amount) => amount <= OwnedGold;
+            public IReadOnlyList<string> PreviewWithdrawal(int amount) => Array.Empty<string>();
+            public bool TrySpend(int amount)
+            {
+                if (!CanAfford(amount)) return false;
+                while (Personal < amount) { Boxes--; Personal += BoxValue; }
+                Personal -= amount;
+                return true;
+            }
+            public void Refund(int amount) => Personal += amount;
+            public event Action Changed { add { } remove { } }
         }
 
         private sealed class FakeDate : IDateAdvancer
@@ -24,15 +35,23 @@ namespace Game.Core.Tests
             public void AdvanceDays(int days) => Days += days;
         }
 
+        private sealed class FakeRecovery : IRestDayRecovery
+        {
+            public int Count;
+            public void RecoverOneDay() => Count++;
+        }
+
         private readonly List<GameObject> created = new();
-        private FakeWallet wallet;
+        private FakeSpender spender;
         private FakeDate date;
+        private FakeRecovery recovery;
 
         [SetUp]
         public void SetUp()
         {
-            wallet = new FakeWallet { CurrentAmount = 100 };
+            spender = new FakeSpender { Personal = 100 };
             date = new FakeDate();
+            recovery = new FakeRecovery();
         }
 
         [TearDown]
@@ -42,13 +61,13 @@ namespace Game.Core.Tests
             created.Clear();
         }
 
-        private InnRestService Create(bool withDependencies = true)
+        private InnRestService Create(bool withDependencies = true, bool withRecovery = true)
         {
             var go = new GameObject(nameof(InnRestService));
             created.Add(go);
             var rest = go.AddComponent<InnRestService>();
-            if (withDependencies) rest.Initialize(wallet, date);
-            else rest.Initialize(null, null);
+            if (withDependencies) rest.Initialize(spender, date, withRecovery ? recovery : null);
+            else rest.Initialize(null, null, null);
             return rest;
         }
 
@@ -59,71 +78,83 @@ namespace Game.Core.Tests
         }
 
         [Test]
-        public void FullRest_AdvancesDateAndCharges()
+        public void SettleDay_Paid_AdvancesDateAndRecovers()
         {
             var rest = Create();
             rest.BeginRest(3);
-            for (var i = 0; i < 3; i++) rest.AdvanceDay();
+            for (var i = 0; i < 3; i++) Assert.AreEqual(RestDaySettlement.Paid, rest.SettleDay());
             rest.EndRest(3);
 
             Assert.AreEqual(3, date.Days);
-            Assert.AreEqual(70, wallet.CurrentAmount);
+            Assert.AreEqual(70, spender.Personal);
+            Assert.AreEqual(3, recovery.Count);
         }
 
         [Test]
-        public void StoppedRest_OnlyElapsedDays()
+        public void SettleDay_UsesSpender()
         {
+            spender.Personal = 5;
+            spender.Boxes = 1;
             var rest = Create();
-            rest.BeginRest(5);
-            rest.AdvanceDay();
-            rest.EndRest(1);
-            rest.AdvanceDay();
-
-            Assert.AreEqual(1, date.Days);
-            Assert.AreEqual(90, wallet.CurrentAmount);
-        }
-
-        [Test]
-        public void AdvanceOutsideRestOrBeyondPlan_Ignored()
-        {
-            var rest = Create();
-            rest.AdvanceDay();
             rest.BeginRest(1);
-            rest.AdvanceDay();
-            rest.AdvanceDay();
 
-            Assert.AreEqual(1, date.Days);
-            Assert.AreEqual(90, wallet.CurrentAmount);
+            Assert.AreEqual(RestDaySettlement.Paid, rest.SettleDay(), "개인 골드가 모자라도 상자를 꺼내 낸다");
+            Assert.AreEqual(0, spender.Boxes);
+            Assert.AreEqual(45, spender.Personal);
         }
 
         [Test]
-        public void ZeroDays_DoesNotStart()
+        public void SettleDay_Insufficient_NoDateNoRecovery()
         {
+            spender.Personal = 5;
             var rest = Create();
-            rest.BeginRest(0);
-            rest.AdvanceDay();
+            rest.BeginRest(2);
 
+            Assert.AreEqual(RestDaySettlement.InsufficientGold, rest.SettleDay());
             Assert.AreEqual(0, date.Days);
+            Assert.AreEqual(0, recovery.Count);
+            Assert.AreEqual(5, spender.Personal);
         }
 
         [Test]
-        public void InsufficientGold_DateStillAdvances()
+        public void SettleDay_NoRecovery_Ok()
         {
-            wallet.CurrentAmount = 5;
+            var rest = Create(withRecovery: false);
+            rest.BeginRest(1);
+            Assert.AreEqual(RestDaySettlement.Paid, rest.SettleDay());
+            Assert.AreEqual(1, date.Days);
+        }
+
+        [Test]
+        public void SettleDay_NoSession_Throws()
+        {
+            var rest = Create();
+            Assert.IsFalse(rest.CanSettleDay);
+            Assert.Throws<System.InvalidOperationException>(() => rest.SettleDay());
+            Assert.AreEqual(0, date.Days);
+            Assert.AreEqual(100, spender.Personal);
+        }
+
+        [Test]
+        public void SettleDay_BeyondPlan_Throws()
+        {
             var rest = Create();
             rest.BeginRest(1);
-            rest.AdvanceDay();
+            Assert.IsTrue(rest.CanSettleDay);
+            rest.SettleDay();
+            Assert.IsFalse(rest.CanSettleDay, "예정 일수를 다 채웠다");
+            Assert.Throws<System.InvalidOperationException>(() => rest.SettleDay());
 
             Assert.AreEqual(1, date.Days);
-            Assert.AreEqual(5, wallet.CurrentAmount);
+            Assert.AreEqual(90, spender.Personal);
         }
 
         [Test]
-        public void NoDependencies_NoException()
+        public void NoDependencies_PaidWithoutCharge()
         {
             var rest = Create(withDependencies: false);
             rest.BeginRest(2);
-            Assert.DoesNotThrow(() => rest.AdvanceDay());
+            Assert.AreEqual(RestDaySettlement.Paid, rest.SettleDay());
             rest.EndRest(1);
         }
 

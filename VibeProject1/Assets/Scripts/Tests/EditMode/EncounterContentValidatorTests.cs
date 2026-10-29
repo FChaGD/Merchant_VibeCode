@@ -113,11 +113,34 @@ merc_b: 둘 #left
             SpeakerExists = id => id == "bandit" || id == "Warrior01",
         };
 
+        private static Dictionary<string, EventPlace> EventNodeAt(EventPlace place) => new() { ["E"] = place };
+
         private static List<string> ValidateEvent(string source)
+            => EncounterContentValidator.ValidateEventScripts(YarnSourceScanner.Scan(source), EventNodeAt(EventPlace.Trip), Rules());
+
+        // 장소별 명령(설계 109 §3.4). 조건 장소·휴식 제목은 표 한 행으로 아는 검사라 임포터가 막는다 - 판정 규칙은 EncounterConditionRegistryTests의 IsAllowedAt.
+        private static List<string> ValidateAt(EventPlace place, string body)
+            => EncounterContentValidator.ValidateEventScripts(YarnSourceScanner.Scan("title: E\n---\n" + body + "\n==="), EventNodeAt(place), Rules());
+
+        [TestCase("<<battle>>")]
+        [TestCase("<<delay 10>>")]
+        [TestCase("<<difficulty 10 leg>>")]
+        public void RestEvent_TripOnlyCommand_Error(string command)
         {
-            var nodes = YarnSourceScanner.Scan(source);
-            return EncounterContentValidator.ValidateEventScripts(nodes, new HashSet<string> { "E" }, Rules());
+            var errors = ValidateAt(EventPlace.Rest, command);
+            Assert.AreEqual(1, errors.Count, string.Join("\n", errors));
+            StringAssert.Contains("휴식 이벤트에서 쓸 수 없다", errors[0]);
         }
+
+        [Test]
+        public void TripEvent_RestEnd_Error()
+        {
+            var errors = ValidateAt(EventPlace.Trip, "<<rest_end>>");
+            Assert.AreEqual(1, errors.Count, string.Join("\n", errors));
+            StringAssert.Contains("상행 이벤트에서 쓸 수 없다", errors[0]);
+        }
+
+        [Test] public void RestEvent_RestEnd_Ok() => CollectionAssert.IsEmpty(ValidateAt(EventPlace.Rest, "<<rest_end>>\n<<gold -10>>"));
 
         [Test]
         public void Event_ValidScript_NoErrors()
@@ -149,15 +172,20 @@ bandit: 내라. #right
                 [EventArgKind.ItemId] = "wheat", [EventArgKind.ItemIdOrRandom] = "random", [EventArgKind.CharacterId] = "Escort01",
                 [EventArgKind.DifficultyMode] = "leg",
             };
-            var lines = new System.Text.StringBuilder();
-            foreach (var spec in EventCommandSpecs.Commands)
+            // 명령마다 쓸 수 있는 장소가 다르므로(설계 109 §3.3) 장소별로 그 장소의 명령만 모아 검사한다.
+            foreach (var place in new[] { EventPlace.Trip, EventPlace.Rest })
             {
-                var args = new List<string>();
-                for (var i = 0; i < spec.MinArgs; i++) args.Add(sample[spec.Args[i]]);
-                lines.Append("<<").Append(spec.Name).Append(args.Count > 0 ? " " + string.Join(" ", args) : "").Append(">>\n");
+                var lines = new System.Text.StringBuilder();
+                foreach (var spec in EventCommandSpecs.Commands)
+                {
+                    if (spec.Places != EventCommandPlaces.Both && (spec.Places == EventCommandPlaces.Trip) != (place == EventPlace.Trip)) continue;
+                    var args = new List<string>();
+                    for (var i = 0; i < spec.MinArgs; i++) args.Add(sample[spec.Args[i]]);
+                    lines.Append("<<").Append(spec.Name).Append(args.Count > 0 ? " " + string.Join(" ", args) : "").Append(">>\n");
+                }
+                var errors = ValidateAt(place, lines.ToString());
+                CollectionAssert.IsEmpty(errors, place + "\n" + string.Join("\n", errors));
             }
-            var errors = ValidateEvent($"title: E\n---\n{lines}===");
-            CollectionAssert.IsEmpty(errors, string.Join("\n", errors));
         }
 
         [Test]
@@ -204,7 +232,7 @@ bandit: 내라. #right
         public void NonEventNode_NotChecked()
         {
             var nodes = YarnSourceScanner.Scan("title: D\n---\n<<explode>>\n===");
-            CollectionAssert.IsEmpty(EncounterContentValidator.ValidateEventScripts(nodes, new HashSet<string> { "E" }, Rules()));
+            CollectionAssert.IsEmpty(EncounterContentValidator.ValidateEventScripts(nodes, EventNodeAt(EventPlace.Trip), Rules()));
         }
     }
 }

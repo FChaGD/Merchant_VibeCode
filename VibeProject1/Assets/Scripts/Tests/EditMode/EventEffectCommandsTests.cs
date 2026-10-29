@@ -98,6 +98,31 @@ namespace Game.Core.Tests
             CollectionAssert.AreEqual(new[] { "잃은 골드 없음" }, host.Lines);
         }
 
+        private sealed class RestEndRequest : IRestEndRequest
+        {
+            public int Requests;
+            public void RequestEnd() => Requests++;
+        }
+
+        [Test]
+        public void RestEnd_CallsRequest()
+        {
+            var host = new Host();
+            var request = new RestEndRequest();
+            Step(Start(new EventEffectCommands(new EventEffectServices { RestEnd = request, Warn = warnings.Add }, host).RestEnd()));
+            Assert.AreEqual(1, request.Requests);
+            CollectionAssert.AreEqual(new[] { EventEffectFormat.RestEnded }, host.Lines);
+        }
+
+        [Test]
+        public void RestEnd_NoService_Skips()
+        {
+            var host = new Host();
+            Assert.IsTrue(Step(Start(Commands(host).RestEnd())));
+            CollectionAssert.IsEmpty(host.Lines);
+            Assert.AreEqual(1, warnings.Count);
+        }
+
         [Test]
         public void Gold_Gain_ShowsPlus()
         {

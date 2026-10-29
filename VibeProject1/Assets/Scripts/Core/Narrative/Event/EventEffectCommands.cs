@@ -23,7 +23,15 @@ namespace Game.Core
         public ISessionState Session;
         public ITripClockAdjuster Clock;
         public EventRoadDifficultyEffects Road;
+        /// <summary>휴식 강제 종료(설계 109 §5.4) - 휴식 맥락에서만 채운다.</summary>
+        public IRestEndRequest RestEnd;
         public Action<string> Warn = _ => { };
+    }
+
+    /// <summary>휴식 이벤트가 그날 휴식을 끝내 달라고 요청한다(설계 109 §5.4). 대본은 끝까지 계속하고, 휴식 진행자가 이벤트 끝에 읽는다.</summary>
+    public interface IRestEndRequest
+    {
+        void RequestEnd();
     }
 
     /// <summary>
@@ -34,14 +42,23 @@ namespace Game.Core
     /// </summary>
     public sealed class EventEffectCommands
     {
-        private readonly EventEffectServices services;
+        private static readonly EventEffectServices NoServices = new();
+
+        private readonly Func<EventEffectServices> servicesOf;
         private readonly IEventEffectHost host;
 
-        public EventEffectCommands(EventEffectServices services, IEventEffectHost host)
+        public EventEffectCommands(EventEffectServices services, IEventEffectHost host) : this(() => services, host) { }
+
+        /// <summary>
+        /// 서비스를 명령 실행 때마다 읽는다 - 명령은 실행기에 한 번만 등록하지만 서비스 묶음은 맥락(상행·휴식)마다 다르다(라우터, 설계 109 §5.1).
+        /// </summary>
+        public EventEffectCommands(Func<EventEffectServices> servicesOf, IEventEffectHost host)
         {
-            this.services = services;
+            this.servicesOf = servicesOf;
             this.host = host;
         }
+
+        private EventEffectServices Services => servicesOf() ?? NoServices;
 
         public void Register(IDialogueCommandRegistry registry)
         {
@@ -53,6 +70,7 @@ namespace Game.Core
             registry.AddCommand(EventCommandSpecs.Difficulty, (Func<int, string, int, IEnumerator>)Difficulty);
             registry.AddCommand(EventCommandSpecs.Join, (Func<string, IEnumerator>)Join);
             registry.AddCommand(EventCommandSpecs.Leave, (Func<string, IEnumerator>)Leave);
+            registry.AddCommand(EventCommandSpecs.RestEnd, (Func<IEnumerator>)RestEnd);
             registry.AddFunction(EventCommandSpecs.GoldFunction, (Func<int>)OwnedGold);
             registry.AddFunction(EventCommandSpecs.GoodsFunction, (Func<string, int>)GoodsCount);
             registry.AddFunction(EventCommandSpecs.HiredFunction, (Func<string, bool>)IsHired);
@@ -69,13 +87,13 @@ namespace Game.Core
         public IEnumerator Gold(int amount)
         {
             if (!host.IsRunning) yield break;   // 도주·패배로 끝난 이벤트의 흘려보내는 대본 - 효과 없음
-            if (services.Gold == null)
+            if (Services.Gold == null)
             {
-                services.Warn("<<gold>>: 골드 서비스가 없다 - 건너뜀");
+                Services.Warn("<<gold>>: 골드 서비스가 없다 - 건너뜀");
                 yield break;
             }
             if (amount == 0) yield break;
-            var actual = amount > 0 ? services.Gold.Gain(amount) : -services.Gold.LoseUpTo(-amount);
+            var actual = amount > 0 ? Services.Gold.Gain(amount) : -Services.Gold.LoseUpTo(-amount);
             // 잃는 효과인데 가진 골드가 없으면 「골드 +0」이 아니라 없음 줄(설계 89 §5.1, 2026-10-16 검진).
             yield return Show(amount < 0 && actual == 0 ? EventEffectFormat.NoGoldLost : EventEffectFormat.Gold(actual));
         }
@@ -83,14 +101,14 @@ namespace Game.Core
         public IEnumerator GoodsAdd(string itemId, int count)
         {
             if (!host.IsRunning) yield break;   // 도주·패배로 끝난 이벤트의 흘려보내는 대본 - 효과 없음
-            if (services.Goods == null || count <= 0)
+            if (Services.Goods == null || count <= 0)
             {
-                services.Warn($"<<goods_add {itemId} {count}>>: 실행 불가 - 건너뜀");
+                Services.Warn($"<<goods_add {itemId} {count}>>: 실행 불가 - 건너뜀");
                 yield break;
             }
-            if (!services.Goods.TryAdd(itemId, count, out var name, out var staged))
+            if (!Services.Goods.TryAdd(itemId, count, out var name, out var staged))
             {
-                services.Warn($"<<goods_add>>: 없는 품목 '{itemId}' - 건너뜀");
+                Services.Warn($"<<goods_add>>: 없는 품목 '{itemId}' - 건너뜀");
                 yield break;
             }
             // 결과 줄을 먼저 보인다 - 정리 화면에서 버린 뒤에 획득 문구가 뜨면 부자연스럽다(설계 89 §5.1, 2026-10-16 보완 검진).
@@ -103,26 +121,26 @@ namespace Game.Core
             }
             else
             {
-                services.Warn("<<goods_add>>: 정리 화면이 없어 넘친 무역품이 임시 보관에 남는다(Tools > Game > Build Field Scene).");
+                Services.Warn("<<goods_add>>: 정리 화면이 없어 넘친 무역품이 임시 보관에 남는다(Tools > Game > Build Field Scene).");
             }
         }
 
         public IEnumerator GoodsRemove(string target, int count)
         {
             if (!host.IsRunning) yield break;   // 도주·패배로 끝난 이벤트의 흘려보내는 대본 - 효과 없음
-            if (services.Goods == null || count <= 0)
+            if (Services.Goods == null || count <= 0)
             {
-                services.Warn($"<<goods_remove {target} {count}>>: 실행 불가 - 건너뜀");
+                Services.Warn($"<<goods_remove {target} {count}>>: 실행 불가 - 건너뜀");
                 yield break;
             }
             if (target == EventCargoGoods.RandomTarget)
             {
-                yield return Show(EventEffectFormat.GoodsLost(services.Goods.RemoveRandom(count)));
+                yield return Show(EventEffectFormat.GoodsLost(Services.Goods.RemoveRandom(count)));
                 yield break;
             }
-            if (!services.Goods.TryRemove(target, count, out var name, out var removed))
+            if (!Services.Goods.TryRemove(target, count, out var name, out var removed))
             {
-                services.Warn($"<<goods_remove>>: 없는 품목 '{target}' - 건너뜀");
+                Services.Warn($"<<goods_remove>>: 없는 품목 '{target}' - 건너뜀");
                 yield break;
             }
             yield return Show(removed > 0 ? EventEffectFormat.GoodsLost(name, removed) : EventEffectFormat.GoodsNoneLost(name));
@@ -133,31 +151,31 @@ namespace Game.Core
             if (!host.IsRunning) yield break;   // 도주·패배로 끝난 이벤트의 흘려보내는 대본 - 효과 없음
             if (seconds > 0f)
             {
-                if (services.Session == null)
+                if (Services.Session == null)
                 {
-                    services.Warn("<<delay>>: 상행 시계가 없다 - 건너뜀");
+                    Services.Warn("<<delay>>: 상행 시계가 없다 - 건너뜀");
                     yield break;
                 }
-                services.Session.ExtendDuration(seconds);
+                Services.Session.ExtendDuration(seconds);
                 yield return Show(EventEffectFormat.Delayed(seconds));
             }
             else if (seconds < 0f)
             {
-                if (services.Clock == null)
+                if (Services.Clock == null)
                 {
-                    services.Warn("<<delay>>: 상행 시계 조정이 없다 - 건너뜀");
+                    Services.Warn("<<delay>>: 상행 시계 조정이 없다 - 건너뜀");
                     yield break;
                 }
-                yield return Show(EventEffectFormat.Shortened(services.Clock.ShortenDuration(-seconds)));
+                yield return Show(EventEffectFormat.Shortened(Services.Clock.ShortenDuration(-seconds)));
             }
         }
 
         public IEnumerator Difficulty(int change, string mode, int days = 0)
         {
             if (!host.IsRunning) yield break;   // 도주·패배로 끝난 이벤트의 흘려보내는 대본 - 효과 없음
-            if (services.Road == null || !services.Road.TryApply(change, mode, days, out var text))
+            if (Services.Road == null || !Services.Road.TryApply(change, mode, days, out var text))
             {
-                services.Warn($"<<difficulty {change} {mode} {days}>>: 실행 불가(진행 중 구간 없음·잘못된 방식) - 건너뜀");
+                Services.Warn($"<<difficulty {change} {mode} {days}>>: 실행 불가(진행 중 구간 없음·잘못된 방식) - 건너뜀");
                 yield break;
             }
             yield return Show(text);
@@ -166,41 +184,53 @@ namespace Game.Core
         public IEnumerator Join(string characterId)
         {
             if (!host.IsRunning) yield break;   // 도주·패배로 끝난 이벤트의 흘려보내는 대본 - 효과 없음
-            if (services.Roster == null)
+            if (Services.Roster == null)
             {
-                services.Warn("<<join>>: 고용 명단이 없다 - 건너뜀");
+                Services.Warn("<<join>>: 고용 명단이 없다 - 건너뜀");
                 yield break;
             }
-            var result = services.Roster.Join(characterId);
+            var result = Services.Roster.Join(characterId);
             if (result != RosterEffectResult.Done)
             {
-                services.Warn($"<<join {characterId}>>: {result} - 건너뜀");
+                Services.Warn($"<<join {characterId}>>: {result} - 건너뜀");
                 yield break;
             }
-            yield return Show(EventEffectFormat.Joined(services.Roster.NameOf(characterId)));
+            yield return Show(EventEffectFormat.Joined(Services.Roster.NameOf(characterId)));
         }
 
         public IEnumerator Leave(string characterId)
         {
             if (!host.IsRunning) yield break;   // 도주·패배로 끝난 이벤트의 흘려보내는 대본 - 효과 없음
-            if (services.Roster == null)
+            if (Services.Roster == null)
             {
-                services.Warn("<<leave>>: 고용 명단이 없다 - 건너뜀");
+                Services.Warn("<<leave>>: 고용 명단이 없다 - 건너뜀");
                 yield break;
             }
-            var name = services.Roster.NameOf(characterId);
-            var result = services.Roster.Leave(characterId);
+            var name = Services.Roster.NameOf(characterId);
+            var result = Services.Roster.Leave(characterId);
             if (result != RosterEffectResult.Done)
             {
-                services.Warn($"<<leave {characterId}>>: {result} - 건너뜀");
+                Services.Warn($"<<leave {characterId}>>: {result} - 건너뜀");
                 yield break;
             }
             yield return Show(EventEffectFormat.Left(name));
         }
 
-        public int OwnedGold() => services.Gold?.OwnedGold ?? 0;
-        public int GoodsCount(string itemId) => services.Goods?.CountOf(itemId) ?? 0;
-        public bool IsHired(string characterId) => services.Roster != null && services.Roster.IsHired(characterId);
+        public IEnumerator RestEnd()
+        {
+            if (!host.IsRunning) yield break;   // 도주·패배로 끝난 이벤트의 흘려보내는 대본 - 효과 없음
+            if (Services.RestEnd == null)
+            {
+                Services.Warn("<<rest_end>>: 휴식 맥락이 아니다 - 건너뜀");
+                yield break;
+            }
+            Services.RestEnd.RequestEnd();
+            yield return Show(EventEffectFormat.RestEnded);
+        }
+
+        public int OwnedGold() => Services.Gold?.OwnedGold ?? 0;
+        public int GoodsCount(string itemId) => Services.Goods?.CountOf(itemId) ?? 0;
+        public bool IsHired(string characterId) => Services.Roster != null && Services.Roster.IsHired(characterId);
 
         private IEnumerator Show(string text)
         {

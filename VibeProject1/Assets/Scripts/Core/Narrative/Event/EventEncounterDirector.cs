@@ -18,7 +18,27 @@ namespace Game.Core
         public ITripMilestoneSink Milestones;
         public IEventBattleRequester Battle;
         public IFieldUIHideControl UIHide;
+        /// <summary>효과 명령 맥락(설계 109 §5.1) - 시작에 Enter, 끝에 Exit. 없으면 효과 명령이 이 진행자를 보지 못한다(테스트·명령 없는 구성).</summary>
+        public IEventEffectRouter Router;
+        public EventEffectServices Services;
+        /// <summary>이 진행자가 고르는 이벤트(장소별 목록, 설계 109 §3.1). null이면 전체.</summary>
+        public IReadOnlyList<EventEntry> Candidates;
         public Action<string> Warn = _ => { };
+    }
+
+    /// <summary>이벤트 실행 하나의 끝(설계 109 §5.2) - 휴식 흐름 재개용. 결과 줄은 효과 결과 문구를 나온 순서대로 모은 것.</summary>
+    public readonly struct EventFinish
+    {
+        public string EventId { get; }
+        public bool Recorded { get; }
+        public IReadOnlyList<string> ResultLines { get; }
+
+        public EventFinish(string eventId, bool recorded, IReadOnlyList<string> resultLines)
+        {
+            EventId = eventId;
+            Recorded = recorded;
+            ResultLines = resultLines ?? Array.Empty<string>();
+        }
     }
 
     /// <summary>
@@ -43,6 +63,8 @@ namespace Game.Core
             public DialoguePlaybackController Playback;
             public EventPresentationTarget Target;
             public bool HadBattle;
+            public bool Started;   // 대본 실행까지 갔는지 - 실행 실패는 끝 알림을 내지 않는다(TryBegin이 false를 돌려준다)
+            public readonly List<string> ResultLines = new();
         }
 
         private readonly EventEncounterSources sources;
@@ -55,6 +77,7 @@ namespace Game.Core
         private bool modalOpen;
         private Run current;
         private Action battleWaiter;
+        private bool lastRunStarted;   // TryBegin 결과 - 대본 실행 실패는 시작 직후 Idle로 돌아와 phase만으로 구분되지 않는다
 
         public EventEncounterDirector(EventEncounterSources sources)
         {
@@ -65,10 +88,13 @@ namespace Game.Core
         public bool IsRunning => phase == Phase.Running;
         public string CurrentEventId => current?.Entry.Id;
         public event Action<string> EventStarted;
+        /// <summary>실행된 이벤트가 끝났다(정상·도주·패배). 실행 실패와 Abort는 알리지 않는다 - 부른 쪽이 이미 안다.</summary>
+        public event Action<EventFinish> Finished;
         public string PendingEventId => phase == Phase.Pending ? pendingEntry?.Id : null;
         public IReadOnlyList<EventEntry> QueuedEvents => queue.Snapshot();
 
         private bool HasScreens => screens != null && screens.IsAvailable;
+        private IReadOnlyList<EventEntry> CandidateEvents => sources.Candidates ?? sources.Content.Events;
 
         public void BindScreens(IEventEncounterScreens newScreens)
         {
@@ -90,15 +116,43 @@ namespace Game.Core
         public void OnEventCheck()
         {
             if (phase != Phase.Idle || !HasScreens) return;
-            var entry = EventEncounterSelector.PickForCheck(queue, sources.Content.Events, sources.History, sources.Conditions, sources.Context(), sources.Random01);
+            var entry = EventEncounterSelector.PickForCheck(queue, CandidateEvents, sources.History, sources.Conditions, sources.Context(), sources.Random01);
             if (entry != null) Begin(entry);
         }
 
         public bool DebugStart(string eventId)
+            => sources.Content.TryGetEvent(eventId, out var entry) && Contains(CandidateEvents, entry) && TryBegin(entry);
+
+        /// <summary>
+        /// 고른 이벤트를 조건·횟수 판정 없이 시작한다(설계 109 §5.2 - 휴식 흐름·디버그). 대본을 실행하지 못하면 false. 모달이 열려 있으면 대기로 들어가 true.
+        /// </summary>
+        public bool TryBegin(EventEntry entry)
         {
-            if (phase != Phase.Idle || !HasScreens || !sources.Content.TryGetEvent(eventId, out var entry)) return false;
+            if (entry == null || phase != Phase.Idle || !HasScreens) return false;
+            lastRunStarted = false;
             Begin(entry);
-            return true;
+            return phase != Phase.Idle || lastRunStarted;
+        }
+
+        /// <summary>
+        /// 실행 중 이벤트를 기록·신호·끝 알림 없이 끝낸다(상행 종료 방어, 휴식 비정상 종료 - 설계 109 §5.2). 남은 대본은 Yarn을 멈추지 않고 흘려보낸다(Drain).
+        /// 대기 중이면 대기만 푼다.
+        /// </summary>
+        public void Abort()
+        {
+            if (phase == Phase.Pending)
+            {
+                phase = Phase.Idle;
+                pendingEntry = null;
+                startRequested = false;
+                sources.Halt?.Release(TripHaltReason.EventPending);
+                return;
+            }
+            if (phase != Phase.Running) return;
+            var run = current;
+            var waiter = battleWaiter;
+            End(run, record: false, signal: false, notify: false);
+            Drain(run, waiter);
         }
 
         public void SetModalOpen(bool open)
@@ -120,11 +174,8 @@ namespace Game.Core
             else if (phase == Phase.Running && milestone == TripMilestone.TripEnded)
             {
                 // 정상 흐름에선 오지 않는다(이벤트 중 상행은 정지) - 방어적으로 끝낸다. 도주와 같은 종료 정리(가림·화면·상단 버튼)를 하되 기록·신호는 내지
-                // 않는다(끝까지 진행하지 않았고 상행도 끝났다). 남은 대본은 Yarn을 멈추지 않고 흘려보낸다(Drain 주석 참고).
-                var run = current;
-                var waiter = battleWaiter;
-                End(run, record: false, signal: false);
-                Drain(run, waiter);
+                // 않는다(끝까지 진행하지 않았고 상행도 끝났다).
+                Abort();
             }
         }
 
@@ -148,6 +199,7 @@ namespace Game.Core
                 onDone?.Invoke();
                 return;
             }
+            current.ResultLines.Add(text);
             current.Target.PresentResult(text, onDone);
         }
 
@@ -196,6 +248,7 @@ namespace Game.Core
                     // 패배 - 기록만 하고 정지·신호는 기존 패배 처리(상행 종료 신호가 원인을 비운다)에 맡긴다.
                     sources.HistoryWriter?.RecordCompleted(run.Entry.Id);
                     Reset();
+                    Finished?.Invoke(new EventFinish(run.Entry.Id, true, run.ResultLines));
                     Drain(run, waiter);
                     break;
             }
@@ -233,14 +286,19 @@ namespace Game.Core
             var run = new Run { Entry = entry, Playback = playback, Target = new EventPresentationTarget(playback, screens, speakers) };
             current = run;
             phase = Phase.Running;
+            sources.Router?.Enter(this, sources.Services);
             screens.SetEventControls(true);
             sources.UIHide?.Acquire(FieldUIHideReason.Event);
             screens.ShowDialogue();
             EventStarted?.Invoke(entry.Id);
 
+            run.Started = true;
+            lastRunStarted = true;
             if (!sources.Runner.TryRun(entry.YarnNode, run.Target, completed => HandleScriptFinished(run, completed)))
             {
                 sources.Warn($"이벤트 '{entry.Id}': Yarn 노드 '{entry.YarnNode}'를 실행하지 못했다.");
+                run.Started = false;
+                lastRunStarted = false;
                 End(run, record: false, signal: false);
             }
         }
@@ -251,7 +309,7 @@ namespace Game.Core
             End(run, record: completed, signal: true);
         }
 
-        private void End(Run run, bool record, bool signal)
+        private void End(Run run, bool record, bool signal, bool notify = true)
         {
             if (current != run) return;
             Reset();
@@ -264,9 +322,12 @@ namespace Game.Core
                 screens.SetEventControls(false);
             }
             sources.Halt?.Release(TripHaltReason.Event);
-            if (!signal) return;
-            sources.Milestones?.Raise(TripMilestone.EventEnded);
-            if (run.HadBattle) sources.Milestones?.Raise(TripMilestone.BattleEnded);
+            if (signal)
+            {
+                sources.Milestones?.Raise(TripMilestone.EventEnded);
+                if (run.HadBattle) sources.Milestones?.Raise(TripMilestone.BattleEnded);
+            }
+            if (notify && run.Started) Finished?.Invoke(new EventFinish(run.Entry.Id, record, run.ResultLines));
         }
 
         // 끝난 이벤트의 남은 대본을 흘려보낸다(EventPresentationTarget.Abort 요약 참고) - 전투 명령을 끝내 대본이 진행되게 하고, 남은 줄·선택지는 화면 없이 넘기며,
@@ -277,11 +338,19 @@ namespace Game.Core
             battleWaiter?.Invoke();
         }
 
+        // 효과 명령 맥락도 여기서 뺀다 - 끝난 이벤트의 남은 대본(Drain)이 효과를 내지 않게 하는 것이 이 Exit다.
         private void Reset()
         {
+            sources.Router?.Exit(this);
             current = null;
             phase = Phase.Idle;
             battleWaiter = null;
+        }
+
+        private static bool Contains(IReadOnlyList<EventEntry> list, EventEntry entry)
+        {
+            for (var i = 0; i < list.Count; i++) if (list[i] == entry) return true;
+            return false;
         }
 
         private void HandleFormationViewRequested()

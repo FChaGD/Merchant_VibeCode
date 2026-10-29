@@ -23,15 +23,15 @@ namespace Game.Core.Tests
         }
 
         [Test]
-        public void BlockReason_EqualGold_Allowed()
+        public void BlockReason_UsesCanAfford()
         {
-            Assert.IsNull(InnRestPlan.BlockReason(7, 10, 70));
+            var asked = 0;
+            Assert.IsNull(InnRestPlan.BlockReason(7, 10, amount => { asked = amount; return true; }));
+            Assert.AreEqual(70, asked, "총 비용으로 판정한다");
+            Assert.AreEqual(InnRestPlan.InsufficientGoldText, InnRestPlan.BlockReason(7, 10, _ => false));
         }
 
         [Test]
-        public void BlockReason_OneShort_Blocked()
-        {
-            Assert.AreEqual(InnRestPlan.InsufficientGoldText, InnRestPlan.BlockReason(7, 10, 69));
-        }
+        public void BlockReason_NoJudge_Blocked() => Assert.AreEqual(InnRestPlan.InsufficientGoldText, InnRestPlan.BlockReason(1, 10, null));
     }
 }

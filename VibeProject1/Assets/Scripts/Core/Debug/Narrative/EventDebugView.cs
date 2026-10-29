@@ -100,7 +100,7 @@ namespace Game.Core.DebugTools
             scroll = GUILayout.BeginScrollView(scroll);
             if (events != null && content != null)
             {
-                foreach (var entry in content.Events)
+                foreach (var entry in content.EventsAt(EventPlace.Trip))   // 휴식 이벤트는 Hub 휴식 디버그에서(설계 109 §3.1)
                 {
                     if (GUILayout.Button($"{entry.Id} ({entry.Occurrence}, {entry.Importance})")) events.DebugStart(entry.Id);
                 }

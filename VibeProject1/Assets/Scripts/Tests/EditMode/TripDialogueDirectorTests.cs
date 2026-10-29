@@ -11,6 +11,7 @@ namespace Game.Core.Tests
             public List<DialogueEntry> DialogueList = new();
             public List<PersonEntry> PeopleList = new();
             public IReadOnlyList<EventEntry> Events => Array.Empty<EventEntry>();
+            public IReadOnlyList<EventEntry> EventsAt(EventPlace place) => Array.Empty<EventEntry>();
             public IReadOnlyList<DialogueEntry> Dialogues => DialogueList;
             public IReadOnlyList<PersonEntry> People => PeopleList;
             public bool TryGetEvent(string id, out EventEntry entry) { entry = null; return false; }

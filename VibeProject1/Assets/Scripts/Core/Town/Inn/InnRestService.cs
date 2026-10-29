@@ -1,20 +1,21 @@
+using System;
 using UnityEngine;
 
 namespace Game.Core
 {
     /// <summary>
-    /// 숙소 휴식의 실제 상태 변경(Docs/설계/105번). 하루가 지날 때마다 개인 골드에서 1일 비용을 빼고 날짜를 하루 넘긴다 -
-    /// 결제는 기본 소지 골드만이라(기획 94 4-3) 골드 상자를 꺼내는 IGoldSpender가 아니라 지갑을 직접 쓴다.
-    /// 비용 부족은 숙소 화면이 확정 단계에서 막고 진행 중엔 재화 HUD 입력도 막혀 정상 경로에 없다 - 그래도 생기면 하루는 이미 지났으므로
-    /// 경고만 하고 날짜는 넘긴다. 회복은 보류(대상 없음, 기획 94 §6).
+    /// 숙소 휴식의 실제 상태 변경(Docs/설계/105번, 109번 §4.3). 하루 처리마다 1일 비용을 개인 골드 → 골드 상자 순으로 결제하고(IGoldSpender), 성공한 날만
+    /// 날짜를 넘기고 회복한다 - 결제 부족일은 미성립이라(기획 108 §3.3) 상태를 바꾸지 않고 흐름 객체가 휴식을 끝낸다.
+    /// 지출 계약이 없으면 경고 후 결제 없이 성립으로 본다(지갑 없음과 같은 성격). 회복 구현체는 지략·행정력 구현 때 생긴다(없으면 회복 없음).
     /// </summary>
     public class InnRestService : MonoBehaviour, IInnRestService, IManagedComponent
     {
         [SerializeField] private int costPerDay = 10;
 
         private readonly InnRestSession session = new();
-        private IPlayerCurrencyWallet wallet;
+        private IGoldSpender spender;
         private IDateAdvancer date;
+        private IRestDayRecovery recovery;
 
         public int CostPerDay => costPerDay;
 
@@ -22,23 +23,26 @@ namespace Game.Core
 
         public void ResolveDependencies(IDependencyResolver registrar)
         {
-            IPlayerCurrencyWallet resolvedWallet = null;
+            IGoldSpender resolvedSpender = null;
             IDateAdvancer resolvedDate = null;
+            IRestDayRecovery resolvedRecovery = null;
             if (registrar != null)
             {
-                registrar.TryResolve(out resolvedWallet);
+                registrar.TryResolve(out resolvedSpender);
                 registrar.TryResolve(out resolvedDate);
-                if (resolvedWallet == null) Debug.LogWarning($"{nameof(InnRestService)}: {nameof(IPlayerCurrencyWallet)}가 없어 휴식 비용을 청구하지 않는다(Tools > Game > Build Bootstrap Scene).");
+                registrar.TryResolve(out resolvedRecovery);
+                if (resolvedSpender == null) Debug.LogWarning($"{nameof(InnRestService)}: {nameof(IGoldSpender)}가 없어 휴식 비용을 청구하지 않는다(Tools > Game > Build Bootstrap Scene).");
                 if (resolvedDate == null) Debug.LogWarning($"{nameof(InnRestService)}: {nameof(IDateAdvancer)}가 없어 휴식으로 날짜가 지나지 않는다(Tools > Game > Build Bootstrap Scene).");
             }
-            Initialize(resolvedWallet, resolvedDate);
+            Initialize(resolvedSpender, resolvedDate, resolvedRecovery);
         }
 
         /// <summary>DI 없이 의존성을 넣는다(테스트용 겸 ResolveDependencies 공용 경로).</summary>
-        public void Initialize(IPlayerCurrencyWallet currencyWallet, IDateAdvancer dateAdvancer)
+        public void Initialize(IGoldSpender goldSpender, IDateAdvancer dateAdvancer, IRestDayRecovery dayRecovery)
         {
-            wallet = currencyWallet;
+            spender = goldSpender;
             date = dateAdvancer;
+            recovery = dayRecovery;
             session.End();
         }
 
@@ -48,26 +52,25 @@ namespace Game.Core
             if (!session.Begin(plannedDays)) Debug.LogWarning($"{nameof(InnRestService)}: 휴식 일수 {plannedDays}는 1 미만이라 시작하지 않는다.");
         }
 
-        public void AdvanceDay()
-        {
-            if (!session.TryAdvance())
-            {
-                Debug.LogWarning($"{nameof(InnRestService)}: 진행 중인 휴식이 없거나 예정 일수를 넘어 하루 경과를 무시한다.");
-                return;
-            }
+        public bool CanSettleDay => session.CanAdvance;
 
-            if (wallet != null && !wallet.TrySpend(costPerDay))
-            {
-                Debug.LogWarning($"{nameof(InnRestService)}: 개인 골드가 1일 비용 {costPerDay}보다 적어 청구하지 못했다(날짜는 진행).");
-            }
+        public RestDaySettlement SettleDay()
+        {
+            // 흐름 객체가 CanSettleDay를 확인하고 부른다 - 여기 오면 호출 순서 오류다. 결과 값으로 돌려주면 "골드 부족" 종료와 구분되지 않는다.
+            if (!session.CanAdvance) throw new InvalidOperationException($"{nameof(InnRestService)}: 진행 중인 휴식이 없거나 예정 일수를 넘어 하루 처리를 할 수 없다.");
+            if (spender != null && !spender.TrySpend(costPerDay)) return RestDaySettlement.InsufficientGold;
+
+            session.TryAdvance();
             date?.AdvanceDays(1);
+            recovery?.RecoverOneDay();
+            return RestDaySettlement.Paid;
         }
 
         public void EndRest(int restedDays)
         {
             if (session.IsActive && restedDays != session.ElapsedDays)
             {
-                Debug.LogWarning($"{nameof(InnRestService)}: 종료 일수 {restedDays}가 실제 경과 {session.ElapsedDays}일과 다르다(반영은 경과 시점 기준).");
+                Debug.LogWarning($"{nameof(InnRestService)}: 종료 일수 {restedDays}가 실제 성립 {session.ElapsedDays}일과 다르다(반영은 성립 시점 기준).");
             }
             session.End();
         }

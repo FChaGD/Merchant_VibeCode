@@ -144,18 +144,11 @@ namespace Game.Core
                 return;
             }
 
-            var spec = InventoryPopupSpecs.TradeGoods;
-            var ok = InventoryArrangementElements.TryBind(sceneUIRoot, FieldCargoRecoveryUIElementIds.InventoryPrefix, spec.HasStaging, spec.HasSections, out var elements)
-                & InventoryArrangementElements.TryGet(sceneUIRoot, FieldCargoRecoveryUIElementIds.DoneButton, out UnityEngine.UI.Button doneButton)
-                & InventoryArrangementElements.TryGet(sceneUIRoot, FieldCargoRecoveryUIElementIds.ConfirmDialog, out ConfirmDialogView dialog);
-            if (!ok)
+            cargoRecoveryPanel = FieldCargoRecoveryPanel.TryCreate(sceneUIRoot, panelRegistrar, inventory, settlement, input, goldItemInfo, questCargoWarnings);
+            if (cargoRecoveryPanel == null)
             {
                 Debug.LogWarning("회수 적재 패널 화면 요소가 없어 등록하지 못했다 - 전투 후 회수 적재 단계를 건너뛴다(Tools > Game > Build Field Scene).");
-                return;
             }
-
-            cargoRecoveryPanel = new FieldCargoRecoveryPanel(elements, doneButton, dialog, inventory, settlement, input, goldItemInfo, questCargoWarnings);
-            panelRegistrar.RegisterPopupPanel(cargoRecoveryPanel);
         }
 
         // 퀘스트 보상 정리 화면(설계 107번 §8.3) - 회수 적재 패널을 그대로 쓴다. 퀘스트가 없으면(Bootstrap 미재빌드) 만들지 않는다.
@@ -197,20 +190,11 @@ namespace Game.Core
         private void BindEventEncounter(IDependencyResolver registrar, SceneUIRoot sceneUIRoot, IUIManager uiManager, IPanelRegistrar panelRegistrar, IFieldTopButtons fieldUIController, IFormationViewOnlyMode viewOnly)
         {
             if (!registrar.TryResolve<IEventEncounterViewBinder>(out var binder)) return;
-            var ok = sceneUIRoot.TryGetElement(FieldEventUIElementIds.DialogueRoot, out FieldEventDialogueView dialogue)
-                & sceneUIRoot.TryGetElement(FieldEventUIElementIds.ChoiceRoot, out FieldEventChoiceView choice);
-            if (!ok)
+            if (!FieldEventScreens.TryCreate(sceneUIRoot, uiManager, panelRegistrar, cargoRecoveryPanel, fieldUIController, viewOnly, formationButtonVisible: true, out var screens))
             {
                 Debug.LogWarning("이벤트 화면 요소가 없어 이벤트가 발생하지 않는다(Tools > Game > Build Field Scene).");
-                binder.BindScreens(null);
-                return;
             }
-
-            var dialoguePanel = new ViewRootPanel(UIPanelIds.EventDialogue, dialogue.gameObject);
-            var choicePanel = new ViewRootPanel(UIPanelIds.EventChoice, choice.gameObject);
-            panelRegistrar.RegisterPopupPanel(dialoguePanel);
-            panelRegistrar.RegisterPopupPanel(choicePanel);
-            binder.BindScreens(new FieldEventScreens(uiManager, dialogue, choice, dialoguePanel, choicePanel, cargoRecoveryPanel, fieldUIController, viewOnly));
+            binder.BindScreens(screens);
         }
 
         // 이벤트 중 이동 뷰 가림(설계 89 §13.2) - Hub와 같은 레이어 숨김 규칙 게이트에 규칙으로 등록한다(Docs/Refactor/2026-10-26_공통.md B-4).
